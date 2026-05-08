@@ -1,0 +1,48 @@
+<UserControl x:Class="FrameHub.App.Views.LogsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Style="{StaticResource CardBorder}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Width="38" Height="38" CornerRadius="13" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,12,0">
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource BrushPrimary}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ActivityTitle}" Style="{StaticResource SectionTitleText}" />
+                    <TextBlock Text="Runtime activity, watcher events and profile application history." Style="{StaticResource SmallMutedText}" Margin="0,3,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding OpenFolderText}" Command="{Binding OpenLogFolderCommand}" Margin="0,0,8,0" />
+                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding ClearText}" Command="{Binding ClearActivityCommand}" />
+                </StackPanel>
+            </Grid>
+
+            <ListBox Grid.Row="1" ItemsSource="{Binding Activity}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{StaticResource BrushSurfaceAlt}" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="13" Margin="0,0,0,10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Time}" Style="{StaticResource SmallMutedText}" />
+                                <TextBlock Grid.Column="1" Text="{Binding Message}" TextWrapping="Wrap" Margin="0,0,0,0" FontWeight="SemiBold" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+    </Border>
+</UserControl>

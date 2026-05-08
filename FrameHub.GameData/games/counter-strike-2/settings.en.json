@@ -1,0 +1,534 @@
+{
+  "gameId": "counter-strike-2",
+  "language": "en-US",
+  "settings": [
+    {
+      "id": "cs2.resolution",
+      "displayName": "Resolution",
+      "description": "Common competitive resolutions.",
+      "category": "video",
+      "type": "composite",
+      "keys": [
+        "setting.defaultres",
+        "setting.defaultresheight",
+        "setting.aspectratiomode"
+      ],
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "1920x1080_16_9",
+          "label": "1920x1080 (16:9)",
+          "value": "1920x1080|1",
+          "values": {
+            "setting.defaultres": "1920",
+            "setting.defaultresheight": "1080",
+            "setting.aspectratiomode": "1"
+          }
+        },
+        {
+          "id": "1440x1080_4_3",
+          "label": "1440x1080 (4:3)",
+          "value": "1440x1080|0",
+          "values": {
+            "setting.defaultres": "1440",
+            "setting.defaultresheight": "1080",
+            "setting.aspectratiomode": "0"
+          }
+        },
+        {
+          "id": "1280x960_4_3",
+          "label": "1280x960 (4:3)",
+          "value": "1280x960|0",
+          "values": {
+            "setting.defaultres": "1280",
+            "setting.defaultresheight": "960",
+            "setting.aspectratiomode": "0"
+          }
+        },
+        {
+          "id": "1680x1050_16_10",
+          "label": "1680x1050 (16:10)",
+          "value": "1680x1050|2",
+          "values": {
+            "setting.defaultres": "1680",
+            "setting.defaultresheight": "1050",
+            "setting.aspectratiomode": "2"
+          }
+        },
+        {
+          "id": "1024x768_4_3",
+          "label": "1024x768 (4:3)",
+          "value": "1024x768|0",
+          "values": {
+            "setting.defaultres": "1024",
+            "setting.defaultresheight": "768",
+            "setting.aspectratiomode": "0"
+          }
+        },
+        {
+          "id": "1280x1024_5_4",
+          "label": "1280x1024 (5:4; CS2 shows 4:3)",
+          "value": "1280x1024|0",
+          "values": {
+            "setting.defaultres": "1280",
+            "setting.defaultresheight": "1024",
+            "setting.aspectratiomode": "0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cs2.display_mode",
+      "displayName": "Display Mode",
+      "description": "Fullscreen is recommended for performance; borderless is a comfort preference.",
+      "category": "video",
+      "type": "composite",
+      "keys": [
+        "setting.fullscreen",
+        "setting.nowindowborder"
+      ],
+      "targetFile": "video",
+      "optional": true,
+      "canApply": true,
+      "options": [
+        {
+          "id": "fullscreen",
+          "label": "Fullscreen",
+          "value": "fullscreen",
+          "values": {
+            "setting.fullscreen": "1",
+            "setting.nowindowborder": "0"
+          }
+        },
+        {
+          "id": "borderless",
+          "label": "Borderless fullscreen",
+          "value": "borderless",
+          "values": {
+            "setting.fullscreen": "0",
+            "setting.nowindowborder": "1"
+          }
+        },
+        {
+          "id": "windowed",
+          "label": "Windowed",
+          "value": "windowed",
+          "values": {
+            "setting.fullscreen": "0",
+            "setting.nowindowborder": "0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "r_player_visibility_mode",
+      "displayName": "Boost Player Contrast",
+      "description": "Improves player contrast and model visibility.",
+      "category": "video",
+      "type": "single",
+      "key": "r_player_visibility_mode",
+      "targetFile": "machine",
+      "canApply": true,
+      "options": [
+        {
+          "id": "off",
+          "label": "Disabled",
+          "value": "0"
+        },
+        {
+          "id": "on",
+          "label": "Enabled",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "setting.mat_vsync",
+      "displayName": "Vertical Sync",
+      "description": "V-Sync should stay disabled for lower input latency.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.mat_vsync",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "off",
+          "label": "Disabled",
+          "value": "0"
+        },
+        {
+          "id": "on",
+          "label": "Enabled",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "setting.r_low_latency",
+      "displayName": "AMD Anti-Lag 2.0 / Low Latency",
+      "description": "Low-latency option exposed by CS2 / driver integration.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.r_low_latency",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "off",
+          "label": "Disabled",
+          "value": "0"
+        },
+        {
+          "id": "on",
+          "label": "Enabled",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "cs2.msaa_mode",
+      "displayName": "Multisampling Anti-Aliasing Mode",
+      "description": "Anti-aliasing smooths edges but can reduce FPS.",
+      "category": "video",
+      "type": "composite",
+      "keys": [
+        "setting.msaa_samples",
+        "setting.r_csgo_cmaa_enable"
+      ],
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "none",
+          "label": "Żaden",
+          "value": "none",
+          "values": {
+            "setting.msaa_samples": "0",
+            "setting.r_csgo_cmaa_enable": "0"
+          }
+        },
+        {
+          "id": "cmaa2",
+          "label": "CMAA2",
+          "value": "cmaa2",
+          "values": {
+            "setting.msaa_samples": "0",
+            "setting.r_csgo_cmaa_enable": "1"
+          }
+        },
+        {
+          "id": "2x",
+          "label": "2X MSAA",
+          "value": "2x",
+          "values": {
+            "setting.msaa_samples": "2",
+            "setting.r_csgo_cmaa_enable": "0"
+          }
+        },
+        {
+          "id": "4x",
+          "label": "4X MSAA",
+          "value": "4x",
+          "values": {
+            "setting.msaa_samples": "4",
+            "setting.r_csgo_cmaa_enable": "0"
+          }
+        },
+        {
+          "id": "8x",
+          "label": "8X MSAA",
+          "value": "8x",
+          "values": {
+            "setting.msaa_samples": "8",
+            "setting.r_csgo_cmaa_enable": "0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_shadow_quality",
+      "displayName": "Global Shadow Quality",
+      "description": "Lower shadow quality usually improves FPS.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_shadow_quality",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "low",
+          "label": "Low",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "High",
+          "value": "2"
+        },
+        {
+          "id": "very_high",
+          "label": "Very High",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_dynamic_shadows",
+      "displayName": "Dynamic Shadows",
+      "description": "All dynamic shadows can help visibility; limited shadows may be faster.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_dynamic_shadows",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "limited",
+          "label": "Sun only / limited",
+          "value": "0"
+        },
+        {
+          "id": "all",
+          "label": "All",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_texture_detail",
+      "displayName": "Model / Texture Detail",
+      "description": "Lower model and texture detail reduces rendering load.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_texture_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "low",
+          "label": "Low",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "High",
+          "value": "2"
+        },
+        {
+          "id": "very_high",
+          "label": "Very High",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "setting.r_texturefilteringquality",
+      "displayName": "Texture Filtering Mode",
+      "description": "Texture filtering affects texture sharpness at angles.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.r_texturefilteringquality",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "bilinear",
+          "label": "Bilinear",
+          "value": "0"
+        },
+        {
+          "id": "trilinear",
+          "label": "Trilinear",
+          "value": "1"
+        },
+        {
+          "id": "anisotropic_2x",
+          "label": "Anisotropic 2X",
+          "value": "2"
+        },
+        {
+          "id": "anisotropic_4x",
+          "label": "Anisotropic 4X",
+          "value": "3"
+        },
+        {
+          "id": "anisotropic_8x",
+          "label": "Anisotropic 8X",
+          "value": "4"
+        },
+        {
+          "id": "anisotropic_16x",
+          "label": "Anisotropic 16X",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "id": "setting.shaderquality",
+      "displayName": "Shader Detail",
+      "description": "Lower shader detail reduces GPU overhead.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.shaderquality",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "low",
+          "label": "Low",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "High",
+          "value": "2"
+        },
+        {
+          "id": "very_high",
+          "label": "Very High",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_particle_detail",
+      "displayName": "Particle Detail",
+      "description": "Lower particle detail reduces effects overhead.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_particle_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "low",
+          "label": "Low",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "High",
+          "value": "2"
+        },
+        {
+          "id": "very_high",
+          "label": "Very High",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_ao_detail",
+      "displayName": "Ambient Occlusion",
+      "description": "Ambient occlusion adds contact shadows and costs performance.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_ao_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "off",
+          "label": "Off",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "High",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_hdr_detail",
+      "displayName": "High Dynamic Range",
+      "description": "HDR quality/performance preference.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_hdr_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "performance",
+          "label": "Performance",
+          "value": "0"
+        },
+        {
+          "id": "quality",
+          "label": "Quality",
+          "value": "-1"
+        },
+        {
+          "id": "quality_alt",
+          "label": "Quality",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_fsr_detail",
+      "displayName": "FidelityFX Super Resolution",
+      "description": "FSR can improve FPS at the cost of image clarity.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_fsr_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "ultra_performance",
+          "label": "Ultra Performance",
+          "value": "4"
+        },
+        {
+          "id": "performance",
+          "label": "Performance",
+          "value": "3"
+        },
+        {
+          "id": "balanced",
+          "label": "Balanced",
+          "value": "2"
+        },
+        {
+          "id": "quality",
+          "label": "Quality",
+          "value": "1"
+        },
+        {
+          "id": "disabled_highest_quality",
+          "label": "Disabled (Highest Quality)",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+<UserControl x:Class="FrameHub.App.Views.ProfilesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1.15*" />
+            <ColumnDefinition Width="0.85*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,16,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Width="38" Height="38" CornerRadius="13" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,12,0">
+                        <TextBlock Text="&#xE734;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource BrushPrimary}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding SavedProfilesTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="Saved process rules applied by the background watcher." Style="{StaticResource SmallMutedText}" Margin="0,3,0,0" />
+                    </StackPanel>
+                </Grid>
+                <DataGrid Grid.Row="1"
+                          ItemsSource="{Binding Profiles}"
+                          SelectedItem="{Binding SelectedProfile, Mode=TwoWay}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          HeadersVisibility="Column"
+                          EnableRowVirtualization="True"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          VirtualizingPanel.VirtualizationMode="Recycling">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{Binding DataContext.NameHeader, RelativeSource={RelativeSource AncestorType=DataGrid}}" Binding="{Binding ProcessName}" Width="*" />
+                        <DataGridTextColumn Header="{Binding DataContext.ModeHeader, RelativeSource={RelativeSource AncestorType=DataGrid}}" Binding="{Binding OptimizationMode}" Width="140" />
+                        <DataGridTextColumn Header="{Binding DataContext.PriorityHeader, RelativeSource={RelativeSource AncestorType=DataGrid}}" Binding="{Binding DisplayPriority}" Width="150" />
+                        <DataGridCheckBoxColumn Header="{Binding DataContext.EnabledHeader, RelativeSource={RelativeSource AncestorType=DataGrid}}" Binding="{Binding IsEnabled}" Width="95" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+
+        <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+            <StackPanel>
+                <Grid Margin="0,0,0,18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Width="38" Height="38" CornerRadius="13" Background="#142642" Margin="0,0,12,0">
+                        <TextBlock Text="&#xE8A5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource BrushCyan}" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ProfileDetailsTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="Watcher-ready automation profile." Style="{StaticResource SmallMutedText}" Margin="0,3,0,0" />
+                    </StackPanel>
+                </Grid>
+
+                <Border Style="{StaticResource HeroCardBorder}" Margin="0,0,0,16">
+                    <TextBlock Text="{Binding SelectedProfileDescription}" TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" LineHeight="20" />
+                </Border>
+
+                <Border Style="{StaticResource SoftCardBorder}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Ellipse Width="9" Height="9" Fill="{StaticResource BrushSuccess}" Margin="0,0,8,0" />
+                            <TextBlock Text="Background watcher stays active even when FrameHub is minimized." Style="{StaticResource SmallMutedText}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="9" Height="9" Fill="{StaticResource BrushPrimary}" Margin="0,0,8,0" />
+                            <TextBlock Text="Profiles are stored separately from Process Core Optimizer." Style="{StaticResource SmallMutedText}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding ApplyButtonText}" Command="{Binding ApplyProfileCommand}" Margin="0,0,10,0" />
+                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding DeleteButtonText}" Command="{Binding DeleteProfileCommand}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

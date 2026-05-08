@@ -1,0 +1,68 @@
+<UserControl x:Class="FrameHub.App.Views.PlaceholderView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.08*" />
+                <ColumnDefinition Width="0.92*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource HeroCardBorder}" Margin="0,0,16,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Style="{StaticResource BadgeBorder}" Background="{StaticResource BrushPrimarySoft}">
+                            <TextBlock Text="{Binding Status}" Foreground="{StaticResource BrushPrimary}" FontWeight="Bold" FontSize="11" />
+                        </Border>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding Title}" FontSize="32" FontWeight="SemiBold" Margin="0,26,0,0" />
+                    <TextBlock Text="{Binding Description}" Style="{StaticResource PageSubtitleText}" TextWrapping="Wrap" Margin="0,12,0,28" />
+
+                    <Border Style="{StaticResource SoftCardBorder}" Background="#0E1A2F">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="38" Height="38" CornerRadius="13" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,14,0">
+                                <TextBlock Text="&#xE946;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource BrushPrimary}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{Binding CurrentStateTitle}" FontSize="18" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding CurrentStateDescription}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="{Binding PlannedCapabilitiesTitle}" Style="{StaticResource SectionTitleText}" />
+                    <ItemsControl ItemsSource="{Binding PlannedItems}" Margin="0,18,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource BrushSurfaceAlt}" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="13" Margin="0,0,0,10">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="22" Height="22" CornerRadius="8" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,12,0">
+                                            <TextBlock Text="✓" FontSize="12" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Style="{StaticResource SoftCardBorder}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SafetyRuleTitle}" FontSize="16" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding SafetyRuleDescription}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

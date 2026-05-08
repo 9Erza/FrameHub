@@ -1,0 +1,35 @@
+{
+  "gameId": "counter-strike-2",
+  "presets": [
+    {
+      "id": "cs2_latest_backup",
+      "displayName": "Backup",
+      "description": "Wartości z ostatniego backupu FrameHub. Użyj do porównania albo przywrócenia wybranych ustawień.",
+      "type": "backup",
+      "settings": {}
+    },
+    {
+      "id": "cs2_competitive_baseline",
+      "displayName": "Competitive Baseline",
+      "description": "Baseline oparty na ustawieniach competitive Eryka. Zachowuje wartości low-latency i obraz ustawiony pod FPS; rekomenduje pełny ekran zamiast borderless.",
+      "type": "recommended",
+      "settings": {
+        "cs2.resolution": "1280x960_4_3",
+        "cs2.display_mode": "fullscreen",
+        "r_player_visibility_mode": "on",
+        "setting.mat_vsync": "off",
+        "setting.r_low_latency": "on",
+        "cs2.msaa_mode": "2x",
+        "setting.videocfg_shadow_quality": "low",
+        "setting.videocfg_dynamic_shadows": "all",
+        "setting.videocfg_texture_detail": "low",
+        "setting.r_texturefilteringquality": "anisotropic_2x",
+        "setting.shaderquality": "low",
+        "setting.videocfg_particle_detail": "low",
+        "setting.videocfg_ao_detail": "off",
+        "setting.videocfg_hdr_detail": "quality",
+        "setting.videocfg_fsr_detail": "disabled_highest_quality"
+      }
+    }
+  ]
+}

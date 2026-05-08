@@ -1,0 +1,11 @@
+using WpfUserControl = System.Windows.Controls.UserControl;
+
+namespace FrameHub.App.Views;
+
+public partial class ProcessesView : WpfUserControl
+{
+    public ProcessesView()
+    {
+        InitializeComponent();
+    }
+}

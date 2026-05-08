@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "dataVersion": "2026.05.08.1",
+  "minimumFrameHubVersion": "0.3.1",
+  "games": [
+    {
+      "id": "counter-strike-2",
+      "displayName": "Counter-Strike 2",
+      "version": "1.0.0",
+      "files": {
+        "game": "games/counter-strike-2/game.json",
+        "settingsPl": "games/counter-strike-2/settings.pl.json",
+        "settingsEn": "games/counter-strike-2/settings.en.json",
+        "presets": "games/counter-strike-2/presets.json"
+      }
+    }
+  ]
+}

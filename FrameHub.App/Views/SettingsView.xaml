@@ -1,0 +1,107 @@
+<UserControl x:Class="FrameHub.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
+            <Grid Margin="0,0,0,18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitleText}" FontSize="26" />
+                    <TextBlock Text="{Binding Subtitle}" Style="{StaticResource SmallMutedText}" Margin="0,5,0,0" />
+                </StackPanel>
+                <Border Grid.Column="1" Style="{StaticResource SoftCardBorder}" Padding="14,8" VerticalAlignment="Top">
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource BrushTextSecondary}" FontWeight="SemiBold" />
+                </Border>
+            </Grid>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <Border Style="{StaticResource SoftCardBorder}" Padding="22" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="{Binding LanguageTitle}" Style="{StaticResource SectionTitleText}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                <RadioButton Content="{Binding EnglishLabel}" IsChecked="{Binding IsEnglish, Mode=TwoWay}" Style="{StaticResource PillRadioButton}" Margin="0,0,10,0" />
+                                <RadioButton Content="{Binding PolishLabel}" IsChecked="{Binding IsPolish, Mode=TwoWay}" Style="{StaticResource PillRadioButton}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource SoftCardBorder}" Padding="22" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="{Binding StartupTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding StartWithWindowsLabel}" IsChecked="{Binding StartWithWindows, Mode=TwoWay}" Margin="0,0,0,12" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding RunAsAdminLabel}" IsChecked="{Binding RunAsAdministrator, Mode=TwoWay}" Margin="0,0,0,12" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding StartMinimizedLabel}" IsChecked="{Binding StartMinimized, Mode=TwoWay}" Margin="0,0,0,16" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource SecondaryButton}" Content="{Binding RestartAsAdminText}" Command="{Binding RestartAsAdminCommand}" />
+                                <TextBlock Text="{Binding AdminStatus}" Style="{StaticResource SmallMutedText}" Margin="14,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource SoftCardBorder}" Padding="22">
+                        <StackPanel>
+                            <TextBlock Text="{Binding BehaviorTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding MinimizeToTrayLabel}" IsChecked="{Binding MinimizeToTray, Mode=TwoWay}" Margin="0,0,0,12" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding CloseToTrayLabel}" IsChecked="{Binding CloseToTray, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                    <Border Style="{StaticResource SoftCardBorder}" Padding="22" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="{Binding LoggingTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding LogEnabledLabel}" IsChecked="{Binding LogEnabled, Mode=TwoWay}" Margin="0,0,0,12" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding CheckUpdatesLabel}" IsChecked="{Binding CheckForUpdates, Mode=TwoWay}" Margin="0,0,0,16" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource SecondaryButton}" Content="{Binding CheckUpdatesText}" Command="{Binding CheckUpdatesCommand}" Margin="0,0,10,0" />
+                                <Button Style="{StaticResource GhostButton}" Content="{Binding OpenLogsText}" Command="{Binding OpenLogsCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource SoftCardBorder}" Padding="22" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SafetyTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding AllowRealtimeLabel}" IsChecked="{Binding AllowRealtimePriority, Mode=TwoWay}" Margin="0,0,0,12" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding StorageSensorsLabel}" IsChecked="{Binding EnableStorageSensors, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource SoftCardBorder}" Padding="22">
+                        <StackPanel>
+                            <TextBlock Text="{Binding DiagnosticsTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14" />
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding ProcessRefreshLabel}" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding ProcessListRefreshSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding WatcherRefreshLabel}" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding ProfileWatcherSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding HardwareRefreshLabel}" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding HardwareRefreshSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+                            <Button Style="{StaticResource GhostButton}" Content="{Binding OpenAppDataText}" Command="{Binding OpenAppDataCommand}" HorizontalAlignment="Left" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

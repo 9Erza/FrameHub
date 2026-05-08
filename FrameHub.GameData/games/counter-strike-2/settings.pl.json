@@ -1,0 +1,534 @@
+{
+  "gameId": "counter-strike-2",
+  "language": "pl-PL",
+  "settings": [
+    {
+      "id": "cs2.resolution",
+      "displayName": "Rozdzielczość",
+      "description": "Najczęściej używane rozdzielczości competitive.",
+      "category": "video",
+      "type": "composite",
+      "keys": [
+        "setting.defaultres",
+        "setting.defaultresheight",
+        "setting.aspectratiomode"
+      ],
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "1920x1080_16_9",
+          "label": "1920x1080 (16:9)",
+          "value": "1920x1080|1",
+          "values": {
+            "setting.defaultres": "1920",
+            "setting.defaultresheight": "1080",
+            "setting.aspectratiomode": "1"
+          }
+        },
+        {
+          "id": "1440x1080_4_3",
+          "label": "1440x1080 (4:3)",
+          "value": "1440x1080|0",
+          "values": {
+            "setting.defaultres": "1440",
+            "setting.defaultresheight": "1080",
+            "setting.aspectratiomode": "0"
+          }
+        },
+        {
+          "id": "1280x960_4_3",
+          "label": "1280x960 (4:3)",
+          "value": "1280x960|0",
+          "values": {
+            "setting.defaultres": "1280",
+            "setting.defaultresheight": "960",
+            "setting.aspectratiomode": "0"
+          }
+        },
+        {
+          "id": "1680x1050_16_10",
+          "label": "1680x1050 (16:10)",
+          "value": "1680x1050|2",
+          "values": {
+            "setting.defaultres": "1680",
+            "setting.defaultresheight": "1050",
+            "setting.aspectratiomode": "2"
+          }
+        },
+        {
+          "id": "1024x768_4_3",
+          "label": "1024x768 (4:3)",
+          "value": "1024x768|0",
+          "values": {
+            "setting.defaultres": "1024",
+            "setting.defaultresheight": "768",
+            "setting.aspectratiomode": "0"
+          }
+        },
+        {
+          "id": "1280x1024_5_4",
+          "label": "1280x1024 (5:4; CS2 pokazuje jako 4:3)",
+          "value": "1280x1024|0",
+          "values": {
+            "setting.defaultres": "1280",
+            "setting.defaultresheight": "1024",
+            "setting.aspectratiomode": "0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cs2.display_mode",
+      "displayName": "Tryb wyświetlania",
+      "description": "Pełny ekran jest rekomendowany pod wydajność; borderless to wygodna preferencja.",
+      "category": "video",
+      "type": "composite",
+      "keys": [
+        "setting.fullscreen",
+        "setting.nowindowborder"
+      ],
+      "targetFile": "video",
+      "optional": true,
+      "canApply": true,
+      "options": [
+        {
+          "id": "fullscreen",
+          "label": "Pełny ekran",
+          "value": "fullscreen",
+          "values": {
+            "setting.fullscreen": "1",
+            "setting.nowindowborder": "0"
+          }
+        },
+        {
+          "id": "borderless",
+          "label": "Pełny ekran bez obramowania",
+          "value": "borderless",
+          "values": {
+            "setting.fullscreen": "0",
+            "setting.nowindowborder": "1"
+          }
+        },
+        {
+          "id": "windowed",
+          "label": "Okno",
+          "value": "windowed",
+          "values": {
+            "setting.fullscreen": "0",
+            "setting.nowindowborder": "0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "r_player_visibility_mode",
+      "displayName": "Zwiększ kontrast graczy",
+      "description": "Poprawia kontrast i widoczność modeli graczy.",
+      "category": "video",
+      "type": "single",
+      "key": "r_player_visibility_mode",
+      "targetFile": "machine",
+      "canApply": true,
+      "options": [
+        {
+          "id": "off",
+          "label": "Wyłączony",
+          "value": "0"
+        },
+        {
+          "id": "on",
+          "label": "Włączony",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "setting.mat_vsync",
+      "displayName": "Synchronizacja Pionowa",
+      "description": "V-Sync powinien zostać wyłączony dla niższego input laga.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.mat_vsync",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "off",
+          "label": "Wyłączony",
+          "value": "0"
+        },
+        {
+          "id": "on",
+          "label": "Włączony",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "setting.r_low_latency",
+      "displayName": "AMD Anti-Lag 2.0 / Low Latency",
+      "description": "Opcja niskiego opóźnienia udostępniona przez CS2 / sterownik.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.r_low_latency",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "off",
+          "label": "Wyłączony",
+          "value": "0"
+        },
+        {
+          "id": "on",
+          "label": "Włączony",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "cs2.msaa_mode",
+      "displayName": "Tryb antyaliasingu (multisampling)",
+      "description": "Antyaliasing wygładza krawędzie, ale może obniżać FPS.",
+      "category": "video",
+      "type": "composite",
+      "keys": [
+        "setting.msaa_samples",
+        "setting.r_csgo_cmaa_enable"
+      ],
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "none",
+          "label": "Żaden",
+          "value": "none",
+          "values": {
+            "setting.msaa_samples": "0",
+            "setting.r_csgo_cmaa_enable": "0"
+          }
+        },
+        {
+          "id": "cmaa2",
+          "label": "CMAA2",
+          "value": "cmaa2",
+          "values": {
+            "setting.msaa_samples": "0",
+            "setting.r_csgo_cmaa_enable": "1"
+          }
+        },
+        {
+          "id": "2x",
+          "label": "2X MSAA",
+          "value": "2x",
+          "values": {
+            "setting.msaa_samples": "2",
+            "setting.r_csgo_cmaa_enable": "0"
+          }
+        },
+        {
+          "id": "4x",
+          "label": "4X MSAA",
+          "value": "4x",
+          "values": {
+            "setting.msaa_samples": "4",
+            "setting.r_csgo_cmaa_enable": "0"
+          }
+        },
+        {
+          "id": "8x",
+          "label": "8X MSAA",
+          "value": "8x",
+          "values": {
+            "setting.msaa_samples": "8",
+            "setting.r_csgo_cmaa_enable": "0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_shadow_quality",
+      "displayName": "Ogólna jakość cieni",
+      "description": "Niższa jakość cieni zwykle poprawia FPS.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_shadow_quality",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "low",
+          "label": "Niskie",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Średnie",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "Wysokie",
+          "value": "2"
+        },
+        {
+          "id": "very_high",
+          "label": "Bardzo wysokie",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_dynamic_shadows",
+      "displayName": "Dynamiczne cienie",
+      "description": "Wszystkie dynamiczne cienie mogą pomagać w widoczności; ograniczone mogą być szybsze.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_dynamic_shadows",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "limited",
+          "label": "Tylko słońce / ograniczone",
+          "value": "0"
+        },
+        {
+          "id": "all",
+          "label": "Wszystkie",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_texture_detail",
+      "displayName": "Szczegóły modeli / tekstur",
+      "description": "Niższe szczegóły modeli i tekstur zmniejszają obciążenie obrazu.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_texture_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "low",
+          "label": "Niskie",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Średnie",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "Wysokie",
+          "value": "2"
+        },
+        {
+          "id": "very_high",
+          "label": "Bardzo wysokie",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "setting.r_texturefilteringquality",
+      "displayName": "Tryb filtrowania tekstur",
+      "description": "Filtrowanie tekstur wpływa na ostrość tekstur pod kątem.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.r_texturefilteringquality",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "bilinear",
+          "label": "Dwuliniowe",
+          "value": "0"
+        },
+        {
+          "id": "trilinear",
+          "label": "Trójliniowe",
+          "value": "1"
+        },
+        {
+          "id": "anisotropic_2x",
+          "label": "Anizotropowe 2X",
+          "value": "2"
+        },
+        {
+          "id": "anisotropic_4x",
+          "label": "Anizotropowe 4X",
+          "value": "3"
+        },
+        {
+          "id": "anisotropic_8x",
+          "label": "Anizotropowe 8X",
+          "value": "4"
+        },
+        {
+          "id": "anisotropic_16x",
+          "label": "Anizotropowe 16X",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "id": "setting.shaderquality",
+      "displayName": "Detale shadera",
+      "description": "Niższe detale shadera zmniejszają obciążenie GPU.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.shaderquality",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "low",
+          "label": "Niskie",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Średnie",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "Wysokie",
+          "value": "2"
+        },
+        {
+          "id": "very_high",
+          "label": "Bardzo wysokie",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_particle_detail",
+      "displayName": "Szczegóły cząsteczek",
+      "description": "Niższe szczegóły cząsteczek ograniczają koszt efektów.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_particle_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "low",
+          "label": "Niskie",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Średnie",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "Wysokie",
+          "value": "2"
+        },
+        {
+          "id": "very_high",
+          "label": "Bardzo wysokie",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_ao_detail",
+      "displayName": "Okluzja otoczenia",
+      "description": "Okluzja otoczenia dodaje cieniowanie kontaktowe i kosztuje wydajność.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_ao_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "off",
+          "label": "Wył.",
+          "value": "0"
+        },
+        {
+          "id": "medium",
+          "label": "Średnie",
+          "value": "1"
+        },
+        {
+          "id": "high",
+          "label": "Wysokie",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_hdr_detail",
+      "displayName": "High Dynamic Range",
+      "description": "Preferencja HDR: jakość albo wydajność.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_hdr_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "performance",
+          "label": "Wydajność",
+          "value": "0"
+        },
+        {
+          "id": "quality",
+          "label": "Jakość",
+          "value": "-1"
+        },
+        {
+          "id": "quality_alt",
+          "label": "Jakość",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "setting.videocfg_fsr_detail",
+      "displayName": "FidelityFX Super Resolution",
+      "description": "FSR może poprawić FPS kosztem ostrości obrazu.",
+      "category": "video",
+      "type": "single",
+      "key": "setting.videocfg_fsr_detail",
+      "targetFile": "video",
+      "canApply": true,
+      "options": [
+        {
+          "id": "ultra_performance",
+          "label": "Wydajność ultra",
+          "value": "4"
+        },
+        {
+          "id": "performance",
+          "label": "Wydajność",
+          "value": "3"
+        },
+        {
+          "id": "balanced",
+          "label": "Równowaga",
+          "value": "2"
+        },
+        {
+          "id": "quality",
+          "label": "Jakość",
+          "value": "1"
+        },
+        {
+          "id": "disabled_highest_quality",
+          "label": "Wyłączone (Najwyższa jakość)",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}

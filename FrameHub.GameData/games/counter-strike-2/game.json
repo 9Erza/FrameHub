@@ -1,0 +1,26 @@
+{
+  "id": "counter-strike-2",
+  "displayName": "Counter-Strike 2",
+  "shortName": "CS2",
+  "allowedKeys": [
+    "setting.defaultres",
+    "setting.defaultresheight",
+    "setting.aspectratiomode",
+    "setting.fullscreen",
+    "setting.nowindowborder",
+    "r_player_visibility_mode",
+    "setting.mat_vsync",
+    "setting.r_low_latency",
+    "setting.r_csgo_cmaa_enable",
+    "setting.msaa_samples",
+    "setting.videocfg_shadow_quality",
+    "setting.videocfg_dynamic_shadows",
+    "setting.videocfg_texture_detail",
+    "setting.r_texturefilteringquality",
+    "setting.shaderquality",
+    "setting.videocfg_particle_detail",
+    "setting.videocfg_ao_detail",
+    "setting.videocfg_hdr_detail",
+    "setting.videocfg_fsr_detail"
+  ]
+}
