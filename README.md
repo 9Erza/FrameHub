@@ -1,4 +1,19 @@
-# FrameHub
+<h1 align="center">FrameHub</h1>
+
+<p align="center">
+  Windows performance and game optimization tool with CPU profile management, process optimization, and dedicated Counter-Strike 2 configuration support.
+</p>
+
+<p align="center">
+  <img src="FrameHub.App/Assets/FrameHubLogo.png" alt="FrameHub Logo" width="220" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/license-MIT-97CA00?style=for-the-badge" alt="License MIT" />
+  <img src="https://img.shields.io/badge/release-v0.3.1--beta-1E90FF?style=for-the-badge" alt="Release v0.3.1-beta" />
+  <img src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge" alt="Platform Windows" />
+  <img src="https://img.shields.io/badge/status-Beta-orange?style=for-the-badge" alt="Status Beta" />
+</p>
 
 **FrameHub** is an open-source Windows Gaming Performance Hub built for transparent, reversible and user-controlled game optimization.
 
