@@ -8,8 +8,8 @@ using System.Windows.Threading;
 namespace FrameHub.App.Services;
 
 /// <summary>
-/// Application-level runtime coordinator. It keeps FrameHub independent from PCO while reusing the migrated core logic.
-/// Heavy UI scans and hardware telemetry are opt-in, but the profile watcher stays active in the background.
+/// Application-level runtime coordinator for profiles, process scanning and hardware topology.
+/// Heavy UI scans and hardware telemetry are opt-in, while profile monitoring stays active in the background.
 /// </summary>
 public sealed class AppRuntimeService : IDisposable
 {
@@ -27,6 +27,8 @@ public sealed class AppRuntimeService : IDisposable
     public OptimizationService Optimization { get; }
     public Dictionary<int, uint> CpuSetMap { get; }
     public IReadOnlyList<CoreInfo> Cores { get; }
+    public string CpuName { get; }
+    public string CpuVendor { get; }
     public List<ProcessProfile> Profiles { get; private set; }
     public ObservableCollection<ActivityItemViewModel> Activity { get; } = new();
 
@@ -44,6 +46,8 @@ public sealed class AppRuntimeService : IDisposable
         ConfigureLoggerFromSettings();
 
         Profiles = ProfileService.LoadProfiles();
+        CpuName = HardwareTopologyService.GetCpuName();
+        CpuVendor = HardwareTopologyService.GetCpuVendor();
         CpuSetMap = HardwareTopologyService.GetLogicalCoreToCpuSetIdMap();
         Cores = HardwareTopologyService.GetCoreTopology();
 
@@ -56,7 +60,7 @@ public sealed class AppRuntimeService : IDisposable
         };
         _profileWatcherTimer.Tick += async (_, _) => await RunProfileWatcherOnceAsync();
 
-        AddActivity("FrameHub runtime initialized.");
+        AddActivity("Działanie FrameHub uruchomione.");
         AddActivity(GetWatcherStartupText());
         StartProfileWatcher();
     }
@@ -112,14 +116,21 @@ public sealed class AppRuntimeService : IDisposable
         ProfileService.SaveProfiles(Profiles);
         Profiles = ProfileService.LoadProfiles();
         ProfilesChanged?.Invoke(this, EventArgs.Empty);
-        AddActivity($"Profiles saved: {Profiles.Count}.");
+        AddActivity($"Zapisano profile: {Profiles.Count}.");
     }
 
-    public void UpsertProfile(ProcessProfile profile)
+    public void UpsertProfile(ProcessProfile profile, bool replaceSameProcessName = true)
     {
         var profiles = Profiles
-            .Where(p => !p.ProcessName.Equals(profile.ProcessName, StringComparison.OrdinalIgnoreCase))
+            .Where(p => !p.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase))
             .ToList();
+
+        if (replaceSameProcessName)
+        {
+            profiles = profiles
+                .Where(p => !p.ProcessName.Equals(profile.ProcessName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
 
         profiles.Add(profile);
         SaveProfiles(profiles);
@@ -129,13 +140,13 @@ public sealed class AppRuntimeService : IDisposable
     {
         SaveProfiles(Profiles.Where(p => !p.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase)).ToList());
         Optimization.ClearProfileCacheForProcess(profile.ProcessName);
-        AddActivity($"Deleted profile '{profile.ProcessName}'.");
+        AddActivity($"Usunięto profil '{profile.ProcessName}'.");
     }
 
     public OptimizationBatchResult ApplyProfileNow(ProcessProfile profile, bool force = true)
     {
         var result = Optimization.ApplyProfileToRunningProcesses(profile, Settings.AllowRealtimePriority, force);
-        LogBatchResult(profile.ProcessName, result, "manual apply");
+        LogBatchResult(profile.ProcessName, result, "zastosowanie ręczne");
         return result;
     }
 
@@ -193,7 +204,7 @@ public sealed class AppRuntimeService : IDisposable
                     LastAppliedProfile = result.ProcessName;
                     OptimizedProcessCount = batch.Successful;
                     RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
-                    AddActivity($"Applied profile '{result.ProcessName}' via background watcher: PID={result.ProcessId}, mode={result.Mode}, priority={result.Priority}.");
+                    AddActivity($"Zastosowano profil '{result.ProcessName}' przez monitor w tle: PID={result.ProcessId}, tryb={result.Mode}, priorytet={result.Priority}.");
                 }
                 else
                 {
@@ -203,7 +214,7 @@ public sealed class AppRuntimeService : IDisposable
         }
         catch (Exception ex)
         {
-            AddActivity($"Background watcher failed: {ex.Message}", "Warn");
+            AddActivity($"Monitor profili w tle zgłosił błąd: {ex.Message}", "Warn");
         }
         finally
         {
@@ -218,15 +229,15 @@ public sealed class AppRuntimeService : IDisposable
             LastAppliedProfile = processName;
             OptimizedProcessCount = batch.Successful;
             RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
-            AddActivity($"Applied profile '{processName}' ({source}): {batch.Successful}/{batch.Total} instance(s).");
+            AddActivity($"Zastosowano profil '{processName}' ({source}): {batch.Successful}/{batch.Total} instancji.");
         }
         else if (batch.Total > 0)
         {
-            AddActivity($"Profile '{processName}' did not apply to any running instance ({source}).", "Warn");
+            AddActivity($"Profil '{processName}' nie został zastosowany do żadnej uruchomionej instancji ({source}).", "Warn");
         }
         else
         {
-            AddActivity($"No running process found for profile '{processName}'.", "Warn");
+            AddActivity($"Nie znaleziono uruchomionego procesu dla profilu '{processName}'.", "Warn");
         }
     }
 
@@ -239,16 +250,16 @@ public sealed class AppRuntimeService : IDisposable
         }
 
         _failureLogThrottle[key] = DateTime.UtcNow;
-        string adminHint = result.RequiresAdmin ? " This may require administrator rights or the process is protected." : string.Empty;
-        AddActivity($"Failed to apply profile '{result.ProcessName}': PID={result.ProcessId}, reason={result.Message}.{adminHint}", "Warn");
+        string adminHint = result.RequiresAdmin ? " Może to wymagać uprawnień administratora albo proces jest chroniony." : string.Empty;
+        AddActivity($"Nie udało się zastosować profilu '{result.ProcessName}': PID={result.ProcessId}, powód={result.Message}.{adminHint}", "Warn");
     }
 
     private string GetWatcherStartupText()
     {
         var enabled = Profiles.Where(p => p.IsEnabled).Select(p => p.ProcessName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         return enabled.Count == 0
-            ? "Background profile watcher active. No enabled profiles configured."
-            : $"Background profile watcher active for {enabled.Count} enabled profile(s): {string.Join(", ", enabled)}.";
+            ? "Monitor profili w tle aktywny. Brak włączonych profili."
+            : $"Monitor profili w tle aktywny dla {enabled.Count} włączonych profili: {string.Join(", ", enabled)}.";
     }
 
     private void ConfigureLoggerFromSettings()

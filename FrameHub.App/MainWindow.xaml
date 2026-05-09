@@ -33,7 +33,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Custom dark title bar. This removes the old white Windows chrome from PCO-era builds. -->
+            <!-- Custom dark title bar for the borderless FrameHub window. -->
             <Grid Grid.Row="0" Background="{StaticResource BrushWindowChrome}" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -46,7 +46,7 @@
                         <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="Fant" />
                     </Border>
                     <TextBlock Text="FrameHub" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" />
-                    <Border Background="{StaticResource BrushPrimarySoft}" CornerRadius="999" Padding="8,3" Margin="12,0,0,0">
+                    <Border Background="{StaticResource BrushPrimarySoft}" CornerRadius="6" Padding="8,3" Margin="12,0,0,0">
                         <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" />
                     </Border>
                 </StackPanel>
@@ -58,9 +58,9 @@
                            Style="{StaticResource SmallMutedText}" />
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Content="—" Click="MinimizeButton_Click" ToolTip="Minimize" />
-                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Content="□" Click="MaximizeRestoreButton_Click" ToolTip="Maximize / Restore" />
-                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeCloseButton}" Content="×" Click="CloseButton_Click" ToolTip="Close" />
+                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Content="—" Click="MinimizeButton_Click" ToolTip="{Binding MinimizeTooltip}" />
+                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Content="□" Click="MaximizeRestoreButton_Click" ToolTip="{Binding MaximizeRestoreTooltip}" />
+                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeCloseButton}" Content="×" Click="CloseButton_Click" ToolTip="{Binding CloseTooltip}" />
                 </StackPanel>
             </Grid>
 
@@ -83,7 +83,7 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="0,0,0,20">
-                            <Border Width="64" Height="64" CornerRadius="22" Background="{StaticResource BrushPrimarySoft}" HorizontalAlignment="Left" Margin="0,0,0,14" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" ClipToBounds="True">
+                            <Border Width="64" Height="64" CornerRadius="8" Background="{StaticResource BrushPrimarySoft}" HorizontalAlignment="Left" Margin="0,0,0,14" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" ClipToBounds="True">
                                 <Grid>
                                     <Border Background="{StaticResource BrushHeroGradient}" Opacity="0.18" />
                                     <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="54" Height="54" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="Fant" />
@@ -146,7 +146,7 @@
                                                                 <Image Source="{Binding FlagSource}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True" />
                                                             </Border>
                                                         </Border>
-                                                        <Border BorderBrush="{StaticResource BrushPrimary}" BorderThickness="2" CornerRadius="9" Visibility="{Binding SelectedVisibility}" />
+                                                        <Border BorderBrush="{StaticResource BrushPrimary}" BorderThickness="2" CornerRadius="8" Visibility="{Binding SelectedVisibility}" />
                                                     </Grid>
                                                 </Button>
                                             </DataTemplate>

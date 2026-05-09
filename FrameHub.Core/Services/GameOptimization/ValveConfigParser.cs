@@ -5,9 +5,10 @@ using System.Text.RegularExpressions;
 
 namespace FrameHub.Core.Services.GameOptimization;
 
-public static class ValveConfigParser
+public static partial class ValveConfigParser
 {
-    private static readonly Regex KeyValueRegex = new("\"(?<key>[^\"]+)\"\\s+\"(?<value>[^\"]*)\"", RegexOptions.Compiled);
+    [GeneratedRegex("\"(?<key>[^\"]+)\"\\s+\"(?<value>[^\"]*)\"")]
+    private static partial Regex KeyValueRegex();
 
     public static Dictionary<string, string> ReadKeyValues(string? filePath)
     {
@@ -15,7 +16,7 @@ public static class ValveConfigParser
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath)) return result;
 
         string text = File.ReadAllText(filePath);
-        foreach (Match match in KeyValueRegex.Matches(text))
+        foreach (Match match in KeyValueRegex().Matches(text))
         {
             string key = match.Groups["key"].Value;
             string value = match.Groups["value"].Value;
@@ -30,7 +31,7 @@ public static class ValveConfigParser
         if (!File.Exists(filePath) || replacements.Count == 0) return false;
 
         string original = File.ReadAllText(filePath);
-        string updated = KeyValueRegex.Replace(original, match =>
+        string updated = KeyValueRegex().Replace(original, match =>
         {
             string key = match.Groups["key"].Value;
             if (!replacements.TryGetValue(key, out string? replacement)) return match.Value;

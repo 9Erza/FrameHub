@@ -41,6 +41,9 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public string LanguageLabel => _localization.T("Language.Label");
     public string CoreFoundationStatus => _localization.T("Status.CoreMigrated");
     public string WatcherStatus => _runtime.IsProfileWatcherActive ? _localization.T("Status.WatcherActive") : _localization.T("Status.WatcherInactive");
+    public string MinimizeTooltip => _localization.T("Window.Minimize");
+    public string MaximizeRestoreTooltip => _localization.T("Window.MaximizeRestore");
+    public string CloseTooltip => _localization.T("Window.Close");
 
     public LanguageOptionViewModel? SelectedLanguage
     {
@@ -71,6 +74,14 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _runtime = new AppRuntimeService();
         _settingsService = _runtime.SettingsService;
         _localization = new LocalizationService(_settingsService);
+        _dashboardViewModel = new DashboardViewModel(_localization, _runtime);
+        _libraryViewModel = new LibraryViewModel(_localization, _runtime);
+        _processesViewModel = new ProcessesViewModel(_localization, _runtime);
+        _profilesViewModel = new ProfilesViewModel(_localization, _runtime);
+        _hardwareViewModel = new HardwareViewModel(_localization, _runtime);
+        _logsViewModel = new LogsViewModel(_localization, _runtime);
+        _settingsViewModel = new SettingsViewModel(_localization, _runtime);
+
         _localization.LanguageChanged += (_, _) =>
         {
             _runtime.ReloadSettings();
@@ -83,14 +94,6 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             _dashboardViewModel.RefreshTexts();
             _libraryViewModel.RefreshTexts();
         };
-
-        _dashboardViewModel = new DashboardViewModel(_localization, _runtime);
-        _libraryViewModel = new LibraryViewModel(_localization, _runtime);
-        _processesViewModel = new ProcessesViewModel(_localization, _runtime);
-        _profilesViewModel = new ProfilesViewModel(_localization, _runtime);
-        _hardwareViewModel = new HardwareViewModel(_localization, _runtime);
-        _logsViewModel = new LogsViewModel(_localization, _runtime);
-        _settingsViewModel = new SettingsViewModel(_localization, _runtime);
 
         LanguageOptions = new ObservableCollection<LanguageOptionViewModel>
         {
@@ -177,6 +180,9 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(LanguageLabel));
         OnPropertyChanged(nameof(CoreFoundationStatus));
         OnPropertyChanged(nameof(WatcherStatus));
+        OnPropertyChanged(nameof(MinimizeTooltip));
+        OnPropertyChanged(nameof(MaximizeRestoreTooltip));
+        OnPropertyChanged(nameof(CloseTooltip));
     }
 
     private void SelectCurrentLanguageOption()

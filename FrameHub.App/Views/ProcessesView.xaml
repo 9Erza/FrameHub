@@ -1,10 +1,14 @@
 <UserControl x:Class="FrameHub.App.Views.ProcessesView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:FrameHub.App.Helpers">
+    <UserControl.Resources>
+        <helpers:BindingProxy x:Key="VmProxy" Data="{Binding}" />
+    </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1.25*" />
-            <ColumnDefinition Width="0.85*" />
+            <ColumnDefinition Width="1.55*" />
+            <ColumnDefinition Width="0.75*" />
         </Grid.ColumnDefinitions>
 
         <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,16,0">
@@ -21,7 +25,7 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                            <Border Width="36" Height="36" CornerRadius="12" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,12,0">
+                            <Border Width="36" Height="36" CornerRadius="8" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,12,0">
                                 <TextBlock Text="&#xE9D9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource BrushPrimary}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <StackPanel VerticalAlignment="Center">
@@ -30,10 +34,11 @@
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
-                    <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" Content="Refresh" VerticalAlignment="Top" />
+                    <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" Content="{Binding RefreshButtonText}" VerticalAlignment="Top" />
                 </Grid>
 
-                <DataGrid Grid.Row="1"
+                <DataGrid x:Name="ProcessGrid"
+                          Grid.Row="1"
                           ItemsSource="{Binding Processes}"
                           SelectedItem="{Binding SelectedProcess, Mode=TwoWay}"
                           AutoGenerateColumns="False"
@@ -48,13 +53,24 @@
                           VirtualizingPanel.VirtualizationMode="Recycling"
                           ScrollViewer.CanContentScroll="True"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
-                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{Binding DataContext.NameHeader, RelativeSource={RelativeSource AncestorType=DataGrid}}" Binding="{Binding DisplayName}" Width="*" />
-                        <DataGridTextColumn Header="{Binding DataContext.InstancesHeader, RelativeSource={RelativeSource AncestorType=DataGrid}}" Binding="{Binding InstanceCount}" Width="72" />
-                        <DataGridTextColumn Header="{Binding DataContext.PriorityHeader, RelativeSource={RelativeSource AncestorType=DataGrid}}" Binding="{Binding Priority}" Width="145" />
-                        <DataGridTextColumn Header="{Binding DataContext.RamHeader, RelativeSource={RelativeSource AncestorType=DataGrid}}" Binding="{Binding RamUsageMB}" Width="110" />
-                        <DataGridTextColumn Header="{Binding DataContext.CpuHeader, RelativeSource={RelativeSource AncestorType=DataGrid}}" Binding="{Binding CpuUsage}" Width="90" />
+                        <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="2.4*" MinWidth="260">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               ToolTip="{Binding DisplayName}"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="{Binding Data.PidHeader, Source={StaticResource VmProxy}}" Binding="{Binding Id}" Width="70" />
+                        <DataGridTextColumn Header="{Binding Data.InstancesHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="58" />
+                        <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding ModeDisplay}" Width="95" />
+                        <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding Priority}" Width="120" />
+                        <DataGridTextColumn Header="{Binding Data.CpuHeader, Source={StaticResource VmProxy}}" Binding="{Binding CpuUsage}" Width="65" />
+                        <DataGridTextColumn Header="{Binding Data.RamHeader, Source={StaticResource VmProxy}}" Binding="{Binding RamUsageMB}" Width="85" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
@@ -68,7 +84,7 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Border Width="36" Height="36" CornerRadius="12" Background="#142642" Margin="0,0,12,0">
+                        <Border Width="36" Height="36" CornerRadius="8" Background="#142642" Margin="0,0,12,0">
                             <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource BrushCyan}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -81,7 +97,8 @@
                         <StackPanel>
                             <TextBlock Text="{Binding ModeLabel}" Style="{StaticResource CardTitleText}" Margin="0,0,0,8" />
                             <ComboBox ItemsSource="{Binding AvailableOptimizationModes}"
-                                      SelectedItem="{Binding SelectedOptimizationMode}" />
+                                      SelectedItem="{Binding SelectedOptimizationModeOption}"
+                                      DisplayMemberPath="DisplayName" />
 
                             <TextBlock Text="{Binding PriorityLabel}" Style="{StaticResource CardTitleText}" Margin="0,16,0,8" />
                             <ComboBox ItemsSource="{Binding AvailablePriorities}"
@@ -99,23 +116,42 @@
                                 <Button Style="{StaticResource SecondaryButton}" Content="{Binding DisableECoresText}" Command="{Binding DisableECoresCommand}" Margin="0,0,8,8" />
                             </WrapPanel>
 
-                            <ItemsControl ItemsSource="{Binding Cores}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="13" Padding="10" Margin="0,0,8,8" Width="132">
-                                            <StackPanel>
-                                                <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsChecked}" />
-                                                <ProgressBar Maximum="100" Value="{Binding LoadUsage}" Margin="0,9,0,0" />
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Background="#0B1629" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,0,8,0">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding PhysicalCoresTitle}" Style="{StaticResource SmallMutedText}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                        <ItemsControl ItemsSource="{Binding PhysicalCores}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8">
+                                                        <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsChecked}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="1" Background="#0B1629" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="8,0,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding ThreadCoresTitle}" Style="{StaticResource SmallMutedText}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                        <ItemsControl ItemsSource="{Binding ThreadCores}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8">
+                                                        <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsChecked}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </StackPanel>
                     </Border>
 

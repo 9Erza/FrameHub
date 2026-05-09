@@ -17,7 +17,8 @@ namespace FrameHub.Core.Models
 
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public string DisplayName => string.IsNullOrEmpty(ModeTag) ? Name : $"{Name} [{ModeTag}]";
+        public string DisplayName => Name;
+        public string ModeDisplay => string.IsNullOrEmpty(ModeTag) ? "-" : ModeTag;
 
         public int InstanceCount
         {
@@ -33,6 +34,7 @@ namespace FrameHub.Core.Models
                 if (SetProperty(ref _modeTag, value))
                 {
                     OnPropertyChanged(nameof(DisplayName));
+                    OnPropertyChanged(nameof(ModeDisplay));
                 }
             }
         }

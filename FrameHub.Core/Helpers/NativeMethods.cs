@@ -9,6 +9,7 @@ namespace FrameHub.Core.Helpers
     /// </summary>
     public static class NativeMethods
     {
+        public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
         public const uint PROCESS_SET_LIMITED_INFORMATION = 0x2000;
 
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -30,5 +31,12 @@ namespace FrameHub.Core.Helpers
             IntPtr hProcess,
             uint[]? cpuSetIds,
             uint cpuSetIdCount);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool GetProcessDefaultCpuSets(
+            IntPtr hProcess,
+            [Out] uint[]? cpuSetIds,
+            uint cpuSetIdCount,
+            out uint requiredIdCount);
     }
 }

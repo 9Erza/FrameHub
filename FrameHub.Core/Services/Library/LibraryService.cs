@@ -96,9 +96,9 @@ public sealed class LibraryService
             item.DisplayName = string.IsNullOrWhiteSpace(item.DisplayName)
                 ? Path.GetFileNameWithoutExtension(item.ExecutablePath) ?? "Unknown"
                 : item.DisplayName.Trim();
-            item.ProcessName = string.IsNullOrWhiteSpace(item.ProcessName)
+            item.ProcessName = ProfileService.NormalizeProcessName(string.IsNullOrWhiteSpace(item.ProcessName)
                 ? ExecutableResolver.ProcessNameFromExecutable(item.ExecutablePath)
-                : item.ProcessName.Trim();
+                : item.ProcessName);
             item.ExecutablePath = string.IsNullOrWhiteSpace(item.ExecutablePath) ? null : item.ExecutablePath.Trim();
             item.InstallPath = string.IsNullOrWhiteSpace(item.InstallPath) ? null : item.InstallPath.Trim();
             item.IconPath = string.IsNullOrWhiteSpace(item.IconPath) ? item.ExecutablePath : item.IconPath.Trim();

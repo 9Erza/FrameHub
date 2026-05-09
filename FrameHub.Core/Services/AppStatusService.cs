@@ -10,10 +10,10 @@ public sealed class AppStatusService
     {
         return new[]
         {
-            "FrameHub runtime initialized.",
-            "Background profile watcher active.",
-            "Process optimizer core migrated from PCO into FrameHub.Core.",
-            "Hardware monitor remains opt-in and disabled until enabled."
+            "Działanie FrameHub uruchomione.",
+            "Monitor profili w tle aktywny.",
+            "Usługi optymalizacji procesów gotowe.",
+            "Monitor sprzętu pozostaje opcjonalny i wyłączony do ręcznego włączenia."
         };
     }
 }

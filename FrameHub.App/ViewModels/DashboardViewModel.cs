@@ -18,6 +18,8 @@ public sealed class DashboardViewModel : ViewModelBase
     public string MigrationTitle => _localization.T("Dashboard.Migration.Title");
     public string MigrationDescription => _localization.T("Dashboard.Migration.Description");
     public string RecentActivityTitle => _localization.T("Dashboard.RecentActivity.Title");
+    public string ReadyStatus => _localization.T("Status.CoreMigrated");
+    public string RecentActivityLiveText => _localization.T("Status.Live");
 
     public ObservableCollection<MetricCardViewModel> Metrics { get; } = new();
     public ObservableCollection<ActivityItemViewModel> Activity => _runtime.Activity;
@@ -72,5 +74,7 @@ public sealed class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(MigrationTitle));
         OnPropertyChanged(nameof(MigrationDescription));
         OnPropertyChanged(nameof(RecentActivityTitle));
+        OnPropertyChanged(nameof(ReadyStatus));
+        OnPropertyChanged(nameof(RecentActivityLiveText));
     }
 }

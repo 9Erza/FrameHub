@@ -1,99 +1,287 @@
 # FrameHub
 
-FrameHub is an open-source Windows Gaming Performance Hub focused on transparent, reversible and safe performance workflows.
+**FrameHub** is an open-source Windows Gaming Performance Hub built for transparent, reversible and user-controlled game optimization.
 
-FrameHub is a standalone open-source project for Windows users who want clear control over games, processes, CPU assignment, background apps and future system tooling. The app focuses on transparent changes, local configuration, backups and reversible workflows.
+The app is currently focused on **Counter-Strike 2** and CPU/process optimization, but the long-term goal is to become an all-in-one performance hub for games, background apps, profiles, benchmarks and safe Windows tuning.
 
-## Current stage
+> Current version: **v0.3.1 Beta**  
+> Platform: **Windows 10 / Windows 11**  
+> Status: **public beta / early release**
 
-**Version:** `0.3.1`  
-**Status:** Library foundation + migrated optimization core
+---
 
-Current working foundation:
+## What FrameHub does
 
-- Core Control: process priority, CPU affinity and CPU Sets
-- Saved process profiles
+FrameHub is designed to help users manage game performance without hidden tweaks, unsafe system changes or black-box behavior.
+
+Current core features:
+
+- Game and application library
+- Manual `.exe` binding
+- Steam library scanning
+- Epic Games manifest scanning
+- Custom folder scanning
+- Running process detection
+- CPU Sets and CPU affinity management
+- Process priority management
+- Saved optimization profiles
 - Background profile watcher
-- Logs
-- Manual hardware monitor module
-- Library foundation with manual EXE adding, Steam scan, Epic scan and custom folder scan
-- English / Polish localization
-- Independent AppData folder: `%APPDATA%\\FrameHub`
+- CS2 graphics configuration editor
+- CS2 crosshair editor
+- CS2 `autoexec.cfg` helper
+- Backup and restore flow for CS2 config files
+- Polish and English UI
+- Local logs and user settings stored in `%APPDATA%\FrameHub`
 
-## Product map
+Planned modules are visible in the app as roadmap sections, but not every module is active yet.
 
-FrameHub is being structured around these modules:
+---
 
-- **Dashboard** — current status, watcher state, last activity and module map
-- **Library** — game/app library with EXE path binding, Steam/Epic scanning, custom folder scanning and profile cards
-- **Session Optimizer** — future transparent session workflow with restore actions
-- **Core Control** — current CPU Sets, affinity, priority and process profile module
-- **Profiles & Rules** — saved process rules and future game/app rules
-- **Background Control** — future background app priority, CPU and memory-pressure rules
-- **System Toolkit** — future safe cleanup, DNS presets, repair tools and restore points
-- **Hardware** — manual hardware telemetry, disabled until enabled
-- **Benchmarks** — future FPS / frametime / before-after reports
-- **Windows Tuning** — preview-only future Windows tuning module with restore/backup requirements
-- **Settings** — app configuration
-- **Logs** — runtime diagnostics
+## v0.3.1 Beta focus
 
-## Safety principles
+This beta is mainly about three areas:
 
-FrameHub should remain safe, transparent and open-source:
+1. **Library and profiles**  
+   Add games/apps, bind executables, create CPU optimization profiles and let FrameHub monitor processes in the background.
 
-- No game memory editing
-- No DLL injection
-- No kernel drivers
-- No anti-cheat bypass behavior or wording
-- No hidden destructive tweaks
-- No default disabling of Defender, Memory Integrity or anti-cheat services
-- Global changes must be logged and designed for restore/rollback
+2. **Core Control**  
+   Inspect running processes, read current CPU assignment and apply CPU Sets / Affinity / Priority settings manually or through saved profiles.
+
+3. **Counter-Strike 2 Config**  
+   Edit selected CS2 video/config values, crosshair settings and safe `autoexec.cfg` entries while the game is closed.
+
+---
+
+## CPU optimization logic
+
+FrameHub separates two different actions:
+
+### Neutral profile editor
+
+When a game has **no saved optimization profile**, the editor starts in a neutral state:
+
+- Mode: `CPU Sets`
+- Priority: `Normal`
+- All logical processors selected
+
+Nothing is changed until the user saves a profile or clicks **Optimize**.
+
+### Optimize button
+
+The **Optimize** button creates or overwrites the current CPU profile for the selected game using a standard preset.
+
+The preset always uses:
+
+- Mode: `CPU Sets`
+- Priority: `Normal`
+
+CPU selection depends on the detected CPU layout:
+
+| CPU type | Standard FrameHub preset |
+|---|---|
+| AMD with SMT | Disable SMT threads and disable primary Core 0 |
+| Legacy Intel without P/E-core split | Disable Core 0 and disable HT threads when available |
+| Intel with P-cores, E-cores and HT | Disable E-cores and disable HT threads |
+| Intel with P-cores and E-cores but no HT | Disable E-cores |
+| Unknown topology | Keep all logical processors selected |
+
+This is a conservative default. Users can edit every saved profile manually.
+
+---
+
+## Core Control
+
+The **Core Control** module allows manual process tuning.
+
+It can:
+
+- List running processes
+- Show process PID, instance count, mode, priority, CPU usage and RAM usage
+- Read the real current CPU assignment when possible
+- Prefer CPU Sets when available
+- Fall back to classic Processor Affinity
+- Apply settings immediately
+- Save settings as reusable process profiles
+
+The CPU selector is split into:
+
+- physical cores
+- SMT / Hyper-Threading threads
+
+---
+
+## Profiles and Rules
+
+The **Profiles and Rules** module manages saved optimization profiles.
+
+Users can:
+
+- View saved profiles
+- Enable or disable background monitoring for a profile
+- Edit mode, priority and CPU selection
+- Apply a profile immediately
+- Delete a profile
+
+The background monitor can reapply saved profiles when the target process starts again.
+
+---
+
+## Counter-Strike 2 support
+
+FrameHub v0.3.1 Beta includes a dedicated CS2 configuration page named **Config**.
+
+Current CS2 features:
+
+- CS2 config path detection
+- CS2 video settings editor
+- Competitive graphics preset
+- Config backup before changes
+- Latest backup comparison
+- Custom user-selected values
+- Crosshair editor with live preview
+- `autoexec.cfg` helper
+- Common safe binds and commands
+- Steam Cloud warning
+- CS2 running detection
+
+### CS2 safety rule
+
+FrameHub does **not** read or write CS2 config files while `cs2.exe` is running.
+
+When CS2 is running, Config-related actions are blocked. The user must close the game before reading or editing CS2 configuration files.
+
+### Competitive preset
+
+The CS2 competitive preset focuses on performance and low input latency.
+
+It does **not** force resolution or display mode, because those are treated as user preferences. FrameHub may still show recommended values, but they are not applied automatically by the preset.
+
+---
+
+## Anti-cheat / VAC / FACEIT note
+
+FrameHub is designed to avoid behavior associated with cheats.
+
+FrameHub does **not**:
+
+- inject DLLs
+- hook the game
+- edit game memory
+- install kernel drivers
+- bypass anti-cheat systems
+- modify CS2 executable or binary game files
+- remove textures, smoke, models or other gameplay assets
+
+For CS2, FrameHub edits standard text-based configuration values while the game is closed, similar to manual config editing.
+
+No third-party tool can honestly guarantee that every anti-cheat platform will always consider every action safe. FrameHub is therefore built around conservative rules: no runtime config access while CS2 is running, no memory manipulation and no anti-cheat bypass behavior.
+
+---
+
+## Installation
+
+For public beta releases, use the installer or portable package from the GitHub Releases page.
+
+Recommended first-run steps:
+
+1. Close CS2 before using the CS2 Config module.
+2. Run FrameHub normally.
+3. Run as administrator only when Windows requires elevated permissions for process optimization.
+4. Add or scan games in the Library.
+5. Create or apply CPU profiles.
+6. Use Config only when CS2 is closed.
+
+---
+
+## Build from source
+
+Requirements:
+
+- Windows 10 or Windows 11
+- Visual Studio 2026 or newer, or compatible .NET SDK tooling
+- .NET Desktop Runtime / SDK matching the project target
+- WPF workload enabled
+
+Project target:
+
+```txt
+net10.0-windows
+```
+
+Build steps:
+
+```powershell
+git clone <repo-url>
+cd FrameHub
+# optional cleanup if switching between local builds
+.\clean_framehub_build_cache.bat
+# then open FrameHub.slnx in Visual Studio and rebuild
+```
+
+Main solution file:
+
+```txt
+FrameHub.slnx
+```
+
+---
+
+## Project structure
+
+```txt
+FrameHub.App
+  WPF application, UI, view models, localization and app shell.
+
+FrameHub.Core
+  Core logic: process control, CPU topology, profiles, settings, logs,
+  library scanning and CS2 config editing.
+
+FrameHub.GameData
+  Game-specific data files, presets and setting definitions.
+```
+
+Important paths:
+
+```txt
+%APPDATA%\FrameHub\settings.json
+%APPDATA%\FrameHub\profiles.json
+%APPDATA%\FrameHub\library.json
+%APPDATA%\FrameHub\FrameHub.log
+%APPDATA%\FrameHub\Backups\CS2\
+```
+
+---
+
+## Current limitations
+
+This is a beta release.
+
+Known limitations:
+
+- CS2 is currently the only game with a dedicated config editor.
+- Some roadmap modules are placeholders or preview-only.
+- Hardware telemetry is optional and may vary by sensor support.
+- Optimization results can vary by CPU, Windows scheduler behavior, drivers and game engine.
+- The app is not a replacement for proper in-game testing, frametime measurement and user-specific tuning.
+
+---
 
 ## Roadmap
 
-### v0.3.1 — CS2 UI/UX Polish
+Planned directions:
 
-- Add game/app manually
-- EXE path binding
-- Steam library scanner
-- Epic manifest scanner
-- Custom folder locations and candidate scan
-- Game/app running status
-- Profile type: game, app, background app, launcher
+- More game-specific config modules
+- Safer session optimizer workflow
+- Background app rules
+- Benchmark and before/after reports
+- Better import/export of profiles
+- More detailed CPU topology explanations
+- Windows tuning only with backup, preview and restore flow
 
-### v0.3.0 — Session Optimizer
-
-- Start/stop optimized sessions
-- Apply selected profile
-- Optional power plan switch
-- Restore global changes after game exit
-
-### v0.4.0 — Background Control
-
-- Lower priority for selected apps
-- Move selected apps to background cores
-- Memory Relief with warnings and denylist
-
-### v0.5.0 — System Toolkit
-
-- Safe cleanup preview
-- DNS presets
-- Repair tools
-- Restore point creation
-- Classic Windows 11 context menu toggle
-
-### v0.6.0 — Benchmarks
-
-- FPS / frametime capture foundation
-- Before/after report
-- CSV export
-
-### Later — Windows Tuning
-
-- Preview-first Windows tuning
-- Restore point and backup requirements
-- Reversible actions only
+---
 
 ## License
 
-See `LICENSE`.
+FrameHub is released under the MIT License.
+
+See [`LICENSE`](LICENSE).

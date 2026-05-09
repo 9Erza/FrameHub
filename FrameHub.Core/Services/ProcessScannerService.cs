@@ -64,7 +64,7 @@ namespace FrameHub.Core.Services
         {
             var processNames = profiles
                 .Where(p => p.IsEnabled && !string.IsNullOrWhiteSpace(p.ProcessName))
-                .Select(p => p.ProcessName)
+                .Select(p => ProfileService.NormalizeProcessName(p.ProcessName))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 

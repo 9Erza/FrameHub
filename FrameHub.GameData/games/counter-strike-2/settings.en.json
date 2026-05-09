@@ -86,7 +86,9 @@
       "type": "composite",
       "keys": [
         "setting.fullscreen",
-        "setting.nowindowborder"
+        "setting.coop_fullscreen",
+        "setting.nowindowborder",
+        "setting.fullscreen_min_on_focus_loss"
       ],
       "targetFile": "video",
       "optional": true,
@@ -98,7 +100,9 @@
           "value": "fullscreen",
           "values": {
             "setting.fullscreen": "1",
-            "setting.nowindowborder": "0"
+            "setting.coop_fullscreen": "0",
+            "setting.nowindowborder": "0",
+            "setting.fullscreen_min_on_focus_loss": "1"
           }
         },
         {
@@ -107,7 +111,9 @@
           "value": "borderless",
           "values": {
             "setting.fullscreen": "0",
-            "setting.nowindowborder": "1"
+            "setting.coop_fullscreen": "1",
+            "setting.nowindowborder": "1",
+            "setting.fullscreen_min_on_focus_loss": "0"
           }
         },
         {
@@ -116,7 +122,9 @@
           "value": "windowed",
           "values": {
             "setting.fullscreen": "0",
-            "setting.nowindowborder": "0"
+            "setting.coop_fullscreen": "0",
+            "setting.nowindowborder": "0",
+            "setting.fullscreen_min_on_focus_loss": "0"
           }
         }
       ]

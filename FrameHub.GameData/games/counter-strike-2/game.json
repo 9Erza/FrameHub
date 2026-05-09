@@ -7,6 +7,8 @@
     "setting.defaultresheight",
     "setting.aspectratiomode",
     "setting.fullscreen",
+    "setting.fullscreen_min_on_focus_loss",
+    "setting.coop_fullscreen",
     "setting.nowindowborder",
     "r_player_visibility_mode",
     "setting.mat_vsync",

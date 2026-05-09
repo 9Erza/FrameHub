@@ -127,6 +127,28 @@ namespace FrameHub.Core.Services
             return "Unknown";
         }
 
+        public string GetCpuName()
+        {
+            try
+            {
+                using var searcher = new ManagementObjectSearcher("Select Name from Win32_Processor");
+                foreach (var item in searcher.Get())
+                {
+                    string? name = item["Name"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        return name.Trim();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Failed to get CPU name via WMI: {ex.Message}");
+            }
+
+            return "Unknown CPU";
+        }
+
         private List<CoreInfo> BuildTopologyFromCpuSets(List<CpuSetInfo> cpuSets)
         {
             byte maxEfficiency = cpuSets.Max(x => x.EfficiencyClass);

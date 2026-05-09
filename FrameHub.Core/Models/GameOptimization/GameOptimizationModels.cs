@@ -39,6 +39,7 @@ public sealed class GameSettingChange
     public string Description { get; set; } = string.Empty;
     public string CurrentValue { get; set; } = string.Empty;
     public string RecommendedValue { get; set; } = string.Empty;
+    public string TargetValue { get; set; } = string.Empty;
     public GameOptimizationTargetFile TargetFile { get; set; } = GameOptimizationTargetFile.VideoConfig;
     public GameOptimizationRiskLevel RiskLevel { get; set; } = GameOptimizationRiskLevel.Safe;
     public GameOptimizationSettingStatus Status { get; set; } = GameOptimizationSettingStatus.MatchesBaseline;

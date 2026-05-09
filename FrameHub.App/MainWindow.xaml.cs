@@ -6,6 +6,8 @@ using DrawingSystemIcons = System.Drawing.SystemIcons;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
 using WinForms = System.Windows.Forms;
 
 namespace FrameHub.App;
@@ -23,6 +25,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = new ShellViewModel();
         Loaded += MainWindow_Loaded;
+        SourceInitialized += (_, _) => ApplyCurrentScreenWorkArea();
         StateChanged += MainWindow_StateChanged;
     }
 
@@ -133,6 +136,11 @@ public partial class MainWindow : Window
 
     private void MainWindow_StateChanged(object? sender, EventArgs e)
     {
+        if (WindowState == WindowState.Maximized)
+        {
+            ApplyCurrentScreenWorkArea();
+        }
+
         if (WindowState == WindowState.Minimized && ViewModel?.Runtime.Settings.MinimizeToTray == true)
         {
             HideToTray();
@@ -141,7 +149,39 @@ public partial class MainWindow : Window
 
     private void ToggleWindowState()
     {
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+            return;
+        }
+
+        ApplyCurrentScreenWorkArea();
+        WindowState = WindowState.Maximized;
+    }
+
+    private void ApplyCurrentScreenWorkArea()
+    {
+        try
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            if (handle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            var workingArea = WinForms.Screen.FromHandle(handle).WorkingArea;
+            var source = PresentationSource.FromVisual(this);
+            double scaleX = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+            double scaleY = source?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
+
+            MaxWidth = workingArea.Width / scaleX;
+            MaxHeight = workingArea.Height / scaleY;
+        }
+        catch
+        {
+            MaxWidth = SystemParameters.WorkArea.Width;
+            MaxHeight = SystemParameters.WorkArea.Height;
+        }
     }
 
     private void HideToTray()

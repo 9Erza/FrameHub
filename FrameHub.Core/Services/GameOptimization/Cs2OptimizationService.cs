@@ -35,13 +35,17 @@ public sealed class Cs2OptimizationService
             Paths = paths,
             VideoSettings = video,
             MachineConvars = machine,
-            StatusMessage = paths.IsComplete ? "CS2 configuration detected." : "CS2 video config was not found. Add Steam userdata folder manually or launch CS2 once.",
+            StatusMessage = paths.IsComplete ? "Wykryto konfigurację CS2." : "Nie znaleziono konfiguracji obrazu CS2. Dodaj ręcznie folder userdata Steam albo uruchom CS2 przynajmniej raz.",
         };
 
         analysis.Summary = BuildSummary(video);
 
-        var backupVideo = ReadLatestBackupVideoSettings();
-        analysis.Presets.Add(BuildBackupPreset(video, machine, backupVideo));
+        var backupSettings = ReadLatestBackupSettings();
+        if (backupSettings?.Video is { Count: > 0 })
+        {
+            analysis.Presets.Add(BuildBackupPreset(video, machine, backupSettings.Video, backupSettings.Machine));
+        }
+
         analysis.Presets.Add(BuildCompetitivePreset(video, machine));
 
         var baseline = analysis.Presets.FirstOrDefault(x => x.Id == "cs2_competitive_baseline") ?? analysis.Presets.FirstOrDefault();
@@ -60,7 +64,7 @@ public sealed class Cs2OptimizationService
         {
             if (!analysis.Paths.IsComplete)
             {
-                return new GameConfigBackupResult { Success = false, Message = "CS2 config was not detected." };
+                return new GameConfigBackupResult { Success = false, Message = "Nie wykryto konfiguracji CS2." };
             }
 
             string backupRoot = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss"));
@@ -76,7 +80,7 @@ public sealed class Cs2OptimizationService
             {
                 Success = true,
                 BackupFolder = backupRoot,
-                Message = $"Backup created: {backupRoot}"
+                Message = $"Utworzono kopię zapasową: {backupRoot}"
             };
         }
         catch (Exception ex)
@@ -104,21 +108,21 @@ public sealed class Cs2OptimizationService
             {
                 if (change.Key.Equals("cs2.resolution", StringComparison.OrdinalIgnoreCase))
                 {
-                    ApplyResolutionValue(change.RecommendedValue, videoChanges);
+                    ApplyResolutionValue(GetApplyValue(change), videoChanges);
                     count++;
                     continue;
                 }
 
                 if (change.Key.Equals("cs2.display_mode", StringComparison.OrdinalIgnoreCase))
                 {
-                    ApplyDisplayModeValue(change.RecommendedValue, videoChanges);
+                    ApplyDisplayModeValue(GetApplyValue(change), videoChanges);
                     count++;
                     continue;
                 }
 
                 if (change.Key.Equals("cs2.msaa_mode", StringComparison.OrdinalIgnoreCase))
                 {
-                    ApplyMsaaModeValue(change.RecommendedValue, videoChanges);
+                    ApplyMsaaModeValue(GetApplyValue(change), videoChanges);
                     count++;
                     continue;
                 }
@@ -130,12 +134,12 @@ public sealed class Cs2OptimizationService
 
                 if (change.TargetFile == GameOptimizationTargetFile.VideoConfig)
                 {
-                    videoChanges[change.Key] = change.RecommendedValue;
+                    videoChanges[change.Key] = GetApplyValue(change);
                     count++;
                 }
                 else if (change.TargetFile == GameOptimizationTargetFile.MachineConvars)
                 {
-                    machineChanges[change.Key] = change.RecommendedValue;
+                    machineChanges[change.Key] = GetApplyValue(change);
                     count++;
                 }
             }
@@ -155,7 +159,7 @@ public sealed class Cs2OptimizationService
                 Success = true,
                 BackupFolder = backup.BackupFolder,
                 AppliedChanges = count,
-                Message = $"Applied {count} selected CS2 setting(s). Backup: {backup.BackupFolder}"
+                Message = $"Zastosowano wybrane ustawienia CS2: {count}. Kopia zapasowa: {backup.BackupFolder}"
             };
         }
         catch (Exception ex)
@@ -165,15 +169,20 @@ public sealed class Cs2OptimizationService
         }
     }
 
+    private static string GetApplyValue(GameSettingChange change)
+    {
+        return string.IsNullOrWhiteSpace(change.TargetValue) ? change.RecommendedValue : change.TargetValue;
+    }
+
     public GameConfigBackupResult RestoreLatestBackup(Cs2ConfigAnalysis analysis)
     {
         try
         {
             string root = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2");
-            if (!Directory.Exists(root)) return new GameConfigBackupResult { Success = false, Message = "No CS2 backup folder found." };
+            if (!Directory.Exists(root)) return new GameConfigBackupResult { Success = false, Message = "Nie znaleziono folderu kopii zapasowych CS2." };
 
             string? latest = Directory.GetDirectories(root).OrderByDescending(x => x).FirstOrDefault();
-            if (latest == null) return new GameConfigBackupResult { Success = false, Message = "No CS2 backup found." };
+            if (latest == null) return new GameConfigBackupResult { Success = false, Message = "Nie znaleziono kopii zapasowej CS2." };
 
             int restored = 0;
             restored += RestoreIfAvailable(latest, analysis.Paths.VideoConfigPath);
@@ -186,7 +195,7 @@ public sealed class Cs2OptimizationService
             {
                 Success = restored > 0,
                 BackupFolder = latest,
-                Message = restored > 0 ? $"Restored {restored} CS2 config file(s) from: {latest}" : $"Latest backup found, but no matching current config path was detected: {latest}"
+                Message = restored > 0 ? $"Przywrócono pliki konfiguracji CS2: {restored}. Źródło: {latest}" : $"Znaleziono ostatnią kopię, ale nie wykryto pasującej aktualnej ścieżki konfiguracji: {latest}"
             };
         }
         catch (Exception ex)
@@ -211,7 +220,7 @@ public sealed class Cs2OptimizationService
                 return new Cs2AutoexecResult
                 {
                     Success = false,
-                    Message = "CS2 game cfg folder was not detected. Open CS2 from Steam Library scan first or set the executable path."
+                    Message = "Nie wykryto folderu cfg gry CS2. Najpierw otwórz CS2 z biblioteki Steam albo ustaw ścieżkę do pliku EXE."
                 };
             }
 
@@ -256,7 +265,7 @@ public sealed class Cs2OptimizationService
             string? path = GetAutoexecPath(analysis);
             if (string.IsNullOrWhiteSpace(path))
             {
-                return new GameConfigApplyResult { Success = false, Message = "CS2 game cfg folder was not detected." };
+                return new GameConfigApplyResult { Success = false, Message = "Nie wykryto folderu cfg gry CS2." };
             }
 
             string backupFolder = string.Empty;
@@ -276,8 +285,8 @@ public sealed class Cs2OptimizationService
                 BackupFolder = backupFolder,
                 AppliedChanges = 1,
                 Message = string.IsNullOrWhiteSpace(backupFolder)
-                    ? $"Saved autoexec.cfg: {path}"
-                    : $"Saved autoexec.cfg: {path}. Backup: {backupFolder}"
+                    ? $"Zapisano autoexec.cfg: {path}"
+                    : $"Zapisano autoexec.cfg: {path}. Kopia zapasowa: {backupFolder}"
             };
         }
         catch (Exception ex)
@@ -299,7 +308,7 @@ public sealed class Cs2OptimizationService
             string? path = analysis.Paths.UserConvarsPath;
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
-                return new GameConfigApplyResult { Success = false, Message = "CS2 user convars file was not detected." };
+                return new GameConfigApplyResult { Success = false, Message = "Nie wykryto pliku convars użytkownika CS2." };
             }
 
             string backupFolder = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_crosshair");
@@ -312,7 +321,7 @@ public sealed class Cs2OptimizationService
                 Success = updated,
                 BackupFolder = backupFolder,
                 AppliedChanges = updated ? values.Count : 0,
-                Message = updated ? $"Saved CS2 crosshair settings. Backup: {backupFolder}" : "No CS2 crosshair values were changed."
+                Message = updated ? $"Zapisano ustawienia celownika CS2. Kopia zapasowa: {backupFolder}" : "Nie zmieniono żadnych wartości celownika CS2."
             };
         }
         catch (Exception ex)
@@ -452,7 +461,7 @@ public sealed class Cs2OptimizationService
 
     private static string BuildSummary(IReadOnlyDictionary<string, string> video)
     {
-        if (video.Count == 0) return "No video settings detected.";
+        if (video.Count == 0) return "Nie wykryto ustawień obrazu.";
         string res = GetResolutionRaw(video);
         string displayMode = GetDisplayModeRaw(video);
         string vsync = Get(video, "setting.mat_vsync", "?") == "0" ? "off" : "on";
@@ -460,24 +469,21 @@ public sealed class Cs2OptimizationService
         return $"{res}; display={displayMode}; v-sync={vsync}; low-latency={latency}";
     }
 
-    private static GameOptimizationPreset BuildBackupPreset(Dictionary<string, string> video, Dictionary<string, string> machine, Dictionary<string, string>? backupVideo)
+    private static GameOptimizationPreset BuildBackupPreset(Dictionary<string, string> video, Dictionary<string, string> machine, Dictionary<string, string> backupVideo, Dictionary<string, string> backupMachine)
     {
-        bool hasBackup = backupVideo != null && backupVideo.Count > 0;
-        var sourceVideo = hasBackup ? backupVideo! : video;
-        var changes = BuildCs2SettingChanges(video, machine, new CompetitiveBaseline(sourceVideo, machine), useCurrentAsRecommended: true);
+        var changes = BuildCs2SettingChanges(video, machine, new CompetitiveBaseline(backupVideo, backupMachine), useCurrentAsRecommended: true);
 
         foreach (var change in changes)
         {
             change.IsSelected = false;
+            change.TargetValue = change.RecommendedValue;
         }
 
         return new GameOptimizationPreset
         {
-            Id = hasBackup ? "cs2_latest_backup" : "cs2_current_backup_placeholder",
-            DisplayName = hasBackup ? "Backup" : "Backup / current config",
-            Description = hasBackup
-                ? "Preset loaded from the latest FrameHub CS2 backup. Use it to compare or restore individual values. The dedicated restore button is still the safest full rollback."
-                : "No previous FrameHub backup was found. This preset mirrors the currently detected CS2 config and does not introduce changes.",
+            Id = "cs2_latest_backup",
+            DisplayName = "Kopia zapasowa",
+            Description = "Preset wczytany z ostatniej kopii zapasowej CS2 w FrameHub. Użyj go do porównania albo przywrócenia pojedynczych wartości. Osobny przycisk przywracania nadal jest najbezpieczniejszą pełną drogą cofnięcia zmian.",
             Changes = changes
         };
     }
@@ -506,10 +512,25 @@ public sealed class Cs2OptimizationService
         return new GameOptimizationPreset
         {
             Id = "cs2_competitive_baseline",
-            DisplayName = "Competitive Baseline",
-            Description = "FrameHub competitive baseline based on the supplied CS2 settings. It keeps the current low-latency competitive setup and recommends true fullscreen instead of borderless fullscreen.",
-            Changes = BuildCs2SettingChanges(video, machine, baseline, useCurrentAsRecommended: false)
+            DisplayName = "Preset turniejowy",
+            Description = "Preset turniejowy FrameHub oparty na dostarczonych ustawieniach CS2. Nie zmienia rozdzielczości ani trybu wyświetlania — te ustawienia zostają preferencją użytkownika.",
+            Changes = BuildCompetitivePresetChanges(video, machine, baseline)
         };
+    }
+
+    private static List<GameSettingChange> BuildCompetitivePresetChanges(Dictionary<string, string> video, Dictionary<string, string> machine, CompetitiveBaseline baseline)
+    {
+        var changes = BuildCs2SettingChanges(video, machine, baseline, useCurrentAsRecommended: false);
+
+        foreach (var change in changes.Where(change => change.Key.Equals("cs2.resolution", StringComparison.OrdinalIgnoreCase)
+            || change.Key.Equals("cs2.display_mode", StringComparison.OrdinalIgnoreCase)))
+        {
+            change.IsOptional = true;
+            change.IsSelected = false;
+            change.TargetValue = change.CurrentValue;
+        }
+
+        return changes;
     }
 
     private static List<GameSettingChange> BuildCs2SettingChanges(Dictionary<string, string> video, Dictionary<string, string> machine, CompetitiveBaseline baseline, bool useCurrentAsRecommended)
@@ -520,7 +541,7 @@ public sealed class Cs2OptimizationService
 
         var changes = new List<GameSettingChange>
         {
-            DerivedChange("cs2.resolution", resolutionCurrent, useCurrentAsRecommended ? resolutionCurrent : baseline.Resolution, canApply: true, options: ResolutionOptions()),
+            DerivedChange("cs2.resolution", resolutionCurrent, useCurrentAsRecommended ? resolutionCurrent : baseline.Resolution, canApply: true, optional: true, options: ResolutionOptions()),
             DerivedChange("cs2.display_mode", displayCurrent, useCurrentAsRecommended ? displayCurrent : baseline.DisplayMode, canApply: true, optional: true, options: DisplayModeOptions()),
             Change(machine, "r_player_visibility_mode", useCurrentAsRecommended ? Get(machine, "r_player_visibility_mode", "not found") : baseline.BoostPlayerContrast, GameOptimizationTargetFile.MachineConvars, options: OnOffOptions()),
             Change(video, "setting.mat_vsync", useCurrentAsRecommended ? Get(video, "setting.mat_vsync", "not found") : baseline.VSync, GameOptimizationTargetFile.VideoConfig, options: OnOffOptions()),
@@ -548,6 +569,7 @@ public sealed class Cs2OptimizationService
             DisplayName = key,
             CurrentValue = current,
             RecommendedValue = recommended,
+            TargetValue = recommended,
             Description = string.Empty,
             IsOptional = optional,
             CanApply = canApply,
@@ -570,6 +592,7 @@ public sealed class Cs2OptimizationService
             DisplayName = key,
             CurrentValue = current,
             RecommendedValue = recommended,
+            TargetValue = recommended,
             Description = string.Empty,
             IsOptional = optional,
             CanApply = true,
@@ -628,22 +651,31 @@ public sealed class Cs2OptimizationService
 
     private static void ApplyDisplayModeValue(string value, Dictionary<string, string> videoChanges)
     {
-        if (value.Equals("fullscreen", StringComparison.OrdinalIgnoreCase))
-        {
-            videoChanges["setting.fullscreen"] = "1";
-            videoChanges["setting.nowindowborder"] = "0";
-            return;
-        }
-
         if (value.Equals("borderless", StringComparison.OrdinalIgnoreCase))
         {
+            // CS2: Pełny ekran w oknie / borderless fullscreen.
             videoChanges["setting.fullscreen"] = "0";
+            videoChanges["setting.coop_fullscreen"] = "1";
             videoChanges["setting.nowindowborder"] = "1";
+            videoChanges["setting.fullscreen_min_on_focus_loss"] = "0";
             return;
         }
 
+        if (value.Equals("fullscreen", StringComparison.OrdinalIgnoreCase))
+        {
+            // CS2: prawdziwy pełny ekran / exclusive fullscreen.
+            videoChanges["setting.fullscreen"] = "1";
+            videoChanges["setting.coop_fullscreen"] = "0";
+            videoChanges["setting.nowindowborder"] = "0";
+            videoChanges["setting.fullscreen_min_on_focus_loss"] = "1";
+            return;
+        }
+
+        // CS2: zwykłe okno / windowed.
         videoChanges["setting.fullscreen"] = "0";
+        videoChanges["setting.coop_fullscreen"] = "0";
         videoChanges["setting.nowindowborder"] = "0";
+        videoChanges["setting.fullscreen_min_on_focus_loss"] = "0";
     }
 
     private static void ApplyMsaaModeValue(string value, Dictionary<string, string> videoChanges)
@@ -683,10 +715,25 @@ public sealed class Cs2OptimizationService
     private static string GetDisplayModeRaw(IReadOnlyDictionary<string, string> video)
     {
         string fullscreen = Get(video, "setting.fullscreen", "?");
-        string borderless = Get(video, "setting.nowindowborder", "?");
-        if (fullscreen == "1") return "fullscreen";
-        if (borderless == "1") return "borderless";
-        if (fullscreen == "0") return "windowed";
+        string coopFullscreen = Get(video, "setting.coop_fullscreen", "?");
+        string noWindowBorder = Get(video, "setting.nowindowborder", "?");
+        string minimizeOnFocusLoss = Get(video, "setting.fullscreen_min_on_focus_loss", "?");
+
+        if (fullscreen == "0" && coopFullscreen == "1" && noWindowBorder == "1" && minimizeOnFocusLoss == "0")
+        {
+            return "borderless";
+        }
+
+        if (fullscreen == "1" && coopFullscreen == "0" && noWindowBorder == "0" && minimizeOnFocusLoss == "1")
+        {
+            return "fullscreen";
+        }
+
+        if (fullscreen == "0" && coopFullscreen == "0" && noWindowBorder == "0" && minimizeOnFocusLoss == "0")
+        {
+            return "windowed";
+        }
+
         return "not found";
     }
 
@@ -706,7 +753,7 @@ public sealed class Cs2OptimizationService
         };
     }
 
-    private static Dictionary<string, string>? ReadLatestBackupVideoSettings()
+    private static Cs2BackupSettings? ReadLatestBackupSettings()
     {
         try
         {
@@ -714,8 +761,18 @@ public sealed class Cs2OptimizationService
             if (!Directory.Exists(root)) return null;
             string? latest = Directory.GetDirectories(root).OrderByDescending(x => x).FirstOrDefault();
             if (latest == null) return null;
+
             string video = Path.Combine(latest, "cs2_video.txt");
-            return File.Exists(video) ? ValveConfigParser.ReadKeyValues(video) : null;
+            if (!File.Exists(video)) return null;
+
+            string machine = Path.Combine(latest, "cs2_machine_convars.vcfg");
+            return new Cs2BackupSettings
+            {
+                Video = ValveConfigParser.ReadKeyValues(video),
+                Machine = File.Exists(machine)
+                    ? ValveConfigParser.ReadKeyValues(machine)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            };
         }
         catch
         {
@@ -807,6 +864,12 @@ public sealed class Cs2OptimizationService
     private static string Get(IReadOnlyDictionary<string, string> values, string key, string fallback)
     {
         return values.TryGetValue(key, out string? value) ? value : fallback;
+    }
+
+    private sealed class Cs2BackupSettings
+    {
+        public Dictionary<string, string> Video { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string> Machine { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     private sealed class CompetitiveBaseline

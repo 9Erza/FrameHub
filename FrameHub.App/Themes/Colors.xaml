@@ -1,6 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- FrameHub v0.1.1 visual theme: darker, cleaner and more product-like than PCO. -->
+    <!-- FrameHub dark application theme. -->
     <Color x:Key="ColorWindowChrome">#060A12</Color>
     <Color x:Key="ColorBackground">#070B13</Color>
     <Color x:Key="ColorBackgroundAlt">#0A0F1C</Color>

@@ -31,7 +31,7 @@
                             </StackPanel>
                             <Border Grid.Column="1" Style="{StaticResource SoftCardBorder}" Width="190" Padding="16" VerticalAlignment="Center">
                                 <StackPanel>
-                                    <TextBlock Text="READY" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushSuccess}" />
+                                    <TextBlock Text="{Binding ReadyBadgeText}" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushSuccess}" />
                                     <TextBlock Text="{Binding ReadyCountText}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0" />
                                     <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
                                 </StackPanel>
@@ -132,7 +132,7 @@
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <Border Width="42" Height="42" CornerRadius="14" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,12,0">
+                                                <Border Width="42" Height="42" CornerRadius="8" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,12,0">
                                                     <Grid>
                                                         <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="28" Height="28" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.35" RenderOptions.BitmapScalingMode="Fant" />
                                                         <Image Source="{Binding IconSource}" Width="28" Height="28" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
@@ -168,7 +168,7 @@
                                                     <TextBlock Text="{Binding ProfileText}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" />
                                                     <TextBlock Text="{Binding WatchText}" Style="{StaticResource SmallMutedText}" Margin="0,4,0,0" />
                                                 </StackPanel>
-                                                <Button Grid.Row="1" Style="{StaticResource PrimaryButton}" Content="Details / Optimize" Command="{Binding DataContext.SelectItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Margin="0,12,0,0" />
+                                                <Button Grid.Row="1" Style="{StaticResource PrimaryButton}" Content="{Binding DataContext.DetailsOptimizeText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Command="{Binding DataContext.SelectItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Margin="0,12,0,0" />
                                             </Grid>
                                         </Grid>
                                     </Border>
@@ -196,96 +196,139 @@
                         <WrapPanel Grid.Column="1" VerticalAlignment="Center" Margin="18,0,0,0">
                             <Button Style="{StaticResource PrimaryButton}" Content="{Binding LaunchText}" Command="{Binding LaunchSelectedCommand}" Margin="0,0,8,8" />
                             <Button Style="{StaticResource SecondaryButton}" Content="{Binding OpenFolderText}" Command="{Binding OpenSelectedFolderCommand}" Margin="0,0,8,8" />
-                            <Button Style="{StaticResource SecondaryButton}" Content="{Binding ApplyProfileText}" Command="{Binding ApplyLinkedProfileCommand}" Margin="0,0,0,8" />
+                            <Button Style="{StaticResource SuccessButton}" Content="{Binding ApplyProfileText}" Command="{Binding ApplyLinkedProfileCommand}" Margin="0,0,0,8" />
                         </WrapPanel>
                     </Grid>
                 </Border>
 
-                <TabControl Visibility="{Binding IsCs2Selected, Converter={StaticResource BoolToVisibilityConverter}}" Background="Transparent" BorderThickness="0">
+                <TabControl Style="{StaticResource FrameHubTabControl}" ItemContainerStyle="{StaticResource FrameHubTabItem}">
                     <TabItem Header="{Binding CpuTabTitle}">
-                        <Border Style="{StaticResource CardBorder}" Margin="0,14,0,0">
-                            <StackPanel>
-                                <TextBlock Text="{Binding ProfileEditorTitle}" Style="{StaticResource SectionTitleText}" />
-                                <TextBlock Text="{Binding ProfileEditorHintText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,6,0,16" />
+                        <Grid Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="640" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                                <Grid Margin="0,0,0,14">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="250" />
-                                        <ColumnDefinition Width="18" />
-                                        <ColumnDefinition Width="250" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding ModeLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" />
-                                        <ComboBox ItemsSource="{Binding AvailableOptimizationModes}" SelectedItem="{Binding SelectedOptimizationMode}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="{Binding PriorityLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" />
-                                        <ComboBox ItemsSource="{Binding AvailablePriorities}" SelectedItem="{Binding SelectedPriority}" />
-                                    </StackPanel>
-                                </Grid>
+                            <Border Grid.Column="0" Style="{StaticResource CardBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ProfileEditorTitle}" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="{Binding ProfileEditorHintText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,6,0,12" />
 
-                                <WrapPanel Margin="0,0,0,12">
-                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding SelectAllText}" Command="{Binding SelectAllCoresCommand}" Margin="0,0,8,8" />
-                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding ClearAllText}" Command="{Binding ClearAllCoresCommand}" Margin="0,0,8,8" />
-                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding DisableSmtText}" Command="{Binding DisableSmtCommand}" Margin="0,0,8,8" />
-                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding DisableECoresText}" Command="{Binding DisableECoresCommand}" Margin="0,0,8,8" />
-                                </WrapPanel>
-
-                                <Grid MaxWidth="620" HorizontalAlignment="Left">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="1*" />
-                                        <ColumnDefinition Width="14" />
-                                        <ColumnDefinition Width="1*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="12" Padding="10">
+                                    <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,14">
                                         <StackPanel>
-                                            <TextBlock Text="{Binding CpuCoresTitle}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,8" />
-                                            <ItemsControl ItemsSource="{Binding PhysicalCores}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Background="#101D36" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="8,6" Margin="0,0,0,6">
-                                                            <Grid>
-                                                                <Grid.RowDefinitions>
-                                                                    <RowDefinition Height="Auto" />
-                                                                    <RowDefinition Height="Auto" />
-                                                                </Grid.RowDefinitions>
-                                                                <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsChecked}" FontSize="12" />
-                                                                <ProgressBar Grid.Row="1" Maximum="100" Value="{Binding LoadUsage}" Height="4" Margin="0,6,0,0" />
-                                                            </Grid>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                            <TextBlock Text="{Binding CurrentOptimizationProfileTitle}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding CurrentOptimizationProfileText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                         </StackPanel>
                                     </Border>
-                                    <Border Grid.Column="2" Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="12" Padding="10">
+
+                                    <Grid Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1*" />
+                                            <ColumnDefinition Width="18" />
+                                            <ColumnDefinition Width="1*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding ModeLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" />
+                                            <ComboBox ItemsSource="{Binding AvailableOptimizationModes}" SelectedItem="{Binding SelectedOptimizationModeOption}" DisplayMemberPath="DisplayName" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="{Binding PriorityLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" />
+                                            <ComboBox ItemsSource="{Binding AvailablePriorities}" SelectedItem="{Binding SelectedPriority}" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <WrapPanel Margin="0,0,0,12">
+                                        <Button Style="{StaticResource SecondaryButton}" Content="{Binding SelectAllText}" Command="{Binding SelectAllCoresCommand}" Margin="0,0,8,8" />
+                                        <Button Style="{StaticResource SecondaryButton}" Content="{Binding ClearAllText}" Command="{Binding ClearAllCoresCommand}" Margin="0,0,8,8" />
+                                        <Button Style="{StaticResource SecondaryButton}" Content="{Binding DisableSmtText}" Command="{Binding DisableSmtCommand}" Margin="0,0,8,8" />
+                                        <Button Style="{StaticResource SecondaryButton}" Content="{Binding DisableECoresText}" Command="{Binding DisableECoresCommand}" Margin="0,0,8,8" />
+                                    </WrapPanel>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1*" />
+                                            <ColumnDefinition Width="14" />
+                                            <ColumnDefinition Width="1*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="10">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding CpuCoresTitle}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,8" />
+                                                <ItemsControl ItemsSource="{Binding PhysicalCores}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="#101D36" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,6">
+                                                                <Grid>
+                                                                    <Grid.RowDefinitions>
+                                                                        <RowDefinition Height="Auto" />
+                                                                        <RowDefinition Height="Auto" />
+                                                                    </Grid.RowDefinitions>
+                                                                    <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsChecked}" FontSize="12" />
+                                                                    <ProgressBar Grid.Row="1" Maximum="100" Value="{Binding LoadUsage}" Height="4" Margin="0,6,0,0" />
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="2" Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="10">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding CpuThreadsTitle}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,8" />
+                                                <ItemsControl ItemsSource="{Binding ThreadCores}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="#101D36" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,6">
+                                                                <Grid>
+                                                                    <Grid.RowDefinitions>
+                                                                        <RowDefinition Height="Auto" />
+                                                                        <RowDefinition Height="Auto" />
+                                                                    </Grid.RowDefinitions>
+                                                                    <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsChecked}" FontSize="12" />
+                                                                    <ProgressBar Grid.Row="1" Maximum="100" Value="{Binding LoadUsage}" Height="4" Margin="0,6,0,0" />
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding CreateUpdateProfileText}" Command="{Binding CreateUpdateProfileCommand}" HorizontalAlignment="Stretch" Margin="0,14,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2" Style="{StaticResource CardBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding CpuInfoTitle}" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="{Binding DetectedProcessorLabel}" Style="{StaticResource TinyCapsText}" Margin="0,14,0,5" />
+                                    <TextBlock Text="{Binding DetectedProcessorText}" FontWeight="SemiBold" TextWrapping="Wrap" />
+
+                                    <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,16,0,0">
                                         <StackPanel>
-                                            <TextBlock Text="{Binding CpuThreadsTitle}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,8" />
-                                            <ItemsControl ItemsSource="{Binding ThreadCores}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Background="#101D36" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="8,6" Margin="0,0,0,6">
-                                                            <Grid>
-                                                                <Grid.RowDefinitions>
-                                                                    <RowDefinition Height="Auto" />
-                                                                    <RowDefinition Height="Auto" />
-                                                                </Grid.RowDefinitions>
-                                                                <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsChecked}" FontSize="12" />
-                                                                <ProgressBar Grid.Row="1" Maximum="100" Value="{Binding LoadUsage}" Height="4" Margin="0,6,0,0" />
-                                                            </Grid>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                            <TextBlock Text="{Binding RecommendedPresetTitle}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding RecommendedPresetText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                         </StackPanel>
                                     </Border>
-                                </Grid>
-                                <Button Style="{StaticResource PrimaryButton}" Content="{Binding CreateUpdateProfileText}" Command="{Binding CreateUpdateProfileCommand}" Width="620" HorizontalAlignment="Left" Margin="0,14,0,0" />
-                            </StackPanel>
-                        </Border>
+
+                                    <TextBlock Text="{Binding CpuModeExplanationTitle}" Style="{StaticResource TinyCapsText}" Margin="0,18,0,8" />
+                                    <TextBlock Text="{Binding CpuSetsExplanation}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding AffinityExplanation}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                    <TextBlock Text="{Binding TestWarningText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Foreground="{StaticResource BrushWarning}" Margin="0,10,0,0" />
+
+                                    <TextBlock Text="{Binding CpuTipsTitle}" Style="{StaticResource TinyCapsText}" Margin="0,18,0,8" />
+                                    <TextBlock Text="{Binding CoreZeroTitle}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding CoreZeroExplanation}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                                    <TextBlock Text="{Binding SmtTitle}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding SmtExplanation}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                                    <TextBlock Text="{Binding IntelECoreTitle}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding IntelECoreExplanation}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </TabItem>
 
-                    <TabItem Header="{Binding GraphicsTabTitle}">
+                    <TabItem Header="{Binding GraphicsTabTitle}" Visibility="{Binding IsCs2Selected, Converter={StaticResource BoolToVisibilityConverter}}">
                         <Border Style="{StaticResource HeroCardBorder}" Margin="0,14,0,0">
                             <StackPanel>
                                 <TextBlock Text="{Binding Cs2OptimizerTitle}" FontSize="22" FontWeight="SemiBold" />
@@ -295,16 +338,16 @@
                                     <StackPanel>
                                         <TextBlock Text="{Binding Cs2OverviewTitle}" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12" />
                                         <UniformGrid Columns="2" Rows="2">
-                                            <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,0,8,8">
+                                            <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,8,8">
                                                 <StackPanel><TextBlock Text="{Binding Cs2ResolutionTitle}" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2ResolutionDisplay}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0" /></StackPanel>
                                             </Border>
-                                            <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="8,0,0,8">
+                                            <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,8">
                                                 <StackPanel><TextBlock Text="{Binding Cs2DisplayModeTitle}" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2DisplayModeDisplay}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0" /></StackPanel>
                                             </Border>
-                                            <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,8,8,0">
+                                            <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,8,8,0">
                                                 <StackPanel><TextBlock Text="{Binding Cs2VsyncTitle}" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2VsyncDisplay}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0" /></StackPanel>
                                             </Border>
-                                            <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="8,8,0,0">
+                                            <Border Background="#0E1A2F" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,8,0,0">
                                                 <StackPanel><TextBlock Text="{Binding Cs2BaselineTitle}" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2BaselineMatchDisplay}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{StaticResource BrushSuccess}" /></StackPanel>
                                             </Border>
                                         </UniformGrid>
@@ -315,11 +358,11 @@
 
                                 <WrapPanel Margin="0,0,0,12">
                                     <Button Style="{StaticResource SecondaryButton}" Content="{Binding ScanCs2Text}" Command="{Binding ScanCs2Command}" Margin="0,0,8,8" />
-                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding BackupCs2Text}" Command="{Binding BackupCs2Command}" Margin="0,0,8,8" />
-                                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding ApplyCs2Text}" Command="{Binding ApplyCs2PresetCommand}" Margin="0,0,8,8" />
-                                    <Button Style="{StaticResource GhostButton}" Content="{Binding RestoreCs2Text}" Command="{Binding RestoreCs2BackupCommand}" Margin="0,0,8,8" />
+                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding BackupCs2Text}" Command="{Binding BackupCs2Command}" IsEnabled="{Binding CanEditCs2Config}" Margin="0,0,8,8" />
+                                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding ApplyCs2Text}" Command="{Binding ApplyCs2PresetCommand}" IsEnabled="{Binding CanEditCs2Config}" Margin="0,0,8,8" />
                                 </WrapPanel>
-                                <TextBlock Text="{Binding Cs2StatusMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,12" />
+                                <TextBlock Text="{Binding Cs2StatusMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                                <TextBlock Text="{Binding Cs2EditLockMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{StaticResource BrushWarning}" />
 
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="240" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -330,7 +373,7 @@
                                     <TextBlock Grid.Column="1" Text="{Binding Cs2PresetDescription}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" VerticalAlignment="Bottom" />
                                 </Grid>
 
-                                <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="16" Padding="12">
+                                <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" IsEnabled="{Binding CanEditCs2Config}">
                                     <StackPanel>
                                         <Grid Margin="0,0,0,10">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -341,7 +384,7 @@
                                             <TextBlock Grid.Column="1" Text="{Binding Cs2BaselineMatchDisplay}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Top" Margin="12,3,0,0" />
                                         </Grid>
 
-                                        <Border Background="#111D34" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="10" Padding="10,8" Margin="0,0,0,8">
+                                        <Border Background="#111D34" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
                                             <Grid>
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="2.4*" /><ColumnDefinition Width="0.95*" /><ColumnDefinition Width="0.95*" /><ColumnDefinition Width="1.15*" /></Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="1" Text="{Binding Cs2TableSettingHeader}" Style="{StaticResource TinyCapsText}" />
@@ -354,7 +397,7 @@
                                         <ItemsControl ItemsSource="{Binding Cs2SettingChanges}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type opt:Cs2SettingChangeViewModel}">
-                                                    <Border Background="#101D36" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="11" Padding="10,9" Margin="0,0,0,7">
+                                                    <Border Background="#101D36" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="10,9" Margin="0,0,0,7">
                                                         <Grid VerticalAlignment="Center">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="2.4*" /><ColumnDefinition Width="0.95*" /><ColumnDefinition Width="0.95*" /><ColumnDefinition Width="1.15*" /></Grid.ColumnDefinitions>
                                                             <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" IsEnabled="{Binding CanApply}" ToolTip="{Binding ApplyHint}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,4,0,0" />
@@ -362,8 +405,8 @@
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" />
                                                                 <TextBlock Text="{Binding Description}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" />
                                                             </StackPanel>
-                                                            <Border Grid.Column="2" Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="9" Padding="9,7" Margin="0,0,8,0" MinHeight="48"><TextBlock Text="{Binding CurrentDisplayValue}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Top" /></Border>
-                                                            <Border Grid.Column="3" Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="9" Padding="9,7" Margin="0,0,8,0" MinHeight="48"><TextBlock Text="{Binding RecommendedDisplayValue}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="{StaticResource BrushSuccess}" /></Border>
+                                                            <Border Grid.Column="2" Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="9,7" Margin="0,0,8,0" MinHeight="48"><TextBlock Text="{Binding CurrentDisplayValue}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Top" /></Border>
+                                                            <Border Grid.Column="3" Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="9,7" Margin="0,0,8,0" MinHeight="48"><TextBlock Text="{Binding RecommendedDisplayValue}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="{StaticResource BrushSuccess}" /></Border>
                                                             <ComboBox Grid.Column="4" ItemsSource="{Binding Options}" SelectedItem="{Binding SelectedOption, Mode=TwoWay}" IsEnabled="{Binding CanApply}" DisplayMemberPath="DisplayName" MinHeight="36" Padding="10,7" VerticalAlignment="Top" Margin="0,6,0,0" />
                                                         </Grid>
                                                     </Border>
@@ -376,19 +419,21 @@
                         </Border>
                     </TabItem>
 
-                    <TabItem Header="{Binding ConfigTabTitle}">
+                    <TabItem Header="{Binding ConfigTabTitle}" Visibility="{Binding IsCs2Selected, Converter={StaticResource BoolToVisibilityConverter}}">
                         <Border Style="{StaticResource CardBorder}" Margin="0,14,0,0">
                             <StackPanel>
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                     <StackPanel>
-                                        <TextBlock Text="CS2 Config" Style="{StaticResource SectionTitleText}" />
+                                        <TextBlock Text="{Binding ConfigTabTitle}" Style="{StaticResource SectionTitleText}" />
                                         <TextBlock Text="{Binding CrosshairEditorHint}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                        <TextBlock Text="{Binding Cs2SteamCloudWarningText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{StaticResource BrushWarning}" />
+                                        <TextBlock Text="{Binding Cs2EditLockMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{StaticResource BrushWarning}" />
                                     </StackPanel>
                                     <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="{Binding Cs2AutoexecOpenFolderText}" Command="{Binding OpenCs2AutoexecFolderCommand}" />
                                 </Grid>
 
-                                <Border Style="{StaticResource SoftCardBorder}" Margin="0,0,0,16">
+                                <Border Style="{StaticResource SoftCardBorder}" Margin="0,0,0,16" IsEnabled="{Binding CanEditCs2Config}">
                                     <StackPanel>
                                         <Grid Margin="0,0,0,12">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -402,16 +447,21 @@
                                             </WrapPanel>
                                         </Grid>
 
-                                        <Border Background="#081225" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Height="170" Margin="0,0,0,14">
+                                        <Border Background="#081225" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Height="170" Margin="0,0,0,14">
                                             <Canvas Width="580" Height="164" HorizontalAlignment="Center" VerticalAlignment="Center" ClipToBounds="True">
                                                 <Rectangle Width="580" Height="164" Fill="#0B1428" />
                                                 <Line X1="0" X2="580" Y1="82" Y2="82" Stroke="#21324F" StrokeThickness="1" />
                                                 <Line X1="290" X2="290" Y1="0" Y2="164" Stroke="#21324F" StrokeThickness="1" />
+                                                <Line X1="{Binding CrosshairLeftX1}" X2="{Binding CrosshairLeftX2}" Y1="{Binding CrosshairPreviewCenterY}" Y2="{Binding CrosshairPreviewCenterY}" Stroke="Black" StrokeThickness="{Binding CrosshairOutlinePreviewThickness}" Visibility="{Binding CrosshairOutlineVisibility}" />
+                                                <Line X1="{Binding CrosshairRightX1}" X2="{Binding CrosshairRightX2}" Y1="{Binding CrosshairPreviewCenterY}" Y2="{Binding CrosshairPreviewCenterY}" Stroke="Black" StrokeThickness="{Binding CrosshairOutlinePreviewThickness}" Visibility="{Binding CrosshairOutlineVisibility}" />
+                                                <Line X1="{Binding CrosshairPreviewCenterX}" X2="{Binding CrosshairPreviewCenterX}" Y1="{Binding CrosshairTopY1}" Y2="{Binding CrosshairTopY2}" Stroke="Black" StrokeThickness="{Binding CrosshairOutlinePreviewThickness}" Visibility="{Binding CrosshairTopOutlineVisibility}" />
+                                                <Line X1="{Binding CrosshairPreviewCenterX}" X2="{Binding CrosshairPreviewCenterX}" Y1="{Binding CrosshairBottomY1}" Y2="{Binding CrosshairBottomY2}" Stroke="Black" StrokeThickness="{Binding CrosshairOutlinePreviewThickness}" Visibility="{Binding CrosshairOutlineVisibility}" />
                                                 <Line X1="{Binding CrosshairLeftX1}" X2="{Binding CrosshairLeftX2}" Y1="{Binding CrosshairPreviewCenterY}" Y2="{Binding CrosshairPreviewCenterY}" Stroke="{Binding Cs2CrosshairPreviewBrush}" StrokeThickness="{Binding CrosshairPreviewThickness}" />
                                                 <Line X1="{Binding CrosshairRightX1}" X2="{Binding CrosshairRightX2}" Y1="{Binding CrosshairPreviewCenterY}" Y2="{Binding CrosshairPreviewCenterY}" Stroke="{Binding Cs2CrosshairPreviewBrush}" StrokeThickness="{Binding CrosshairPreviewThickness}" />
-                                                <Line X1="{Binding CrosshairPreviewCenterX}" X2="{Binding CrosshairPreviewCenterX}" Y1="{Binding CrosshairTopY1}" Y2="{Binding CrosshairTopY2}" Stroke="{Binding Cs2CrosshairPreviewBrush}" StrokeThickness="{Binding CrosshairPreviewThickness}" />
+                                                <Line X1="{Binding CrosshairPreviewCenterX}" X2="{Binding CrosshairPreviewCenterX}" Y1="{Binding CrosshairTopY1}" Y2="{Binding CrosshairTopY2}" Stroke="{Binding Cs2CrosshairPreviewBrush}" StrokeThickness="{Binding CrosshairPreviewThickness}" Visibility="{Binding CrosshairTopVisibility}" />
                                                 <Line X1="{Binding CrosshairPreviewCenterX}" X2="{Binding CrosshairPreviewCenterX}" Y1="{Binding CrosshairBottomY1}" Y2="{Binding CrosshairBottomY2}" Stroke="{Binding Cs2CrosshairPreviewBrush}" StrokeThickness="{Binding CrosshairPreviewThickness}" />
-                                                <Ellipse Width="6" Height="6" Canvas.Left="287" Canvas.Top="79" Fill="{Binding Cs2CrosshairPreviewBrush}" Visibility="{Binding Cs2CrosshairDot, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                <Ellipse Width="{Binding CrosshairDotSize}" Height="{Binding CrosshairDotSize}" Canvas.Left="{Binding CrosshairDotLeft}" Canvas.Top="{Binding CrosshairDotTop}" Fill="{Binding Cs2CrosshairPreviewBrush}" Visibility="{Binding Cs2CrosshairDot, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                <Line X1="{Binding CrosshairPreviewCenterX}" X2="{Binding CrosshairPreviewCenterX}" Y1="{Binding CrosshairPreviewCenterY}" Y2="{Binding CrosshairRecoilY}" Stroke="{Binding Cs2CrosshairPreviewBrush}" StrokeThickness="1" StrokeDashArray="2 3" Opacity="0.8" Visibility="{Binding CrosshairRecoilVisibility}" />
                                             </Canvas>
                                         </Border>
 
@@ -427,12 +477,17 @@
                                                 <Slider Minimum="0" Maximum="3" Value="{Binding Cs2CrosshairThickness}" Margin="0,0,0,10" />
                                                 <TextBlock Text="Odstęp" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairGap, StringFormat={}{0:0.##}}" FontWeight="SemiBold" />
                                                 <Slider Minimum="-5" Maximum="10" Value="{Binding Cs2CrosshairGap}" Margin="0,0,0,10" />
+                                                <TextBlock Text="Grubość obrysu" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairOutlineThickness, StringFormat={}{0:0.##}}" FontWeight="SemiBold" />
+                                                <Slider Minimum="0" Maximum="3" Value="{Binding Cs2CrosshairOutlineThickness}" Margin="0,0,0,10" />
+                                                <TextBlock Text="Sniper width" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairSniperWidth, StringFormat={}{0:0.##}}" FontWeight="SemiBold" />
+                                                <Slider Minimum="1" Maximum="5" Value="{Binding Cs2CrosshairSniperWidth}" Margin="0,0,0,10" />
                                                 <WrapPanel>
                                                     <CheckBox Content="Kropka" IsChecked="{Binding Cs2CrosshairDot}" Margin="0,0,14,8" />
                                                     <CheckBox Content="Obrys" IsChecked="{Binding Cs2CrosshairOutline}" Margin="0,0,14,8" />
                                                     <CheckBox Content="Styl T" IsChecked="{Binding Cs2CrosshairTStyle}" Margin="0,0,14,8" />
                                                     <CheckBox Content="Użyj alpha" IsChecked="{Binding Cs2CrosshairUseAlpha}" Margin="0,0,14,8" />
                                                     <CheckBox Content="Podążaj za odrzutem" IsChecked="{Binding Cs2CrosshairFollowRecoil}" Margin="0,0,14,8" />
+                                                    <CheckBox Content="Odstęp zależny od broni" IsChecked="{Binding Cs2CrosshairGapUseWeaponValue}" Margin="0,0,14,8" />
                                                 </WrapPanel>
                                             </StackPanel>
                                             <StackPanel Grid.Column="2">
@@ -443,15 +498,17 @@
                                                 <TextBlock Text="Niebieski" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairBlue, StringFormat={}{0:0}}" FontWeight="SemiBold" />
                                                 <Slider Minimum="0" Maximum="255" Value="{Binding Cs2CrosshairBlue}" Margin="0,0,0,10" />
                                                 <TextBlock Text="Alpha" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairAlpha, StringFormat={}{0:0}}" FontWeight="SemiBold" />
-                                                <Slider Minimum="0" Maximum="255" Value="{Binding Cs2CrosshairAlpha}" />
+                                                <Slider Minimum="0" Maximum="255" Value="{Binding Cs2CrosshairAlpha}" Margin="0,0,0,10" />
+                                                <TextBlock Text="Tryb koloru cl_crosshaircolor" Style="{StaticResource TinyCapsText}" />
+                                                <TextBox Text="{Binding Cs2CrosshairColor, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
 
-                                <Border Style="{StaticResource SoftCardBorder}">
+                                <Border Style="{StaticResource SoftCardBorder}" IsEnabled="{Binding CanEditCs2Config}">
                                     <StackPanel>
-                                        <TextBlock Text="Edytor CS2 autoexec.cfg" FontSize="20" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Cs2AutoexecTitle}" FontSize="20" FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding Cs2AutoexecSubtitle}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                                         <TextBlock Text="{Binding Cs2AutoexecPathLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,4" />
                                         <TextBlock Text="{Binding Cs2AutoexecPath}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,12" />
@@ -462,32 +519,32 @@
                                         </WrapPanel>
 
                                         <UniformGrid Columns="3" Margin="0,0,0,16">
-                                            <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,0,8,8">
+                                            <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,8,8">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding AutoexecGeneralSectionTitle}" FontWeight="SemiBold" Margin="0,0,0,10" />
-                                                    <TextBlock Text="FPS max" Style="{StaticResource TinyCapsText}" /><Grid Margin="0,4,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding SelectedCs2FpsMax}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding AddText}" Command="{Binding InsertCs2FpsMaxCommand}" Margin="8,0,0,0" /></Grid>
-                                                    <TextBlock Text="Czułość myszy" Style="{StaticResource TinyCapsText}" /><Grid Margin="0,4,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding Cs2MouseSensitivity}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding AddText}" Command="{Binding InsertCs2SensitivityCommand}" Margin="8,0,0,0" /></Grid>
-                                                    <TextBlock Text="Głośność" Style="{StaticResource TinyCapsText}" /><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding Cs2Volume}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding AddText}" Command="{Binding InsertCs2VolumeCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <TextBlock Text="{Binding Cs2AutoexecFpsLabel}" Style="{StaticResource TinyCapsText}" /><Grid Margin="0,4,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Style="{StaticResource HintTextBox}" Tag="{Binding FpsMaxPlaceholder}" Text="{Binding SelectedCs2FpsMax, UpdateSourceTrigger=PropertyChanged}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding AddText}" Command="{Binding InsertCs2FpsMaxCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <TextBlock Text="{Binding MouseSensitivityText}" Style="{StaticResource TinyCapsText}" /><Grid Margin="0,4,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Style="{StaticResource HintTextBox}" Tag="{Binding MouseSensitivityPlaceholder}" Text="{Binding Cs2MouseSensitivity, UpdateSourceTrigger=PropertyChanged}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding AddText}" Command="{Binding InsertCs2SensitivityCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <TextBlock Text="{Binding VolumeText}" Style="{StaticResource TinyCapsText}" /><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Style="{StaticResource HintTextBox}" Tag="{Binding VolumePlaceholder}" Text="{Binding Cs2Volume, UpdateSourceTrigger=PropertyChanged}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding AddText}" Command="{Binding InsertCs2VolumeCommand}" Margin="8,0,0,0" /></Grid>
                                                 </StackPanel>
                                             </Border>
-                                            <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="4,0,4,8">
+                                            <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="4,0,4,8">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding AutoexecQolSectionTitle}" FontWeight="SemiBold" Margin="0,0,0,10" />
-                                                    <Button Style="{StaticResource SecondaryButton}" Content="Dodaj duży radar" Command="{Binding InsertCs2RadarCommand}" Margin="0,0,0,8" />
-                                                    <Button Style="{StaticResource SecondaryButton}" Content="Włącz konsolę" Command="{Binding InsertCs2ConsoleCommand}" />
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding Cs2AutoexecRadarText}" Command="{Binding InsertCs2RadarCommand}" Margin="0,0,0,8" />
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding AutoexecConsoleText}" Command="{Binding InsertCs2ConsoleCommand}" />
                                                 </StackPanel>
                                             </Border>
-                                            <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="8,0,0,8">
+                                            <Border Background="#0B1428" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,8">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding AutoexecBindsSectionTitle}" FontWeight="SemiBold" Margin="0,0,0,10" />
-                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding Cs2SmokeKey}" ToolTip="Smoke key" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Smoke" Command="{Binding InsertCs2SmokeBindCommand}" Margin="8,0,0,0" /></Grid>
-                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding Cs2FlashKey}" ToolTip="Flash key" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Flash" Command="{Binding InsertCs2FlashBindCommand}" Margin="8,0,0,0" /></Grid>
-                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding Cs2MolotovKey}" ToolTip="Molotov key" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Molly" Command="{Binding InsertCs2MolotovBindCommand}" Margin="8,0,0,0" /></Grid>
-                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding Cs2HeKey}" ToolTip="HE key" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="HE" Command="{Binding InsertCs2HeBindCommand}" Margin="8,0,0,0" /></Grid>
-                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding Cs2VoiceKey}" ToolTip="Voice key" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Voice" Command="{Binding InsertCs2VoiceBindCommand}" Margin="8,0,0,0" /></Grid>
-                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><ComboBox ItemsSource="{Binding Cs2JumpBindModes}" SelectedItem="{Binding SelectedCs2JumpBindMode}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Jump" Command="{Binding InsertCs2JumpBindCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Style="{StaticResource HintTextBox}" Tag="{Binding SmokeKeyPlaceholder}" Text="{Binding Cs2SmokeKey, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding SmokeKeyTooltip}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding SmokeBindText}" Command="{Binding InsertCs2SmokeBindCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Style="{StaticResource HintTextBox}" Tag="{Binding FlashKeyPlaceholder}" Text="{Binding Cs2FlashKey, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding FlashKeyTooltip}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding FlashBindText}" Command="{Binding InsertCs2FlashBindCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Style="{StaticResource HintTextBox}" Tag="{Binding MolotovKeyPlaceholder}" Text="{Binding Cs2MolotovKey, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding MolotovKeyTooltip}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding MolotovBindText}" Command="{Binding InsertCs2MolotovBindCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Style="{StaticResource HintTextBox}" Tag="{Binding HeKeyPlaceholder}" Text="{Binding Cs2HeKey, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding HeKeyTooltip}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding HeBindText}" Command="{Binding InsertCs2HeBindCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Style="{StaticResource HintTextBox}" Tag="{Binding VoiceKeyPlaceholder}" Text="{Binding Cs2VoiceKey, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding VoiceKeyTooltip}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding VoiceBindText}" Command="{Binding InsertCs2VoiceBindCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><ComboBox ItemsSource="{Binding Cs2JumpBindModes}" SelectedItem="{Binding SelectedCs2JumpBindMode}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding JumpBindText}" Command="{Binding InsertCs2JumpBindCommand}" Margin="8,0,0,0" /></Grid>
                                                     <TextBlock Text="{Binding AutoexecCustomBindTitle}" Style="{StaticResource TinyCapsText}" Margin="0,6,0,6" />
-                                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding Cs2CustomBindKey}" ToolTip="{Binding KeyText}" /><TextBox Grid.Column="1" Text="{Binding Cs2CustomBindCommandText}" ToolTip="{Binding CommandText}" Margin="8,0,0,0" /><Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="{Binding AddText}" Command="{Binding InsertCs2CustomBindCommand}" Margin="8,0,0,0" /></Grid>
+                                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding Cs2CustomBindKey, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding KeyText}" /><TextBox Grid.Column="1" Text="{Binding Cs2CustomBindCommandText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding CommandText}" Margin="8,0,0,0" /><Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="{Binding AddText}" Command="{Binding InsertCs2CustomBindCommand}" Margin="8,0,0,0" /></Grid>
                                                 </StackPanel>
                                             </Border>
                                         </UniformGrid>

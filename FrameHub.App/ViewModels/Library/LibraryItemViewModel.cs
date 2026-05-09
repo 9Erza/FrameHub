@@ -2,6 +2,7 @@ using FrameHub.App.Helpers;
 using FrameHub.App.Services;
 using FrameHub.Core.Models;
 using FrameHub.Core.Models.Library;
+using FrameHub.Core.Services;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Media;
@@ -41,7 +42,19 @@ public sealed class LibraryItemViewModel : ViewModelBase
                 return true;
             }
 
-            return profiles.Any(p => !string.IsNullOrWhiteSpace(Item.ProcessName) && p.ProcessName.Equals(Item.ProcessName, StringComparison.OrdinalIgnoreCase));
+            if (profiles.Any(p => p.LibraryItemId?.Equals(Item.Id, StringComparison.OrdinalIgnoreCase) == true))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Item.ExecutablePath) && profiles.Any(p => !string.IsNullOrWhiteSpace(p.ExecutablePath) && p.ExecutablePath.Equals(Item.ExecutablePath, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            string itemProcessName = ProfileService.NormalizeProcessName(Item.ProcessName);
+            return !string.IsNullOrWhiteSpace(itemProcessName)
+                && profiles.Any(p => ProfileService.NormalizeProcessName(p.ProcessName).Equals(itemProcessName, StringComparison.OrdinalIgnoreCase));
         }
     }
 
@@ -96,7 +109,7 @@ public sealed class LibraryItemViewModel : ViewModelBase
         {
             try
             {
-                var processes = Process.GetProcessesByName(Item.ProcessName);
+                var processes = Process.GetProcessesByName(ProfileService.NormalizeProcessName(Item.ProcessName));
                 running = processes.Length > 0;
                 foreach (var process in processes) process.Dispose();
             }

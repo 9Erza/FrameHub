@@ -5,7 +5,7 @@
     {
       "id": "cs2.resolution",
       "displayName": "Rozdzielczość",
-      "description": "Najczęściej używane rozdzielczości competitive.",
+      "description": "Najczęściej używane rozdzielczości turniejowe.",
       "category": "video",
       "type": "composite",
       "keys": [
@@ -81,12 +81,14 @@
     {
       "id": "cs2.display_mode",
       "displayName": "Tryb wyświetlania",
-      "description": "Pełny ekran jest rekomendowany pod wydajność; borderless to wygodna preferencja.",
+      "description": "Pełny ekran jest zalecany pod wydajność; tryb bez ramek jest wygodniejszy przy przełączaniu okien.",
       "category": "video",
       "type": "composite",
       "keys": [
         "setting.fullscreen",
-        "setting.nowindowborder"
+        "setting.coop_fullscreen",
+        "setting.nowindowborder",
+        "setting.fullscreen_min_on_focus_loss"
       ],
       "targetFile": "video",
       "optional": true,
@@ -98,25 +100,31 @@
           "value": "fullscreen",
           "values": {
             "setting.fullscreen": "1",
-            "setting.nowindowborder": "0"
+            "setting.coop_fullscreen": "0",
+            "setting.nowindowborder": "0",
+            "setting.fullscreen_min_on_focus_loss": "1"
           }
         },
         {
           "id": "borderless",
-          "label": "Pełny ekran bez obramowania",
+          "label": "Pełny ekran w oknie",
           "value": "borderless",
           "values": {
             "setting.fullscreen": "0",
-            "setting.nowindowborder": "1"
+            "setting.coop_fullscreen": "1",
+            "setting.nowindowborder": "1",
+            "setting.fullscreen_min_on_focus_loss": "0"
           }
         },
         {
           "id": "windowed",
-          "label": "Okno",
+          "label": "W oknie",
           "value": "windowed",
           "values": {
             "setting.fullscreen": "0",
-            "setting.nowindowborder": "0"
+            "setting.coop_fullscreen": "0",
+            "setting.nowindowborder": "0",
+            "setting.fullscreen_min_on_focus_loss": "0"
           }
         }
       ]
@@ -146,7 +154,7 @@
     {
       "id": "setting.mat_vsync",
       "displayName": "Synchronizacja Pionowa",
-      "description": "V-Sync powinien zostać wyłączony dla niższego input laga.",
+      "description": "V-Sync powinien zostać wyłączony dla niższego opóźnienia wejścia.",
       "category": "video",
       "type": "single",
       "key": "setting.mat_vsync",
@@ -167,7 +175,7 @@
     },
     {
       "id": "setting.r_low_latency",
-      "displayName": "AMD Anti-Lag 2.0 / Low Latency",
+      "displayName": "AMD Anti-Lag 2.0 / niskie opóźnienie",
       "description": "Opcja niskiego opóźnienia udostępniona przez CS2 / sterownik.",
       "category": "video",
       "type": "single",
@@ -451,7 +459,7 @@
       "options": [
         {
           "id": "off",
-          "label": "Wył.",
+          "label": "Wyłącz",
           "value": "0"
         },
         {
@@ -468,7 +476,7 @@
     },
     {
       "id": "setting.videocfg_hdr_detail",
-      "displayName": "High Dynamic Range",
+      "displayName": "Szeroki zakres tonalny (HDR)",
       "description": "Preferencja HDR: jakość albo wydajność.",
       "category": "video",
       "type": "single",

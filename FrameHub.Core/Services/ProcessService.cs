@@ -87,12 +87,115 @@ namespace FrameHub.Core.Services
             }
         }
 
+        public (bool Success, long Mask, OptimizationMode Mode, string Source, string Message) GetCurrentCoreSelection(int pid, Dictionary<int, uint> cpuSetMap)
+        {
+            if (pid <= 0)
+            {
+                return (false, 0, OptimizationMode.CpuSets, "None", "Invalid PID.");
+            }
+
+            if (TryReadProcessDefaultCpuSets(pid, cpuSetMap, out long cpuSetMask, out string cpuSetMessage) && cpuSetMask != 0)
+            {
+                return (true, cpuSetMask, OptimizationMode.CpuSets, "CpuSets", cpuSetMessage);
+            }
+
+            try
+            {
+                using var proc = Process.GetProcessById(pid);
+                long affinityMask = proc.ProcessorAffinity.ToInt64();
+                if (affinityMask != 0)
+                {
+                    return (true, affinityMask, OptimizationMode.Affinity, "Affinity", "Read current processor affinity.");
+                }
+
+                return (false, 0, OptimizationMode.CpuSets, "Affinity", "Processor affinity mask is empty.");
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Failed to read current CPU selection for PID {pid}: {ex.Message}");
+                return (false, 0, OptimizationMode.CpuSets, "None", ex.Message);
+            }
+        }
+
+        private bool TryReadProcessDefaultCpuSets(int pid, Dictionary<int, uint> cpuSetMap, out long mask, out string message)
+        {
+            mask = 0;
+            message = "No process CPU Sets assigned.";
+
+            if (cpuSetMap.Count == 0)
+            {
+                message = "CPU Set map is empty.";
+                return false;
+            }
+
+            IntPtr hProc = NativeMethods.OpenProcess(NativeMethods.PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (hProc == IntPtr.Zero)
+            {
+                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                message = $"OpenProcess for CPU Sets query failed: {error}.";
+                return false;
+            }
+
+            try
+            {
+                bool initialRead = NativeMethods.GetProcessDefaultCpuSets(hProc, null, 0, out uint requiredCount);
+                if (!initialRead && requiredCount == 0)
+                {
+                    int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                    message = $"GetProcessDefaultCpuSets failed: {error}.";
+                    return false;
+                }
+
+                if (requiredCount == 0)
+                {
+                    return false;
+                }
+
+                var cpuSetIds = new uint[(int)requiredCount];
+                if (!NativeMethods.GetProcessDefaultCpuSets(hProc, cpuSetIds, requiredCount, out requiredCount))
+                {
+                    int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                    message = $"GetProcessDefaultCpuSets buffer read failed: {error}.";
+                    return false;
+                }
+
+                var logicalByCpuSetId = cpuSetMap
+                    .GroupBy(x => x.Value)
+                    .ToDictionary(g => g.Key, g => g.First().Key);
+
+                foreach (uint cpuSetId in cpuSetIds.Distinct())
+                {
+                    if (logicalByCpuSetId.TryGetValue(cpuSetId, out int logicalIndex) && logicalIndex >= 0 && logicalIndex < 64)
+                    {
+                        mask |= 1L << logicalIndex;
+                    }
+                }
+
+                message = mask == 0
+                    ? "Process CPU Sets are assigned, but they do not map to visible logical processors."
+                    : "Read current process CPU Sets.";
+
+                return mask != 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Failed to read CPU Sets for PID {pid}: {ex.Message}");
+                message = ex.Message;
+                return false;
+            }
+            finally
+            {
+                NativeMethods.CloseHandle(hProc);
+            }
+        }
+
+
         public string ApplyCoreOptimization(int pid, long mask, OptimizationMode mode, Dictionary<int, uint> cpuSetMap)
         {
             if (mask == 0) return "ERR_EMPTY_MASK";
 
 #pragma warning disable CS0618
-            if (mode == OptimizationMode.Exclusive)
+            if ((int)mode == 2)
             {
                 _logger.Warn("Legacy Exclusive mode detected. Falling back to Affinity.");
                 mode = OptimizationMode.Affinity;

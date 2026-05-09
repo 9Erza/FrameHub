@@ -31,7 +31,8 @@ namespace FrameHub.Core.Services
 
             try
             {
-                processes = Process.GetProcessesByName(profile.ProcessName);
+                string processName = ProfileService.NormalizeProcessName(profile.ProcessName);
+                processes = Process.GetProcessesByName(processName);
                 foreach (var process in processes)
                 {
                     var result = ApplyProfileToProcess(process, profile, allowRealtimePriority, force);
@@ -56,7 +57,11 @@ namespace FrameHub.Core.Services
         {
             var byName = profiles
                 .Where(p => p.IsEnabled)
-                .ToDictionary(p => p.ProcessName, p => p, StringComparer.OrdinalIgnoreCase);
+                .GroupBy(p => ProfileService.NormalizeProcessName(p.ProcessName), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderBy(p => p.UpdatedAt).Last(),
+                    StringComparer.OrdinalIgnoreCase);
 
             var batch = new OptimizationBatchResult();
 
@@ -152,6 +157,7 @@ namespace FrameHub.Core.Services
             Process[] processes = Array.Empty<Process>();
             try
             {
+                processName = ProfileService.NormalizeProcessName(processName);
                 processes = Process.GetProcessesByName(processName);
                 foreach (var process in processes)
                 {
@@ -179,13 +185,13 @@ namespace FrameHub.Core.Services
 
         private static string BuildProfileSignature(ProcessProfile profile, string priority, OptimizationMode mode, bool allowRealtimePriority)
         {
-            return $"{profile.ProcessName}|{profile.AffinityMask:X}|{priority}|{mode}|{profile.IsEnabled}|{profile.ApplyPriority}|{profile.ApplyCoreOptimization}|RT:{allowRealtimePriority}";
+            return $"{ProfileService.NormalizeProcessName(profile.ProcessName)}|{profile.AffinityMask:X}|{priority}|{mode}|{profile.IsEnabled}|{profile.ApplyPriority}|{profile.ApplyCoreOptimization}|RT:{allowRealtimePriority}";
         }
 
         private static OptimizationMode NormalizeOptimizationMode(OptimizationMode mode)
         {
 #pragma warning disable CS0618
-            return mode == OptimizationMode.Exclusive ? OptimizationMode.Affinity : mode;
+            return (int)mode == 2 ? OptimizationMode.Affinity : mode;
 #pragma warning restore CS0618
         }
 

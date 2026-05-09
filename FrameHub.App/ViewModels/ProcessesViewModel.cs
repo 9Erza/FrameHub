@@ -17,7 +17,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     private bool _disposed;
     private ProcessItem? _selectedProcess;
     private string _selectedPriority = "Normal";
-    private OptimizationMode _selectedOptimizationMode = OptimizationMode.CpuSets;
+    private OptimizationModeOptionViewModel? _selectedOptimizationModeOption;
 
     public string Title => _localization.T("Processes.Title");
     public string Subtitle => _localization.T("Processes.Subtitle");
@@ -38,16 +38,19 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     public string PriorityHeader => _localization.T("Processes.Priority");
     public string RamHeader => _localization.T("Processes.Ram");
     public string CpuHeader => _localization.T("Processes.Cpu");
+    public string PidHeader => _localization.T("Processes.Pid");
+    public string ModeHeader => _localization.T("Processes.ModeShort");
+    public string RefreshButtonText => _localization.T("Processes.Refresh");
+    public string PhysicalCoresTitle => _localization.CurrentLanguage == "pl" ? "Rdzenie" : "Cores";
+    public string ThreadCoresTitle => _localization.CurrentLanguage == "pl" ? "Wątki SMT / HT" : "SMT / HT threads";
     public string StatusText => _selectedProcess == null ? _localization.T("Processes.NoSelection") : string.Format(_localization.T("Processes.Selected"), _selectedProcess.Name);
 
     public ObservableCollection<ProcessItem> Processes { get; } = new();
     public ObservableCollection<CoreInfo> Cores { get; } = new();
+    public ObservableCollection<CoreInfo> PhysicalCores { get; } = new();
+    public ObservableCollection<CoreInfo> ThreadCores { get; } = new();
     public ObservableCollection<string> AvailablePriorities { get; } = new();
-    public ObservableCollection<OptimizationMode> AvailableOptimizationModes { get; } = new()
-    {
-        OptimizationMode.Affinity,
-        OptimizationMode.CpuSets
-    };
+    public ObservableCollection<OptimizationModeOptionViewModel> AvailableOptimizationModes { get; } = new();
 
     public ICommand ApplyCommand { get; }
     public ICommand SaveProfileCommand { get; }
@@ -76,14 +79,18 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
 
     public OptimizationMode SelectedOptimizationMode
     {
-        get => _selectedOptimizationMode;
+        get => _selectedOptimizationModeOption?.Mode ?? OptimizationMode.CpuSets;
         set
         {
-#pragma warning disable CS0618
-            var normalized = value == OptimizationMode.Exclusive ? OptimizationMode.Affinity : value;
-#pragma warning restore CS0618
-            SetProperty(ref _selectedOptimizationMode, normalized);
+            var normalized = (int)value == 2 ? OptimizationMode.Affinity : value;
+            SelectedOptimizationModeOption = AvailableOptimizationModes.FirstOrDefault(x => x.Mode == normalized);
         }
+    }
+
+    public OptimizationModeOptionViewModel? SelectedOptimizationModeOption
+    {
+        get => _selectedOptimizationModeOption;
+        set => SetProperty(ref _selectedOptimizationModeOption, value);
     }
 
     public ProcessesViewModel(LocalizationService localization, AppRuntimeService runtime)
@@ -94,8 +101,17 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         foreach (var core in _runtime.Cores)
         {
             Cores.Add(core);
+            if (core.IsThread)
+            {
+                ThreadCores.Add(core);
+            }
+            else
+            {
+                PhysicalCores.Add(core);
+            }
         }
 
+        RefreshOptimizationModes();
         RefreshPriorities();
 
         _refreshTimer = new DispatcherTimer
@@ -126,7 +142,6 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     public void Stop()
     {
         _refreshTimer.Stop();
-        _runtime.HardwareTopologyService.ReleaseCpuLoadCounters();
     }
 
     public async Task RefreshAsync(bool force = false)
@@ -137,7 +152,6 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         try
         {
             var scan = await _runtime.ScanFullProcessListAsync();
-            UpdateCoreLoads();
             UpdateRows(scan.Groups);
         }
         catch (Exception ex)
@@ -152,6 +166,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
 
     public void RefreshTexts()
     {
+        RefreshOptimizationModes();
         RefreshPriorities();
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(Subtitle));
@@ -172,7 +187,21 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(PriorityHeader));
         OnPropertyChanged(nameof(RamHeader));
         OnPropertyChanged(nameof(CpuHeader));
+        OnPropertyChanged(nameof(PidHeader));
+        OnPropertyChanged(nameof(ModeHeader));
+        OnPropertyChanged(nameof(RefreshButtonText));
+        OnPropertyChanged(nameof(PhysicalCoresTitle));
+        OnPropertyChanged(nameof(ThreadCoresTitle));
         OnPropertyChanged(nameof(StatusText));
+    }
+
+    private void RefreshOptimizationModes()
+    {
+        var current = SelectedOptimizationMode;
+        AvailableOptimizationModes.Clear();
+        AvailableOptimizationModes.Add(new OptimizationModeOptionViewModel(OptimizationMode.CpuSets, _localization));
+        AvailableOptimizationModes.Add(new OptimizationModeOptionViewModel(OptimizationMode.Affinity, _localization));
+        SelectedOptimizationMode = current;
     }
 
     private void RefreshPriorities()
@@ -201,7 +230,11 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         {
             var item = Processes.FirstOrDefault(p => p.Name.Equals(group.Name, StringComparison.OrdinalIgnoreCase));
             var profile = _runtime.Profiles.FirstOrDefault(p => p.IsEnabled && p.ProcessName.Equals(group.Name, StringComparison.OrdinalIgnoreCase));
-            string tag = profile == null ? string.Empty : (profile.OptimizationMode == OptimizationMode.CpuSets ? "CPU Sets" : "Affinity");
+            string tag = profile == null
+                ? string.Empty
+                : profile.OptimizationMode == OptimizationMode.CpuSets
+                    ? _localization.T("OptimizationMode.CpuSetsShort")
+                    : _localization.T("OptimizationMode.AffinityShort");
 
             if (item == null)
             {
@@ -219,20 +252,12 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void UpdateCoreLoads()
-    {
-        var loads = _runtime.HardwareTopologyService.GetCurrentLoads();
-        for (int i = 0; i < Cores.Count && i < loads.Count; i++)
-        {
-            Cores[i].LoadUsage = loads[i];
-        }
-    }
 
     private void LoadSelectionFromProcessOrProfile()
     {
         if (SelectedProcess == null) return;
 
-        var profile = _runtime.Profiles.FirstOrDefault(p => p.ProcessName.Equals(SelectedProcess.Name, StringComparison.OrdinalIgnoreCase));
+        var profile = _runtime.Profiles.FirstOrDefault(p => p.IsEnabled && p.ProcessName.Equals(SelectedProcess.Name, StringComparison.OrdinalIgnoreCase));
         if (profile != null)
         {
             SelectedPriority = PriorityService.Translate(profile.Priority, _localization.CurrentLanguage);
@@ -242,7 +267,18 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         }
 
         SelectedPriority = SelectedProcess.Priority;
+
+        var currentSelection = _runtime.ProcessService.GetCurrentCoreSelection(SelectedProcess.Id, _runtime.CpuSetMap);
+        if (currentSelection.Success && currentSelection.Mask != 0)
+        {
+            SelectedOptimizationMode = currentSelection.Mode;
+            ApplyMaskToCores(currentSelection.Mask);
+            return;
+        }
+
         SelectedOptimizationMode = OptimizationMode.CpuSets;
+        SetAllCores(true);
+        _runtime.AddActivity($"Nie udało się odczytać obecnego przypisania CPU dla '{SelectedProcess.Name}': {currentSelection.Message}", "Warn");
     }
 
     private void ApplySelectedOptimization()

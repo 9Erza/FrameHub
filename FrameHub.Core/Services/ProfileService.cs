@@ -91,9 +91,9 @@ namespace FrameHub.Core.Services
                 .Where(p => !string.IsNullOrWhiteSpace(p.ProcessName))
                 .Where(p => p.AffinityMask != 0)
                 .Where(p => p.ApplyPriority || p.ApplyCoreOptimization)
-                .GroupBy(p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.OrderBy(p => p.UpdatedAt).Last())
-                .OrderBy(p => p.ProcessName, StringComparer.OrdinalIgnoreCase);
+                .OrderBy(p => p.DisplayName, StringComparer.OrdinalIgnoreCase);
         }
 
         private static ProcessProfile SanitizeProfile(ProcessProfile profile)
@@ -103,6 +103,7 @@ namespace FrameHub.Core.Services
             profile.ProcessName = NormalizeProcessName(profile.ProcessName);
             profile.DisplayName = string.IsNullOrWhiteSpace(profile.DisplayName) ? profile.ProcessName : profile.DisplayName;
             profile.ExecutablePath = string.IsNullOrWhiteSpace(profile.ExecutablePath) ? null : profile.ExecutablePath.Trim();
+            profile.LibraryItemId = string.IsNullOrWhiteSpace(profile.LibraryItemId) ? null : profile.LibraryItemId.Trim();
             profile.Priority = PriorityService.Normalize(profile.Priority, allowRealtime: true);
             profile.CreatedAt = profile.CreatedAt == default ? DateTime.UtcNow : profile.CreatedAt;
             profile.UpdatedAt = profile.UpdatedAt == default ? DateTime.UtcNow : profile.UpdatedAt;
@@ -112,7 +113,7 @@ namespace FrameHub.Core.Services
             profile.ApplyCoreOptimization = profile.ApplyCoreOptimization;
 
 #pragma warning disable CS0618
-            if (profile.OptimizationMode == OptimizationMode.Exclusive)
+            if ((int)profile.OptimizationMode == 2)
             {
                 profile.OptimizationMode = OptimizationMode.Affinity;
             }
@@ -121,7 +122,7 @@ namespace FrameHub.Core.Services
             return profile;
         }
 
-        private static string NormalizeProcessName(string? processName)
+        public static string NormalizeProcessName(string? processName)
         {
             string value = processName?.Trim() ?? string.Empty;
             return value.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
@@ -137,6 +138,7 @@ namespace FrameHub.Core.Services
             {
                 if (!string.Equals(left[i].ProcessName, NormalizeProcessName(right[i].ProcessName), StringComparison.OrdinalIgnoreCase)) return false;
                 if (left[i].AffinityMask != right[i].AffinityMask) return false;
+                if (!string.Equals(left[i].LibraryItemId, right[i].LibraryItemId, StringComparison.OrdinalIgnoreCase)) return false;
                 if (left[i].Priority != PriorityService.Normalize(right[i].Priority, allowRealtime: true)) return false;
                 if (left[i].OptimizationMode != right[i].OptimizationMode) return false;
                 if (left[i].IsEnabled != right[i].IsEnabled) return false;

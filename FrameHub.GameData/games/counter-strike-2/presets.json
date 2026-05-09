@@ -3,15 +3,15 @@
   "presets": [
     {
       "id": "cs2_latest_backup",
-      "displayName": "Backup",
-      "description": "Wartości z ostatniego backupu FrameHub. Użyj do porównania albo przywrócenia wybranych ustawień.",
+      "displayName": "Kopia zapasowa",
+      "description": "Wartości z ostatniej kopii zapasowej FrameHub. Użyj do porównania albo przywrócenia wybranych ustawień.",
       "type": "backup",
       "settings": {}
     },
     {
       "id": "cs2_competitive_baseline",
-      "displayName": "Competitive Baseline",
-      "description": "Baseline oparty na ustawieniach competitive Eryka. Zachowuje wartości low-latency i obraz ustawiony pod FPS; rekomenduje pełny ekran zamiast borderless.",
+      "displayName": "Preset turniejowy",
+      "description": "Preset oparty na ustawieniach turniejowych. Zachowuje wartości nastawione na niskie opóźnienie wejścia i obraz pod FPS; zaleca pełny ekran zamiast trybu bez ramek.",
       "type": "recommended",
       "settings": {
         "cs2.resolution": "1280x960_4_3",

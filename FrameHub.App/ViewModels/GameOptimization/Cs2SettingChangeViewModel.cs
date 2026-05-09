@@ -26,12 +26,15 @@ public sealed class Cs2SettingChangeViewModel : ViewModelBase
     private readonly LocalizationService _localization;
     private Cs2SettingOptionViewModel? _selectedOption;
 
+    public event EventHandler? TargetValueChangedByUser;
+
     public GameSettingChange Change { get; }
 
     public string DisplayName => _localization.T($"CS2.Setting.{Change.Key}");
     public string Key => Change.Key;
     public string CurrentValue => Change.CurrentValue;
     public string RecommendedValue => Change.RecommendedValue;
+    public string TargetValue => string.IsNullOrWhiteSpace(Change.TargetValue) ? Change.RecommendedValue : Change.TargetValue;
     public string CurrentDisplayValue => FormatValue(Change.Key, Change.CurrentValue);
     public string RecommendedDisplayValue => FormatValue(Change.Key, Change.RecommendedValue);
     public string Description => _localization.T($"CS2.Description.{Change.Key}");
@@ -50,12 +53,12 @@ public sealed class Cs2SettingChangeViewModel : ViewModelBase
         set
         {
             if (!SetProperty(ref _selectedOption, value) || value == null) return;
-            Change.RecommendedValue = value.Value;
-            RefreshStatusAfterRecommendedChange();
-            OnPropertyChanged(nameof(RecommendedValue));
-            OnPropertyChanged(nameof(RecommendedDisplayValue));
+            Change.TargetValue = value.Value;
+            RefreshStatusAfterTargetChange();
+            OnPropertyChanged(nameof(TargetValue));
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(IsSelected));
+            TargetValueChangedByUser?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -84,7 +87,13 @@ public sealed class Cs2SettingChangeViewModel : ViewModelBase
             Options.Add(new Cs2SettingOptionViewModel(option.Value, display));
         }
 
-        _selectedOption = Options.FirstOrDefault(x => x.Value.Equals(change.RecommendedValue, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(change.TargetValue))
+        {
+            change.TargetValue = change.RecommendedValue;
+        }
+
+        _selectedOption = Options.FirstOrDefault(x => x.Value.Equals(change.TargetValue, StringComparison.OrdinalIgnoreCase))
+            ?? Options.FirstOrDefault(x => x.Value.Equals(change.RecommendedValue, StringComparison.OrdinalIgnoreCase));
     }
 
     public void RefreshTexts()
@@ -97,7 +106,7 @@ public sealed class Cs2SettingChangeViewModel : ViewModelBase
         OnPropertyChanged(nameof(ApplyHint));
     }
 
-    private void RefreshStatusAfterRecommendedChange()
+    private void RefreshStatusAfterTargetChange()
     {
         if (string.Equals(Change.CurrentValue, "not found", StringComparison.OrdinalIgnoreCase))
         {
@@ -106,7 +115,8 @@ public sealed class Cs2SettingChangeViewModel : ViewModelBase
             return;
         }
 
-        bool matches = string.Equals(Change.CurrentValue, Change.RecommendedValue, StringComparison.OrdinalIgnoreCase);
+        string target = string.IsNullOrWhiteSpace(Change.TargetValue) ? Change.RecommendedValue : Change.TargetValue;
+        bool matches = string.Equals(Change.CurrentValue, target, StringComparison.OrdinalIgnoreCase);
         if (Change.IsOptional)
         {
             Change.Status = matches ? GameOptimizationSettingStatus.MatchesBaseline : GameOptimizationSettingStatus.OptionalPreference;

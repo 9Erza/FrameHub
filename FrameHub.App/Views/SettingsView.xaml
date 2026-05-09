@@ -30,8 +30,8 @@
                         <StackPanel>
                             <TextBlock Text="{Binding LanguageTitle}" Style="{StaticResource SectionTitleText}" />
                             <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                                <RadioButton Content="{Binding EnglishLabel}" IsChecked="{Binding IsEnglish, Mode=TwoWay}" Style="{StaticResource PillRadioButton}" Margin="0,0,10,0" />
-                                <RadioButton Content="{Binding PolishLabel}" IsChecked="{Binding IsPolish, Mode=TwoWay}" Style="{StaticResource PillRadioButton}" />
+                                <RadioButton Content="{Binding EnglishLabel}" IsChecked="{Binding IsEnglish, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,10,0" />
+                                <RadioButton Content="{Binding PolishLabel}" IsChecked="{Binding IsPolish, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>

@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Media = System.Windows.Media;
 using WinFormsFolderDialog = System.Windows.Forms.FolderBrowserDialog;
 using WinFormsOpenFileDialog = System.Windows.Forms.OpenFileDialog;
@@ -21,6 +22,8 @@ namespace FrameHub.App.ViewModels;
 
 public sealed class LibraryViewModel : ViewModelBase
 {
+    public event Action<string, string>? InfoDialogRequested;
+
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
     private readonly LibraryService _libraryService = new();
@@ -34,21 +37,25 @@ public sealed class LibraryViewModel : ViewModelBase
     private string _statusMessage = string.Empty;
     private bool _isBusy;
     private LibraryItemViewModel? _selectedItem;
+    private ProcessProfile? _selectedOptimizationProfile;
     private string _selectedPriority = string.Empty;
-    private OptimizationMode? _selectedOptimizationMode;
+    private OptimizationModeOptionViewModel? _selectedOptimizationModeOption;
     private Cs2ConfigAnalysis? _cs2Analysis;
     private GameOptimizationPreset? _selectedCs2Preset;
+    private bool _suppressCs2PresetRefresh;
     private string _cs2StatusMessage = string.Empty;
     private string _cs2AutoexecText = string.Empty;
     private string _cs2AutoexecStatusMessage = string.Empty;
-    private string _selectedCs2FpsMax = "500";
-    private string _cs2MouseSensitivity = "0.5";
-    private string _cs2Volume = "0.8";
-    private string _cs2SmokeKey = "z";
-    private string _cs2FlashKey = "x";
-    private string _cs2MolotovKey = "c";
-    private string _cs2HeKey = "v";
-    private string _cs2VoiceKey = "k";
+    private bool _isCs2Running;
+    private readonly DispatcherTimer _cs2ProcessTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private string _selectedCs2FpsMax = string.Empty;
+    private string _cs2MouseSensitivity = string.Empty;
+    private string _cs2Volume = string.Empty;
+    private string _cs2SmokeKey = string.Empty;
+    private string _cs2FlashKey = string.Empty;
+    private string _cs2MolotovKey = string.Empty;
+    private string _cs2HeKey = string.Empty;
+    private string _cs2VoiceKey = string.Empty;
     private string _selectedCs2JumpBindMode = "Oba";
     private string _cs2CustomBindKey = string.Empty;
     private string _cs2CustomBindCommandText = string.Empty;
@@ -62,9 +69,13 @@ public sealed class LibraryViewModel : ViewModelBase
     private double _cs2CrosshairBlue = 0;
     private bool _cs2CrosshairDot;
     private bool _cs2CrosshairOutline;
+    private double _cs2CrosshairOutlineThickness = 1;
     private bool _cs2CrosshairTStyle;
     private bool _cs2CrosshairUseAlpha = true;
     private bool _cs2CrosshairFollowRecoil;
+    private double _cs2CrosshairSniperWidth = 1;
+    private bool _cs2CrosshairGapUseWeaponValue;
+    private string _cs2CrosshairColor = "5";
 
     public string Title => _localization.T("Library.Title");
     public string Subtitle => _localization.T("Library.Subtitle");
@@ -77,6 +88,7 @@ public sealed class LibraryViewModel : ViewModelBase
     public string ExecutableLabel => _localization.T("Library.Executable");
     public string TypeLabel => _localization.T("Library.Type");
     public string BrowseText => _localization.T("Library.Browse");
+    public string ReadyBadgeText => _localization.T("Badge.Ready");
     public string AddManualText => _localization.T("Library.AddManual");
     public string ScanSteamText => _localization.T("Library.ScanSteam");
     public string ScanEpicText => _localization.T("Library.ScanEpic");
@@ -96,8 +108,11 @@ public sealed class LibraryViewModel : ViewModelBase
     public string ProfileEditorHintText => _localization.T("Library.ProfileEditorHint");
     public string CpuCoresTitle => _localization.T("Library.CpuCores");
     public string CpuThreadsTitle => _localization.T("Library.CpuThreads");
-    public string CreateUpdateProfileText => _localization.T("Library.CreateUpdateProfile");
+    public string CreateUpdateProfileText => HasSelectedOptimizationProfile
+        ? _localization.T("Library.UpdateOptimizationProfile")
+        : _localization.T("Library.CreateOptimizationProfile");
     public string ApplyProfileText => _localization.T("Library.ApplyProfileNow");
+    public string DetailsOptimizeText => _localization.T("Library.DetailsOptimize");
     public string Cs2OptimizerTitle => _localization.T("CS2.Title");
     public string Cs2OptimizerSubtitle => _localization.T("CS2.Subtitle");
     public string ScanCs2Text => _localization.T("CS2.Scan");
@@ -112,7 +127,17 @@ public sealed class LibraryViewModel : ViewModelBase
     public string Cs2VsyncTitle => _localization.T("CS2.Card.VSync");
     public string Cs2BaselineTitle => _localization.T("CS2.Card.Baseline");
     public string Cs2ConfigPathLabel => _localization.T("CS2.ConfigPath");
-    public string Cs2PresetDescription => SelectedCs2Preset == null ? _localization.T("CS2.PresetDescriptionFallback") : _localization.T($"CS2.Preset.{SelectedCs2Preset.Id}.Description");
+    public string Cs2PresetDescription
+    {
+        get
+        {
+            if (SelectedCs2Preset == null) return _localization.T("CS2.PresetDescriptionFallback");
+            string localized = _localization.T($"CS2.Preset.{SelectedCs2Preset.Id}.Description");
+            return localized.StartsWith("CS2.Preset.", StringComparison.OrdinalIgnoreCase)
+                ? SelectedCs2Preset.Description
+                : localized;
+        }
+    }
     public string Cs2TableSettingHeader => _localization.T("CS2.Table.Setting");
     public string Cs2TableCurrentHeader => _localization.T("CS2.Table.Current");
     public string Cs2TableRecommendedHeader => _localization.T("CS2.Table.Recommended");
@@ -136,20 +161,45 @@ public sealed class LibraryViewModel : ViewModelBase
     public string BackToLibraryText => IsPolish ? "← Wróć do biblioteki" : "← Back to Library";
     public string CpuTabTitle => IsPolish ? "Optymalizacja procesora" : "CPU optimization";
     public string GraphicsTabTitle => IsPolish ? "Ustawienia graficzne" : "Graphics settings";
-    public string ConfigTabTitle => IsPolish ? "CS2 Config" : "CS2 Config";
+    public string ConfigTabTitle => "Config";
     public string CrosshairEditorTitle => IsPolish ? "Edytor celownika" : "Crosshair editor";
     public string CrosshairEditorHint => IsPolish ? "Celownik jest wczytywany i zapisywany w cs2_user_convars_0_slot0.vcfg, nie w autoexec.cfg." : "Crosshair is loaded from and saved to cs2_user_convars_0_slot0.vcfg, not autoexec.cfg.";
+    public string Cs2SteamCloudWarningText => IsPolish ? "Zalecenie: wyłącz Steam Cloud we właściwościach Counter-Strike 2 na Steam. Synchronizacja chmury może nadpisać albo zepsuć zmiany w configu po zamknięciu gry." : "Recommendation: disable Steam Cloud in Counter-Strike 2 properties on Steam. Cloud sync can overwrite or break config changes after closing the game.";
+    public string Cs2RunningLockText => IsPolish ? "CS2 jest uruchomiony — zamknij grę, zanim zmienisz ustawienia graficzne, celownik albo autoexec.cfg." : "CS2 is running — close the game before changing graphics settings, crosshair or autoexec.cfg.";
+    public string Cs2StoppedEditText => IsPolish ? "CS2 jest zamknięty — edycja configu jest odblokowana." : "CS2 is closed — config editing is unlocked.";
     public string LoadCrosshairText => IsPolish ? "Wczytaj celownik" : "Load crosshair";
     public string SaveCrosshairText => IsPolish ? "Zapisz celownik" : "Save crosshair";
     public string CrosshairLivePreviewText => IsPolish ? "Podgląd na żywo" : "Live preview";
     public string AutoexecClearText => IsPolish ? "Wyczyść zawartość autoexec.cfg" : "Clear autoexec.cfg content";
     public string AutoexecGeneralSectionTitle => IsPolish ? "Ogólne ustawienia" : "General settings";
-    public string AutoexecQolSectionTitle => IsPolish ? "QOL tweaki" : "QOL tweaks";
+    public string AutoexecQolSectionTitle => IsPolish ? "Ułatwienia" : "Quality-of-life";
     public string AutoexecBindsSectionTitle => IsPolish ? "Bindy" : "Binds";
-    public string AutoexecCustomBindTitle => IsPolish ? "Custom bind" : "Custom bind";
+    public string AutoexecCustomBindTitle => IsPolish ? "Własny bind" : "Custom bind";
     public string AddText => IsPolish ? "Dodaj" : "Add";
+    public string FpsMaxPlaceholder => "500";
+    public string MouseSensitivityPlaceholder => "0.5";
+    public string VolumePlaceholder => "0.1";
+    public string SmokeKeyPlaceholder => "z";
+    public string FlashKeyPlaceholder => "x";
+    public string MolotovKeyPlaceholder => "c";
+    public string HeKeyPlaceholder => "v";
+    public string VoiceKeyPlaceholder => "k";
     public string KeyText => IsPolish ? "Klawisz" : "Key";
     public string CommandText => IsPolish ? "Komenda" : "Command";
+    public string MouseSensitivityText => IsPolish ? "Czułość myszy" : "Mouse sensitivity";
+    public string VolumeText => IsPolish ? "Głośność" : "Volume";
+    public string AutoexecConsoleText => IsPolish ? "Włącz konsolę" : "Enable console";
+    public string SmokeBindText => IsPolish ? "Dymny" : "Smoke";
+    public string FlashBindText => IsPolish ? "Błyskowy" : "Flash";
+    public string MolotovBindText => IsPolish ? "Molotov" : "Molotov";
+    public string HeBindText => IsPolish ? "HE" : "HE";
+    public string VoiceBindText => IsPolish ? "Mikrofon" : "Voice";
+    public string JumpBindText => IsPolish ? "Skok" : "Jump";
+    public string SmokeKeyTooltip => IsPolish ? "Klawisz granatu dymnego" : "Smoke key";
+    public string FlashKeyTooltip => IsPolish ? "Klawisz granatu błyskowego" : "Flash key";
+    public string MolotovKeyTooltip => IsPolish ? "Klawisz mołotowa" : "Molotov key";
+    public string HeKeyTooltip => IsPolish ? "Klawisz granatu HE" : "HE key";
+    public string VoiceKeyTooltip => IsPolish ? "Klawisz mikrofonu" : "Voice key";
     public string AutoexecPreviewTitle => IsPolish ? "Podgląd autoexec.cfg na żywo" : "Live autoexec.cfg preview";
     public string SelectAllText => _localization.T("Processes.SelectAll");
     public string ClearAllText => _localization.T("Processes.ClearAll");
@@ -157,6 +207,28 @@ public sealed class LibraryViewModel : ViewModelBase
     public string DisableECoresText => _localization.T("Processes.DisableECores");
     public string PriorityLabel => _localization.T("Processes.Priority");
     public string ModeLabel => _localization.T("Processes.Mode");
+    public string CpuInfoTitle => _localization.T("Library.CpuInfo.Title");
+    public string DetectedProcessorLabel => _localization.T("Library.CpuInfo.DetectedProcessor");
+    public string DetectedProcessorText => BuildDetectedProcessorText();
+    public string RecommendedPresetTitle => _localization.T("Library.CpuInfo.RecommendedPresetTitle");
+    public string RecommendedPresetText => BuildRecommendedPresetText();
+    public string CpuModeExplanationTitle => _localization.T("Library.CpuInfo.ModeExplanationTitle");
+    public string CpuSetsExplanation => _localization.T("Library.CpuInfo.CpuSetsExplanation");
+    public string AffinityExplanation => _localization.T("Library.CpuInfo.AffinityExplanation");
+    public string TestWarningText => _localization.T("Library.CpuInfo.TestWarning");
+    public string CpuTipsTitle => _localization.T("Library.CpuInfo.TipsTitle");
+    public string CoreZeroTitle => _localization.T("Library.CpuInfo.CoreZeroTitle");
+    public string CoreZeroExplanation => _localization.T("Library.CpuInfo.CoreZeroExplanation");
+    public string SmtTitle => _localization.T("Library.CpuInfo.SmtTitle");
+    public string SmtExplanation => _localization.T("Library.CpuInfo.SmtExplanation");
+    public string IntelECoreTitle => _localization.T("Library.CpuInfo.IntelECoreTitle");
+    public string IntelECoreExplanation => _localization.T("Library.CpuInfo.IntelECoreExplanation");
+    public string CurrentOptimizationProfileTitle => HasSelectedOptimizationProfile
+        ? _localization.T("Library.CurrentProfile.Title")
+        : _localization.T("Library.NoProfile.Title");
+    public string CurrentOptimizationProfileText => BuildCurrentOptimizationProfileText();
+    public bool HasSelectedOptimizationProfile => SelectedOptimizationProfile != null;
+
 
     private bool IsPolish => _localization.CurrentLanguage == "pl";
 
@@ -174,11 +246,7 @@ public sealed class LibraryViewModel : ViewModelBase
     public IEnumerable<CoreInfo> PhysicalCores => Cores.Where(core => !core.IsThread);
     public IEnumerable<CoreInfo> ThreadCores => Cores.Where(core => core.IsThread);
     public ObservableCollection<string> AvailablePriorities { get; } = new();
-    public ObservableCollection<OptimizationMode> AvailableOptimizationModes { get; } = new()
-    {
-        OptimizationMode.Affinity,
-        OptimizationMode.CpuSets
-    };
+    public ObservableCollection<OptimizationModeOptionViewModel> AvailableOptimizationModes { get; } = new();
     public ObservableCollection<GameOptimizationPreset> Cs2Presets { get; } = new();
     public ObservableCollection<Cs2SettingChangeViewModel> Cs2SettingChanges { get; } = new();
     public ObservableCollection<string> Cs2FpsMaxOptions { get; } = new() { "0", "300", "400", "500", "501" };
@@ -275,9 +343,23 @@ public sealed class LibraryViewModel : ViewModelBase
             AnalyzeCs2IfSelected();
             OnPropertyChanged(nameof(HasSelectedItem));
             OnPropertyChanged(nameof(IsCs2Selected));
+            RefreshCs2ProcessState();
             OnPropertyChanged(nameof(SelectedItemTitle));
             OnPropertyChanged(nameof(ShowLibraryHome));
             OnPropertyChanged(nameof(ShowSelectedDetail));
+        }
+    }
+
+    public ProcessProfile? SelectedOptimizationProfile
+    {
+        get => _selectedOptimizationProfile;
+        private set
+        {
+            if (!SetProperty(ref _selectedOptimizationProfile, value)) return;
+            OnPropertyChanged(nameof(HasSelectedOptimizationProfile));
+            OnPropertyChanged(nameof(CurrentOptimizationProfileTitle));
+            OnPropertyChanged(nameof(CurrentOptimizationProfileText));
+            OnPropertyChanged(nameof(CreateUpdateProfileText));
         }
     }
 
@@ -285,6 +367,19 @@ public sealed class LibraryViewModel : ViewModelBase
     public bool ShowLibraryHome => SelectedItem == null;
     public bool ShowSelectedDetail => SelectedItem != null;
     public bool IsCs2Selected => _cs2Service.IsCs2LibraryItem(SelectedItem?.Item);
+    public bool IsCs2Running
+    {
+        get => _isCs2Running;
+        private set
+        {
+            if (!SetProperty(ref _isCs2Running, value)) return;
+            OnPropertyChanged(nameof(CanEditCs2Config));
+            OnPropertyChanged(nameof(Cs2EditLockMessage));
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+    public bool CanEditCs2Config => !IsCs2Selected || !IsCs2Running;
+    public string Cs2EditLockMessage => IsCs2Running ? Cs2RunningLockText : Cs2StoppedEditText;
     public string SelectedItemTitle => SelectedItem?.DisplayName ?? NoSelectionText;
 
     public string SelectedPriority
@@ -295,12 +390,20 @@ public sealed class LibraryViewModel : ViewModelBase
 
     public OptimizationMode? SelectedOptimizationMode
     {
-        get => _selectedOptimizationMode;
+        get => _selectedOptimizationModeOption?.Mode;
         set
         {
-            var normalized = value == OptimizationMode.Exclusive ? OptimizationMode.Affinity : value;
-            SetProperty(ref _selectedOptimizationMode, normalized);
+            var normalized = value.HasValue && (int)value.Value == 2 ? OptimizationMode.Affinity : value;
+            SelectedOptimizationModeOption = normalized.HasValue
+                ? AvailableOptimizationModes.FirstOrDefault(x => x.Mode == normalized.Value)
+                : null;
         }
+    }
+
+    public OptimizationModeOptionViewModel? SelectedOptimizationModeOption
+    {
+        get => _selectedOptimizationModeOption;
+        set => SetProperty(ref _selectedOptimizationModeOption, value);
     }
 
     public GameOptimizationPreset? SelectedCs2Preset
@@ -309,7 +412,10 @@ public sealed class LibraryViewModel : ViewModelBase
         set
         {
             if (!SetProperty(ref _selectedCs2Preset, value)) return;
-            RefreshCs2Changes();
+            if (!_suppressCs2PresetRefresh)
+            {
+                RefreshCs2Changes();
+            }
             OnPropertyChanged(nameof(Cs2PresetDescription));
             OnPropertyChanged(nameof(Cs2AutoexecPath));
         }
@@ -358,17 +464,22 @@ public sealed class LibraryViewModel : ViewModelBase
     public double Cs2CrosshairRed { get => _cs2CrosshairRed; set { if (SetProperty(ref _cs2CrosshairRed, value)) NotifyCrosshairPreviewChanged(); } }
     public double Cs2CrosshairGreen { get => _cs2CrosshairGreen; set { if (SetProperty(ref _cs2CrosshairGreen, value)) NotifyCrosshairPreviewChanged(); } }
     public double Cs2CrosshairBlue { get => _cs2CrosshairBlue; set { if (SetProperty(ref _cs2CrosshairBlue, value)) NotifyCrosshairPreviewChanged(); } }
-    public bool Cs2CrosshairDot { get => _cs2CrosshairDot; set => SetProperty(ref _cs2CrosshairDot, value); }
-    public bool Cs2CrosshairOutline { get => _cs2CrosshairOutline; set => SetProperty(ref _cs2CrosshairOutline, value); }
-    public bool Cs2CrosshairTStyle { get => _cs2CrosshairTStyle; set => SetProperty(ref _cs2CrosshairTStyle, value); }
+    public bool Cs2CrosshairDot { get => _cs2CrosshairDot; set { if (SetProperty(ref _cs2CrosshairDot, value)) NotifyCrosshairPreviewChanged(); } }
+    public bool Cs2CrosshairOutline { get => _cs2CrosshairOutline; set { if (SetProperty(ref _cs2CrosshairOutline, value)) NotifyCrosshairPreviewChanged(); } }
+    public double Cs2CrosshairOutlineThickness { get => _cs2CrosshairOutlineThickness; set { if (SetProperty(ref _cs2CrosshairOutlineThickness, value)) NotifyCrosshairPreviewChanged(); } }
+    public bool Cs2CrosshairTStyle { get => _cs2CrosshairTStyle; set { if (SetProperty(ref _cs2CrosshairTStyle, value)) NotifyCrosshairPreviewChanged(); } }
     public bool Cs2CrosshairUseAlpha { get => _cs2CrosshairUseAlpha; set { if (SetProperty(ref _cs2CrosshairUseAlpha, value)) NotifyCrosshairPreviewChanged(); } }
-    public bool Cs2CrosshairFollowRecoil { get => _cs2CrosshairFollowRecoil; set => SetProperty(ref _cs2CrosshairFollowRecoil, value); }
+    public bool Cs2CrosshairFollowRecoil { get => _cs2CrosshairFollowRecoil; set { if (SetProperty(ref _cs2CrosshairFollowRecoil, value)) NotifyCrosshairPreviewChanged(); } }
+    public double Cs2CrosshairSniperWidth { get => _cs2CrosshairSniperWidth; set { if (SetProperty(ref _cs2CrosshairSniperWidth, value)) NotifyCrosshairPreviewChanged(); } }
+    public bool Cs2CrosshairGapUseWeaponValue { get => _cs2CrosshairGapUseWeaponValue; set => SetProperty(ref _cs2CrosshairGapUseWeaponValue, value); }
+    public string Cs2CrosshairColor { get => _cs2CrosshairColor; set => SetProperty(ref _cs2CrosshairColor, value); }
 
     public Media.Brush Cs2CrosshairPreviewBrush => new Media.SolidColorBrush(Media.Color.FromArgb((byte)(Cs2CrosshairUseAlpha ? Clamp(Cs2CrosshairAlpha, 0, 255) : 255), (byte)Clamp(Cs2CrosshairRed, 0, 255), (byte)Clamp(Cs2CrosshairGreen, 0, 255), (byte)Clamp(Cs2CrosshairBlue, 0, 255)));
     public double CrosshairPreviewCenterX => 290;
     public double CrosshairPreviewCenterY => 82;
     public double CrosshairPreviewArmLength => Math.Max(8, Math.Min(82, Cs2CrosshairSize * 9));
     public double CrosshairPreviewThickness => Math.Max(1, Math.Min(8, Cs2CrosshairThickness * 5));
+    public double CrosshairOutlinePreviewThickness => CrosshairPreviewThickness + Math.Max(2, Cs2CrosshairOutlineThickness * 2);
     public double CrosshairPreviewGap => Math.Max(2, Math.Min(58, 11 + Cs2CrosshairGap * 5));
     public double CrosshairLeftX1 => CrosshairPreviewCenterX - CrosshairPreviewGap - CrosshairPreviewArmLength;
     public double CrosshairLeftX2 => CrosshairPreviewCenterX - CrosshairPreviewGap;
@@ -378,6 +489,14 @@ public sealed class LibraryViewModel : ViewModelBase
     public double CrosshairTopY2 => CrosshairPreviewCenterY - CrosshairPreviewGap;
     public double CrosshairBottomY1 => CrosshairPreviewCenterY + CrosshairPreviewGap;
     public double CrosshairBottomY2 => CrosshairPreviewCenterY + CrosshairPreviewGap + CrosshairPreviewArmLength;
+    public double CrosshairDotSize => Math.Max(4, CrosshairPreviewThickness + 4);
+    public double CrosshairDotLeft => CrosshairPreviewCenterX - (CrosshairDotSize / 2);
+    public double CrosshairDotTop => CrosshairPreviewCenterY - (CrosshairDotSize / 2);
+    public double CrosshairRecoilY => CrosshairPreviewCenterY + 36;
+    public System.Windows.Visibility CrosshairTopVisibility => Cs2CrosshairTStyle ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+    public System.Windows.Visibility CrosshairOutlineVisibility => Cs2CrosshairOutline ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    public System.Windows.Visibility CrosshairTopOutlineVisibility => Cs2CrosshairOutline && !Cs2CrosshairTStyle ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    public System.Windows.Visibility CrosshairRecoilVisibility => Cs2CrosshairFollowRecoil ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
     public string Cs2Summary => _cs2Analysis?.Summary ?? _localization.T("CS2.NotScanned");
     public string Cs2ConfigPath => _cs2Analysis?.Paths.VideoConfigPath ?? _localization.T("CS2.NotDetected");
@@ -397,8 +516,9 @@ public sealed class LibraryViewModel : ViewModelBase
         foreach (var core in _runtime.Cores) Cores.Add(core);
         OnPropertyChanged(nameof(PhysicalCores));
         OnPropertyChanged(nameof(ThreadCores));
+        RefreshOptimizationModes();
         RefreshPriorities();
-        SetAllCores(true);
+        ApplyUnoptimizedCpuEditorSelection();
 
         ScanSteamCommand = new RelayCommand(_ => ScanSteam(), _ => !IsBusy);
         ScanEpicCommand = new RelayCommand(_ => ScanEpic(), _ => !IsBusy);
@@ -418,30 +538,33 @@ public sealed class LibraryViewModel : ViewModelBase
         ClearAllCoresCommand = new RelayCommand(_ => SetAllCores(false));
         DisableSmtCommand = new RelayCommand(_ => DisableSmtThreads());
         DisableECoresCommand = new RelayCommand(_ => DisableEfficiencyCores());
-        ScanCs2Command = new RelayCommand(_ => AnalyzeCs2IfSelected(), _ => IsCs2Selected);
-        BackupCs2Command = new RelayCommand(_ => BackupCs2(), _ => IsCs2Selected && _cs2Analysis?.Paths.IsComplete == true);
-        ApplyCs2PresetCommand = new RelayCommand(_ => ApplyCs2Preset(), _ => IsCs2Selected && SelectedCs2Preset != null && _cs2Analysis?.Paths.IsComplete == true);
-        RestoreCs2BackupCommand = new RelayCommand(_ => RestoreLatestCs2Backup(), _ => IsCs2Selected);
-        LoadCs2AutoexecCommand = new RelayCommand(_ => LoadCs2Autoexec(createIfMissing: true), _ => IsCs2Selected);
-        SaveCs2AutoexecCommand = new RelayCommand(_ => SaveCs2Autoexec(), _ => IsCs2Selected);
+        ScanCs2Command = new RelayCommand(_ => AnalyzeCs2IfSelected(), _ => IsCs2Selected && CanEditCs2Config);
+        BackupCs2Command = new RelayCommand(_ => BackupCs2(), _ => IsCs2Selected && _cs2Analysis?.Paths.IsComplete == true && CanEditCs2Config);
+        ApplyCs2PresetCommand = new RelayCommand(_ => ApplyCs2Preset(), _ => IsCs2Selected && SelectedCs2Preset != null && _cs2Analysis?.Paths.IsComplete == true && CanEditCs2Config);
+        RestoreCs2BackupCommand = new RelayCommand(_ => RestoreLatestCs2Backup(), _ => IsCs2Selected && CanEditCs2Config);
+        LoadCs2AutoexecCommand = new RelayCommand(_ => LoadCs2Autoexec(createIfMissing: true), _ => IsCs2Selected && CanEditCs2Config);
+        SaveCs2AutoexecCommand = new RelayCommand(_ => SaveCs2Autoexec(), _ => IsCs2Selected && CanEditCs2Config);
         OpenCs2AutoexecFolderCommand = new RelayCommand(_ => OpenCs2AutoexecFolder(), _ => IsCs2Selected);
-        InsertCs2GrenadeBindsCommand = new RelayCommand(_ => InsertCs2GrenadeBinds(), _ => IsCs2Selected);
-        InsertCs2RadarCommand = new RelayCommand(_ => InsertCs2RadarSettings(), _ => IsCs2Selected);
-        InsertCs2FpsMaxCommand = new RelayCommand(_ => InsertCs2FpsMax(), _ => IsCs2Selected);
+        InsertCs2GrenadeBindsCommand = new RelayCommand(_ => InsertCs2GrenadeBinds(), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2RadarCommand = new RelayCommand(_ => InsertCs2RadarSettings(), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2FpsMaxCommand = new RelayCommand(_ => InsertCs2FpsMax(), _ => IsCs2Selected && CanEditCs2Config);
         BackToLibraryCommand = new RelayCommand(_ => BackToLibrary());
-        ClearCs2AutoexecCommand = new RelayCommand(_ => ClearCs2Autoexec(), _ => IsCs2Selected);
-        LoadCs2CrosshairCommand = new RelayCommand(_ => LoadCs2CrosshairSettings(), _ => IsCs2Selected);
-        SaveCs2CrosshairCommand = new RelayCommand(_ => SaveCs2CrosshairSettings(), _ => IsCs2Selected);
-        InsertCs2SensitivityCommand = new RelayCommand(_ => InsertCs2Sensitivity(), _ => IsCs2Selected);
-        InsertCs2VolumeCommand = new RelayCommand(_ => InsertCs2Volume(), _ => IsCs2Selected);
-        InsertCs2ConsoleCommand = new RelayCommand(_ => InsertCs2Console(), _ => IsCs2Selected);
-        InsertCs2SmokeBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2SmokeKey, "slot8", "smoke"), _ => IsCs2Selected);
-        InsertCs2FlashBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2FlashKey, "slot7", "flash"), _ => IsCs2Selected);
-        InsertCs2MolotovBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2MolotovKey, "slot10", "molotov"), _ => IsCs2Selected);
-        InsertCs2HeBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2HeKey, "slot6", "he"), _ => IsCs2Selected);
-        InsertCs2VoiceBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2VoiceKey, "+voicerecord", "voice"), _ => IsCs2Selected);
-        InsertCs2JumpBindCommand = new RelayCommand(_ => InsertCs2JumpBind(), _ => IsCs2Selected);
-        InsertCs2CustomBindCommand = new RelayCommand(_ => InsertCs2CustomBind(), _ => IsCs2Selected);
+        ClearCs2AutoexecCommand = new RelayCommand(_ => ClearCs2Autoexec(), _ => IsCs2Selected && CanEditCs2Config);
+        LoadCs2CrosshairCommand = new RelayCommand(_ => LoadCs2CrosshairSettings(), _ => IsCs2Selected && CanEditCs2Config);
+        SaveCs2CrosshairCommand = new RelayCommand(_ => SaveCs2CrosshairSettings(), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2SensitivityCommand = new RelayCommand(_ => InsertCs2Sensitivity(), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2VolumeCommand = new RelayCommand(_ => InsertCs2Volume(), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2ConsoleCommand = new RelayCommand(_ => InsertCs2Console(), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2SmokeBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2SmokeKey, SmokeKeyPlaceholder, "slot8", "smoke"), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2FlashBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2FlashKey, FlashKeyPlaceholder, "slot7", "flash"), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2MolotovBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2MolotovKey, MolotovKeyPlaceholder, "slot10", "molotov"), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2HeBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2HeKey, HeKeyPlaceholder, "slot6", "he"), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2VoiceBindCommand = new RelayCommand(_ => InsertCs2Bind(Cs2VoiceKey, VoiceKeyPlaceholder, "+voicerecord", "voice"), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2JumpBindCommand = new RelayCommand(_ => InsertCs2JumpBind(), _ => IsCs2Selected && CanEditCs2Config);
+        InsertCs2CustomBindCommand = new RelayCommand(_ => InsertCs2CustomBind(), _ => IsCs2Selected && CanEditCs2Config);
+
+        _cs2ProcessTimer.Tick += (_, _) => RefreshCs2ProcessState();
+        _cs2ProcessTimer.Start();
 
         Reload();
     }
@@ -450,6 +573,8 @@ public sealed class LibraryViewModel : ViewModelBase
     {
         foreach (var item in Items) item.RefreshTexts();
         foreach (var change in Cs2SettingChanges) change.RefreshTexts();
+        foreach (var mode in AvailableOptimizationModes) mode.RefreshTexts();
+        RefreshOptimizationModes();
         RefreshPriorities();
         OnPropertyChanged(string.Empty);
     }
@@ -471,8 +596,8 @@ public sealed class LibraryViewModel : ViewModelBase
     {
         using var dialog = new WinFormsOpenFileDialog
         {
-            Filter = "Executable files (*.exe)|*.exe|All files (*.*)|*.*",
-            Title = "Select executable"
+            Filter = IsPolish ? "Pliki wykonywalne (*.exe)|*.exe|Wszystkie pliki (*.*)|*.*" : "Executable files (*.exe)|*.exe|All files (*.*)|*.*",
+            Title = IsPolish ? "Wybierz plik wykonywalny" : "Select executable"
         };
 
         if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -529,7 +654,7 @@ public sealed class LibraryViewModel : ViewModelBase
     {
         using var dialog = new WinFormsFolderDialog
         {
-            Description = "Select folder with games or portable apps",
+            Description = IsPolish ? "Wybierz folder z grami albo aplikacjami przenośnymi" : "Select folder with games or portable apps",
             UseDescriptionForTitle = true
         };
 
@@ -597,6 +722,15 @@ public sealed class LibraryViewModel : ViewModelBase
 
     private LibraryItemViewModel CreateItemViewModel(LibraryItem item) => new(item, _localization, () => _runtime.Profiles);
 
+    private void RefreshOptimizationModes()
+    {
+        var current = SelectedOptimizationMode ?? OptimizationMode.CpuSets;
+        AvailableOptimizationModes.Clear();
+        AvailableOptimizationModes.Add(new OptimizationModeOptionViewModel(OptimizationMode.CpuSets, _localization));
+        AvailableOptimizationModes.Add(new OptimizationModeOptionViewModel(OptimizationMode.Affinity, _localization));
+        SelectedOptimizationMode = current;
+    }
+
     private void RefreshPriorities()
     {
         string current = _selectedPriority;
@@ -609,15 +743,71 @@ public sealed class LibraryViewModel : ViewModelBase
         SelectedPriority = string.IsNullOrWhiteSpace(currentRaw) ? string.Empty : PriorityService.Translate(currentRaw, _localization.CurrentLanguage);
     }
 
+    private string BuildDetectedProcessorText()
+    {
+        int logical = Cores.Count;
+        int performance = Cores.Count(core => !core.IsThread && !core.IsECore);
+        int threads = Cores.Count(core => core.IsThread);
+        int efficiency = Cores.Count(core => core.IsECore);
+        string topology = string.Format(_localization.T("Library.CpuInfo.Topology"), logical, performance, threads, efficiency);
+        return $"{_runtime.CpuName} · {topology}";
+    }
+
+    private string BuildCurrentOptimizationProfileText()
+    {
+        if (SelectedItem == null)
+        {
+            return _localization.T("Library.NoProfile.NoSelection");
+        }
+
+        if (SelectedOptimizationProfile == null)
+        {
+            return _localization.T("Library.NoProfile.Description");
+        }
+
+        string mode = new OptimizationModeOptionViewModel(SelectedOptimizationProfile.OptimizationMode, _localization).DisplayName;
+        string priority = PriorityService.Translate(SelectedOptimizationProfile.Priority, _localization.CurrentLanguage);
+        int selectedLogicalProcessors = CountSelectedLogicalProcessors(SelectedOptimizationProfile.AffinityMask);
+        return string.Format(
+            _localization.T("Library.CurrentProfile.Description"),
+            SelectedOptimizationProfile.DisplayName,
+            ProfileService.NormalizeProcessName(SelectedOptimizationProfile.ProcessName),
+            mode,
+            priority,
+            selectedLogicalProcessors);
+    }
+
+    private int CountSelectedLogicalProcessors(long affinityMask)
+    {
+        if (affinityMask == 0) return 0;
+        int count = 0;
+        for (int i = 0; i < Cores.Count && i < 64; i++)
+        {
+            if ((affinityMask & (1L << i)) != 0) count++;
+        }
+        return count;
+    }
+
+    private string BuildRecommendedPresetText()
+    {
+        var recommendation = BuildStandardCpuOptimizationRecommendation();
+        string mode = _localization.T("OptimizationMode.CpuSets");
+        string priority = PriorityService.Translate("Normal", _localization.CurrentLanguage);
+        string details = string.Format(_localization.T("Library.CpuInfo.RecommendedPreset"), mode, priority, recommendation.SelectedLogicalProcessors);
+        return details + " " + recommendation.Description;
+    }
+
     private void LoadProfileForSelectedItem()
     {
         if (SelectedItem == null)
         {
-            SetAllCores(true);
+            SelectedOptimizationProfile = null;
+            ApplyUnoptimizedCpuEditorSelection();
             return;
         }
 
         var profile = FindProfileForSelectedItem();
+        SelectedOptimizationProfile = profile;
         if (profile != null)
         {
             SelectedPriority = PriorityService.Translate(profile.Priority, _localization.CurrentLanguage);
@@ -626,9 +816,7 @@ public sealed class LibraryViewModel : ViewModelBase
             return;
         }
 
-        SelectedPriority = string.Empty;
-        SelectedOptimizationMode = null;
-        SetAllCores(true);
+        ApplyUnoptimizedCpuEditorSelection();
     }
 
     private ProcessProfile? FindProfileForSelectedItem()
@@ -641,9 +829,23 @@ public sealed class LibraryViewModel : ViewModelBase
             if (byId != null) return byId;
         }
 
-        string? process = SelectedItem.Item.ProcessName;
-        if (string.IsNullOrWhiteSpace(process)) return null;
-        return _runtime.Profiles.FirstOrDefault(p => p.ProcessName.Equals(process, StringComparison.OrdinalIgnoreCase));
+        var byLibraryItemId = _runtime.Profiles.FirstOrDefault(p => p.LibraryItemId?.Equals(SelectedItem.Item.Id, StringComparison.OrdinalIgnoreCase) == true);
+        if (byLibraryItemId != null) return byLibraryItemId;
+
+        if (!string.IsNullOrWhiteSpace(SelectedItem.Item.ExecutablePath))
+        {
+            var byExecutablePath = _runtime.Profiles.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.ExecutablePath) && p.ExecutablePath.Equals(SelectedItem.Item.ExecutablePath, StringComparison.OrdinalIgnoreCase));
+            if (byExecutablePath != null) return byExecutablePath;
+        }
+
+        string selectedProcessName = ProfileService.NormalizeProcessName(SelectedItem.Item.ProcessName);
+        if (!string.IsNullOrWhiteSpace(selectedProcessName))
+        {
+            var byProcessName = _runtime.Profiles.FirstOrDefault(p => ProfileService.NormalizeProcessName(p.ProcessName).Equals(selectedProcessName, StringComparison.OrdinalIgnoreCase));
+            if (byProcessName != null) return byProcessName;
+        }
+
+        return null;
     }
 
     private void CreateOrUpdateProfileForSelected()
@@ -654,9 +856,10 @@ public sealed class LibraryViewModel : ViewModelBase
 
         var existing = FindProfileForSelectedItem();
         var profile = existing ?? new ProcessProfile();
-        profile.ProcessName = SelectedItem.Item.ProcessName;
+        profile.ProcessName = ProfileService.NormalizeProcessName(SelectedItem.Item.ProcessName);
         profile.DisplayName = SelectedItem.Item.DisplayName;
         profile.ExecutablePath = SelectedItem.Item.ExecutablePath;
+        profile.LibraryItemId = SelectedItem.Item.Id;
         profile.AffinityMask = mask;
         profile.Priority = string.IsNullOrWhiteSpace(SelectedPriority) ? "Normal" : PriorityService.Normalize(SelectedPriority, _runtime.Settings.AllowRealtimePriority);
         profile.OptimizationMode = SelectedOptimizationMode ?? OptimizationMode.CpuSets;
@@ -666,26 +869,141 @@ public sealed class LibraryViewModel : ViewModelBase
         profile.Notes = $"Linked from FrameHub Library item: {SelectedItem.Item.DisplayName}.";
         profile.UpdatedAt = DateTime.UtcNow;
 
-        _runtime.UpsertProfile(profile);
-        var saved = _runtime.Profiles.FirstOrDefault(p => p.ProcessName.Equals(profile.ProcessName, StringComparison.OrdinalIgnoreCase));
-        if (saved != null) SelectedItem.Item.LinkedProfileId = saved.Id;
+        _runtime.UpsertProfile(profile, replaceSameProcessName: false);
+        var saved = _runtime.Profiles.FirstOrDefault(p => p.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase));
+        if (saved != null)
+        {
+            SelectedItem.Item.LinkedProfileId = saved.Id;
+            SelectedOptimizationProfile = saved;
+        }
+        else
+        {
+            SelectedOptimizationProfile = profile;
+        }
         _libraryService.SaveItems(Items.Select(x => x.Item));
         SelectedItem.RefreshRuntimeState();
-        _runtime.ApplyProfileNow(profile, force: true);
+        _runtime.ApplyProfileNow(saved ?? profile, force: true);
         StatusMessage = string.Format(_localization.T("Library.ProfileSaved"), SelectedItem.Item.DisplayName);
         _runtime.AddActivity(StatusMessage);
     }
 
     private void ApplyLinkedProfile()
     {
+        if (SelectedItem == null || string.IsNullOrWhiteSpace(SelectedItem.Item.ProcessName))
+        {
+            StatusMessage = _localization.T("Library.ProfileMissing");
+            return;
+        }
+
+        // The Library-level Optimize button is intentionally destructive for the CPU profile:
+        // it rebuilds the standard FrameHub preset and overwrites the current saved core-control
+        // profile for this game/app instead of merely applying the old profile.
+        ApplyRecommendedCpuPresetSelection();
+        CreateOrUpdateProfileForSelected();
+
         var profile = FindProfileForSelectedItem();
         if (profile == null)
         {
             StatusMessage = _localization.T("Library.ProfileMissing");
             return;
         }
-        _runtime.ApplyProfileNow(profile, force: true);
+
+        bool cs2GraphicsApplied = false;
+        bool cs2GraphicsSkippedBecauseRunning = false;
+        string cs2GraphicsMessage = string.Empty;
+
+        if (IsCs2Selected)
+        {
+            RefreshCs2ProcessState();
+            if (IsCs2Running)
+            {
+                cs2GraphicsSkippedBecauseRunning = true;
+                cs2GraphicsMessage = IsPolish
+                    ? "UWAGA: CS2 był uruchomiony, więc ustawienia graficzne NIE zostały zoptymalizowane. Zamknij CS2 i kliknij Optymalizuj ponownie, żeby zastosować Preset turniejowy."
+                    : "WARNING: CS2 was running, so graphics settings were NOT optimized. Close CS2 and click Optimize again to apply the Competitive preset.";
+                Cs2StatusMessage = cs2GraphicsMessage;
+                _runtime.AddActivity(cs2GraphicsMessage, "Warn");
+            }
+            else
+            {
+                cs2GraphicsApplied = ApplyCompetitiveCs2GraphicsPresetFromOptimize(out cs2GraphicsMessage);
+            }
+        }
+
         StatusMessage = string.Format(_localization.T("Library.ProfileApplied"), profile.ProcessName);
+
+        string title = IsPolish ? "Optymalizacja zakończona" : "Optimization complete";
+        string message = IsCs2Selected
+            ? BuildCs2OptimizeDialogMessage(cs2GraphicsApplied, cs2GraphicsSkippedBecauseRunning, cs2GraphicsMessage)
+            : (IsPolish
+                ? "Standardowy profil procesora został ponownie wygenerowany, zapisany i zastosowany dla wybranej gry lub aplikacji. Jeżeli profil już istniał, został nadpisany."
+                : "The standard CPU profile was regenerated, saved, and applied for the selected game or app. If a profile already existed, it was overwritten.");
+
+        InfoDialogRequested?.Invoke(title, cs2GraphicsSkippedBecauseRunning ? "[WARN]" + message : message);
+    }
+
+    private string BuildCs2OptimizeDialogMessage(bool graphicsApplied, bool graphicsSkippedBecauseRunning, string graphicsMessage)
+    {
+        string cpuMessage = IsPolish
+            ? "Standardowy profil procesora został ponownie wygenerowany, zapisany i zastosowany dla CS2. Jeżeli profil kontroli rdzeni już istniał, został nadpisany."
+            : "The standard CPU profile was regenerated, saved, and applied for CS2. If a core-control profile already existed, it was overwritten.";
+
+        if (graphicsSkippedBecauseRunning)
+        {
+            return cpuMessage + Environment.NewLine + Environment.NewLine + graphicsMessage;
+        }
+
+        if (graphicsApplied)
+        {
+            string graphicsAppliedMessage = IsPolish
+                ? "Ustawienia graficzne CS2 zostały zoptymalizowane według Presetu turniejowego. Rozdzielczość i tryb wyświetlania nie zostały zmienione — zostają preferencją użytkownika."
+                : "CS2 graphics settings were optimized with the Competitive preset. Resolution and display mode were not changed — they remain the user's preference.";
+            return cpuMessage + Environment.NewLine + Environment.NewLine + graphicsAppliedMessage;
+        }
+
+        string graphicsFailedMessage = IsPolish
+            ? "Nie udało się zastosować ustawień graficznych CS2: " + graphicsMessage
+            : "CS2 graphics settings could not be applied: " + graphicsMessage;
+        return cpuMessage + Environment.NewLine + Environment.NewLine + graphicsFailedMessage;
+    }
+
+    private bool ApplyCompetitiveCs2GraphicsPresetFromOptimize(out string message)
+    {
+        message = string.Empty;
+
+        if (!EnsureCs2Analysis() || _cs2Analysis == null || !_cs2Analysis.Paths.IsComplete)
+        {
+            message = IsPolish ? "Nie wykryto kompletnej konfiguracji CS2." : "Complete CS2 config was not detected.";
+            Cs2StatusMessage = message;
+            return false;
+        }
+
+        var competitivePreset = _cs2Analysis.Presets.FirstOrDefault(preset => preset.Id.Equals("cs2_competitive_baseline", StringComparison.OrdinalIgnoreCase))
+            ?? _cs2Service.Analyze(SelectedItem!.Item).Presets.FirstOrDefault(preset => preset.Id.Equals("cs2_competitive_baseline", StringComparison.OrdinalIgnoreCase));
+
+        if (competitivePreset == null)
+        {
+            message = IsPolish ? "Nie znaleziono Presetu turniejowego." : "Competitive preset was not found.";
+            Cs2StatusMessage = message;
+            return false;
+        }
+
+        foreach (var change in competitivePreset.Changes)
+        {
+            if (change.Key.Equals("cs2.resolution", StringComparison.OrdinalIgnoreCase)
+                || change.Key.Equals("cs2.display_mode", StringComparison.OrdinalIgnoreCase))
+            {
+                change.IsSelected = false;
+                change.TargetValue = change.CurrentValue;
+            }
+        }
+
+        var result = _cs2Service.ApplyPreset(_cs2Analysis, competitivePreset);
+        Cs2StatusMessage = result.Message;
+        _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
+        AnalyzeCs2IfSelected();
+        message = result.Message;
+        return result.Success;
     }
 
     private void LaunchSelected()
@@ -721,11 +1039,139 @@ public sealed class LibraryViewModel : ViewModelBase
         foreach (var core in Cores.Where(c => c.IsECore)) core.IsChecked = false;
     }
 
-    private void SelectPerformanceBaselineCores()
+
+    private void ApplyUnoptimizedCpuEditorSelection()
     {
-        SetAllCores(true);
-        if (Cores.Any(c => c.IsThread)) DisableSmtThreads();
-        if (Cores.Any(c => c.IsECore)) DisableEfficiencyCores();
+        ApplyMaskToCores(BuildAllCoreMask());
+        SelectedOptimizationMode = OptimizationMode.CpuSets;
+        SelectedPriority = PriorityService.Translate("Normal", _localization.CurrentLanguage);
+    }
+
+    private void ApplyRecommendedCpuPresetSelection()
+    {
+        var recommendation = BuildStandardCpuOptimizationRecommendation();
+        ApplyMaskToCores(recommendation.AffinityMask);
+        SelectedOptimizationMode = OptimizationMode.CpuSets;
+        SelectedPriority = PriorityService.Translate("Normal", _localization.CurrentLanguage);
+    }
+
+    private CpuOptimizationRecommendation BuildStandardCpuOptimizationRecommendation()
+    {
+        long mask = BuildAllCoreMask();
+        bool hasECores = Cores.Any(core => core.IsECore);
+        bool hasSmtOrHt = Cores.Any(core => core.IsThread);
+        bool isAmd = _runtime.CpuVendor.Contains("AMD", StringComparison.OrdinalIgnoreCase)
+            || _runtime.CpuName.Contains("AMD", StringComparison.OrdinalIgnoreCase)
+            || _runtime.CpuName.Contains("Ryzen", StringComparison.OrdinalIgnoreCase);
+        bool isIntel = _runtime.CpuVendor.Contains("Intel", StringComparison.OrdinalIgnoreCase)
+            || _runtime.CpuName.Contains("Intel", StringComparison.OrdinalIgnoreCase)
+            || _runtime.CpuName.Contains("Core", StringComparison.OrdinalIgnoreCase);
+
+        if (isAmd)
+        {
+            mask = RemoveSmtOrHtThreads(mask);
+            mask = RemovePrimaryCoreZero(mask);
+            return new CpuOptimizationRecommendation(
+                mask,
+                IsPolish
+                    ? "Dla AMD domyślnie odznacza SMT oraz główny Core 0, a priorytet procesu zostaje Normalny."
+                    : "For AMD, the default preset disables SMT and the primary Core 0 while keeping process priority Normal.");
+        }
+
+        if (isIntel && hasECores)
+        {
+            mask = RemoveEfficiencyCores(mask);
+            string description;
+            if (hasSmtOrHt)
+            {
+                mask = RemoveSmtOrHtThreads(mask);
+                description = IsPolish
+                    ? "Dla hybrydowych Intel z P/E-core i HT domyślnie odznacza rdzenie E oraz wątki HT, a priorytet procesu zostaje Normalny."
+                    : "For hybrid Intel CPUs with P/E-cores and HT, the default preset disables E-cores and HT threads while keeping process priority Normal.";
+            }
+            else
+            {
+                description = IsPolish
+                    ? "Dla najnowszych hybrydowych Intel bez HT domyślnie odznacza rdzenie E, a priorytet procesu zostaje Normalny."
+                    : "For newer hybrid Intel CPUs without HT, the default preset disables E-cores while keeping process priority Normal.";
+            }
+
+            return new CpuOptimizationRecommendation(mask, description);
+        }
+
+        if (isIntel)
+        {
+            mask = RemovePrimaryCoreZero(mask);
+            if (hasSmtOrHt) mask = RemoveSmtOrHtThreads(mask);
+
+            return new CpuOptimizationRecommendation(
+                mask,
+                hasSmtOrHt
+                    ? (IsPolish
+                        ? "Dla klasycznych Intel bez podziału P/E domyślnie odznacza Core 0 oraz wątki HT, a priorytet procesu zostaje Normalny."
+                        : "For non-hybrid Intel CPUs, the default preset disables Core 0 and HT threads while keeping process priority Normal.")
+                    : (IsPolish
+                        ? "Dla klasycznych Intel bez podziału P/E domyślnie odznacza Core 0, a priorytet procesu zostaje Normalny."
+                        : "For non-hybrid Intel CPUs, the default preset disables Core 0 while keeping process priority Normal."));
+        }
+
+        return new CpuOptimizationRecommendation(
+            mask,
+            IsPolish
+                ? "Nie rozpoznano jednoznacznie rodziny CPU, więc domyślny preset zostawia wszystkie procesory logiczne zaznaczone i priorytet Normalny."
+                : "The CPU family was not detected clearly, so the default preset keeps all logical processors selected and priority Normal.");
+    }
+
+    private long RemoveSmtOrHtThreads(long mask)
+    {
+        foreach (var core in Cores.Where(core => core.IsThread && core.Index is >= 0 and < 64))
+        {
+            mask &= ~(1L << core.Index);
+        }
+
+        return mask;
+    }
+
+    private long RemoveEfficiencyCores(long mask)
+    {
+        foreach (var core in Cores.Where(core => core.IsECore && core.Index is >= 0 and < 64))
+        {
+            mask &= ~(1L << core.Index);
+        }
+
+        return mask;
+    }
+
+    private long RemovePrimaryCoreZero(long mask)
+    {
+        var coreZero = Cores.FirstOrDefault(core => core.Index == 0)
+            ?? Cores.Where(core => !core.IsThread).OrderBy(core => core.Index).FirstOrDefault()
+            ?? Cores.OrderBy(core => core.Index).FirstOrDefault();
+
+        if (coreZero is { Index: >= 0 and < 64 })
+        {
+            mask &= ~(1L << coreZero.Index);
+        }
+
+        return mask;
+    }
+
+    private sealed record CpuOptimizationRecommendation(long AffinityMask, string Description)
+    {
+        public int SelectedLogicalProcessors
+        {
+            get
+            {
+                if (AffinityMask == 0) return 0;
+                int count = 0;
+                for (int i = 0; i < 64; i++)
+                {
+                    if ((AffinityMask & (1L << i)) != 0) count++;
+                }
+
+                return count;
+            }
+        }
     }
 
     private long BuildSelectedCoreMask()
@@ -752,6 +1198,11 @@ public sealed class LibraryViewModel : ViewModelBase
 
     private void AnalyzeCs2IfSelected()
     {
+        AnalyzeCs2IfSelected(selectCustomPresetAfterScan: false, customTargets: null);
+    }
+
+    private void AnalyzeCs2IfSelected(bool selectCustomPresetAfterScan, IReadOnlyDictionary<string, string>? customTargets)
+    {
         Cs2Presets.Clear();
         Cs2SettingChanges.Clear();
         _cs2Analysis = null;
@@ -766,10 +1217,30 @@ public sealed class LibraryViewModel : ViewModelBase
             return;
         }
 
+        RefreshCs2ProcessState();
+        if (IsCs2Running)
+        {
+            Cs2StatusMessage = IsPolish
+                ? "CS2 jest uruchomiony. FrameHub nie odczytuje teraz żadnych wartości z plików konfiguracyjnych. Zamknij grę, aby wczytać lub edytować Config."
+                : "CS2 is running. FrameHub is not reading any values from CS2 config files right now. Close the game to load or edit Config.";
+            Cs2AutoexecStatusMessage = Cs2StatusMessage;
+            _runtime.AddActivity(Cs2StatusMessage, "Warn");
+            NotifyCs2OverviewChanged();
+            return;
+        }
+
         _cs2Analysis = _cs2Service.Analyze(SelectedItem.Item);
         Cs2StatusMessage = _cs2Analysis.StatusMessage;
         foreach (var preset in _cs2Analysis.Presets) Cs2Presets.Add(preset);
-        SelectedCs2Preset = Cs2Presets.FirstOrDefault();
+
+        if (selectCustomPresetAfterScan)
+        {
+            SelectCustomCs2PresetFromCurrentSettings(customTargets);
+        }
+
+        SelectedCs2Preset ??= Cs2Presets.FirstOrDefault(preset => preset.Id.Equals("cs2_competitive_baseline", StringComparison.OrdinalIgnoreCase))
+            ?? Cs2Presets.FirstOrDefault();
+
         LoadCs2Autoexec(createIfMissing: false);
         LoadCs2CrosshairSettings();
         NotifyCs2OverviewChanged();
@@ -779,7 +1250,133 @@ public sealed class LibraryViewModel : ViewModelBase
     {
         Cs2SettingChanges.Clear();
         if (SelectedCs2Preset == null) return;
-        foreach (var change in SelectedCs2Preset.Changes) Cs2SettingChanges.Add(new Cs2SettingChangeViewModel(change, _localization));
+
+        foreach (var change in SelectedCs2Preset.Changes)
+        {
+            var vm = new Cs2SettingChangeViewModel(change, _localization);
+            vm.TargetValueChangedByUser += (_, _) => MarkCs2PresetAsCustom();
+            Cs2SettingChanges.Add(vm);
+        }
+    }
+
+    private void MarkCs2PresetAsCustom()
+    {
+        if (SelectedCs2Preset?.Id.Equals("cs2_custom", StringComparison.OrdinalIgnoreCase) == true) return;
+        if (Cs2SettingChanges.Count == 0) return;
+
+        var custom = new GameOptimizationPreset
+        {
+            Id = "cs2_custom",
+            DisplayName = IsPolish ? "Niestandardowy" : "Custom",
+            Description = IsPolish
+                ? "Niestandardowy zestaw ustawień utworzony przez ręczną zmianę wartości w kolumnie Ustaw."
+                : "Custom settings created by manually changing values in the Set column.",
+            Changes = Cs2SettingChanges.Select(vm => vm.Change).ToList()
+        };
+
+        var existing = Cs2Presets.FirstOrDefault(preset => preset.Id.Equals("cs2_custom", StringComparison.OrdinalIgnoreCase));
+        if (existing != null) Cs2Presets.Remove(existing);
+        Cs2Presets.Add(custom);
+
+        _suppressCs2PresetRefresh = true;
+        try
+        {
+            SelectedCs2Preset = custom;
+        }
+        finally
+        {
+            _suppressCs2PresetRefresh = false;
+        }
+
+        OnPropertyChanged(nameof(Cs2PresetDescription));
+    }
+
+    private void SelectCustomCs2PresetFromCurrentSettings(IReadOnlyDictionary<string, string>? customTargets)
+    {
+        if (_cs2Analysis == null) return;
+
+        var baseline = _cs2Analysis.Presets.FirstOrDefault(preset => preset.Id.Equals("cs2_competitive_baseline", StringComparison.OrdinalIgnoreCase));
+        if (baseline == null) return;
+
+        var custom = new GameOptimizationPreset
+        {
+            Id = "cs2_custom",
+            DisplayName = IsPolish ? "Niestandardowy" : "Custom",
+            Description = IsPolish
+                ? "Niestandardowy zestaw ustawień utworzony przez ręczną zmianę wartości w kolumnie Ustaw."
+                : "Custom settings created by manually changing values in the Set column.",
+            Changes = baseline.Changes.Select(change => CloneCs2ChangeForCustomPreset(change, customTargets)).ToList()
+        };
+
+        var existing = Cs2Presets.FirstOrDefault(preset => preset.Id.Equals("cs2_custom", StringComparison.OrdinalIgnoreCase));
+        if (existing != null) Cs2Presets.Remove(existing);
+        Cs2Presets.Add(custom);
+
+        _suppressCs2PresetRefresh = true;
+        try
+        {
+            SelectedCs2Preset = custom;
+        }
+        finally
+        {
+            _suppressCs2PresetRefresh = false;
+        }
+
+        RefreshCs2Changes();
+        OnPropertyChanged(nameof(Cs2PresetDescription));
+    }
+
+    private static GameSettingChange CloneCs2ChangeForCustomPreset(GameSettingChange source, IReadOnlyDictionary<string, string>? customTargets)
+    {
+        string target = source.CurrentValue;
+        if (customTargets != null && customTargets.TryGetValue(source.Key, out string? customTarget) && !string.IsNullOrWhiteSpace(customTarget))
+        {
+            target = customTarget;
+        }
+
+        var clone = new GameSettingChange
+        {
+            Key = source.Key,
+            DisplayName = source.DisplayName,
+            Description = source.Description,
+            CurrentValue = source.CurrentValue,
+            RecommendedValue = source.RecommendedValue,
+            TargetValue = target,
+            TargetFile = source.TargetFile,
+            RiskLevel = source.RiskLevel,
+            IsOptional = source.IsOptional,
+            CanApply = source.CanApply,
+            Options = source.Options.Select(option => new GameSettingOption
+            {
+                Value = option.Value,
+                DisplayOverride = option.DisplayOverride
+            }).ToList()
+        };
+
+        if (string.Equals(clone.CurrentValue, "not found", StringComparison.OrdinalIgnoreCase))
+        {
+            clone.Status = GameOptimizationSettingStatus.NotDetected;
+            clone.IsSelected = false;
+        }
+        else if (!clone.CanApply)
+        {
+            clone.Status = GameOptimizationSettingStatus.ReadOnly;
+            clone.IsSelected = false;
+        }
+        else if (clone.IsOptional && !string.Equals(clone.CurrentValue, clone.RecommendedValue, StringComparison.OrdinalIgnoreCase))
+        {
+            clone.Status = GameOptimizationSettingStatus.OptionalPreference;
+            clone.IsSelected = false;
+        }
+        else
+        {
+            clone.Status = string.Equals(clone.CurrentValue, clone.RecommendedValue, StringComparison.OrdinalIgnoreCase)
+                ? GameOptimizationSettingStatus.MatchesBaseline
+                : GameOptimizationSettingStatus.DifferentFromBaseline;
+            clone.IsSelected = false;
+        }
+
+        return clone;
     }
 
     private string GetCs2DisplayValue(string key)
@@ -805,12 +1402,74 @@ public sealed class LibraryViewModel : ViewModelBase
     {
         if (_cs2Analysis != null) return true;
         if (!IsCs2Selected || SelectedItem == null) return false;
+
+        RefreshCs2ProcessState();
+        if (IsCs2Running)
+        {
+            Cs2StatusMessage = IsPolish
+                ? "CS2 jest uruchomiony. FrameHub nie odczytuje teraz żadnych wartości z plików konfiguracyjnych."
+                : "CS2 is running. FrameHub is not reading any values from CS2 config files right now.";
+            Cs2AutoexecStatusMessage = Cs2StatusMessage;
+            _runtime.AddActivity(Cs2StatusMessage, "Warn");
+            return false;
+        }
+
         _cs2Analysis = _cs2Service.Analyze(SelectedItem.Item);
         return true;
     }
 
+    private void RefreshCs2ProcessState()
+    {
+        IsCs2Running = IsProcessRunning("cs2");
+    }
+
+    private static bool IsProcessRunning(string processName)
+    {
+        var processes = Process.GetProcessesByName(processName);
+        try
+        {
+            return processes.Length > 0;
+        }
+        finally
+        {
+            foreach (var process in processes)
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    private bool EnsureCs2CanRead(string actionName)
+    {
+        RefreshCs2ProcessState();
+        if (!IsCs2Running) return true;
+
+        string message = IsPolish
+            ? $"Nie wykonano operacji '{actionName}', bo CS2 jest uruchomiony. FrameHub nie odczytuje żadnych wartości z plików konfiguracyjnych podczas działania gry."
+            : $"Skipped '{actionName}' because CS2 is running. FrameHub does not read any CS2 config values while the game is running.";
+        Cs2StatusMessage = message;
+        Cs2AutoexecStatusMessage = message;
+        _runtime.AddActivity(message, "Warn");
+        return false;
+    }
+
+    private bool EnsureCs2CanEdit(string actionName)
+    {
+        RefreshCs2ProcessState();
+        if (!IsCs2Running) return true;
+
+        string message = IsPolish
+            ? $"Nie wykonano operacji '{actionName}', bo CS2 jest uruchomiony. Zamknij grę i spróbuj ponownie."
+            : $"Skipped '{actionName}' because CS2 is running. Close the game and try again.";
+        Cs2StatusMessage = message;
+        Cs2AutoexecStatusMessage = message;
+        _runtime.AddActivity(message, "Warn");
+        return false;
+    }
+
     private void LoadCs2Autoexec(bool createIfMissing)
     {
+        if (!EnsureCs2CanRead("load autoexec.cfg")) return;
         if (!EnsureCs2Analysis() || _cs2Analysis == null) return;
         var result = _cs2Service.LoadAutoexec(_cs2Analysis, createIfMissing);
         if (result.Success)
@@ -823,6 +1482,7 @@ public sealed class LibraryViewModel : ViewModelBase
 
     private void SaveCs2Autoexec()
     {
+        if (!EnsureCs2CanEdit("save autoexec.cfg")) return;
         if (!EnsureCs2Analysis() || _cs2Analysis == null) return;
         var result = _cs2Service.SaveAutoexec(_cs2Analysis, Cs2AutoexecText);
         Cs2AutoexecStatusMessage = result.Message;
@@ -848,20 +1508,23 @@ public sealed class LibraryViewModel : ViewModelBase
 
     private void ClearCs2Autoexec()
     {
+        if (!EnsureCs2CanEdit("clear autoexec.cfg editor")) return;
         Cs2AutoexecText = string.Empty;
         Cs2AutoexecStatusMessage = IsPolish ? "Wyczyszczono edytor. Kliknij Zapisz autoexec.cfg, aby zapisać pusty plik." : "Editor cleared. Click Save autoexec.cfg to write an empty file.";
     }
 
     private void InsertCs2GrenadeBinds()
     {
-        InsertCs2Bind(Cs2SmokeKey, "slot8", "smoke");
-        InsertCs2Bind(Cs2FlashKey, "slot7", "flash");
-        InsertCs2Bind(Cs2MolotovKey, "slot10", "molotov");
-        InsertCs2Bind(Cs2HeKey, "slot6", "he");
+        if (!EnsureCs2CanEdit("insert grenade binds")) return;
+        InsertCs2Bind(Cs2SmokeKey, SmokeKeyPlaceholder, "slot8", "smoke");
+        InsertCs2Bind(Cs2FlashKey, FlashKeyPlaceholder, "slot7", "flash");
+        InsertCs2Bind(Cs2MolotovKey, MolotovKeyPlaceholder, "slot10", "molotov");
+        InsertCs2Bind(Cs2HeKey, HeKeyPlaceholder, "slot6", "he");
     }
 
     private void InsertCs2RadarSettings()
     {
+        if (!EnsureCs2CanEdit("insert radar settings")) return;
         UpsertFrameHubCommand("radar", "// QOL", new[]
         {
             "cl_radar_scale \"0.3\"",
@@ -871,36 +1534,42 @@ public sealed class LibraryViewModel : ViewModelBase
 
     private void InsertCs2Console()
     {
+        if (!EnsureCs2CanEdit("insert console setting")) return;
         UpsertFrameHubCommand("console", "// QOL", new[] { "con_enable \"1\"" });
     }
 
     private void InsertCs2FpsMax()
     {
-        string value = SanitizeValue(SelectedCs2FpsMax, "500");
+        if (!EnsureCs2CanEdit("insert fps_max")) return;
+        string value = SanitizeValue(SelectedCs2FpsMax, FpsMaxPlaceholder);
         UpsertFrameHubCommand("fps_max", "// General", new[] { $"fps_max \"{value}\"" });
     }
 
     private void InsertCs2Sensitivity()
     {
-        string value = SanitizeValue(Cs2MouseSensitivity, "0.5");
+        if (!EnsureCs2CanEdit("insert sensitivity")) return;
+        string value = SanitizeValue(Cs2MouseSensitivity, MouseSensitivityPlaceholder);
         UpsertFrameHubCommand("sensitivity", "// General", new[] { $"sensitivity \"{value}\"" });
     }
 
     private void InsertCs2Volume()
     {
-        string value = SanitizeValue(Cs2Volume, "0.8");
+        if (!EnsureCs2CanEdit("insert volume")) return;
+        string value = SanitizeValue(Cs2Volume, VolumePlaceholder);
         UpsertFrameHubCommand("volume", "// General", new[] { $"volume \"{value}\"" });
     }
 
-    private void InsertCs2Bind(string key, string command, string blockKey)
+    private void InsertCs2Bind(string key, string fallbackKey, string command, string blockKey)
     {
-        key = SanitizeKey(key);
+        if (!EnsureCs2CanEdit($"insert bind {blockKey}")) return;
+        key = SanitizeKey(SanitizeValue(key, fallbackKey));
         if (string.IsNullOrWhiteSpace(key)) return;
         UpsertFrameHubCommand($"bind_{blockKey}", "// Binds", new[] { $"bind \"{key}\" \"{command}\"" });
     }
 
     private void InsertCs2JumpBind()
     {
+        if (!EnsureCs2CanEdit("insert jump bind")) return;
         string mode = SelectedCs2JumpBindMode ?? string.Empty;
         var lines = new List<string>();
         if (mode.Contains("dół", StringComparison.OrdinalIgnoreCase) || mode.Contains("down", StringComparison.OrdinalIgnoreCase) || mode.Equals("Oba", StringComparison.OrdinalIgnoreCase))
@@ -916,6 +1585,7 @@ public sealed class LibraryViewModel : ViewModelBase
 
     private void InsertCs2CustomBind()
     {
+        if (!EnsureCs2CanEdit("insert custom bind")) return;
         string key = SanitizeKey(Cs2CustomBindKey);
         string command = (Cs2CustomBindCommandText ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(command)) return;
@@ -984,6 +1654,7 @@ public sealed class LibraryViewModel : ViewModelBase
 
     private void LoadCs2CrosshairSettings()
     {
+        if (!EnsureCs2CanRead("load crosshair")) return;
         if (!EnsureCs2Analysis() || _cs2Analysis == null) return;
         var values = _cs2Service.LoadUserConvars(_cs2Analysis);
         Cs2CrosshairStyle = ReadString(values, "cl_crosshairstyle", Cs2CrosshairStyle);
@@ -994,16 +1665,21 @@ public sealed class LibraryViewModel : ViewModelBase
         Cs2CrosshairRed = ReadDouble(values, "cl_crosshaircolor_r", Cs2CrosshairRed);
         Cs2CrosshairGreen = ReadDouble(values, "cl_crosshaircolor_g", Cs2CrosshairGreen);
         Cs2CrosshairBlue = ReadDouble(values, "cl_crosshaircolor_b", Cs2CrosshairBlue);
+        Cs2CrosshairColor = ReadString(values, "cl_crosshaircolor", Cs2CrosshairColor);
         Cs2CrosshairDot = ReadBool(values, "cl_crosshairdot", Cs2CrosshairDot);
         Cs2CrosshairOutline = ReadBool(values, "cl_crosshair_drawoutline", Cs2CrosshairOutline);
+        Cs2CrosshairOutlineThickness = ReadDouble(values, "cl_crosshair_outlinethickness", Cs2CrosshairOutlineThickness);
         Cs2CrosshairTStyle = ReadBool(values, "cl_crosshair_t", Cs2CrosshairTStyle);
         Cs2CrosshairUseAlpha = ReadBool(values, "cl_crosshairusealpha", Cs2CrosshairUseAlpha);
         Cs2CrosshairFollowRecoil = ReadBool(values, "cl_crosshair_recoil", Cs2CrosshairFollowRecoil);
+        Cs2CrosshairSniperWidth = ReadDouble(values, "cl_crosshair_sniper_width", Cs2CrosshairSniperWidth);
+        Cs2CrosshairGapUseWeaponValue = ReadBool(values, "cl_crosshairgap_useweaponvalue", Cs2CrosshairGapUseWeaponValue);
         Cs2AutoexecStatusMessage = IsPolish ? "Wczytano ustawienia celownika." : "Crosshair settings loaded.";
     }
 
     private void SaveCs2CrosshairSettings()
     {
+        if (!EnsureCs2CanEdit("save crosshair")) return;
         if (!EnsureCs2Analysis() || _cs2Analysis == null) return;
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -1012,16 +1688,18 @@ public sealed class LibraryViewModel : ViewModelBase
             ["cl_crosshairthickness"] = FormatNumber(Cs2CrosshairThickness),
             ["cl_crosshairgap"] = FormatNumber(Cs2CrosshairGap),
             ["cl_crosshairalpha"] = FormatNumber(Cs2CrosshairAlpha),
-            ["cl_crosshaircolor"] = "5",
+            ["cl_crosshaircolor"] = SanitizeValue(Cs2CrosshairColor, "5"),
             ["cl_crosshaircolor_r"] = FormatNumber(Cs2CrosshairRed),
             ["cl_crosshaircolor_g"] = FormatNumber(Cs2CrosshairGreen),
             ["cl_crosshaircolor_b"] = FormatNumber(Cs2CrosshairBlue),
             ["cl_crosshairdot"] = BoolString(Cs2CrosshairDot),
             ["cl_crosshair_drawoutline"] = BoolString(Cs2CrosshairOutline),
+            ["cl_crosshair_outlinethickness"] = FormatNumber(Cs2CrosshairOutlineThickness),
             ["cl_crosshair_t"] = BoolString(Cs2CrosshairTStyle),
             ["cl_crosshairusealpha"] = BoolString(Cs2CrosshairUseAlpha),
             ["cl_crosshair_recoil"] = BoolString(Cs2CrosshairFollowRecoil),
-            ["cl_crosshairgap_useweaponvalue"] = "false"
+            ["cl_crosshair_sniper_width"] = FormatNumber(Cs2CrosshairSniperWidth),
+            ["cl_crosshairgap_useweaponvalue"] = BoolString(Cs2CrosshairGapUseWeaponValue)
         };
         var result = _cs2Service.SaveUserConvars(_cs2Analysis, values);
         Cs2AutoexecStatusMessage = result.Message;
@@ -1040,6 +1718,7 @@ public sealed class LibraryViewModel : ViewModelBase
         OnPropertyChanged(nameof(Cs2CrosshairPreviewBrush));
         OnPropertyChanged(nameof(CrosshairPreviewArmLength));
         OnPropertyChanged(nameof(CrosshairPreviewThickness));
+        OnPropertyChanged(nameof(CrosshairOutlinePreviewThickness));
         OnPropertyChanged(nameof(CrosshairPreviewGap));
         OnPropertyChanged(nameof(CrosshairLeftX1));
         OnPropertyChanged(nameof(CrosshairLeftX2));
@@ -1049,28 +1728,58 @@ public sealed class LibraryViewModel : ViewModelBase
         OnPropertyChanged(nameof(CrosshairTopY2));
         OnPropertyChanged(nameof(CrosshairBottomY1));
         OnPropertyChanged(nameof(CrosshairBottomY2));
+        OnPropertyChanged(nameof(CrosshairDotSize));
+        OnPropertyChanged(nameof(CrosshairDotLeft));
+        OnPropertyChanged(nameof(CrosshairDotTop));
+        OnPropertyChanged(nameof(CrosshairRecoilY));
+        OnPropertyChanged(nameof(CrosshairTopVisibility));
+        OnPropertyChanged(nameof(CrosshairOutlineVisibility));
+        OnPropertyChanged(nameof(CrosshairTopOutlineVisibility));
+        OnPropertyChanged(nameof(CrosshairRecoilVisibility));
     }
 
     private void BackupCs2()
     {
+        if (!EnsureCs2CanEdit("backup CS2 config")) return;
         if (_cs2Analysis == null) return;
         var result = _cs2Service.CreateBackup(_cs2Analysis);
         Cs2StatusMessage = result.Message;
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
+        if (result.Success)
+        {
+            AnalyzeCs2IfSelected();
+        }
     }
 
     private void ApplyCs2Preset()
     {
+        if (!EnsureCs2CanEdit("apply CS2 graphics preset")) return;
         if (_cs2Analysis == null || SelectedCs2Preset == null) return;
+
+        bool wasCustomPreset = SelectedCs2Preset.Id.Equals("cs2_custom", StringComparison.OrdinalIgnoreCase);
+        var customTargets = Cs2SettingChanges.ToDictionary(
+            vm => vm.Change.Key,
+            vm => string.IsNullOrWhiteSpace(vm.Change.TargetValue) ? vm.Change.RecommendedValue : vm.Change.TargetValue,
+            StringComparer.OrdinalIgnoreCase);
+
         foreach (var vm in Cs2SettingChanges) vm.Change.IsSelected = vm.IsSelected;
         var result = _cs2Service.ApplyPreset(_cs2Analysis, SelectedCs2Preset);
         Cs2StatusMessage = result.Message;
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
-        AnalyzeCs2IfSelected();
+
+        if (result.Success && wasCustomPreset)
+        {
+            AnalyzeCs2IfSelected(selectCustomPresetAfterScan: true, customTargets: customTargets);
+        }
+        else
+        {
+            AnalyzeCs2IfSelected();
+        }
     }
 
     private void RestoreLatestCs2Backup()
     {
+        if (!EnsureCs2CanEdit("restore CS2 backup")) return;
         if (_cs2Analysis == null) AnalyzeCs2IfSelected();
         if (_cs2Analysis == null) return;
         var result = _cs2Service.RestoreLatestBackup(_cs2Analysis);

@@ -14,12 +14,12 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Border Width="38" Height="38" CornerRadius="13" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,12,0">
+                <Border Width="38" Height="38" CornerRadius="8" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,12,0">
                     <TextBlock Text="&#xE8A5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource BrushPrimary}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="{Binding ActivityTitle}" Style="{StaticResource SectionTitleText}" />
-                    <TextBlock Text="Runtime activity, watcher events and profile application history." Style="{StaticResource SmallMutedText}" Margin="0,3,0,0" />
+                    <TextBlock Text="{Binding Subtitle}" Style="{StaticResource SmallMutedText}" Margin="0,3,0,0" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button Style="{StaticResource SecondaryButton}" Content="{Binding OpenFolderText}" Command="{Binding OpenLogFolderCommand}" Margin="0,0,8,0" />
@@ -30,7 +30,7 @@
             <ListBox Grid.Row="1" ItemsSource="{Binding Activity}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Border Background="{StaticResource BrushSurfaceAlt}" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="14" Padding="13" Margin="0,0,0,10">
+                        <Border Background="{StaticResource BrushSurfaceAlt}" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="13" Margin="0,0,0,10">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="60" />

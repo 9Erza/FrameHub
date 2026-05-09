@@ -19,6 +19,7 @@ namespace FrameHub.Core.Models
         private string _processName = string.Empty;
         private string _displayName = string.Empty;
         private string? _executablePath;
+        private string? _libraryItemId;
         private long _affinityMask;
         private string _priority = "Normal";
         private bool _applyPriority = true;
@@ -28,6 +29,7 @@ namespace FrameHub.Core.Models
         private DateTime _createdAt = DateTime.UtcNow;
         private DateTime _updatedAt = DateTime.UtcNow;
         private string _displayPriority = "Normal";
+        private string _displayOptimizationMode = string.Empty;
 
         #endregion
 
@@ -74,6 +76,16 @@ namespace FrameHub.Core.Models
         {
             get => _executablePath;
             set => SetProperty(ref _executablePath, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+        }
+
+        /// <summary>
+        /// Optional link to a specific library game/app item. This keeps library profiles separate even
+        /// when two entries resolve to a similar executable/process name.
+        /// </summary>
+        public string? LibraryItemId
+        {
+            get => _libraryItemId;
+            set => SetProperty(ref _libraryItemId, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
         }
 
         #endregion
@@ -143,6 +155,13 @@ namespace FrameHub.Core.Models
         {
             get => _displayPriority;
             set => SetProperty(ref _displayPriority, value);
+        }
+
+        [JsonIgnore]
+        public string DisplayOptimizationMode
+        {
+            get => _displayOptimizationMode;
+            set => SetProperty(ref _displayOptimizationMode, value);
         }
 
         #endregion
