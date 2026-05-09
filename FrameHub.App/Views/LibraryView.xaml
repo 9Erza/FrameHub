@@ -472,15 +472,15 @@
                                                 <ComboBox ItemsSource="{Binding Cs2CrosshairStyleOptions}" SelectedItem="{Binding Cs2CrosshairStyle}" Margin="0,0,0,10" />
 
                                                 <TextBlock Text="Długość" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairSize, StringFormat={}{0:0.##}}" FontWeight="SemiBold" />
-                                                <Slider Minimum="0.5" Maximum="10" Value="{Binding Cs2CrosshairSize}" Margin="0,0,0,10" />
+                                                <Slider Minimum="-20" Maximum="20" Value="{Binding Cs2CrosshairSize}" Margin="0,0,0,10" />
                                                 <TextBlock Text="Grubość" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairThickness, StringFormat={}{0:0.##}}" FontWeight="SemiBold" />
-                                                <Slider Minimum="0" Maximum="3" Value="{Binding Cs2CrosshairThickness}" Margin="0,0,0,10" />
+                                                <Slider Minimum="-2" Maximum="2" Value="{Binding Cs2CrosshairThickness}" Margin="0,0,0,10" />
                                                 <TextBlock Text="Odstęp" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairGap, StringFormat={}{0:0.##}}" FontWeight="SemiBold" />
-                                                <Slider Minimum="-5" Maximum="10" Value="{Binding Cs2CrosshairGap}" Margin="0,0,0,10" />
+                                                <Slider Minimum="-10" Maximum="10" Value="{Binding Cs2CrosshairGap}" Margin="0,0,0,10" />
                                                 <TextBlock Text="Grubość obrysu" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairOutlineThickness, StringFormat={}{0:0.##}}" FontWeight="SemiBold" />
-                                                <Slider Minimum="0" Maximum="3" Value="{Binding Cs2CrosshairOutlineThickness}" Margin="0,0,0,10" />
+                                                <Slider Minimum="0.1" Maximum="3" Value="{Binding Cs2CrosshairOutlineThickness}" Margin="0,0,0,10" />
                                                 <TextBlock Text="Sniper width" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairSniperWidth, StringFormat={}{0:0.##}}" FontWeight="SemiBold" />
-                                                <Slider Minimum="1" Maximum="5" Value="{Binding Cs2CrosshairSniperWidth}" Margin="0,0,0,10" />
+                                                <Slider Minimum="0" Maximum="20" Value="{Binding Cs2CrosshairSniperWidth}" Margin="0,0,0,10" />
                                                 <WrapPanel>
                                                     <CheckBox Content="Kropka" IsChecked="{Binding Cs2CrosshairDot}" Margin="0,0,14,8" />
                                                     <CheckBox Content="Obrys" IsChecked="{Binding Cs2CrosshairOutline}" Margin="0,0,14,8" />
@@ -498,9 +498,9 @@
                                                 <TextBlock Text="Niebieski" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairBlue, StringFormat={}{0:0}}" FontWeight="SemiBold" />
                                                 <Slider Minimum="0" Maximum="255" Value="{Binding Cs2CrosshairBlue}" Margin="0,0,0,10" />
                                                 <TextBlock Text="Alpha" Style="{StaticResource TinyCapsText}" /><TextBlock Text="{Binding Cs2CrosshairAlpha, StringFormat={}{0:0}}" FontWeight="SemiBold" />
-                                                <Slider Minimum="0" Maximum="255" Value="{Binding Cs2CrosshairAlpha}" Margin="0,0,0,10" />
+                                                <Slider Minimum="10" Maximum="255" Value="{Binding Cs2CrosshairAlpha}" Margin="0,0,0,10" />
                                                 <TextBlock Text="Tryb koloru cl_crosshaircolor" Style="{StaticResource TinyCapsText}" />
-                                                <TextBox Text="{Binding Cs2CrosshairColor, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                                <ComboBox ItemsSource="{Binding Cs2CrosshairColorOptions}" SelectedItem="{Binding Cs2CrosshairColor}" Margin="0,4,0,0" />
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
