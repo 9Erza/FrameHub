@@ -320,7 +320,6 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
                 gameSettings.RuleEnabledStates["spotify"] = true;
                 gameSettings.RuleEnabledStates["discord"] = false;
                 gameSettings.RuleEnabledStates["teamspeak"] = false;
-                gameSettings.RuleEnabledStates["steamwebhelper"] = false;
             }
 
             _settings.AutoEnabledGameIds.Clear();
@@ -328,11 +327,40 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             changed = true;
         }
 
+        RemoveSteamSessionSettings();
+
         if (changed)
         {
             SaveSettings();
             _logger.Warn("Session optimization settings migrated to safe defaults. Automatic session optimization was disabled and aggressive old rules were cleared.");
         }
+        else
+        {
+            SaveSettings();
+        }
+    }
+
+    private void RemoveSteamSessionSettings()
+    {
+        _settings.RuleEnabledStates.Remove("steamwebhelper");
+        foreach (var gameSettings in _settings.GameSettings.Values)
+        {
+            gameSettings.RuleEnabledStates.Remove("steamwebhelper");
+
+            foreach (var key in gameSettings.CustomProcessEnabledStates.Keys
+                .Where(IsSteamRelatedSettingKey)
+                .ToList())
+            {
+                gameSettings.CustomProcessEnabledStates.Remove(key);
+            }
+        }
+    }
+
+    private static bool IsSteamRelatedSettingKey(string key)
+    {
+        string normalized = ProcessSuspendService.NormalizeProcessName(key);
+        return normalized.Contains("steam", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("gameoverlayui", StringComparison.OrdinalIgnoreCase);
     }
 
     public void RefreshTexts()
@@ -514,6 +542,11 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         var protectedNames = GetProtectedProcessNamesForGame(SelectedGame);
         var gameSettings = GetSelectedGameSettings();
         var selectedCustomStates = gameSettings.CustomProcessEnabledStates;
+        foreach (var key in selectedCustomStates.Keys.Where(IsSteamRelatedSettingKey).ToList())
+        {
+            selectedCustomStates.Remove(key);
+        }
+
         var ruleCoveredProcessNames = GetRuleCoveredProcessNames(gameSettings);
         var groups = _suspendService.GetRunningProcessGroups(protectedNames)
             .Where(group => !ruleCoveredProcessNames.Contains(group.NormalizedProcessName))

@@ -31,7 +31,11 @@ public sealed class ProcessSuspendService
         "easyanticheat", "easyanticheat_eos", "eaclauncher", "eosoverlayrenderer",
         "beservice", "beservice_x64", "battleye", "belauncher",
         "punkbuster", "pnkbstra", "pnkbstrb",
-        "framehub", "framehub.app"
+        "framehub", "framehub.app",
+        // Steam and Steam overlay/web helper processes are never touched by Session Optimization.
+        // Suspending these can hurt CS2/Steam games badly instead of improving FPS.
+        "steam", "steamservice", "steamclientservice", "steamwebhelper", "steamerrorreporter",
+        "steamerrorreporter64", "gameoverlayui"
     };
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -62,12 +66,14 @@ public sealed class ProcessSuspendService
                 }
 
                 string normalized = NormalizeProcessName(process.ProcessName);
-                if (string.IsNullOrWhiteSpace(normalized) || IsProtectedProcessName(normalized, protectedNames, allowExplorer: true))
+                string? path = TryGetProcessPath(process);
+                if (string.IsNullOrWhiteSpace(normalized)
+                    || IsProtectedProcessName(normalized, protectedNames, allowExplorer: true)
+                    || IsSteamRelatedProcess(normalized, path))
                 {
                     continue;
                 }
 
-                string? path = TryGetProcessPath(process);
                 if (!groups.TryGetValue(normalized, out var group))
                 {
                     group = new RunningProcessGroup
@@ -136,12 +142,13 @@ public sealed class ProcessSuspendService
                 }
 
                 bool isExplorer = normalizedProcessName.Equals("explorer", StringComparison.OrdinalIgnoreCase);
-                if (IsProtectedProcessName(normalizedProcessName, protectedNames, allowExplorer: isExplorer))
+                string? path = TryGetProcessPath(process);
+                if (IsProtectedProcessName(normalizedProcessName, protectedNames, allowExplorer: isExplorer)
+                    || IsSteamRelatedProcess(normalizedProcessName, path))
                 {
                     continue;
                 }
 
-                string? path = TryGetProcessPath(process);
                 SuspendCandidate? candidate = null;
 
                 foreach (var rule in rules)
@@ -280,6 +287,32 @@ public sealed class ProcessSuspendService
         }
 
         return protectedNames.Contains(normalizedProcessName);
+    }
+
+    private static bool IsSteamRelatedProcess(string normalizedProcessName, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedProcessName))
+        {
+            return false;
+        }
+
+        if (normalizedProcessName.Contains("steam", StringComparison.OrdinalIgnoreCase)
+            || normalizedProcessName.Equals("gameoverlayui", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            string normalizedPath = path.Replace('/', '\\');
+            if (normalizedPath.Contains("\\Steam\\", StringComparison.OrdinalIgnoreCase)
+                || normalizedPath.Contains("\\steamapps\\", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool MatchesRule(BackgroundProcessRule rule, string normalizedProcessName, string? path)

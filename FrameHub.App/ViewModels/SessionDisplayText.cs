@@ -19,7 +19,6 @@ internal static class SessionDisplayText
             "spotify" => "Spotify",
             "discord" => "Discord",
             "teamspeak" => "TeamSpeak",
-            "steamwebhelper" => "Steam WebHelper",
             "custom" => pl ? "Wybór ręczny" : "Manual selection",
             _ => string.IsNullOrWhiteSpace(fallback) ? (pl ? "Reguła" : "Rule") : fallback!
         };
@@ -47,9 +46,6 @@ internal static class SessionDisplayText
             "teamspeak" => pl
                 ? "Klienty TeamSpeak."
                 : "TeamSpeak clients.",
-            "steamwebhelper" => pl
-                ? "Procesy Steam WebHelper. Steam.exe nie jest wstrzymywany."
-                : "Steam WebHelper processes. Steam.exe is not suspended.",
             _ => string.IsNullOrWhiteSpace(fallback) ? string.Empty : fallback!
         };
     }

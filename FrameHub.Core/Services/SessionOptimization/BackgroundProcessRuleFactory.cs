@@ -64,16 +64,6 @@ public static class BackgroundProcessRuleFactory
                 DefaultEnabled = false,
                 IsEnabled = false,
                 ProcessNames = new() { "ts3client_win64.exe", "ts3client_win32.exe", "TeamSpeak.exe", "teamspeak.exe" }
-            },
-            new()
-            {
-                Id = "steamwebhelper",
-                DisplayName = "Steam WebHelper",
-                Description = "steamwebhelper.exe",
-                Category = "Launchers",
-                DefaultEnabled = false,
-                IsEnabled = false,
-                ProcessNames = new() { "steamwebhelper.exe" }
             }
         };
 
