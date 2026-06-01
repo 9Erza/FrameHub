@@ -296,41 +296,6 @@ public sealed class Cs2OptimizationService
         }
     }
 
-    public Dictionary<string, string> LoadUserConvars(Cs2ConfigAnalysis analysis)
-    {
-        return ValveConfigParser.ReadKeyValues(analysis.Paths.UserConvarsPath);
-    }
-
-    public GameConfigApplyResult SaveUserConvars(Cs2ConfigAnalysis analysis, IReadOnlyDictionary<string, string> values)
-    {
-        try
-        {
-            string? path = analysis.Paths.UserConvarsPath;
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-            {
-                return new GameConfigApplyResult { Success = false, Message = "Nie wykryto pliku convars użytkownika CS2." };
-            }
-
-            string backupFolder = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_crosshair");
-            Directory.CreateDirectory(backupFolder);
-            File.Copy(path, Path.Combine(backupFolder, Path.GetFileName(path)), overwrite: true);
-
-            bool updated = ValveConfigParser.UpdateQuotedValueFile(path, values);
-            return new GameConfigApplyResult
-            {
-                Success = updated,
-                BackupFolder = backupFolder,
-                AppliedChanges = updated ? values.Count : 0,
-                Message = updated ? $"Zapisano ustawienia celownika CS2. Kopia zapasowa: {backupFolder}" : "Nie zmieniono żadnych wartości celownika CS2."
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.Error("Failed to save CS2 crosshair settings", ex);
-            return new GameConfigApplyResult { Success = false, Message = ex.Message };
-        }
-    }
-
     private static string NormalizeAutoexecContent(string content)
     {
         if (string.IsNullOrEmpty(content)) return string.Empty;

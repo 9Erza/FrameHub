@@ -83,12 +83,7 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Margin="0,0,0,20">
-                            <Border Width="64" Height="64" CornerRadius="8" Background="{StaticResource BrushPrimarySoft}" HorizontalAlignment="Left" Margin="0,0,0,14" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" ClipToBounds="True">
-                                <Grid>
-                                    <Border Background="{StaticResource BrushHeroGradient}" Opacity="0.18" />
-                                    <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="54" Height="54" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="Fant" />
-                                </Grid>
-                            </Border>
+                            <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="54" Height="54" RenderOptions.BitmapScalingMode="Fant" />
                             <TextBlock Text="{Binding AppName}" FontSize="26" FontWeight="SemiBold" />
                             <TextBlock Text="{Binding AppTagline}" Style="{StaticResource SmallMutedText}" Margin="0,5,0,0" TextWrapping="Wrap" />
                         </StackPanel>
@@ -185,12 +180,6 @@
                             <TextBlock Text="{Binding CurrentTitle}" Style="{StaticResource PageTitleText}" Margin="0,6,0,0" />
                             <TextBlock Text="{Binding CurrentSubtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,7,0,0" />
                         </StackPanel>
-                        <Border Grid.Column="1" Style="{StaticResource SoftCardBorder}" Padding="14,9" VerticalAlignment="Top">
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="10" Height="10" Fill="{StaticResource BrushSuccess}" Margin="0,0,9,0" />
-                                <TextBlock Text="{Binding CoreFoundationStatus}" Foreground="{StaticResource BrushTextSecondary}" FontWeight="SemiBold" />
-                            </StackPanel>
-                        </Border>
                     </Grid>
 
                     <ContentControl Grid.Row="1" Content="{Binding CurrentViewModel}" />

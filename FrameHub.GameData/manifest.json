@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dataVersion": "2026.05.08.1",
-  "minimumFrameHubVersion": "0.3.1",
+  "minimumFrameHubVersion": "0.4.0",
   "games": [
     {
       "id": "counter-strike-2",

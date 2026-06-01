@@ -14,7 +14,6 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
 using System.Windows.Threading;
-using Media = System.Windows.Media;
 using WinFormsFolderDialog = System.Windows.Forms.FolderBrowserDialog;
 using WinFormsOpenFileDialog = System.Windows.Forms.OpenFileDialog;
 
@@ -59,24 +58,6 @@ public sealed class LibraryViewModel : ViewModelBase
     private string _selectedCs2JumpBindMode = "Oba";
     private string _cs2CustomBindKey = string.Empty;
     private string _cs2CustomBindCommandText = string.Empty;
-    private string _cs2CrosshairStyle = "4";
-    private double _cs2CrosshairSize = 4.3;
-    private double _cs2CrosshairThickness = 0.2;
-    private double _cs2CrosshairGap = 1.4;
-    private double _cs2CrosshairAlpha = 255;
-    private double _cs2CrosshairRed = 0;
-    private double _cs2CrosshairGreen = 255;
-    private double _cs2CrosshairBlue = 0;
-    private bool _cs2CrosshairDot;
-    private bool _cs2CrosshairOutline;
-    private double _cs2CrosshairOutlineThickness = 1;
-    private bool _cs2CrosshairTStyle;
-    private bool _cs2CrosshairUseAlpha = true;
-    private bool _cs2CrosshairFollowRecoil;
-    private double _cs2CrosshairSniperWidth = 1;
-    private bool _cs2CrosshairGapUseWeaponValue;
-    private string _cs2CrosshairColor = "5";
-
     public string Title => _localization.T("Library.Title");
     public string Subtitle => _localization.T("Library.Subtitle");
     public string ScanTitle => _localization.T("Library.ScanTitle");
@@ -162,16 +143,12 @@ public sealed class LibraryViewModel : ViewModelBase
     public string CpuTabTitle => IsPolish ? "Optymalizacja procesora" : "CPU optimization";
     public string GraphicsTabTitle => IsPolish ? "Ustawienia graficzne" : "Graphics settings";
     public string ConfigTabTitle => "Config";
-    public string CrosshairEditorTitle => IsPolish ? "Edytor celownika" : "Crosshair editor";
-    public string CrosshairEditorHint => IsPolish
-        ? "Aktualny celownik jest wczytywany z configu CS2. Zmieniony celownik jest zapisywany jako komendy w autoexec.cfg."
-        : "The current crosshair is loaded from the CS2 config. Modified crosshair settings are saved as commands in autoexec.cfg.";
-    public string Cs2SteamCloudWarningText => IsPolish ? "Zalecenie: wyłącz Steam Cloud we właściwościach Counter-Strike 2 na Steam. Synchronizacja chmury może nadpisać albo zepsuć zmiany w configu po zamknięciu gry." : "Recommendation: disable Steam Cloud in Counter-Strike 2 properties on Steam. Cloud sync can overwrite or break config changes after closing the game.";
-    public string Cs2RunningLockText => IsPolish ? "CS2 jest uruchomiony — zamknij grę, zanim zmienisz ustawienia graficzne, celownik albo autoexec.cfg." : "CS2 is running — close the game before changing graphics settings, crosshair or autoexec.cfg.";
-    public string Cs2StoppedEditText => IsPolish ? "CS2 jest zamknięty — edycja configu jest odblokowana." : "CS2 is closed — config editing is unlocked.";
-    public string LoadCrosshairText => IsPolish ? "Wczytaj celownik" : "Load crosshair";
-    public string SaveCrosshairText => IsPolish ? "Zapisz celownik" : "Save crosshair";
-    public string CrosshairLivePreviewText => IsPolish ? "Podgląd na żywo" : "Live preview";
+    public string Cs2RunningLockText => IsPolish
+        ? "CS2 jest uruchomiony — zamknij grę, zanim zmienisz ustawienia graficzne albo autoexec.cfg."
+        : "CS2 is running — close the game before changing graphics settings or autoexec.cfg.";
+    public string Cs2StoppedEditText => IsPolish
+        ? "CS2 jest zamknięty — edycja configu jest odblokowana."
+        : "CS2 is closed — config editing is unlocked.";
     public string AutoexecClearText => IsPolish ? "Wyczyść zawartość autoexec.cfg" : "Clear autoexec.cfg content";
     public string AutoexecGeneralSectionTitle => IsPolish ? "Ogólne ustawienia" : "General settings";
     public string AutoexecQolSectionTitle => IsPolish ? "Ułatwienia" : "Quality-of-life";
@@ -252,8 +229,6 @@ public sealed class LibraryViewModel : ViewModelBase
     public ObservableCollection<GameOptimizationPreset> Cs2Presets { get; } = new();
     public ObservableCollection<Cs2SettingChangeViewModel> Cs2SettingChanges { get; } = new();
     public ObservableCollection<string> Cs2FpsMaxOptions { get; } = new() { "0", "300", "400", "500", "501" };
-    public ObservableCollection<string> Cs2CrosshairStyleOptions { get; } = new() { "0", "1", "2", "3", "4", "5" };
-    public ObservableCollection<string> Cs2CrosshairColorOptions { get; } = new() { "0", "1", "2", "3", "4", "5" };
     public ObservableCollection<string> Cs2JumpBindModes { get; } = new() { "Oba", "Scroll w dół", "Scroll w górę" };
 
     public ICommand ScanSteamCommand { get; }
@@ -286,8 +261,6 @@ public sealed class LibraryViewModel : ViewModelBase
     public ICommand InsertCs2FpsMaxCommand { get; }
     public ICommand BackToLibraryCommand { get; }
     public ICommand ClearCs2AutoexecCommand { get; }
-    public ICommand LoadCs2CrosshairCommand { get; }
-    public ICommand SaveCs2CrosshairCommand { get; }
     public ICommand InsertCs2SensitivityCommand { get; }
     public ICommand InsertCs2VolumeCommand { get; }
     public ICommand InsertCs2ConsoleCommand { get; }
@@ -459,69 +432,6 @@ public sealed class LibraryViewModel : ViewModelBase
     public string Cs2CustomBindKey { get => _cs2CustomBindKey; set => SetProperty(ref _cs2CustomBindKey, value); }
     public string Cs2CustomBindCommandText { get => _cs2CustomBindCommandText; set => SetProperty(ref _cs2CustomBindCommandText, value); }
 
-    public string Cs2CrosshairStyle { get => _cs2CrosshairStyle; set { if (SetProperty(ref _cs2CrosshairStyle, value)) NotifyCrosshairPreviewChanged(); } }
-    public double Cs2CrosshairSize { get => _cs2CrosshairSize; set { if (SetProperty(ref _cs2CrosshairSize, value)) NotifyCrosshairPreviewChanged(); } }
-    public double Cs2CrosshairThickness { get => _cs2CrosshairThickness; set { if (SetProperty(ref _cs2CrosshairThickness, value)) NotifyCrosshairPreviewChanged(); } }
-    public double Cs2CrosshairGap { get => _cs2CrosshairGap; set { if (SetProperty(ref _cs2CrosshairGap, value)) NotifyCrosshairPreviewChanged(); } }
-    public double Cs2CrosshairAlpha { get => _cs2CrosshairAlpha; set { if (SetProperty(ref _cs2CrosshairAlpha, value)) NotifyCrosshairPreviewChanged(); } }
-    public double Cs2CrosshairRed { get => _cs2CrosshairRed; set { if (SetProperty(ref _cs2CrosshairRed, value)) NotifyCrosshairPreviewChanged(); } }
-    public double Cs2CrosshairGreen { get => _cs2CrosshairGreen; set { if (SetProperty(ref _cs2CrosshairGreen, value)) NotifyCrosshairPreviewChanged(); } }
-    public double Cs2CrosshairBlue { get => _cs2CrosshairBlue; set { if (SetProperty(ref _cs2CrosshairBlue, value)) NotifyCrosshairPreviewChanged(); } }
-    public bool Cs2CrosshairDot { get => _cs2CrosshairDot; set { if (SetProperty(ref _cs2CrosshairDot, value)) NotifyCrosshairPreviewChanged(); } }
-    public bool Cs2CrosshairOutline { get => _cs2CrosshairOutline; set { if (SetProperty(ref _cs2CrosshairOutline, value)) NotifyCrosshairPreviewChanged(); } }
-    public double Cs2CrosshairOutlineThickness { get => _cs2CrosshairOutlineThickness; set { if (SetProperty(ref _cs2CrosshairOutlineThickness, value)) NotifyCrosshairPreviewChanged(); } }
-    public bool Cs2CrosshairTStyle { get => _cs2CrosshairTStyle; set { if (SetProperty(ref _cs2CrosshairTStyle, value)) NotifyCrosshairPreviewChanged(); } }
-    public bool Cs2CrosshairUseAlpha { get => _cs2CrosshairUseAlpha; set { if (SetProperty(ref _cs2CrosshairUseAlpha, value)) NotifyCrosshairPreviewChanged(); } }
-    public bool Cs2CrosshairFollowRecoil { get => _cs2CrosshairFollowRecoil; set { if (SetProperty(ref _cs2CrosshairFollowRecoil, value)) NotifyCrosshairPreviewChanged(); } }
-    public double Cs2CrosshairSniperWidth { get => _cs2CrosshairSniperWidth; set { if (SetProperty(ref _cs2CrosshairSniperWidth, value)) NotifyCrosshairPreviewChanged(); } }
-    public bool Cs2CrosshairGapUseWeaponValue { get => _cs2CrosshairGapUseWeaponValue; set => SetProperty(ref _cs2CrosshairGapUseWeaponValue, value); }
-    public string Cs2CrosshairColor { get => _cs2CrosshairColor; set { if (SetProperty(ref _cs2CrosshairColor, value)) NotifyCrosshairPreviewChanged(); } }
-
-    public Media.Brush Cs2CrosshairPreviewBrush
-    {
-        get
-        {
-            byte alpha = (byte)(Cs2CrosshairUseAlpha ? Clamp(Cs2CrosshairAlpha, 10, 255) : 255);
-            string colorMode = NormalizeCrosshairColorMode(Cs2CrosshairColor);
-
-            return colorMode switch
-            {
-                "0" => new Media.SolidColorBrush(Media.Color.FromArgb(alpha, 255, 0, 0)),
-                "1" => new Media.SolidColorBrush(Media.Color.FromArgb(alpha, 0, 255, 0)),
-                "2" => new Media.SolidColorBrush(Media.Color.FromArgb(alpha, 255, 255, 0)),
-                "3" => new Media.SolidColorBrush(Media.Color.FromArgb(alpha, 0, 96, 255)),
-                "4" => new Media.SolidColorBrush(Media.Color.FromArgb(alpha, 0, 190, 255)),
-                _ => new Media.SolidColorBrush(Media.Color.FromArgb(
-                    alpha,
-                    (byte)Clamp(Cs2CrosshairRed, 0, 255),
-                    (byte)Clamp(Cs2CrosshairGreen, 0, 255),
-                    (byte)Clamp(Cs2CrosshairBlue, 0, 255)))
-            };
-        }
-    }
-    public double CrosshairPreviewCenterX => 290;
-    public double CrosshairPreviewCenterY => 82;
-    public double CrosshairPreviewArmLength => Math.Max(8, Math.Min(82, Cs2CrosshairSize * 9));
-    public double CrosshairPreviewThickness => Math.Max(1, Math.Min(8, Cs2CrosshairThickness * 5));
-    public double CrosshairOutlinePreviewThickness => CrosshairPreviewThickness + Math.Max(2, Cs2CrosshairOutlineThickness * 2);
-    public double CrosshairPreviewGap => Math.Max(2, Math.Min(58, 11 + Cs2CrosshairGap * 5));
-    public double CrosshairLeftX1 => CrosshairPreviewCenterX - CrosshairPreviewGap - CrosshairPreviewArmLength;
-    public double CrosshairLeftX2 => CrosshairPreviewCenterX - CrosshairPreviewGap;
-    public double CrosshairRightX1 => CrosshairPreviewCenterX + CrosshairPreviewGap;
-    public double CrosshairRightX2 => CrosshairPreviewCenterX + CrosshairPreviewGap + CrosshairPreviewArmLength;
-    public double CrosshairTopY1 => CrosshairPreviewCenterY - CrosshairPreviewGap - CrosshairPreviewArmLength;
-    public double CrosshairTopY2 => CrosshairPreviewCenterY - CrosshairPreviewGap;
-    public double CrosshairBottomY1 => CrosshairPreviewCenterY + CrosshairPreviewGap;
-    public double CrosshairBottomY2 => CrosshairPreviewCenterY + CrosshairPreviewGap + CrosshairPreviewArmLength;
-    public double CrosshairDotSize => Math.Max(4, CrosshairPreviewThickness + 4);
-    public double CrosshairDotLeft => CrosshairPreviewCenterX - (CrosshairDotSize / 2);
-    public double CrosshairDotTop => CrosshairPreviewCenterY - (CrosshairDotSize / 2);
-    public double CrosshairRecoilY => CrosshairPreviewCenterY + 36;
-    public System.Windows.Visibility CrosshairTopVisibility => Cs2CrosshairTStyle ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
-    public System.Windows.Visibility CrosshairOutlineVisibility => Cs2CrosshairOutline ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-    public System.Windows.Visibility CrosshairTopOutlineVisibility => Cs2CrosshairOutline && !Cs2CrosshairTStyle ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-    public System.Windows.Visibility CrosshairRecoilVisibility => Cs2CrosshairFollowRecoil ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-
     public string Cs2Summary => _cs2Analysis?.Summary ?? _localization.T("CS2.NotScanned");
     public string Cs2ConfigPath => _cs2Analysis?.Paths.VideoConfigPath ?? _localization.T("CS2.NotDetected");
     public string Cs2AutoexecPath => _cs2Service.GetAutoexecPath(_cs2Analysis) ?? _localization.T("CS2.Autoexec.NotDetected");
@@ -574,8 +484,6 @@ public sealed class LibraryViewModel : ViewModelBase
         InsertCs2FpsMaxCommand = new RelayCommand(_ => InsertCs2FpsMax(), _ => IsCs2Selected && CanEditCs2Config);
         BackToLibraryCommand = new RelayCommand(_ => BackToLibrary());
         ClearCs2AutoexecCommand = new RelayCommand(_ => ClearCs2Autoexec(), _ => IsCs2Selected && CanEditCs2Config);
-        LoadCs2CrosshairCommand = new RelayCommand(_ => LoadCs2CrosshairSettings(), _ => IsCs2Selected && CanEditCs2Config);
-        SaveCs2CrosshairCommand = new RelayCommand(_ => SaveCs2CrosshairSettings(), _ => IsCs2Selected && CanEditCs2Config);
         InsertCs2SensitivityCommand = new RelayCommand(_ => InsertCs2Sensitivity(), _ => IsCs2Selected && CanEditCs2Config);
         InsertCs2VolumeCommand = new RelayCommand(_ => InsertCs2Volume(), _ => IsCs2Selected && CanEditCs2Config);
         InsertCs2ConsoleCommand = new RelayCommand(_ => InsertCs2Console(), _ => IsCs2Selected && CanEditCs2Config);
@@ -1266,7 +1174,6 @@ public sealed class LibraryViewModel : ViewModelBase
             ?? Cs2Presets.FirstOrDefault();
 
         LoadCs2Autoexec(createIfMissing: false);
-        LoadCs2CrosshairSettings();
         NotifyCs2OverviewChanged();
     }
 
@@ -1674,130 +1581,6 @@ public sealed class LibraryViewModel : ViewModelBase
     private static string SanitizeKey(string? key)
     {
         return (key ?? string.Empty).Trim().Replace("\"", "");
-    }
-
-    private void LoadCs2CrosshairSettings()
-    {
-        if (!EnsureCs2CanRead("load crosshair")) return;
-        if (!EnsureCs2Analysis() || _cs2Analysis == null) return;
-        var values = _cs2Service.LoadUserConvars(_cs2Analysis);
-        Cs2CrosshairStyle = ReadString(values, "cl_crosshairstyle", Cs2CrosshairStyle);
-        Cs2CrosshairSize = ReadDouble(values, "cl_crosshairsize", Cs2CrosshairSize);
-        Cs2CrosshairThickness = ReadDouble(values, "cl_crosshairthickness", Cs2CrosshairThickness);
-        Cs2CrosshairGap = ReadDouble(values, "cl_crosshairgap", Cs2CrosshairGap);
-        Cs2CrosshairAlpha = ReadDouble(values, "cl_crosshairalpha", Cs2CrosshairAlpha);
-        Cs2CrosshairRed = ReadDouble(values, "cl_crosshaircolor_r", Cs2CrosshairRed);
-        Cs2CrosshairGreen = ReadDouble(values, "cl_crosshaircolor_g", Cs2CrosshairGreen);
-        Cs2CrosshairBlue = ReadDouble(values, "cl_crosshaircolor_b", Cs2CrosshairBlue);
-        Cs2CrosshairColor = ReadString(values, "cl_crosshaircolor", Cs2CrosshairColor);
-        Cs2CrosshairDot = ReadBool(values, "cl_crosshairdot", Cs2CrosshairDot);
-        Cs2CrosshairOutline = ReadBool(values, "cl_crosshair_drawoutline", Cs2CrosshairOutline);
-        Cs2CrosshairOutlineThickness = ReadDouble(values, "cl_crosshair_outlinethickness", Cs2CrosshairOutlineThickness);
-        Cs2CrosshairTStyle = ReadBool(values, "cl_crosshair_t", Cs2CrosshairTStyle);
-        Cs2CrosshairUseAlpha = ReadBool(values, "cl_crosshairusealpha", Cs2CrosshairUseAlpha);
-        Cs2CrosshairFollowRecoil = ReadBool(values, "cl_crosshair_recoil", Cs2CrosshairFollowRecoil);
-        Cs2CrosshairSniperWidth = ReadDouble(values, "cl_crosshair_sniper_width", Cs2CrosshairSniperWidth);
-        Cs2CrosshairGapUseWeaponValue = ReadBool(values, "cl_crosshairgap_useweaponvalue", Cs2CrosshairGapUseWeaponValue);
-        Cs2AutoexecStatusMessage = IsPolish ? "Wczytano ustawienia celownika." : "Crosshair settings loaded.";
-    }
-
-    private void SaveCs2CrosshairSettings()
-    {
-        if (!EnsureCs2CanEdit("save crosshair to autoexec.cfg")) return;
-        if (!EnsureCs2Analysis() || _cs2Analysis == null) return;
-
-        // Odczyt celownika zostaje z aktualnego configu CS2, ale zapis robimy przez autoexec.cfg.
-        // Poprzednie podejście z zapisem do cs2_user_convars_*_slot*.vcfg potrafiło trafiać w nieaktywny slot
-        // albo zostać nadpisane przez CS2/Steam. Autoexec jest prostszy: CS2 wykona te komendy przy starcie gry.
-        var loadedAutoexec = _cs2Service.LoadAutoexec(_cs2Analysis, createIfMissing: true);
-        if (!loadedAutoexec.Success)
-        {
-            Cs2AutoexecStatusMessage = loadedAutoexec.Message;
-            _runtime.AddActivity(loadedAutoexec.Message, "Warn");
-            return;
-        }
-
-        Cs2AutoexecText = loadedAutoexec.Content;
-        UpsertFrameHubCommand("crosshair", "// Crosshair", BuildCrosshairAutoexecLines());
-
-        var result = _cs2Service.SaveAutoexec(_cs2Analysis, Cs2AutoexecText);
-        string message = result.Success
-            ? (IsPolish
-                ? $"Zapisano celownik do autoexec.cfg. Plik: {_cs2Service.GetAutoexecPath(_cs2Analysis)}"
-                : $"Crosshair commands saved to autoexec.cfg. File: {_cs2Service.GetAutoexecPath(_cs2Analysis)}")
-            : result.Message;
-
-        Cs2AutoexecStatusMessage = message;
-        _runtime.AddActivity(message, result.Success ? "Info" : "Warn");
-        OnPropertyChanged(nameof(Cs2AutoexecPath));
-    }
-
-    private IEnumerable<string> BuildCrosshairAutoexecLines()
-    {
-        string colorMode = NormalizeCrosshairColorMode(Cs2CrosshairColor);
-        string style = SanitizeValue(Cs2CrosshairStyle, "4");
-
-        return new[]
-        {
-            "// Crosshair generated by FrameHub",
-            "crosshair \"1\"",
-            $"cl_crosshairstyle \"{style}\"",
-            $"cl_crosshaircolor \"{colorMode}\"",
-            $"cl_crosshaircolor_r \"{FormatNumber(Clamp(Cs2CrosshairRed, 0, 255))}\"",
-            $"cl_crosshaircolor_g \"{FormatNumber(Clamp(Cs2CrosshairGreen, 0, 255))}\"",
-            $"cl_crosshaircolor_b \"{FormatNumber(Clamp(Cs2CrosshairBlue, 0, 255))}\"",
-            $"cl_crosshairsize \"{FormatNumber(Clamp(Cs2CrosshairSize, -20, 20))}\"",
-            $"cl_crosshairthickness \"{FormatNumber(Clamp(Cs2CrosshairThickness, -2, 2))}\"",
-            $"cl_crosshairgap \"{FormatNumber(Clamp(Cs2CrosshairGap, -10, 10))}\"",
-            $"cl_crosshairdot \"{Bool01(Cs2CrosshairDot)}\"",
-            $"cl_crosshair_drawoutline \"{Bool01(Cs2CrosshairOutline)}\"",
-            $"cl_crosshair_outlinethickness \"{FormatNumber(Clamp(Cs2CrosshairOutlineThickness, 0.1, 3))}\"",
-            $"cl_crosshairalpha \"{FormatNumber(Clamp(Cs2CrosshairAlpha, 10, 255))}\"",
-            $"cl_crosshairusealpha \"{Bool01(Cs2CrosshairUseAlpha)}\"",
-            $"cl_crosshairgap_useweaponvalue \"{Bool01(Cs2CrosshairGapUseWeaponValue)}\"",
-            $"cl_crosshair_sniper_width \"{FormatNumber(Clamp(Cs2CrosshairSniperWidth, 0, 20))}\"",
-            $"cl_crosshair_t \"{Bool01(Cs2CrosshairTStyle)}\"",
-            $"cl_crosshair_recoil \"{Bool01(Cs2CrosshairFollowRecoil)}\""
-        };
-    }
-
-    private static string NormalizeCrosshairColorMode(string? value)
-    {
-        value = SanitizeValue(value, "5");
-        return value is "0" or "1" or "2" or "3" or "4" or "5" ? value : "5";
-    }
-
-    private static string ReadString(IReadOnlyDictionary<string, string> values, string key, string fallback) => values.TryGetValue(key, out string? value) ? value : fallback;
-    private static double ReadDouble(IReadOnlyDictionary<string, string> values, string key, double fallback) => values.TryGetValue(key, out string? value) && double.TryParse(value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsed) ? parsed : fallback;
-    private static bool ReadBool(IReadOnlyDictionary<string, string> values, string key, bool fallback) => values.TryGetValue(key, out string? value) ? value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1" : fallback;
-    private static string FormatNumber(double value) => value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
-    private static string BoolString(bool value) => value ? "true" : "false";
-    private static string Bool01(bool value) => value ? "1" : "0";
-    private static double Clamp(double value, double min, double max) => value < min ? min : value > max ? max : value;
-
-    private void NotifyCrosshairPreviewChanged()
-    {
-        OnPropertyChanged(nameof(Cs2CrosshairPreviewBrush));
-        OnPropertyChanged(nameof(CrosshairPreviewArmLength));
-        OnPropertyChanged(nameof(CrosshairPreviewThickness));
-        OnPropertyChanged(nameof(CrosshairOutlinePreviewThickness));
-        OnPropertyChanged(nameof(CrosshairPreviewGap));
-        OnPropertyChanged(nameof(CrosshairLeftX1));
-        OnPropertyChanged(nameof(CrosshairLeftX2));
-        OnPropertyChanged(nameof(CrosshairRightX1));
-        OnPropertyChanged(nameof(CrosshairRightX2));
-        OnPropertyChanged(nameof(CrosshairTopY1));
-        OnPropertyChanged(nameof(CrosshairTopY2));
-        OnPropertyChanged(nameof(CrosshairBottomY1));
-        OnPropertyChanged(nameof(CrosshairBottomY2));
-        OnPropertyChanged(nameof(CrosshairDotSize));
-        OnPropertyChanged(nameof(CrosshairDotLeft));
-        OnPropertyChanged(nameof(CrosshairDotTop));
-        OnPropertyChanged(nameof(CrosshairRecoilY));
-        OnPropertyChanged(nameof(CrosshairTopVisibility));
-        OnPropertyChanged(nameof(CrosshairOutlineVisibility));
-        OnPropertyChanged(nameof(CrosshairTopOutlineVisibility));
-        OnPropertyChanged(nameof(CrosshairRecoilVisibility));
     }
 
     private void BackupCs2()

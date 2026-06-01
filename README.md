@@ -10,10 +10,10 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-MIT-97CA00?style=for-the-badge" alt="License MIT" />
-  <img src="https://img.shields.io/badge/release-v0.3.1--beta-1E90FF?style=for-the-badge" alt="Release v0.3.1-beta" />
+  <img src="https://img.shields.io/badge/release-v0.4.0-1E90FF?style=for-the-badge" alt="Release v0.4.0" />
   <img src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge" alt="Platform Windows" />
   <img src="https://img.shields.io/badge/.NET-10.0-512BD4?style=for-the-badge" alt=".NET 10.0" />
-  <img src="https://img.shields.io/badge/status-Beta-orange?style=for-the-badge" alt="Status Beta" />
+  <img src="https://img.shields.io/badge/status-Active%20Development-orange?style=for-the-badge" alt="Status Active Development" />
 </p>
 
 ---
@@ -22,9 +22,9 @@
 
 The app is currently focused on **Counter-Strike 2** and CPU/process optimization. The long-term goal is to become an all-in-one performance hub for games, background apps, profiles, benchmarks, and safe Windows tuning.
 
-> Current version: **v0.3.1 Beta**  
+> Current version: **v0.4.0**  
 > Platform: **Windows 10 / Windows 11**  
-> Status: **public beta**
+> Status: **active development**
 
 ---
 
@@ -45,7 +45,6 @@ Current core features:
 - Saved optimization profiles
 - Background profile watcher
 - CS2 graphics configuration editor
-- CS2 crosshair editor
 - CS2 `autoexec.cfg` helper
 - Backup and restore flow for CS2 config files
 - Polish and English UI
@@ -55,9 +54,9 @@ Planned modules are visible in the app as roadmap sections, but not every module
 
 ---
 
-## v0.3.1 Beta focus
+## v0.4.0 focus
 
-This beta is mainly focused on three areas:
+This release is mainly focused on four areas:
 
 1. **Library and profiles**  
    Add games and apps, bind executables, create CPU optimization profiles, and let FrameHub monitor processes in the background.
@@ -66,7 +65,7 @@ This beta is mainly focused on three areas:
    Inspect running processes, read current CPU assignment, and apply CPU Sets / Affinity / Priority settings manually or through saved profiles.
 
 3. **Counter-Strike 2 Config**  
-   Edit selected CS2 video/config values, crosshair settings, and safe `autoexec.cfg` entries while the game is closed.
+   Edit selected CS2 video/config values and safe `autoexec.cfg` entries while the game is closed.
 
 ---
 
@@ -146,7 +145,7 @@ The background monitor can reapply saved profiles when the target process starts
 
 ## Counter-Strike 2 support
 
-FrameHub v0.3.1 Beta includes a dedicated CS2 configuration page named **Config**.
+FrameHub v0.4.0 includes a dedicated CS2 configuration page named **Config**.
 
 Current CS2 features:
 
@@ -156,7 +155,6 @@ Current CS2 features:
 - Config backup before changes
 - Latest backup comparison
 - Custom user-selected values
-- Crosshair editor with live preview
 - `autoexec.cfg` helper
 - Common safe binds and commands
 - Steam Cloud warning
@@ -200,7 +198,7 @@ Use at your own risk.
 
 ## Installation
 
-For public beta releases, use the installer from the GitHub Releases page.
+Use the installer from the GitHub Releases page.
 
 Recommended first-run steps:
 

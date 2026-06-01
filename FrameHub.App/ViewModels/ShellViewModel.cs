@@ -20,6 +20,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 
     private readonly DashboardViewModel _dashboardViewModel;
     private readonly LibraryViewModel _libraryViewModel;
+    private readonly SessionOptimizationViewModel _sessionOptimizationViewModel;
     private readonly ProcessesViewModel _processesViewModel;
     private readonly ProfilesViewModel _profilesViewModel;
     private readonly HardwareViewModel _hardwareViewModel;
@@ -36,7 +37,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public AppRuntimeService Runtime => _runtime;
 
     public string AppName { get; } = "FrameHub";
-    public string AppVersion { get; } = "0.3.1";
+    public string AppVersion { get; } = "0.4.0";
     public string AppTagline => _localization.T("App.Tagline");
     public string LanguageLabel => _localization.T("Language.Label");
     public string CoreFoundationStatus => _localization.T("Status.CoreMigrated");
@@ -76,6 +77,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _localization = new LocalizationService(_settingsService);
         _dashboardViewModel = new DashboardViewModel(_localization, _runtime);
         _libraryViewModel = new LibraryViewModel(_localization, _runtime);
+        _sessionOptimizationViewModel = new SessionOptimizationViewModel(_localization, _runtime);
         _processesViewModel = new ProcessesViewModel(_localization, _runtime);
         _profilesViewModel = new ProfilesViewModel(_localization, _runtime);
         _hardwareViewModel = new HardwareViewModel(_localization, _runtime);
@@ -104,13 +106,13 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         NavigationItems = new ObservableCollection<NavigationItemViewModel>
         {
             new(_localization) { Key = "Dashboard", TitleKey = "Nav.Dashboard", Icon = "\uE80F" },
-            new(_localization) { Key = "Library", TitleKey = "Nav.Library", Icon = "\uE7FC", BadgeKey = "Badge.Ready" },
-            new(_localization) { Key = "Session", TitleKey = "Nav.Session", Icon = "\uEC4A", BadgeKey = "Badge.Planned" },
-            new(_localization) { Key = "Processes", TitleKey = "Nav.CoreControl", Icon = "\uE950", BadgeKey = "Badge.Ready" },
-            new(_localization) { Key = "Profiles", TitleKey = "Nav.ProfilesRules", Icon = "\uE734", BadgeKey = "Badge.Ready" },
+            new(_localization) { Key = "Library", TitleKey = "Nav.Library", Icon = "\uE7FC" },
+            new(_localization) { Key = "Session", TitleKey = "Nav.Session", Icon = "\uEC4A" },
+            new(_localization) { Key = "Processes", TitleKey = "Nav.CoreControl", Icon = "\uE950" },
+            new(_localization) { Key = "Profiles", TitleKey = "Nav.ProfilesRules", Icon = "\uE734" },
             new(_localization) { Key = "Background", TitleKey = "Nav.Background", Icon = "\uE8EF", BadgeKey = "Badge.Planned" },
             new(_localization) { Key = "Toolkit", TitleKey = "Nav.Toolkit", Icon = "\uE90F", BadgeKey = "Badge.Planned" },
-            new(_localization) { Key = "Hardware", TitleKey = "Nav.Hardware", Icon = "\uE9D9", BadgeKey = "Badge.Ready" },
+            new(_localization) { Key = "Hardware", TitleKey = "Nav.Hardware", Icon = "\uE9D9" },
             new(_localization) { Key = "Benchmark", TitleKey = "Nav.Benchmark", Icon = "\uE9D2", BadgeKey = "Badge.Planned" },
             new(_localization) { Key = "WindowsTuning", TitleKey = "Nav.WindowsTuning", Icon = "\uE75C", BadgeKey = "Badge.Preview", IsPlanned = true },
             new(_localization) { Key = "Settings", TitleKey = "Nav.Settings", Icon = "\uE713" },
@@ -121,7 +123,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         {
             ["Dashboard"] = _dashboardViewModel,
             ["Library"] = _libraryViewModel,
-            ["Session"] = BuildPlaceholder("Module.Session", new[] { "Module.Session.Item1", "Module.Session.Item2", "Module.Session.Item3", "Module.Session.Item4", "Module.Session.Item5" }),
+            ["Session"] = _sessionOptimizationViewModel,
             ["Processes"] = _processesViewModel,
             ["Profiles"] = _profilesViewModel,
             ["Background"] = BuildPlaceholder("Module.Background", new[] { "Module.Background.Item1", "Module.Background.Item2", "Module.Background.Item3", "Module.Background.Item4", "Module.Background.Item5" }),
@@ -165,6 +167,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 
         _dashboardViewModel.RefreshTexts();
         _libraryViewModel.RefreshTexts();
+        _sessionOptimizationViewModel.RefreshTexts();
         _processesViewModel.RefreshTexts();
         _profilesViewModel.RefreshTexts();
         _hardwareViewModel.RefreshTexts();
@@ -202,6 +205,11 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             viewModel = _dashboardViewModel;
         }
 
+        if (!_currentKey.Equals("Library", StringComparison.OrdinalIgnoreCase) && key.Equals("Library", StringComparison.OrdinalIgnoreCase))
+        {
+            _libraryViewModel.SelectedItem = null;
+        }
+
         if (!_currentKey.Equals("Processes", StringComparison.OrdinalIgnoreCase) && key.Equals("Processes", StringComparison.OrdinalIgnoreCase))
         {
             _processesViewModel.Start();
@@ -223,6 +231,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         {
             DashboardViewModel dashboard => dashboard.Title,
             LibraryViewModel library => library.Title,
+            SessionOptimizationViewModel session => session.Title,
             ProcessesViewModel processes => processes.Title,
             ProfilesViewModel profiles => profiles.Title,
             HardwareViewModel hardware => hardware.Title,
@@ -235,6 +244,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         {
             DashboardViewModel dashboard => dashboard.Subtitle,
             LibraryViewModel library => library.Subtitle,
+            SessionOptimizationViewModel session => session.Subtitle,
             ProcessesViewModel processes => processes.Subtitle,
             ProfilesViewModel profiles => profiles.Subtitle,
             HardwareViewModel hardware => hardware.Subtitle,
@@ -249,6 +259,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _sessionOptimizationViewModel.Dispose();
         _processesViewModel.Dispose();
         _hardwareViewModel.Dispose();
         _runtime.Dispose();

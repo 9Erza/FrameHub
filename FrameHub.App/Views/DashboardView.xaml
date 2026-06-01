@@ -6,24 +6,21 @@
             <Border Style="{StaticResource HeroCardBorder}" Margin="0,0,0,18">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel>
-                        <TextBlock Text="FRAMEHUB" Style="{StaticResource PageEyebrowText}" />
-                        <TextBlock Text="{Binding FoundationPlanTitle}" FontSize="24" FontWeight="SemiBold" Margin="0,8,0,0" />
-                        <TextBlock Text="{Binding FoundationPlanDescription}" Style="{StaticResource PageSubtitleText}" TextWrapping="Wrap" Margin="0,10,0,0" MaxWidth="780" />
-                    </StackPanel>
-                    <Border Grid.Column="1" Background="#132B4F" BorderBrush="#2D4470" BorderThickness="1" CornerRadius="8" Padding="18,14" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="10" Height="10" Fill="{StaticResource BrushSuccess}" Margin="0,0,10,0" />
-                            <TextBlock Text="{Binding ReadyStatus}" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" />
-                        </StackPanel>
+                    <Border Width="54" Height="54" CornerRadius="14" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,18,0">
+                        <TextBlock Text="&#xE9D9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="24" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="FRAMEHUB" Style="{StaticResource PageEyebrowText}" />
+                        <TextBlock Text="{Binding FoundationPlanTitle}" FontSize="25" FontWeight="SemiBold" Margin="0,8,0,0" />
+                        <TextBlock Text="{Binding FoundationPlanDescription}" Style="{StaticResource PageSubtitleText}" TextWrapping="Wrap" Margin="0,10,0,0" MaxWidth="940" />
+                    </StackPanel>
                 </Grid>
             </Border>
 
-            <ItemsControl ItemsSource="{Binding Metrics}">
+            <ItemsControl ItemsSource="{Binding Metrics}" Margin="0,0,0,4">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <UniformGrid Columns="4" />
@@ -49,53 +46,96 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <Grid Margin="0,6,0,0">
+            <Grid Margin="0,4,0,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.15*" />
-                    <ColumnDefinition Width="0.85*" />
+                    <ColumnDefinition Width="1.05*" />
+                    <ColumnDefinition Width="0.95*" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,16,0">
-                    <StackPanel>
-                        <Grid Margin="0,0,0,18">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Border Width="42" Height="42" CornerRadius="8" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,14,0">
-                                <TextBlock Text="&#xE9D9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                    <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="{Binding MainStatusTitle}" Style="{StaticResource SectionTitleText}" />
+                            <TextBlock Text="{Binding MainStatusDescription}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,6,0,18" />
+
+                            <Border Style="{StaticResource SoftCardBorder}" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="38" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="28" Height="28" CornerRadius="8" Background="#12315A">
+                                        <TextBlock Text="&#xE7C3;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource BrushCyan}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding ProfileMonitorTitle}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding ProfileMonitorText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Grid>
                             </Border>
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Text="{Binding TargetTitle}" Style="{StaticResource SectionTitleText}" />
-                                <TextBlock Text="{Binding TargetDescription}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,5,0,0" />
-                            </StackPanel>
-                        </Grid>
 
-                        <Border Style="{StaticResource SoftCardBorder}" Margin="0,0,0,12">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Width="30" Height="30" CornerRadius="8" Background="#122C4F" Margin="0,0,12,0">
-                                    <TextBlock Text="1" FontWeight="Bold" Foreground="{StaticResource BrushCyan}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                                <StackPanel>
-                                    <TextBlock Text="{Binding TargetTitle}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding TargetDescription}" Style="{StaticResource SmallMutedText}" Margin="0,4,0,0" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
+                            <Border Style="{StaticResource SoftCardBorder}" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="38" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="28" Height="28" CornerRadius="8" Background="#12315A">
+                                        <TextBlock Text="&#xEC4A;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding SessionOptimizationTitle}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding SessionAutomationText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
 
-                        <Border Style="{StaticResource SoftCardBorder}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Width="30" Height="30" CornerRadius="8" Background="#132B4A" Margin="0,0,12,0">
-                                    <TextBlock Text="2" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                            <Border Style="{StaticResource SoftCardBorder}" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="38" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="28" Height="28" CornerRadius="8" Background="#12315A">
+                                        <TextBlock Text="&#xE8EF;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource BrushSuccess}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding LastProfileTitle}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding LastProfileText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource SoftCardBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="38" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="28" Height="28" CornerRadius="8" Background="#12315A">
+                                        <TextBlock Text="&#xE8A5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource BrushWarning}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding LoggingTitle}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding LoggingText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SessionStateTitle}" Style="{StaticResource SectionTitleText}" />
+                            <Border Style="{StaticResource SoftCardBorder}" Margin="0,14,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding MigrationTitle}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding MigrationDescription}" Style="{StaticResource SmallMutedText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding SessionStateValue}" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding SessionStateDetail}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                 </StackPanel>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </Border>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
 
                 <Border Grid.Column="1" Style="{StaticResource CardBorder}">
                     <StackPanel>
@@ -109,22 +149,24 @@
                                 <TextBlock Text="{Binding RecentActivityLiveText}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushSuccess}" />
                             </Border>
                         </Grid>
-                        <ItemsControl ItemsSource="{Binding Activity}" Margin="0,16,0,0">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="{StaticResource BrushSurfaceAlt}" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="13" Margin="0,0,0,10">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="54" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding Time}" Style="{StaticResource SmallMutedText}" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Message}" TextWrapping="Wrap" FontWeight="SemiBold" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="540" Margin="0,16,0,0">
+                            <ItemsControl ItemsSource="{Binding Activity}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource BrushSurfaceAlt}" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" CornerRadius="8" Padding="13" Margin="0,0,0,10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="54" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Time}" Style="{StaticResource SmallMutedText}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Message}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                     </StackPanel>
                 </Border>
             </Grid>
