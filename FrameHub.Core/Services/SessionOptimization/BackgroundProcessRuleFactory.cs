@@ -31,8 +31,7 @@ public static class BackgroundProcessRuleFactory
                 IsEnabled = true,
                 ProcessNames = new()
                 {
-                    "chrome.exe", "msedge.exe", "brave.exe", "firefox.exe", "opera.exe", "opera_gx.exe", "vivaldi.exe",
-                    "chrome_crashpad_handler.exe", "firefox_crashpad_handler.exe"
+                    "chrome.exe", "msedge.exe", "brave.exe", "firefox.exe", "opera.exe", "opera_gx.exe", "vivaldi.exe"
                 }
             },
             new()
@@ -72,17 +71,21 @@ public static class BackgroundProcessRuleFactory
                 DisplayName = "Steam WebHelper",
                 Description = "steamwebhelper.exe",
                 Category = "Launchers",
-                DefaultEnabled = true,
-                IsEnabled = true,
+                DefaultEnabled = false,
+                IsEnabled = false,
                 ProcessNames = new() { "steamwebhelper.exe" }
             }
         };
 
         foreach (var rule in rules)
         {
-            if (gameSettings?.RuleEnabledStates.TryGetValue(rule.Id, out bool gameEnabled) == true)
+            if (gameSettings != null)
             {
-                rule.IsEnabled = gameEnabled;
+                // Per-game settings are authoritative for Session Optimization.
+                // Do not let old/global values silently override the switches shown for the selected game.
+                rule.IsEnabled = gameSettings.RulesConfigured
+                    ? gameSettings.RuleEnabledStates.TryGetValue(rule.Id, out bool gameEnabled) && gameEnabled
+                    : rule.DefaultEnabled;
             }
             else if (settings.RuleEnabledStates.TryGetValue(rule.Id, out bool legacyEnabled))
             {

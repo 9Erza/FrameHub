@@ -35,6 +35,7 @@ public sealed class AppRuntimeService : IDisposable
     public event EventHandler? ProfilesChanged;
     public event EventHandler? WatcherStateChanged;
     public event EventHandler? RuntimeStateChanged;
+    public event EventHandler<ProfileWatcherSnapshotEventArgs>? ProfileWatcherSnapshot;
 
     public bool IsProfileWatcherActive => _profileWatcherTimer.IsEnabled;
     public string LastAppliedProfile { get; private set; } = string.Empty;
@@ -186,6 +187,7 @@ public sealed class AppRuntimeService : IDisposable
             }
 
             var scan = await ProcessScanner.ScanProfileProcessesAsync(enabledProfiles);
+            ProfileWatcherSnapshot?.Invoke(this, new ProfileWatcherSnapshotEventArgs(scan.Groups.Select(g => g.Name)));
             var batch = Optimization.ApplyProfilesForSnapshots(enabledProfiles, scan.Groups, Settings.AllowRealtimePriority, force: false);
             Optimization.CleanupStaleCache(scan.ActiveInstances);
 

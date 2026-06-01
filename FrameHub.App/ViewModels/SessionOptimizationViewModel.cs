@@ -1,5 +1,6 @@
 using FrameHub.App.Helpers;
 using FrameHub.App.Services;
+using FrameHub.Core.Logging;
 using FrameHub.Core.Models.Library;
 using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services.Library;
@@ -22,6 +23,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     private readonly SessionStateService _stateService = new();
     private readonly ProcessSuspendService _suspendService = new();
     private readonly TaskbarVisibilityService _taskbarService = new();
+    private readonly ILogger _logger = LoggerService.Instance;
     private readonly DispatcherTimer _autoTimer;
 
     private SessionOptimizationSettings _settings;
@@ -55,7 +57,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     public string BackgroundRulesTitle => IsPolish ? "Podstawowe aplikacje do wstrzymania" : "Base apps to suspend";
     public string RunningProcessesTitle => IsPolish ? "Ręczny wybór procesów" : "Manual process selection";
     public string CandidateTitle => IsPolish ? "Podgląd sesji" : "Session preview";
-    public string ActiveSessionTitle => IsPolish ? "Aktywna sesja" : "Active session";
+    public string ActiveSessionTitle => IsPolish ? "Wstrzymane procesy" : "Suspended processes";
 
     public string AutoModeSwitchLabel => IsPolish ? "Automatyczna optymalizacja sesji" : "Automatic session optimization";
     public string AutoGamesLabel => IsPolish ? "Gry z automatyczną sesją" : "Games with automatic session";
@@ -84,7 +86,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         : "Processes that will be suspended when the session starts.";
 
     public string NoCandidatesText => IsPolish ? "Brak pasujących procesów." : "No matching processes.";
-    public string NoSuspendedText => IsPolish ? "Brak wstrzymanych procesów." : "No suspended processes.";
+    public string NoSuspendedText => IsPolish ? "Brak procesów ruszonych przez sesję." : "No processes touched by this session.";
     public string NoRunningProcessesText => IsPolish ? "Brak procesów do wyboru." : "No processes to select.";
 
     public string RefreshButtonText => IsPolish ? "Odśwież" : "Refresh";
@@ -114,6 +116,11 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             SaveSettings();
             OnPropertyChanged();
             UpdateAutoTimerState();
+            if (!value && _activeSession?.IsActive == true && _activeSession.Trigger.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+            {
+                StopSession();
+            }
+            RefreshCandidates();
             SetStatus(value
                 ? (IsPolish ? "Automatyczna sesja włączona." : "Automatic session enabled.")
                 : (IsPolish ? "Automatyczna sesja wyłączona." : "Automatic session disabled."));
@@ -167,11 +174,14 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     public bool ShowManualProcessList
     {
-        get => _settings.ShowManualProcessList;
+        get => SelectedGame != null && GetSelectedGameSettings().ManualProcessRulesEnabled;
         set
         {
-            if (_settings.ShowManualProcessList == value) return;
-            _settings.ShowManualProcessList = value;
+            if (SelectedGame == null) return;
+            var gameSettings = GetSelectedGameSettings();
+            if (gameSettings.ManualProcessRulesEnabled == value) return;
+            gameSettings.ManualProcessRulesEnabled = value;
+            _settings.ShowManualProcessList = value; // legacy compatibility only
             SaveSettings();
             OnPropertyChanged();
             OnPropertyChanged(nameof(ManualProcessesPlaceholderVisible));
@@ -179,6 +189,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             {
                 RefreshRunningProcesses();
             }
+            RefreshCandidates();
         }
     }
 
@@ -258,8 +269,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         _localization = localization;
         _runtime = runtime;
         _settings = _settingsService.Load();
-        _settings.ShowManualProcessList = false;
-        _settingsService.Save(_settings);
+        MigrateSessionSettingsForSafeSuspend();
         _activeSession = _stateService.Load();
 
         RefreshCommand = new RelayCommand(_ => RefreshCandidates(), _ => !_isBusy && !IsSessionActive);
@@ -275,6 +285,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         RebuildSuspendedList();
         RefreshCandidates();
 
+        _runtime.ProfileWatcherSnapshot += OnRuntimeProfileWatcherSnapshot;
+
         _autoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _autoTimer.Tick += (_, _) => RunAutoDetectionTick();
         UpdateAutoTimerState();
@@ -282,6 +294,45 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         SetStatus(IsSessionActive
             ? (IsPolish ? "Wykryto aktywną sesję. Użyj przywracania, aby wznowić procesy." : "Active session detected. Use restore to resume processes.")
             : (IsPolish ? "Gotowe." : "Ready."));
+    }
+
+    private void MigrateSessionSettingsForSafeSuspend()
+    {
+        bool changed = false;
+
+        if (_settings.SchemaVersion < 4)
+        {
+            // Emergency safety migration for v0.4.0 release:
+            // old builds could keep aggressive session settings in AppData and start too many suspends.
+            _settings.AutoModeEnabled = false;
+            _settings.HideTaskbarDuringSession = false;
+            _settings.ShowManualProcessList = false;
+            _settings.RuleEnabledStates.Clear();
+
+            foreach (var gameSettings in _settings.GameSettings.Values)
+            {
+                gameSettings.AutoEnabled = false;
+                gameSettings.ManualProcessRulesEnabled = false;
+                gameSettings.RulesConfigured = true;
+
+                gameSettings.RuleEnabledStates[ExplorerRuleId] = false;
+                gameSettings.RuleEnabledStates["browsers"] = false;
+                gameSettings.RuleEnabledStates["spotify"] = true;
+                gameSettings.RuleEnabledStates["discord"] = false;
+                gameSettings.RuleEnabledStates["teamspeak"] = false;
+                gameSettings.RuleEnabledStates["steamwebhelper"] = false;
+            }
+
+            _settings.AutoEnabledGameIds.Clear();
+            _settings.SchemaVersion = 4;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            SaveSettings();
+            _logger.Warn("Session optimization settings migrated to safe defaults. Automatic session optimization was disabled and aggressive old rules were cleared.");
+        }
     }
 
     public void RefreshTexts()
@@ -395,6 +446,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         }
 
         var gameSettings = GetSelectedGameSettings();
+        gameSettings.RulesConfigured = true;
         bool explorerEnabled = gameSettings.RuleEnabledStates.TryGetValue(ExplorerRuleId, out bool value) && value;
         gameSettings.RuleEnabledStates.Clear();
         gameSettings.RuleEnabledStates[ExplorerRuleId] = explorerEnabled;
@@ -408,8 +460,13 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         RefreshCandidates();
     }
 
-    private void OnGameChanged()
+    private void OnGameChanged(SessionGameOptionViewModel changedGame)
     {
+        if (SelectedGame == null || !SelectedGame.Id.Equals(changedGame.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedGame = changedGame;
+        }
+
         foreach (var game in Games)
         {
             GetGameSettings(game.Id).AutoEnabled = game.AutoEnabled;
@@ -418,6 +475,14 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         SyncLegacyAutoGameIds();
         SaveSettings();
         RefreshCandidates();
+
+        if (_activeSession?.IsActive == true
+            && _activeSession.Trigger.Equals("Auto", StringComparison.OrdinalIgnoreCase)
+            && _activeSession.GameId?.Equals(changedGame.Id, StringComparison.OrdinalIgnoreCase) == true
+            && !changedGame.AutoEnabled)
+        {
+            StopSession();
+        }
     }
 
     private void OnRunningProcessChanged()
@@ -486,16 +551,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var candidates = BuildCandidatesForGame(SelectedGame);
-        Candidates.Clear();
-        foreach (var candidate in candidates)
-        {
-            Candidates.Add(new SuspendCandidateViewModel(candidate, _localization));
-        }
-
-        OnPropertyChanged(nameof(HasCandidates));
-        OnPropertyChanged(nameof(NoCandidatesVisible));
-        CommandManager.InvalidateRequerySuggested();
+        ReplaceCandidatePreview(BuildCandidatesForGame(SelectedGame));
     }
 
     private IReadOnlyList<SuspendCandidate> BuildCandidatesForGame(SessionGameOptionViewModel? game)
@@ -504,10 +560,14 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         var allRules = BuildRulesForGame(gameSettings);
         var enabledRules = allRules.Where(x => x.IsEnabled);
         var ruleCoveredProcessNames = GetRuleCoveredProcessNames(allRules);
-        var customProcesses = gameSettings.CustomProcessEnabledStates
-            .Where(x => x.Value)
-            .Select(x => x.Key)
-            .Where(x => !ruleCoveredProcessNames.Contains(ProcessSuspendService.NormalizeProcessName(x)));
+        IEnumerable<string> customProcesses = Enumerable.Empty<string>();
+        if (gameSettings.ManualProcessRulesEnabled)
+        {
+            customProcesses = gameSettings.CustomProcessEnabledStates
+                .Where(x => x.Value)
+                .Select(x => x.Key)
+                .Where(x => !ruleCoveredProcessNames.Contains(ProcessSuspendService.NormalizeProcessName(x)));
+        }
         var protectedNames = GetProtectedProcessNamesForGame(game);
         return _suspendService.BuildCandidates(enabledRules, customProcesses, protectedNames);
     }
@@ -547,6 +607,32 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         return names;
     }
 
+    private void ReplaceCandidatePreview(IEnumerable<SuspendCandidate> candidates)
+    {
+        Candidates.Clear();
+        foreach (var candidate in candidates)
+        {
+            Candidates.Add(new SuspendCandidateViewModel(candidate, _localization));
+        }
+
+        OnPropertyChanged(nameof(HasCandidates));
+        OnPropertyChanged(nameof(NoCandidatesVisible));
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    private void LogSessionCandidateList(string trigger, SessionGameOptionViewModel? game, IReadOnlyList<SuspendCandidate> candidates)
+    {
+        string gameName = string.IsNullOrWhiteSpace(game?.DisplayName) ? "unknown" : game.DisplayName;
+        string summary = candidates.Count == 0
+            ? "none"
+            : string.Join("; ", candidates
+                .OrderBy(x => x.RuleName)
+                .ThenBy(x => x.ProcessName)
+                .Select(x => $"{x.RuleName}: {x.ProcessName} PID={x.ProcessId}"));
+
+        _logger.Info($"Session candidates ({trigger}) for {gameName}: count={candidates.Count}; {summary}");
+    }
+
     private void StartManualSession()
     {
         StartSession("Manual", SelectedGame);
@@ -559,10 +645,19 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        if (trigger.Equals("Auto", StringComparison.OrdinalIgnoreCase) && (!AutoModeEnabled || game?.AutoEnabled != true))
+        {
+            return;
+        }
+
         _isBusy = true;
         try
         {
             var candidates = BuildCandidatesForGame(game).ToList();
+            ReplaceCandidatePreview(candidates);
+            LogSessionCandidateList(trigger, game, candidates);
+
+
             bool taskbarHidden = false;
             bool taskbarRequested = HideTaskbarDuringSession;
 
@@ -593,7 +688,6 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             };
             _stateService.Save(_activeSession);
             RebuildSuspendedList();
-            Candidates.Clear();
             OnStateChanged();
 
             string taskbarPart = taskbarHidden
@@ -635,7 +729,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             _activeSession = null;
             SuspendedProcesses.Clear();
             RefreshRunningProcesses();
-            RefreshCandidates();
+            // Keep the preview visible as the exact list that was targeted by the last session.
             OnStateChanged();
 
             string taskbarPart = taskbarWasHidden
@@ -681,21 +775,52 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private void RunAutoDetectionTick()
     {
-        if (_isBusy || !AutoModeEnabled)
+        if (_isBusy)
         {
             return;
         }
 
-        if (IsSessionActive)
+        // Start detection is intentionally driven by AppRuntimeService/Profile Monitor now.
+        // This timer only restores automatic sessions after the selected game closes.
+        if (!AutoModeEnabled)
         {
-            if (_activeSession?.Trigger.Equals("Auto", StringComparison.OrdinalIgnoreCase) == true && !IsProcessRunning(_activeSession.GameProcessName))
+            if (_activeSession?.IsActive == true && _activeSession.Trigger.Equals("Auto", StringComparison.OrdinalIgnoreCase))
             {
                 StopSession();
             }
             return;
         }
 
-        var game = Games.FirstOrDefault(x => x.AutoEnabled && IsProcessRunning(x.Item.ProcessName));
+        if (_activeSession?.IsActive == true
+            && _activeSession.Trigger.Equals("Auto", StringComparison.OrdinalIgnoreCase)
+            && !IsProcessRunning(_activeSession.GameProcessName))
+        {
+            StopSession();
+        }
+    }
+
+    private void OnRuntimeProfileWatcherSnapshot(object? sender, ProfileWatcherSnapshotEventArgs e)
+    {
+        if (_disposed || _isBusy || !AutoModeEnabled || IsSessionActive)
+        {
+            return;
+        }
+
+        var activeNames = e.ActiveProcessNames
+            .Select(ProcessSuspendService.NormalizeProcessName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (activeNames.Count == 0)
+        {
+            return;
+        }
+
+        var game = Games.FirstOrDefault(x =>
+            x.AutoEnabled
+            && !string.IsNullOrWhiteSpace(x.Item.ProcessName)
+            && activeNames.Contains(ProcessSuspendService.NormalizeProcessName(x.Item.ProcessName)));
+
         if (game != null)
         {
             StartSession("Auto", game);
@@ -811,5 +936,6 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             StopSession();
         }
         _autoTimer.Stop();
+        _runtime.ProfileWatcherSnapshot -= OnRuntimeProfileWatcherSnapshot;
     }
 }

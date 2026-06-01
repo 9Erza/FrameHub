@@ -8,7 +8,7 @@ namespace FrameHub.App.ViewModels;
 
 public sealed class SessionGameOptionViewModel : ViewModelBase
 {
-    private readonly Action _onChanged;
+    private readonly Action<SessionGameOptionViewModel> _onChanged;
     private bool _autoEnabled;
 
     public LibraryItem Item { get; }
@@ -54,12 +54,12 @@ public sealed class SessionGameOptionViewModel : ViewModelBase
         {
             if (SetProperty(ref _autoEnabled, value))
             {
-                _onChanged();
+                _onChanged(this);
             }
         }
     }
 
-    public SessionGameOptionViewModel(LibraryItem item, bool autoEnabled, Action onChanged)
+    public SessionGameOptionViewModel(LibraryItem item, bool autoEnabled, Action<SessionGameOptionViewModel> onChanged)
     {
         Item = item;
         _autoEnabled = autoEnabled;

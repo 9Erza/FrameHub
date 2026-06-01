@@ -4,6 +4,7 @@ namespace FrameHub.Core.Models.SessionOptimization;
 
 public sealed class SessionOptimizationSettings
 {
+    public int SchemaVersion { get; set; }
     public bool AutoModeEnabled { get; set; }
     public string? SelectedGameId { get; set; }
     public bool HideTaskbarDuringSession { get; set; }
