@@ -51,12 +51,6 @@
                     </Border>
                 </StackPanel>
 
-                <TextBlock Grid.Column="1"
-                           Text="{Binding AppTagline}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Style="{StaticResource SmallMutedText}" />
-
                 <StackPanel Grid.Column="2" Orientation="Horizontal" shell:WindowChrome.IsHitTestVisibleInChrome="True">
                     <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Content="—" Click="MinimizeButton_Click" ToolTip="{Binding MinimizeTooltip}" />
                     <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Content="□" Click="MaximizeRestoreButton_Click" ToolTip="{Binding MaximizeRestoreTooltip}" />
@@ -66,7 +60,7 @@
 
             <Grid Grid.Row="1" Background="Transparent">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="312" />
+                    <ColumnDefinition Width="252" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
@@ -74,7 +68,7 @@
                         Background="{StaticResource BrushSidebar}"
                         BorderBrush="{StaticResource BrushBorderSoft}"
                         BorderThickness="0,0,1,0"
-                        Padding="22,20,22,18">
+                        Padding="16,16,16,14">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -82,10 +76,8 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0" Margin="0,0,0,20">
-                            <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="54" Height="54" RenderOptions.BitmapScalingMode="Fant" />
-                            <TextBlock Text="{Binding AppName}" FontSize="26" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding AppTagline}" Style="{StaticResource SmallMutedText}" Margin="0,5,0,0" TextWrapping="Wrap" />
+                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                            <TextBlock Text="{Binding AppName}" FontSize="20" FontWeight="SemiBold" />
                         </StackPanel>
 
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
@@ -119,47 +111,8 @@
                             </ItemsControl>
                         </ScrollViewer>
 
-                        <StackPanel Grid.Row="2" Margin="0,18,0,0">
-                            <Border Style="{StaticResource SoftCardBorder}" Padding="13" Margin="0,0,0,12">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding LanguageLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,10" />
-                                    <ItemsControl ItemsSource="{Binding LanguageOptions}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button Style="{StaticResource LanguageButton}"
-                                                        Command="{Binding DataContext.SetLanguageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding Code}"
-                                                        ToolTip="{Binding DisplayName}">
-                                                    <Grid Width="42" Height="30">
-                                                        <Border CornerRadius="8" Background="{StaticResource BrushSurfaceHover}" Padding="3">
-                                                            <Border CornerRadius="5" ClipToBounds="True">
-                                                                <Image Source="{Binding FlagSource}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True" />
-                                                            </Border>
-                                                        </Border>
-                                                        <Border BorderBrush="{StaticResource BrushPrimary}" BorderThickness="2" CornerRadius="8" Visibility="{Binding SelectedVisibility}" />
-                                                    </Grid>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource SoftCardBorder}" Padding="15">
-                                <StackPanel>
-                                    <TextBlock Text="FRAMEHUB" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushPrimary}" />
-                                    <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                        <Ellipse Width="9" Height="9" Fill="{StaticResource BrushSuccess}" Margin="0,0,8,0" />
-                                        <TextBlock Text="{Binding WatcherStatus}" Style="{StaticResource SmallMutedText}" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
+                        <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                            <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" Style="{StaticResource SmallMutedText}" />
                         </StackPanel>
                     </Grid>
                 </Border>

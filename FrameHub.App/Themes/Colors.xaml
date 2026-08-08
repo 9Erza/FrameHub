@@ -22,6 +22,15 @@
     <Color x:Key="ColorTextSecondary">#B6C2D8</Color>
     <Color x:Key="ColorTextMuted">#74839B</Color>
 
+    <Thickness x:Key="Space4">4</Thickness>
+    <Thickness x:Key="Space8">8</Thickness>
+    <Thickness x:Key="Space12">12</Thickness>
+    <Thickness x:Key="Space16">16</Thickness>
+    <Thickness x:Key="Space24">24</Thickness>
+    <CornerRadius x:Key="CornerSmall">6</CornerRadius>
+    <CornerRadius x:Key="CornerMedium">10</CornerRadius>
+    <CornerRadius x:Key="CornerLarge">14</CornerRadius>
+
     <SolidColorBrush x:Key="BrushWindowChrome" Color="{StaticResource ColorWindowChrome}" />
     <SolidColorBrush x:Key="BrushBackground" Color="{StaticResource ColorBackground}" />
     <SolidColorBrush x:Key="BrushBackgroundAlt" Color="{StaticResource ColorBackgroundAlt}" />

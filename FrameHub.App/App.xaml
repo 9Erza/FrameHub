@@ -38,9 +38,6 @@
             <DataTemplate DataType="{x:Type vm:LogsViewModel}">
                 <views:LogsView />
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:PlaceholderViewModel}">
-                <views:PlaceholderView />
-            </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
