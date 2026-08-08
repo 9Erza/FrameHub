@@ -44,11 +44,42 @@ public sealed class ProcessSuspendService
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr hObject);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetProcessTimes(
+        IntPtr hProcess,
+        out System.Runtime.InteropServices.ComTypes.FILETIME creationTime,
+        out System.Runtime.InteropServices.ComTypes.FILETIME exitTime,
+        out System.Runtime.InteropServices.ComTypes.FILETIME kernelTime,
+        out System.Runtime.InteropServices.ComTypes.FILETIME userTime);
+
     [DllImport("ntdll.dll")]
     private static extern int NtSuspendProcess(IntPtr processHandle);
 
     [DllImport("ntdll.dll")]
     private static extern int NtResumeProcess(IntPtr processHandle);
+
+    private enum IdentityValidationResult
+    {
+        Match,
+        ProcessNotFound,
+        DifferentProcess,
+        CannotVerify
+    }
+
+    private enum ResumeAttemptResult
+    {
+        Resumed,
+        ProcessNotFound,
+        DifferentProcess,
+        Failed
+    }
+
+    private sealed class ProcessIdentity
+    {
+        public string ProcessName { get; init; } = string.Empty;
+        public DateTime ProcessStartTimeUtc { get; init; }
+        public string? ExecutablePath { get; init; }
+    }
 
     public IReadOnlyList<RunningProcessGroup> GetRunningProcessGroups(IEnumerable<string> protectedProcessNames)
     {
@@ -143,6 +174,11 @@ public sealed class ProcessSuspendService
 
                 bool isExplorer = normalizedProcessName.Equals("explorer", StringComparison.OrdinalIgnoreCase);
                 string? path = TryGetProcessPath(process);
+                if (!TryGetProcessStartTimeUtc(process, out DateTime processStartTimeUtc))
+                {
+                    continue;
+                }
+
                 if (IsProtectedProcessName(normalizedProcessName, protectedNames, allowExplorer: isExplorer)
                     || IsSteamRelatedProcess(normalizedProcessName, path))
                 {
@@ -170,6 +206,7 @@ public sealed class ProcessSuspendService
                         ProcessId = process.Id,
                         ProcessName = AddExeSuffix(process.ProcessName),
                         ExecutablePath = path,
+                        ProcessStartTimeUtc = processStartTimeUtc,
                         IsExplorer = isExplorer
                     };
                     break;
@@ -184,6 +221,7 @@ public sealed class ProcessSuspendService
                         ProcessId = process.Id,
                         ProcessName = AddExeSuffix(process.ProcessName),
                         ExecutablePath = path,
+                        ProcessStartTimeUtc = processStartTimeUtc,
                         IsExplorer = isExplorer
                     };
                 }
@@ -218,13 +256,14 @@ public sealed class ProcessSuspendService
 
         foreach (var candidate in candidates.GroupBy(x => x.ProcessId).Select(g => g.First()))
         {
-            if (TrySuspend(candidate.ProcessId, out string message))
+            if (TrySuspend(candidate, out string message))
             {
                 result.SuccessCount++;
                 result.Records.Add(new SuspendedProcessRecord
                 {
                     ProcessId = candidate.ProcessId,
                     ProcessName = candidate.ProcessName,
+                    ProcessStartTimeUtc = candidate.ProcessStartTimeUtc,
                     RuleId = candidate.RuleId,
                     RuleName = candidate.RuleName,
                     ExecutablePath = candidate.ExecutablePath,
@@ -247,10 +286,49 @@ public sealed class ProcessSuspendService
 
         foreach (var record in records.GroupBy(x => x.ProcessId).Select(g => g.First()))
         {
-            if (TryResume(record.ProcessId, out string message))
+            IdentityValidationResult validation = ValidateProcessIdentity(record, ReadProcessIdentity(record.ProcessId));
+            if (validation == IdentityValidationResult.ProcessNotFound)
+            {
+                result.ResolvedCount++;
+                result.Records.Add(record);
+                result.Messages.Add($"{record.ProcessName} PID {record.ProcessId}: process no longer exists; recovery record resolved.");
+                continue;
+            }
+
+            if (validation == IdentityValidationResult.DifferentProcess)
+            {
+                result.ResolvedCount++;
+                result.StaleProcessCount++;
+                result.Records.Add(record);
+                result.Messages.Add($"{record.ProcessName} PID {record.ProcessId}: PID belongs to a different process instance; no resume attempted.");
+                continue;
+            }
+
+            if (validation == IdentityValidationResult.CannotVerify)
+            {
+                result.FailedCount++;
+                result.Messages.Add($"{record.ProcessName} PID {record.ProcessId}: process identity cannot be verified safely.");
+                continue;
+            }
+
+            ResumeAttemptResult attempt = TryResume(record, out string message);
+            if (attempt == ResumeAttemptResult.Resumed)
             {
                 result.SuccessCount++;
                 result.Records.Add(record);
+            }
+            else if (attempt == ResumeAttemptResult.ProcessNotFound)
+            {
+                result.ResolvedCount++;
+                result.Records.Add(record);
+                result.Messages.Add($"{record.ProcessName} PID {record.ProcessId}: process exited before resume; recovery record resolved.");
+            }
+            else if (attempt == ResumeAttemptResult.DifferentProcess)
+            {
+                result.ResolvedCount++;
+                result.StaleProcessCount++;
+                result.Records.Add(record);
+                result.Messages.Add($"{record.ProcessName} PID {record.ProcessId}: PID changed before resume; no resume attempted.");
             }
             else
             {
@@ -334,10 +412,10 @@ public sealed class ProcessSuspendService
         return rule.PathContains.Any(hint => path.Contains(hint, StringComparison.OrdinalIgnoreCase));
     }
 
-    private bool TrySuspend(int pid, out string message)
+    private bool TrySuspend(SuspendCandidate candidate, out string message)
     {
         message = string.Empty;
-        IntPtr handle = OpenProcess(PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        IntPtr handle = OpenProcess(PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION, false, candidate.ProcessId);
         if (handle == IntPtr.Zero)
         {
             message = $"OpenProcess failed: {Marshal.GetLastWin32Error()}";
@@ -346,6 +424,13 @@ public sealed class ProcessSuspendService
 
         try
         {
+            if (!TryGetProcessStartTimeUtc(handle, out DateTime actualStartTimeUtc)
+                || actualStartTimeUtc != candidate.ProcessStartTimeUtc)
+            {
+                message = "Process identity changed before suspend.";
+                return false;
+            }
+
             int status = NtSuspendProcess(handle);
             if (status == 0)
             {
@@ -366,35 +451,150 @@ public sealed class ProcessSuspendService
         }
     }
 
-    private bool TryResume(int pid, out string message)
+    private ResumeAttemptResult TryResume(SuspendedProcessRecord record, out string message)
     {
         message = string.Empty;
-        IntPtr handle = OpenProcess(PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        IntPtr handle = OpenProcess(PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION, false, record.ProcessId);
         if (handle == IntPtr.Zero)
         {
             message = $"OpenProcess failed: {Marshal.GetLastWin32Error()}";
+            return ReadProcessIdentity(record.ProcessId) == null
+                ? ResumeAttemptResult.ProcessNotFound
+                : ResumeAttemptResult.Failed;
+        }
+
+        try
+        {
+            if (!TryGetProcessStartTimeUtc(handle, out DateTime actualStartTimeUtc)
+                || actualStartTimeUtc != record.ProcessStartTimeUtc)
+            {
+                message = "Process identity changed before resume.";
+                return ResumeAttemptResult.DifferentProcess;
+            }
+
+            int status = NtResumeProcess(handle);
+            if (status == 0)
+            {
+                return ResumeAttemptResult.Resumed;
+            }
+
+            message = $"NtResumeProcess returned 0x{status:X8}";
+            return ResumeAttemptResult.Failed;
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+            return ResumeAttemptResult.Failed;
+        }
+        finally
+        {
+            CloseHandle(handle);
+        }
+    }
+
+    private static IdentityValidationResult ValidateProcessIdentity(SuspendedProcessRecord record, ProcessIdentity? current)
+    {
+        if (current == null)
+        {
+            return IdentityValidationResult.ProcessNotFound;
+        }
+
+        if (record.ProcessStartTimeUtc == default || current.ProcessStartTimeUtc == default)
+        {
+            return IdentityValidationResult.CannotVerify;
+        }
+
+        if (record.ProcessStartTimeUtc != current.ProcessStartTimeUtc
+            || !NormalizeProcessName(record.ProcessName).Equals(NormalizeProcessName(current.ProcessName), StringComparison.OrdinalIgnoreCase))
+        {
+            return IdentityValidationResult.DifferentProcess;
+        }
+
+        if (!string.IsNullOrWhiteSpace(record.ExecutablePath)
+            && !string.IsNullOrWhiteSpace(current.ExecutablePath)
+            && !NormalizePath(record.ExecutablePath).Equals(NormalizePath(current.ExecutablePath), StringComparison.OrdinalIgnoreCase))
+        {
+            return IdentityValidationResult.DifferentProcess;
+        }
+
+        return IdentityValidationResult.Match;
+    }
+
+    private static ProcessIdentity? ReadProcessIdentity(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            if (process.HasExited)
+            {
+                return null;
+            }
+
+            return new ProcessIdentity
+            {
+                ProcessName = process.ProcessName,
+                ProcessStartTimeUtc = TryGetProcessStartTimeUtc(process, out DateTime startTimeUtc) ? startTimeUtc : default,
+                ExecutablePath = TryGetProcessPath(process)
+            };
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch
+        {
+            // An existing process whose identity cannot be read must remain pending rather than be resumed by PID alone.
+            return new ProcessIdentity();
+        }
+    }
+
+    private static bool TryGetProcessStartTimeUtc(Process process, out DateTime startTimeUtc)
+    {
+        try
+        {
+            startTimeUtc = process.StartTime.ToUniversalTime();
+            return true;
+        }
+        catch
+        {
+            startTimeUtc = default;
+            return false;
+        }
+    }
+
+    private static bool TryGetProcessStartTimeUtc(IntPtr processHandle, out DateTime startTimeUtc)
+    {
+        startTimeUtc = default;
+        if (!GetProcessTimes(processHandle, out var creationTime, out _, out _, out _))
+        {
             return false;
         }
 
         try
         {
-            int status = NtResumeProcess(handle);
-            if (status == 0)
-            {
-                return true;
-            }
+            long fileTime = ((long)(uint)creationTime.dwHighDateTime << 32) | (uint)creationTime.dwLowDateTime;
+            startTimeUtc = DateTime.FromFileTimeUtc(fileTime);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
-            message = $"NtResumeProcess returned 0x{status:X8}";
-            return false;
-        }
-        catch (Exception ex)
+    private static string NormalizePath(string path)
+    {
+        try
         {
-            message = ex.Message;
-            return false;
+            return Path.GetFullPath(path.Trim());
         }
-        finally
+        catch
         {
-            CloseHandle(handle);
+            return path.Trim();
         }
     }
 

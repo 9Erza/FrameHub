@@ -1,8 +1,10 @@
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
+using FrameHub.Core.Models.Library;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -32,6 +34,11 @@ namespace FrameHub.Core.Services
         public Task<ProcessScanResult> ScanProfileProcessesAsync(IEnumerable<ProcessProfile> profiles)
         {
             return Task.Run(() => ScanProfileProcesses(profiles));
+        }
+
+        public Task<IReadOnlySet<string>> FindRunningLibraryItemIdsAsync(IEnumerable<LibraryItem> items)
+        {
+            return Task.Run(() => FindRunningLibraryItemIds(items));
         }
 
         private ProcessScanResult ScanUserProcesses()
@@ -94,6 +101,64 @@ namespace FrameHub.Core.Services
                     process.Dispose();
                 }
             }
+        }
+
+        private static IReadOnlySet<string> FindRunningLibraryItemIds(IEnumerable<LibraryItem> items)
+        {
+            var targets = items
+                .Where(item => !string.IsNullOrWhiteSpace(item.Id)
+                    && (!string.IsNullOrWhiteSpace(item.ProcessName) || !string.IsNullOrWhiteSpace(item.ExecutablePath)))
+                .Select(item => new
+                {
+                    item.Id,
+                    ProcessName = ProfileService.NormalizeProcessName(item.ProcessName),
+                    ExecutablePath = NormalizeExecutablePath(item.ExecutablePath)
+                })
+                .ToList();
+
+            var runningItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var process in Process.GetProcesses())
+            {
+                try
+                {
+                    if (process.HasExited) continue;
+
+                    string processName = ProfileService.NormalizeProcessName(process.ProcessName);
+                    string? processPath = TryGetProcessPath(process);
+                    foreach (var target in targets)
+                    {
+                        bool isMatch = target.ExecutablePath != null
+                            ? processPath != null && target.ExecutablePath.Equals(NormalizeExecutablePath(processPath), StringComparison.OrdinalIgnoreCase)
+                            : target.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase);
+
+                        if (isMatch) runningItemIds.Add(target.Id);
+                    }
+                }
+                catch
+                {
+                    // Access to another process can be denied; it simply cannot match on this scan.
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            return runningItemIds;
+        }
+
+        private static string? TryGetProcessPath(Process process)
+        {
+            try { return process.MainModule?.FileName; }
+            catch { return null; }
+        }
+
+        private static string? NormalizeExecutablePath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return null;
+
+            try { return Path.GetFullPath(path.Trim()); }
+            catch { return path.Trim(); }
         }
 
         private ProcessScanResult BuildGroupedSnapshot(IEnumerable<Process> processes, double elapsedSeconds, bool includeResources)

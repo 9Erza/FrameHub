@@ -13,5 +13,6 @@ public sealed class ActiveSessionState
     public string? GameProcessName { get; set; }
     public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
     public bool TaskbarHidden { get; set; }
+    public bool IsRecoveryPending { get; set; }
     public List<SuspendedProcessRecord> SuspendedProcesses { get; set; } = new();
 }
