@@ -6,6 +6,7 @@ using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services.Library;
 using FrameHub.Core.Services.SessionOptimization;
 using System.Collections.ObjectModel;
+using System.Threading;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -32,6 +33,12 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     private string _statusLevel = "Info";
     private bool _isBusy;
     private bool _autoDetectionBusy;
+    private CancellationTokenSource? _processRefreshCancellation;
+    private readonly SemaphoreSlim _processScanGate = new(1, 1);
+    private bool _processRefreshQueued;
+    private bool _queuedForceScan;
+    private SessionProcessSnapshot? _cachedProcessSnapshot;
+    private DateTime _cachedProcessSnapshotUtc;
     private bool _isLoadingGameSettings;
     private bool _disposed;
 
@@ -272,18 +279,17 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         MigrateSessionSettingsForSafeSuspend();
         _activeSession = _stateService.Load();
 
-        RefreshCommand = new RelayCommand(_ => RefreshCandidates(), _ => !_isBusy && !IsSessionActive);
-        RefreshRunningProcessesCommand = new RelayCommand(_ => RefreshRunningProcesses(), _ => !_isBusy && !IsSessionActive);
-        StartManualSessionCommand = new RelayCommand(_ => StartManualSession(), _ => !_isBusy && !IsSessionActive && SelectedGame != null);
+        RefreshCommand = new RelayCommand(_ => RequestProcessRefresh(forceScan: true), _ => !_isBusy && !IsSessionActive);
+        RefreshRunningProcessesCommand = new RelayCommand(_ => RequestProcessRefresh(forceScan: true), _ => !_isBusy && !IsSessionActive);
+        StartManualSessionCommand = new RelayCommand(async _ => await StartManualSessionAsync(), _ => !_isBusy && !IsSessionActive && SelectedGame != null);
         StopSessionCommand = new RelayCommand(_ => StopSession(), _ => !_isBusy && IsSessionActive);
         ReloadLibraryCommand = new RelayCommand(_ => ReloadGames());
         TestDetectionCommand = new RelayCommand(async _ => await TestDetectionAsync(), _ => !_isBusy && SelectedGame != null);
 
         ReloadGames();
         LoadSelectedGameConfiguration();
-        RefreshRunningProcesses();
         RebuildSuspendedList();
-        RefreshCandidates();
+        RequestProcessRefresh(forceScan: true);
 
         _autoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _autoTimer.Tick += async (_, _) => await RunAutoDetectionTickAsync();
@@ -537,6 +543,77 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private void RefreshRunningProcesses()
     {
+        RequestProcessRefresh();
+    }
+
+    private void RefreshCandidates()
+    {
+        RequestProcessRefresh();
+    }
+
+    private void RequestProcessRefresh(bool forceScan = false)
+    {
+        if (IsSessionActive)
+        {
+            return;
+        }
+
+        _queuedForceScan |= forceScan;
+        if (_processRefreshQueued)
+        {
+            return;
+        }
+
+        _processRefreshQueued = true;
+        _ = Dispatcher.CurrentDispatcher.InvokeAsync(() =>
+        {
+            _processRefreshQueued = false;
+            bool queuedForceScan = _queuedForceScan;
+            _queuedForceScan = false;
+            StartProcessRefresh(queuedForceScan);
+        }, DispatcherPriority.Background);
+    }
+
+    private void StartProcessRefresh(bool forceScan)
+    {
+
+        _processRefreshCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        _processRefreshCancellation = cancellation;
+        _ = RefreshProcessViewsAsync(forceScan, cancellation);
+    }
+
+    private async Task RefreshProcessViewsAsync(bool forceScan, CancellationTokenSource cancellation)
+    {
+        try
+        {
+            SessionProcessSnapshot snapshot = _cachedProcessSnapshot != null
+                && !forceScan
+                && DateTime.UtcNow - _cachedProcessSnapshotUtc < TimeSpan.FromSeconds(1)
+                ? _cachedProcessSnapshot
+                : await CaptureSessionProcessSnapshotAsync(cancellation.Token);
+
+            cancellation.Token.ThrowIfCancellationRequested();
+            _cachedProcessSnapshot = snapshot;
+            _cachedProcessSnapshotUtc = snapshot.CapturedAtUtc;
+
+            var protectedNames = GetProtectedProcessNamesForGame(SelectedGame).ToArray();
+            var game = SelectedGame;
+            var groups = await Task.Run(() => _suspendService.GetRunningProcessGroups(snapshot, protectedNames), cancellation.Token);
+            var candidates = BuildCandidatesForGame(game, snapshot);
+            if (cancellation.IsCancellationRequested || !ReferenceEquals(_processRefreshCancellation, cancellation)) return;
+
+            ApplyRunningProcesses(groups);
+            ReplaceCandidatePreview(candidates);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer UI change superseded this refresh.
+        }
+    }
+
+    private void ApplyRunningProcesses(IReadOnlyList<RunningProcessGroup> groups)
+    {
         var protectedNames = GetProtectedProcessNamesForGame(SelectedGame);
         var gameSettings = GetSelectedGameSettings();
         var selectedCustomStates = gameSettings.CustomProcessEnabledStates;
@@ -546,9 +623,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         }
 
         var ruleCoveredProcessNames = GetRuleCoveredProcessNames(gameSettings);
-        var groups = _suspendService.GetRunningProcessGroups(protectedNames)
-            .Where(group => !ruleCoveredProcessNames.Contains(group.NormalizedProcessName))
-            .ToList();
+        groups = groups.Where(group => !ruleCoveredProcessNames.Contains(group.NormalizedProcessName)).ToList();
 
         bool removedStaleCustomState = false;
         foreach (string staleCustomProcess in selectedCustomStates.Keys
@@ -575,16 +650,6 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         CommandManager.InvalidateRequerySuggested();
     }
 
-    private void RefreshCandidates()
-    {
-        if (IsSessionActive)
-        {
-            return;
-        }
-
-        ReplaceCandidatePreview(BuildCandidatesForGame(SelectedGame));
-    }
-
     private IReadOnlyList<SuspendCandidate> BuildCandidatesForGame(SessionGameOptionViewModel? game)
     {
         var gameSettings = GetGameSettings(game?.Id);
@@ -601,6 +666,19 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         }
         var protectedNames = GetProtectedProcessNamesForGame(game);
         return _suspendService.BuildCandidates(enabledRules, customProcesses, protectedNames);
+    }
+
+    private IReadOnlyList<SuspendCandidate> BuildCandidatesForGame(SessionGameOptionViewModel? game, SessionProcessSnapshot snapshot)
+    {
+        var gameSettings = GetGameSettings(game?.Id);
+        var allRules = BuildRulesForGame(gameSettings);
+        var enabledRules = allRules.Where(x => x.IsEnabled);
+        var ruleCoveredProcessNames = GetRuleCoveredProcessNames(allRules);
+        IEnumerable<string> customProcesses = gameSettings.ManualProcessRulesEnabled
+            ? gameSettings.CustomProcessEnabledStates.Where(x => x.Value).Select(x => x.Key)
+                .Where(x => !ruleCoveredProcessNames.Contains(ProcessSuspendService.NormalizeProcessName(x)))
+            : Enumerable.Empty<string>();
+        return _suspendService.BuildCandidates(snapshot, enabledRules, customProcesses, GetProtectedProcessNamesForGame(game));
     }
 
     private List<BackgroundProcessRule> BuildRulesForGame(SessionGameSuspendSettings gameSettings)
@@ -664,12 +742,12 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         _logger.Info($"Session candidates ({trigger}) for {gameName}: count={candidates.Count}; {summary}");
     }
 
-    private void StartManualSession()
+    private async Task StartManualSessionAsync()
     {
-        StartSession("Manual", SelectedGame);
+        await StartSessionAsync("Manual", SelectedGame);
     }
 
-    private void StartSession(string trigger, SessionGameOptionViewModel? game)
+    private async Task StartSessionAsync(string trigger, SessionGameOptionViewModel? game)
     {
         if (_isBusy || IsSessionActive)
         {
@@ -684,7 +762,11 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         _isBusy = true;
         try
         {
-            var candidates = BuildCandidatesForGame(game).ToList();
+            SessionProcessSnapshot snapshot = _cachedProcessSnapshot != null
+                && DateTime.UtcNow - _cachedProcessSnapshotUtc < TimeSpan.FromSeconds(1)
+                ? _cachedProcessSnapshot
+                : await CaptureSessionProcessSnapshotAsync(CancellationToken.None);
+            var candidates = BuildCandidatesForGame(game, snapshot).ToList();
             ReplaceCandidatePreview(candidates);
             LogSessionCandidateList(trigger, game, candidates);
 
@@ -812,7 +894,16 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var runningGameIds = await _runtime.ProcessScanner.FindRunningLibraryItemIdsAsync(new[] { SelectedGame.Item });
+        await _processScanGate.WaitAsync();
+        IReadOnlySet<string> runningGameIds;
+        try
+        {
+            runningGameIds = await _runtime.ProcessScanner.FindRunningLibraryItemIdsAsync(new[] { SelectedGame.Item });
+        }
+        finally
+        {
+            _processScanGate.Release();
+        }
         bool detected = runningGameIds.Contains(SelectedGame.Id);
         RefreshCandidates();
 
@@ -849,7 +940,16 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             }
 
             var autoGames = Games.Where(game => game.AutoEnabled).ToList();
-            var runningGameIds = await _runtime.ProcessScanner.FindRunningLibraryItemIdsAsync(autoGames.Select(game => game.Item));
+            await _processScanGate.WaitAsync();
+            IReadOnlySet<string> runningGameIds;
+            try
+            {
+                runningGameIds = await _runtime.ProcessScanner.FindRunningLibraryItemIdsAsync(autoGames.Select(game => game.Item));
+            }
+            finally
+            {
+                _processScanGate.Release();
+            }
 
             if (_activeSession?.IsActive == true)
             {
@@ -863,11 +963,24 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             }
 
             var game = autoGames.FirstOrDefault(candidate => runningGameIds.Contains(candidate.Id));
-            if (game != null) StartSession("Auto", game);
+            if (game != null) await StartSessionAsync("Auto", game);
         }
         finally
         {
             _autoDetectionBusy = false;
+        }
+    }
+
+    private async Task<SessionProcessSnapshot> CaptureSessionProcessSnapshotAsync(CancellationToken cancellationToken)
+    {
+        await _processScanGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await _suspendService.CaptureProcessSnapshotAsync(cancellationToken);
+        }
+        finally
+        {
+            _processScanGate.Release();
         }
     }
 
@@ -957,6 +1070,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _processRefreshCancellation?.Cancel();
         if (IsSessionActive)
         {
             StopSession();

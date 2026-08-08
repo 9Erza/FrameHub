@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FrameHub.Core.Services.SessionOptimization;
 
@@ -79,6 +81,86 @@ public sealed class ProcessSuspendService
         public string ProcessName { get; init; } = string.Empty;
         public DateTime ProcessStartTimeUtc { get; init; }
         public string? ExecutablePath { get; init; }
+    }
+
+    public Task<SessionProcessSnapshot> CaptureProcessSnapshotAsync(CancellationToken cancellationToken)
+    {
+        return Task.Run(() => CaptureProcessSnapshot(cancellationToken), cancellationToken);
+    }
+
+    public IReadOnlyList<RunningProcessGroup> GetRunningProcessGroups(
+        SessionProcessSnapshot snapshot,
+        IEnumerable<string> protectedProcessNames)
+    {
+        var protectedNames = BuildProtectedNameSet(protectedProcessNames);
+        return snapshot.Processes
+            .Where(process => !string.IsNullOrWhiteSpace(process.NormalizedProcessName))
+            .Where(process => !IsProtectedProcessName(process.NormalizedProcessName, protectedNames, allowExplorer: true))
+            .Where(process => !IsSteamRelatedProcess(process.NormalizedProcessName, process.ExecutablePath))
+            .GroupBy(process => process.NormalizedProcessName, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new RunningProcessGroup
+            {
+                NormalizedProcessName = group.Key,
+                ProcessName = AddExeSuffix(group.First().ProcessName),
+                InstanceCount = group.Count(),
+                ExamplePath = group.Select(process => process.ExecutablePath).FirstOrDefault(path => !string.IsNullOrWhiteSpace(path))
+            })
+            .OrderBy(group => group.ProcessName)
+            .ToList();
+    }
+
+    public IReadOnlyList<SuspendCandidate> BuildCandidates(
+        SessionProcessSnapshot snapshot,
+        IEnumerable<BackgroundProcessRule> enabledRules,
+        IEnumerable<string> customProcessNames,
+        IEnumerable<string> protectedProcessNames)
+    {
+        var rules = enabledRules.Where(rule => rule.IsEnabled && rule.ProcessNames.Count > 0).ToList();
+        var customNames = new HashSet<string>(customProcessNames.Select(NormalizeProcessName).Where(name => !string.IsNullOrWhiteSpace(name)), StringComparer.OrdinalIgnoreCase);
+        if (rules.Count == 0 && customNames.Count == 0) return Array.Empty<SuspendCandidate>();
+
+        var protectedNames = BuildProtectedNameSet(protectedProcessNames);
+        var candidates = new List<SuspendCandidate>();
+        foreach (var process in snapshot.Processes)
+        {
+            if (process.ProcessStartTimeUtc == default) continue;
+
+            bool isExplorer = process.NormalizedProcessName.Equals("explorer", StringComparison.OrdinalIgnoreCase);
+            if (IsProtectedProcessName(process.NormalizedProcessName, protectedNames, allowExplorer: isExplorer)
+                || IsSteamRelatedProcess(process.NormalizedProcessName, process.ExecutablePath)) continue;
+
+            var rule = rules.FirstOrDefault(rule => MatchesRule(rule, process.NormalizedProcessName, process.ExecutablePath)
+                && (!isExplorer || rule.Id.Equals("explorer", StringComparison.OrdinalIgnoreCase)));
+            if (rule != null)
+            {
+                candidates.Add(new SuspendCandidate
+                {
+                    RuleId = rule.Id,
+                    RuleName = rule.DisplayName,
+                    ProcessId = process.ProcessId,
+                    ProcessName = AddExeSuffix(process.ProcessName),
+                    ExecutablePath = process.ExecutablePath,
+                    ProcessStartTimeUtc = process.ProcessStartTimeUtc,
+                    IsExplorer = isExplorer
+                });
+            }
+            else if (customNames.Contains(process.NormalizedProcessName))
+            {
+                candidates.Add(new SuspendCandidate
+                {
+                    RuleId = $"custom:{process.NormalizedProcessName}",
+                    RuleName = "Manual selection",
+                    ProcessId = process.ProcessId,
+                    ProcessName = AddExeSuffix(process.ProcessName),
+                    ExecutablePath = process.ExecutablePath,
+                    ProcessStartTimeUtc = process.ProcessStartTimeUtc,
+                    IsExplorer = isExplorer
+                });
+            }
+        }
+
+        return candidates.GroupBy(candidate => candidate.ProcessId).Select(group => group.First())
+            .OrderBy(candidate => candidate.RuleName).ThenBy(candidate => candidate.ProcessName).ThenBy(candidate => candidate.ProcessId).ToList();
     }
 
     public IReadOnlyList<RunningProcessGroup> GetRunningProcessGroups(IEnumerable<string> protectedProcessNames)
@@ -518,6 +600,48 @@ public sealed class ProcessSuspendService
         }
 
         return IdentityValidationResult.Match;
+    }
+
+    private static SessionProcessSnapshot CaptureProcessSnapshot(CancellationToken cancellationToken)
+    {
+        var items = new List<SessionProcessSnapshotItem>();
+        int currentProcessId = Environment.ProcessId;
+
+        foreach (var process in Process.GetProcesses())
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (process.Id <= 4 || process.Id == currentProcessId || process.HasExited) continue;
+
+                string processName = process.ProcessName;
+                string normalizedProcessName = NormalizeProcessName(processName);
+                if (string.IsNullOrWhiteSpace(normalizedProcessName)) continue;
+
+                items.Add(new SessionProcessSnapshotItem
+                {
+                    ProcessId = process.Id,
+                    ProcessName = processName,
+                    NormalizedProcessName = normalizedProcessName,
+                    ExecutablePath = TryGetProcessPath(process),
+                    ProcessStartTimeUtc = TryGetProcessStartTimeUtc(process, out DateTime startTimeUtc) ? startTimeUtc : default
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                // Individual process metadata can be unavailable; retain the rest of the snapshot.
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        return new SessionProcessSnapshot { Processes = items };
     }
 
     private static ProcessIdentity? ReadProcessIdentity(int processId)
