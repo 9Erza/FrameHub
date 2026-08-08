@@ -54,6 +54,14 @@
         <Setter Property="Effect" Value="{x:Null}" />
     </Style>
 
+    <Style x:Key="SettingsSectionSurface" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BrushSurfaceAlt}" />
+        <Setter Property="BorderBrush" Value="#18263D" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource CornerMedium}" />
+        <Setter Property="Padding" Value="14" />
+    </Style>
+
     <Style x:Key="HeroCardBorder" TargetType="Border" BasedOn="{StaticResource CardBorder}">
         <Setter Property="Background" Value="{StaticResource BrushHeroGradient}" />
         <Setter Property="BorderBrush" Value="#2D4470" />
@@ -157,10 +165,66 @@
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
+    <Style x:Key="SubtleButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+        <Setter Property="Padding" Value="12,7" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+    </Style>
+
     <Style x:Key="BadgeBorder" TargetType="Border">
         <Setter Property="Background" Value="#22304A" />
         <Setter Property="CornerRadius" Value="6" />
         <Setter Property="Padding" Value="8,3" />
+    </Style>
+
+    <Style x:Key="StatusBadge" TargetType="Border" BasedOn="{StaticResource BadgeBorder}">
+        <Setter Property="Background" Value="#22304A" />
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource CornerSmall}" />
+        <Setter Property="Padding" Value="9,4" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding StartupStatusState}" Value="Disabled">
+                <Setter Property="Background" Value="#22304A" />
+                <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StartupStatusState}" Value="Registry">
+                <Setter Property="Background" Value="#123B2A" />
+                <Setter Property="BorderBrush" Value="#236C46" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StartupStatusState}" Value="ElevatedScheduledTask">
+                <Setter Property="Background" Value="#152B58" />
+                <Setter Property="BorderBrush" Value="{StaticResource BrushPrimary}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StartupRequiresAttention}" Value="True">
+                <Setter Property="Background" Value="#4A3212" />
+                <Setter Property="BorderBrush" Value="{StaticResource BrushWarning}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StartupStatusState}" Value="Conflict">
+                <Setter Property="Background" Value="#4A1E27" />
+                <Setter Property="BorderBrush" Value="{StaticResource BrushDanger}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StartupStatusState}" Value="Broken">
+                <Setter Property="Background" Value="#4A1E27" />
+                <Setter Property="BorderBrush" Value="{StaticResource BrushDanger}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="CompactNumberTextBox" TargetType="TextBox">
+        <Setter Property="Width" Value="54" />
+        <Setter Property="Padding" Value="8,5" />
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Background" Value="{StaticResource BrushSurfaceHover}" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CaretBrush" Value="{StaticResource BrushPrimary}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="BorderBrush" Value="{StaticResource BrushPrimary}" /></Trigger>
+        </Style.Triggers>
     </Style>
 
 
@@ -193,6 +257,10 @@
                             <Setter TargetName="Root" Property="Background" Value="{StaticResource BrushPrimarySoft}" />
                             <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource BrushPrimary}" />
                             <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

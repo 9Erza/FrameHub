@@ -27,6 +27,7 @@
     <Thickness x:Key="Space12">12</Thickness>
     <Thickness x:Key="Space16">16</Thickness>
     <Thickness x:Key="Space24">24</Thickness>
+    <Thickness x:Key="Space32">32</Thickness>
     <CornerRadius x:Key="CornerSmall">6</CornerRadius>
     <CornerRadius x:Key="CornerMedium">10</CornerRadius>
     <CornerRadius x:Key="CornerLarge">14</CornerRadius>

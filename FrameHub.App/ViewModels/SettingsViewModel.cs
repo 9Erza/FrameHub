@@ -22,6 +22,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _realStartupStatus = string.Empty;
     private bool _startupRequiresAttention;
     private bool _isStartupBusy;
+    private StartupConfigurationState _startupStatusState;
     private int _startupApplyRequests;
 
     public ICommand RestartAsAdminCommand { get; }
@@ -43,7 +44,15 @@ public sealed class SettingsViewModel : ViewModelBase
     public string StartupNormalLabel => _localization.T("Settings.StartupNormal");
     public string StartupMinimizedLabel => _localization.T("Settings.StartupMinimized");
     public string StartupTrayLabel => _localization.T("Settings.StartupTray");
-    public string ApplyStartupText => _localization.T("Settings.ApplyStartup");
+    public string ApplyStartupText => StartupRequiresAttention ? _localization.T("Settings.RepairStartup") : _localization.T("Settings.ApplyStartupAgain");
+    public string LanguageDescription => _localization.T("Settings.LanguageDescription");
+    public string StartupDescription => _localization.T("Settings.StartupDescription");
+    public string StartupModeDescription => _localization.T("Settings.StartupModeDescription");
+    public string StartupAdminDescription => _localization.T("Settings.StartupAdminDescription");
+    public string TrayDescription => _localization.T("Settings.TrayDescription");
+    public string RestartAdminDescription => _localization.T("Settings.RestartAdminDescription");
+    public string UpdatesDescription => _localization.T("Settings.UpdatesDescription");
+    public string DiagnosticsDescription => _localization.T("Settings.DiagnosticsDescription");
     public string StartMinimizedLabel => _localization.T("Settings.StartMinimized");
     public string MinimizeToTrayLabel => _localization.T("Settings.MinimizeToTray");
     public string CloseToTrayLabel => _localization.T("Settings.CloseToTray");
@@ -66,6 +75,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public string RealStartupStatus { get => _realStartupStatus; private set => SetProperty(ref _realStartupStatus, value); }
     public bool StartupRequiresAttention { get => _startupRequiresAttention; private set => SetProperty(ref _startupRequiresAttention, value); }
     public bool IsStartupBusy { get => _isStartupBusy; private set => SetProperty(ref _isStartupBusy, value); }
+    public StartupConfigurationState StartupStatusState { get => _startupStatusState; private set => SetProperty(ref _startupStatusState, value); }
     public bool StartupControlsEnabled => StartWithWindows && !IsStartupBusy;
     public bool StartupModeNormal { get => _settings.StartupWindowMode == StartupWindowMode.Normal; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Normal; _ = SaveStartupSettingsAsync(); } }
     public bool StartupModeMinimized { get => _settings.StartupWindowMode == StartupWindowMode.Minimized; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Minimized; _ = SaveStartupSettingsAsync(); } }
@@ -106,7 +116,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool StartWithWindows
     {
         get => _settings.StartWithWindows;
-        set { if (_settings.StartWithWindows == value) return; _settings.StartWithWindows = value; OnPropertyChanged(nameof(StartupControlsEnabled)); _ = SaveStartupSettingsAsync(); }
+        set { if (_settings.StartWithWindows == value) return; _settings.StartWithWindows = value; OnPropertyChanged(); OnPropertyChanged(nameof(StartupControlsEnabled)); _ = SaveStartupSettingsAsync(); }
     }
 
     public bool RunAsAdministrator
@@ -207,6 +217,14 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(StartupMinimizedLabel));
         OnPropertyChanged(nameof(StartupTrayLabel));
         OnPropertyChanged(nameof(ApplyStartupText));
+        OnPropertyChanged(nameof(LanguageDescription));
+        OnPropertyChanged(nameof(StartupDescription));
+        OnPropertyChanged(nameof(StartupModeDescription));
+        OnPropertyChanged(nameof(StartupAdminDescription));
+        OnPropertyChanged(nameof(TrayDescription));
+        OnPropertyChanged(nameof(RestartAdminDescription));
+        OnPropertyChanged(nameof(UpdatesDescription));
+        OnPropertyChanged(nameof(DiagnosticsDescription));
         OnPropertyChanged(nameof(StartMinimizedLabel));
         OnPropertyChanged(nameof(MinimizeToTrayLabel));
         OnPropertyChanged(nameof(CloseToTrayLabel));
@@ -287,6 +305,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private void UpdateStartupStatus(StartupConfigurationEvaluation evaluation, string? detail)
     {
+        StartupStatusState = evaluation.State;
         StartupRequiresAttention = evaluation.State is StartupConfigurationState.Broken or StartupConfigurationState.Conflict;
         RealStartupStatus = evaluation.State switch
         {
@@ -297,6 +316,7 @@ public sealed class SettingsViewModel : ViewModelBase
             _ => string.IsNullOrWhiteSpace(detail) ? _localization.T("Settings.StartupRequiresAttention") : $"{_localization.T("Settings.StartupRequiresAttention")} {detail}"
         };
         OnPropertyChanged(nameof(StartupStatus));
+        OnPropertyChanged(nameof(ApplyStartupText));
     }
 
     private async Task CheckUpdatesAsync()
@@ -350,6 +370,7 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(RealStartupStatus));
         OnPropertyChanged(nameof(StartupStatus));
         OnPropertyChanged(nameof(StartupRequiresAttention));
+        OnPropertyChanged(nameof(StartupStatusState));
         OnPropertyChanged(nameof(IsStartupBusy));
         OnPropertyChanged(nameof(StartupControlsEnabled));
     }
