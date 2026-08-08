@@ -1,13 +1,29 @@
 namespace FrameHub.Core.Models
 {
+    public enum StartupWindowMode
+    {
+        Normal,
+        Minimized,
+        Tray
+    }
+
     /// <summary>
     /// Represents persistent user configuration.
     /// </summary>
     public class AppSettings
     {
         public bool StartWithWindows { get; set; } = false;
-        public bool StartMinimized { get; set; } = false;
-        public bool RunAsAdministrator { get; set; } = false;
+        public StartupWindowMode StartupWindowMode { get; set; } = StartupWindowMode.Normal;
+        public bool StartupRunElevated { get; set; } = false;
+        public int StartupSettingsVersion { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("StartMinimized")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        public bool? LegacyStartMinimized { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("RunAsAdministrator")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        public bool? LegacyRunAsAdministrator { get; set; }
 
         public bool MinimizeToTray { get; set; } = true;
         public bool CloseToTray { get; set; } = true;

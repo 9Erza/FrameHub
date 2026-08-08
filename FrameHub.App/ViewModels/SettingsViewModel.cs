@@ -23,6 +23,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public ICommand CheckUpdatesCommand { get; }
     public ICommand OpenAppDataCommand { get; }
     public ICommand OpenLogsCommand { get; }
+    public ICommand RepairStartupCommand { get; }
 
     public string Title => _localization.T("Settings.Title");
     public string Subtitle => _localization.T("Settings.Subtitle");
@@ -51,6 +52,10 @@ public sealed class SettingsViewModel : ViewModelBase
     public string OpenAppDataText => _localization.T("Settings.OpenAppData");
     public string OpenLogsText => _localization.T("Settings.OpenLogs");
     public string AdminStatus => _runtime.SettingsService.IsRunAsAdmin() ? _localization.T("Settings.AdminYes") : _localization.T("Settings.AdminNo");
+    public string StartupStatus => _runtime.SettingsService.GetWindowsStartupStatus().Message;
+    public bool StartupModeNormal { get => _settings.StartupWindowMode == StartupWindowMode.Normal; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Normal; SaveStartupSettings(); } }
+    public bool StartupModeMinimized { get => _settings.StartupWindowMode == StartupWindowMode.Minimized; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Minimized; SaveStartupSettings(); } }
+    public bool StartupModeTray { get => _settings.StartupWindowMode == StartupWindowMode.Tray; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Tray; SaveStartupSettings(); } }
 
     public string StatusMessage
     {
@@ -87,19 +92,19 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool StartWithWindows
     {
         get => _settings.StartWithWindows;
-        set { if (_settings.StartWithWindows == value) return; _settings.StartWithWindows = value; SaveSettings(); }
+        set { if (_settings.StartWithWindows == value) return; _settings.StartWithWindows = value; SaveStartupSettings(); }
     }
 
     public bool RunAsAdministrator
     {
-        get => _settings.RunAsAdministrator;
-        set { if (_settings.RunAsAdministrator == value) return; _settings.RunAsAdministrator = value; SaveSettings(); }
+        get => _settings.StartupRunElevated;
+        set { if (_settings.StartupRunElevated == value) return; _settings.StartupRunElevated = value; SaveStartupSettings(); }
     }
 
     public bool StartMinimized
     {
-        get => _settings.StartMinimized;
-        set { if (_settings.StartMinimized == value) return; _settings.StartMinimized = value; SaveSettings(); }
+        get => _settings.StartupWindowMode == StartupWindowMode.Minimized;
+        set { if (!value || _settings.StartupWindowMode == StartupWindowMode.Minimized) return; _settings.StartupWindowMode = StartupWindowMode.Minimized; SaveStartupSettings(); }
     }
 
     public bool MinimizeToTray
@@ -167,6 +172,7 @@ public sealed class SettingsViewModel : ViewModelBase
         CheckUpdatesCommand = new RelayCommand(_ => _ = CheckUpdatesAsync());
         OpenAppDataCommand = new RelayCommand(_ => OpenFolder(AppPaths.UserDataDirectory));
         OpenLogsCommand = new RelayCommand(_ => OpenFolder(Path.GetDirectoryName(LoggerService.Shared.Configuration.LogFilePath) ?? AppPaths.UserDataDirectory));
+        RepairStartupCommand = new RelayCommand(_ => SaveStartupSettings());
     }
 
     public void RefreshTexts()
@@ -212,6 +218,14 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         _runtime.SaveSettings(Clone(_settings));
         StatusMessage = _localization.T("Settings.Saved");
+        OnPropertyChanged(nameof(AdminStatus));
+    }
+
+    private void SaveStartupSettings()
+    {
+        _runtime.SaveSettings(Clone(_settings));
+        var status = _runtime.SettingsService.ApplyWindowsStartup(_runtime.Settings);
+        StatusMessage = status.Message;
         OnPropertyChanged(nameof(AdminStatus));
     }
 
@@ -268,8 +282,9 @@ public sealed class SettingsViewModel : ViewModelBase
     private static AppSettings Clone(AppSettings source) => new()
     {
         StartWithWindows = source.StartWithWindows,
-        StartMinimized = source.StartMinimized,
-        RunAsAdministrator = source.RunAsAdministrator,
+        StartupWindowMode = source.StartupWindowMode,
+        StartupRunElevated = source.StartupRunElevated,
+        StartupSettingsVersion = source.StartupSettingsVersion,
         MinimizeToTray = source.MinimizeToTray,
         CloseToTray = source.CloseToTray,
         Language = source.Language,

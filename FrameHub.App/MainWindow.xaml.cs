@@ -68,16 +68,13 @@ public partial class MainWindow : Window
         var args = Environment.GetCommandLineArgs();
         bool startToTray = args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
         bool startMinimizedArg = args.Any(a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase));
-        bool startMinimized = ViewModel?.Runtime.Settings.StartMinimized == true;
-        bool minimizeToTray = ViewModel?.Runtime.Settings.MinimizeToTray == true;
-
-        if (startToTray || (startMinimized && minimizeToTray))
+        if (startToTray)
         {
             HideToTray();
             return;
         }
 
-        if (startMinimizedArg || startMinimized)
+        if (startMinimizedArg)
         {
             WindowState = WindowState.Minimized;
         }

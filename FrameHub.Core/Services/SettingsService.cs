@@ -7,6 +7,7 @@ using System.IO;
 using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 
 namespace FrameHub.Core.Services
 {
@@ -15,6 +16,8 @@ namespace FrameHub.Core.Services
     /// </summary>
     public class SettingsService : IDisposable
     {
+        public enum WindowsStartupState { Disabled, Registry, ElevatedScheduledTask, Conflict, Broken }
+        public sealed record WindowsStartupStatus(WindowsStartupState State, string Message);
         private readonly string _filePath = AppPaths.GetUserDataFilePath("settings.json");
         private readonly string _appName = "FrameHub";
         private readonly string _exePath = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
@@ -39,7 +42,9 @@ namespace FrameHub.Core.Services
                 string? jsonContent = AtomicFileService.ReadAllTextWithBackup(_filePath);
                 if (string.IsNullOrWhiteSpace(jsonContent)) return new AppSettings();
                 var settings = JsonSerializer.Deserialize<AppSettings>(jsonContent) ?? new AppSettings();
-                return SanitizeSettings(settings);
+                settings = SanitizeSettings(settings);
+                StartupSettingsMigration.Apply(settings);
+                return settings;
             }
             catch (Exception ex)
             {
@@ -61,7 +66,50 @@ namespace FrameHub.Core.Services
                 _logger.Error("Failed to save settings", ex);
             }
 
-            ApplyWindowsStartup(settings);
+        }
+
+        public WindowsStartupStatus GetWindowsStartupStatus()
+        {
+            string? registryCommand = GetRegistryCommand();
+            var task = QueryScheduledTask();
+            if (registryCommand != null && task.Exists) return new(WindowsStartupState.Conflict, "Registry and scheduled task are both present.");
+            if (registryCommand == null && !task.Exists) return new(WindowsStartupState.Disabled, "Autostart disabled.");
+            if (registryCommand != null) return IsExpectedCommand(registryCommand) ? new(WindowsStartupState.Registry, "Autostart configured normally.") : new(WindowsStartupState.Broken, "Registry autostart command requires attention.");
+            return task.IsElevated && IsExpectedTask(task) ? new(WindowsStartupState.ElevatedScheduledTask, "Autostart configured with administrator privileges.") : new(WindowsStartupState.Broken, "Scheduled task requires attention.");
+        }
+
+        public StartupConfigurationEvaluation EvaluateStartupConfiguration(AppSettings settings)
+        {
+            var desired = new DesiredStartupConfiguration(settings.StartWithWindows, settings.StartupWindowMode, settings.StartupRunElevated);
+            return StartupConfigurationPlanner.Evaluate(desired, GetActualStartupConfiguration(desired));
+        }
+
+        public ActualStartupConfiguration GetActualStartupConfiguration(DesiredStartupConfiguration desired)
+        {
+            return new ActualStartupConfiguration(ReadRegistryStartup(desired), ReadScheduledTaskStartup(desired));
+        }
+
+        private RegistryStartupSnapshot ReadRegistryStartup(DesiredStartupConfiguration desired)
+        {
+            try
+            {
+                string? raw = GetRegistryCommand();
+                if (raw == null) return new(false, null, string.Empty, null, false, false, false);
+                var parsed = StartupCommandParser.Parse(raw);
+                string? path = NormalizePath(parsed.ExecutablePath);
+                bool expectedExe = PathsEqual(path, _exePath);
+                return new(true, path, parsed.Arguments, raw, path != null && File.Exists(path), expectedExe, string.Equals(parsed.Arguments, desired.Arguments, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex) { return new(false, null, string.Empty, null, false, false, false, false, ex.Message); }
+        }
+
+        private ScheduledTaskStartupSnapshot ReadScheduledTaskStartup(DesiredStartupConfiguration desired)
+        {
+            var task = QueryScheduledTaskXml();
+            if (!task.ReadSucceeded) return new(false, false, null, string.Empty, false, false, false, false, false, false, task.Error);
+            if (!task.Exists) return new(false, false, null, string.Empty, false, false, false, false, false);
+            string? path = NormalizePath(task.Command);
+            return new(true, task.Enabled, path, task.Arguments ?? string.Empty, path != null && File.Exists(path), task.HasLogonTrigger, task.IsElevated, PathsEqual(path, _exePath), string.Equals(task.Arguments ?? string.Empty, desired.Arguments, StringComparison.OrdinalIgnoreCase));
         }
 
         public bool IsRunAsAdmin()
@@ -92,7 +140,7 @@ namespace FrameHub.Core.Services
             }
         }
 
-        public void ApplyWindowsStartup(AppSettings settings)
+        public WindowsStartupStatus ApplyWindowsStartup(AppSettings settings)
         {
             try
             {
@@ -102,30 +150,28 @@ namespace FrameHub.Core.Services
                 if (!settings.StartWithWindows)
                 {
                     key?.DeleteValue(_appName, throwOnMissingValue: false);
-                    RemoveScheduledTask();
-                    return;
+                    if (!RemoveScheduledTask() && QueryScheduledTask().Exists)
+                        return new(WindowsStartupState.Broken, "Scheduled Task cleanup failed; autostart requires attention.");
+                    return GetWindowsStartupStatus();
                 }
 
-                if (settings.RunAsAdministrator)
+                if (settings.StartupRunElevated)
                 {
                     key?.DeleteValue(_appName, throwOnMissingValue: false);
 
-                    if (!IsRunAsAdmin())
-                    {
-                        _logger.Warn("Elevated autostart requires administrator rights. Restart as administrator first.");
-                        return;
-                    }
-
-                    CreateAdvancedScheduledTask(settings);
-                    return;
+                    if (!CreateAdvancedScheduledTask(settings)) return new(WindowsStartupState.Broken, "Elevated startup could not be configured. Run the repair action as administrator.");
+                    return GetWindowsStartupStatus();
                 }
 
-                RemoveScheduledTask();
-                key?.SetValue(_appName, $"{Quote(_exePath)} {BuildStartupArguments(settings.StartMinimized, settings.MinimizeToTray)}".Trim());
+                if (!RemoveScheduledTask() && QueryScheduledTask().Exists)
+                    return new(WindowsStartupState.Broken, "Scheduled Task cleanup failed; autostart requires attention.");
+                key?.SetValue(_appName, $"{Quote(_exePath)} {BuildStartupArguments(settings.StartupWindowMode)}".Trim());
+                return GetWindowsStartupStatus();
             }
             catch (Exception ex)
             {
                 _logger.Error("Failed to apply Windows startup configuration", ex);
+                return new(WindowsStartupState.Broken, ex.Message);
             }
         }
 
@@ -150,13 +196,13 @@ namespace FrameHub.Core.Services
             return settings;
         }
 
-        private void CreateAdvancedScheduledTask(AppSettings settings)
+        private bool CreateAdvancedScheduledTask(AppSettings settings)
         {
             string tempXmlFile = Path.Combine(Path.GetTempPath(), $"{_appName}_{Guid.NewGuid():N}.xml");
 
             try
             {
-                string arguments = BuildStartupArguments(settings.StartMinimized, settings.MinimizeToTray);
+                string arguments = BuildStartupArguments(settings.StartupWindowMode);
                 string xmlConfig = $@"<?xml version=""1.0"" encoding=""UTF-16""?>
 <Task version=""1.2"" xmlns=""http://schemas.microsoft.com/windows/2004/02/mit/task"">
   <Triggers>
@@ -200,14 +246,18 @@ namespace FrameHub.Core.Services
                     Arguments = $"/create /tn \"{_appName}\" /xml \"{tempXmlFile}\" /f",
                     CreateNoWindow = true,
                     UseShellExecute = false,
+                    RedirectStandardError = true,
                     WindowStyle = ProcessWindowStyle.Hidden
                 });
 
-                proc?.WaitForExit();
-                if (proc?.ExitCode != 0)
+                if (proc == null || !proc.WaitForExit(15000))
                 {
-                    _logger.Warn($"schtasks.exe returned exit code {proc?.ExitCode}");
+                    _logger.Warn("schtasks.exe create timed out or could not start.");
+                    return false;
                 }
+                string error = proc.StandardError.ReadToEnd();
+                if (proc.ExitCode != 0) { _logger.Warn($"schtasks.exe create failed: {proc.ExitCode}; {error}"); return false; }
+                return true;
             }
             finally
             {
@@ -222,7 +272,7 @@ namespace FrameHub.Core.Services
             }
         }
 
-        private void RemoveScheduledTask()
+        private bool RemoveScheduledTask()
         {
             try
             {
@@ -235,20 +285,77 @@ namespace FrameHub.Core.Services
                     WindowStyle = ProcessWindowStyle.Hidden
                 });
 
-                proc?.WaitForExit();
+                if (proc == null || !proc.WaitForExit(15000)) return false;
+                return proc.ExitCode == 0 || proc.ExitCode == 1;
             }
             catch (Exception ex)
             {
                 _logger.Debug($"Scheduled task cleanup skipped: {ex.Message}");
+                return false;
             }
         }
 
+        private string? GetRegistryCommand()
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run");
+            return key?.GetValue(_appName) as string;
+        }
+
+        private (bool Exists, bool IsElevated, string? Command, string? Arguments) QueryScheduledTask()
+        {
+            try
+            {
+                using var proc = Process.Start(new ProcessStartInfo { FileName = "schtasks.exe", Arguments = $"/query /tn \"{_appName}\" /xml", UseShellExecute = false, RedirectStandardOutput = true, CreateNoWindow = true });
+                if (proc == null || !proc.WaitForExit(10000) || proc.ExitCode != 0) return default;
+                var xml = XDocument.Parse(proc.StandardOutput.ReadToEnd());
+                XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
+                return (true, string.Equals(xml.Descendants(ns + "RunLevel").FirstOrDefault()?.Value, "HighestAvailable", StringComparison.OrdinalIgnoreCase), xml.Descendants(ns + "Command").FirstOrDefault()?.Value, xml.Descendants(ns + "Arguments").FirstOrDefault()?.Value);
+            }
+            catch { return default; }
+        }
+
+        private (bool ReadSucceeded, bool Exists, bool Enabled, bool HasLogonTrigger, bool IsElevated, string? Command, string? Arguments, string? Error) QueryScheduledTaskXml()
+        {
+            try
+            {
+                using var proc = Process.Start(new ProcessStartInfo { FileName = "schtasks.exe", Arguments = $"/query /tn \"{_appName}\" /xml", UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true });
+                if (proc == null) return (false, false, false, false, false, null, null, "Could not start schtasks.exe.");
+                var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+                var stderrTask = proc.StandardError.ReadToEndAsync();
+                if (!proc.WaitForExit(10000)) return (false, false, false, false, false, null, null, "schtasks query timed out.");
+                string stdout = stdoutTask.GetAwaiter().GetResult();
+                string stderr = stderrTask.GetAwaiter().GetResult();
+                if (proc.ExitCode != 0)
+                {
+                    bool missing = stderr.Contains("cannot find", StringComparison.OrdinalIgnoreCase) || stdout.Contains("cannot find", StringComparison.OrdinalIgnoreCase);
+                    return missing ? (true, false, false, false, false, null, null, null) : (false, false, false, false, false, null, null, $"schtasks query failed: {proc.ExitCode}; {stderr}");
+                }
+                var xml = XDocument.Parse(stdout);
+                XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
+                bool enabled = !bool.TryParse(xml.Descendants(ns + "Settings").Elements(ns + "Enabled").FirstOrDefault()?.Value, out bool parsedEnabled) || parsedEnabled;
+                bool logon = xml.Descendants(ns + "LogonTrigger").Any();
+                bool elevated = string.Equals(xml.Descendants(ns + "RunLevel").FirstOrDefault()?.Value, "HighestAvailable", StringComparison.OrdinalIgnoreCase);
+                return (true, true, enabled, logon, elevated, xml.Descendants(ns + "Command").FirstOrDefault()?.Value, xml.Descendants(ns + "Arguments").FirstOrDefault()?.Value, null);
+            }
+            catch (Exception ex) { return (false, false, false, false, false, null, null, ex.Message); }
+        }
+
+        private static string? NormalizePath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return null;
+            try { return Path.GetFullPath(path.Trim()); } catch { return path.Trim(); }
+        }
+
+        private static bool PathsEqual(string? left, string? right) => left != null && right != null && string.Equals(NormalizePath(left), NormalizePath(right), StringComparison.OrdinalIgnoreCase);
+
+        private bool IsExpectedCommand(string command) => command.StartsWith(Quote(_exePath), StringComparison.OrdinalIgnoreCase);
+        private bool IsExpectedTask((bool Exists, bool IsElevated, string? Command, string? Arguments) task) => string.Equals(task.Command, _exePath, StringComparison.OrdinalIgnoreCase);
+
         private static string Quote(string value) => $"\"{value}\"";
 
-        private static string BuildStartupArguments(bool startMinimized, bool startToTray)
+        private static string BuildStartupArguments(StartupWindowMode mode)
         {
-            if (startToTray) return "--tray";
-            return startMinimized ? "--minimized" : string.Empty;
+            return DesiredStartupConfiguration.GetArguments(mode);
         }
 
         private static string EscapeXml(string value)
