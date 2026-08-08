@@ -1,5 +1,6 @@
 using FrameHub.App.Helpers;
 using FrameHub.App.Services;
+using FrameHub.Core.Models;
 using FrameHub.Core.Services;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
@@ -37,7 +38,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public AppRuntimeService Runtime => _runtime;
 
     public string AppName { get; } = "FrameHub";
-    public string AppVersion { get; } = "0.4.0";
+    public string AppVersion { get; } = new AppInfo().Version;
     public string AppTagline => _localization.T("App.Tagline");
     public string LanguageLabel => _localization.T("Language.Label");
     public string CoreFoundationStatus => _localization.T("Status.CoreMigrated");
