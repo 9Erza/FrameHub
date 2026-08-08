@@ -4,8 +4,8 @@
              UseLayoutRounding="True"
              SnapsToDevicePixels="True">
     <!-- The page title and description are owned by MainWindow/ShellViewModel. -->
-    <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <Grid x:Name="ContentLayout" MaxWidth="1120" HorizontalAlignment="Left" Margin="0,0,0,24">
+    <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+        <Grid x:Name="ContentLayout" MaxWidth="1120" HorizontalAlignment="Stretch" Margin="0,0,0,24">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="24" />
