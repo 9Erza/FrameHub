@@ -284,6 +284,7 @@ public sealed class SettingsViewModel : ViewModelBase
         HardwareRefreshSeconds = source.HardwareRefreshSeconds,
         HardwareMonitorEnabled = source.HardwareMonitorEnabled,
         EnableStorageSensors = source.EnableStorageSensors,
-        CheckForUpdates = source.CheckForUpdates
+        CheckForUpdates = source.CheckForUpdates,
+        CustomLibraryLocations = source.CustomLibraryLocations.ToList()
     };
 }
