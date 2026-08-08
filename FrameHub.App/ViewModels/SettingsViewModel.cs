@@ -15,9 +15,14 @@ public sealed class SettingsViewModel : ViewModelBase
 {
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
+    private readonly StartupApplyCoordinator _startupApplyCoordinator;
     private readonly UpdateService _updateService = new();
     private AppSettings _settings;
     private string _statusMessage = string.Empty;
+    private string _realStartupStatus = string.Empty;
+    private bool _startupRequiresAttention;
+    private bool _isStartupBusy;
+    private int _startupApplyRequests;
 
     public ICommand RestartAsAdminCommand { get; }
     public ICommand CheckUpdatesCommand { get; }
@@ -34,6 +39,11 @@ public sealed class SettingsViewModel : ViewModelBase
     public string DiagnosticsTitle => _localization.T("Settings.DiagnosticsTitle");
     public string StartWithWindowsLabel => _localization.T("Settings.StartWithWindows");
     public string RunAsAdminLabel => _localization.T("Settings.RunAsAdmin");
+    public string StartupBehaviorLabel => _localization.T("Settings.StartupBehavior");
+    public string StartupNormalLabel => _localization.T("Settings.StartupNormal");
+    public string StartupMinimizedLabel => _localization.T("Settings.StartupMinimized");
+    public string StartupTrayLabel => _localization.T("Settings.StartupTray");
+    public string ApplyStartupText => _localization.T("Settings.ApplyStartup");
     public string StartMinimizedLabel => _localization.T("Settings.StartMinimized");
     public string MinimizeToTrayLabel => _localization.T("Settings.MinimizeToTray");
     public string CloseToTrayLabel => _localization.T("Settings.CloseToTray");
@@ -52,10 +62,14 @@ public sealed class SettingsViewModel : ViewModelBase
     public string OpenAppDataText => _localization.T("Settings.OpenAppData");
     public string OpenLogsText => _localization.T("Settings.OpenLogs");
     public string AdminStatus => _runtime.SettingsService.IsRunAsAdmin() ? _localization.T("Settings.AdminYes") : _localization.T("Settings.AdminNo");
-    public string StartupStatus => _runtime.SettingsService.GetWindowsStartupStatus().Message;
-    public bool StartupModeNormal { get => _settings.StartupWindowMode == StartupWindowMode.Normal; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Normal; SaveStartupSettings(); } }
-    public bool StartupModeMinimized { get => _settings.StartupWindowMode == StartupWindowMode.Minimized; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Minimized; SaveStartupSettings(); } }
-    public bool StartupModeTray { get => _settings.StartupWindowMode == StartupWindowMode.Tray; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Tray; SaveStartupSettings(); } }
+    public string StartupStatus => RealStartupStatus;
+    public string RealStartupStatus { get => _realStartupStatus; private set => SetProperty(ref _realStartupStatus, value); }
+    public bool StartupRequiresAttention { get => _startupRequiresAttention; private set => SetProperty(ref _startupRequiresAttention, value); }
+    public bool IsStartupBusy { get => _isStartupBusy; private set => SetProperty(ref _isStartupBusy, value); }
+    public bool StartupControlsEnabled => StartWithWindows && !IsStartupBusy;
+    public bool StartupModeNormal { get => _settings.StartupWindowMode == StartupWindowMode.Normal; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Normal; _ = SaveStartupSettingsAsync(); } }
+    public bool StartupModeMinimized { get => _settings.StartupWindowMode == StartupWindowMode.Minimized; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Minimized; _ = SaveStartupSettingsAsync(); } }
+    public bool StartupModeTray { get => _settings.StartupWindowMode == StartupWindowMode.Tray; set { if (!value) return; _settings.StartupWindowMode = StartupWindowMode.Tray; _ = SaveStartupSettingsAsync(); } }
 
     public string StatusMessage
     {
@@ -92,19 +106,19 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool StartWithWindows
     {
         get => _settings.StartWithWindows;
-        set { if (_settings.StartWithWindows == value) return; _settings.StartWithWindows = value; SaveStartupSettings(); }
+        set { if (_settings.StartWithWindows == value) return; _settings.StartWithWindows = value; OnPropertyChanged(nameof(StartupControlsEnabled)); _ = SaveStartupSettingsAsync(); }
     }
 
     public bool RunAsAdministrator
     {
         get => _settings.StartupRunElevated;
-        set { if (_settings.StartupRunElevated == value) return; _settings.StartupRunElevated = value; SaveStartupSettings(); }
+        set { if (_settings.StartupRunElevated == value) return; _settings.StartupRunElevated = value; _ = SaveStartupSettingsAsync(); }
     }
 
     public bool StartMinimized
     {
         get => _settings.StartupWindowMode == StartupWindowMode.Minimized;
-        set { if (!value || _settings.StartupWindowMode == StartupWindowMode.Minimized) return; _settings.StartupWindowMode = StartupWindowMode.Minimized; SaveStartupSettings(); }
+        set { if (!value || _settings.StartupWindowMode == StartupWindowMode.Minimized) return; _settings.StartupWindowMode = StartupWindowMode.Minimized; _ = SaveStartupSettingsAsync(); }
     }
 
     public bool MinimizeToTray
@@ -165,6 +179,7 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         _localization = localization;
         _runtime = runtime;
+        _startupApplyCoordinator = new StartupApplyCoordinator(runtime.SettingsService, LoggerService.Instance);
         _settings = Clone(runtime.Settings);
         StatusMessage = _localization.T("Settings.Saved");
 
@@ -172,7 +187,8 @@ public sealed class SettingsViewModel : ViewModelBase
         CheckUpdatesCommand = new RelayCommand(_ => _ = CheckUpdatesAsync());
         OpenAppDataCommand = new RelayCommand(_ => OpenFolder(AppPaths.UserDataDirectory));
         OpenLogsCommand = new RelayCommand(_ => OpenFolder(Path.GetDirectoryName(LoggerService.Shared.Configuration.LogFilePath) ?? AppPaths.UserDataDirectory));
-        RepairStartupCommand = new RelayCommand(_ => SaveStartupSettings());
+        RepairStartupCommand = new RelayCommand(_ => _ = SaveStartupSettingsAsync());
+        _ = RefreshStartupStatusAsync();
     }
 
     public void RefreshTexts()
@@ -186,6 +202,11 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(DiagnosticsTitle));
         OnPropertyChanged(nameof(StartWithWindowsLabel));
         OnPropertyChanged(nameof(RunAsAdminLabel));
+        OnPropertyChanged(nameof(StartupBehaviorLabel));
+        OnPropertyChanged(nameof(StartupNormalLabel));
+        OnPropertyChanged(nameof(StartupMinimizedLabel));
+        OnPropertyChanged(nameof(StartupTrayLabel));
+        OnPropertyChanged(nameof(ApplyStartupText));
         OnPropertyChanged(nameof(StartMinimizedLabel));
         OnPropertyChanged(nameof(MinimizeToTrayLabel));
         OnPropertyChanged(nameof(CloseToTrayLabel));
@@ -221,12 +242,61 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(AdminStatus));
     }
 
-    private void SaveStartupSettings()
+    private async Task SaveStartupSettingsAsync()
     {
         _runtime.SaveSettings(Clone(_settings));
-        var status = _runtime.SettingsService.ApplyWindowsStartup(_runtime.Settings);
-        StatusMessage = status.Message;
-        OnPropertyChanged(nameof(AdminStatus));
+        try
+        {
+            await ApplyStartupAsync();
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Error("Startup apply failed unexpectedly.", ex);
+            StartupRequiresAttention = true;
+            RealStartupStatus = $"{_localization.T("Settings.StartupRequiresAttention")} {ex.Message}";
+            StatusMessage = RealStartupStatus;
+        }
+    }
+
+    private async Task ApplyStartupAsync()
+    {
+        _startupApplyRequests++;
+        IsStartupBusy = true;
+        OnPropertyChanged(nameof(StartupControlsEnabled));
+        try
+        {
+            var desired = new DesiredStartupConfiguration(_settings.StartWithWindows, _settings.StartupWindowMode, _settings.StartupRunElevated);
+            var result = await _startupApplyCoordinator.ApplyLatestAsync(desired);
+            UpdateStartupStatus(result.FinalEvaluation, result.Error ?? (result.WasElevationCancelled ? _localization.T("Settings.StartupUacCancelled") : null));
+            StatusMessage = result.Success ? _localization.T("Settings.Saved") : RealStartupStatus;
+        }
+        finally
+        {
+            _startupApplyRequests--;
+            IsStartupBusy = _startupApplyRequests > 0;
+            OnPropertyChanged(nameof(StartupControlsEnabled));
+        }
+    }
+
+    private async Task RefreshStartupStatusAsync()
+    {
+        var desired = new DesiredStartupConfiguration(_settings.StartWithWindows, _settings.StartupWindowMode, _settings.StartupRunElevated);
+        var actual = await _runtime.SettingsService.ReadActualAsync(desired);
+        UpdateStartupStatus(StartupConfigurationPlanner.Evaluate(desired, actual), null);
+    }
+
+    private void UpdateStartupStatus(StartupConfigurationEvaluation evaluation, string? detail)
+    {
+        StartupRequiresAttention = evaluation.State is StartupConfigurationState.Broken or StartupConfigurationState.Conflict;
+        RealStartupStatus = evaluation.State switch
+        {
+            StartupConfigurationState.Disabled => _localization.T("Settings.StartupDisabled"),
+            StartupConfigurationState.Registry => _localization.T("Settings.StartupConfiguredNormally"),
+            StartupConfigurationState.ElevatedScheduledTask => _localization.T("Settings.StartupConfiguredElevated"),
+            StartupConfigurationState.Conflict => _localization.T("Settings.StartupConflict"),
+            _ => string.IsNullOrWhiteSpace(detail) ? _localization.T("Settings.StartupRequiresAttention") : $"{_localization.T("Settings.StartupRequiresAttention")} {detail}"
+        };
+        OnPropertyChanged(nameof(StartupStatus));
     }
 
     private async Task CheckUpdatesAsync()
@@ -277,6 +347,11 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(ProfileWatcherSeconds));
         OnPropertyChanged(nameof(HardwareRefreshSeconds));
         OnPropertyChanged(nameof(AdminStatus));
+        OnPropertyChanged(nameof(RealStartupStatus));
+        OnPropertyChanged(nameof(StartupStatus));
+        OnPropertyChanged(nameof(StartupRequiresAttention));
+        OnPropertyChanged(nameof(IsStartupBusy));
+        OnPropertyChanged(nameof(StartupControlsEnabled));
     }
 
     private static AppSettings Clone(AppSettings source) => new()

@@ -75,7 +75,7 @@ public class StartupConfigurationPlannerTests
     [TestMethod] public void RegistryAndTask_AreConflict() => Assert.AreEqual(StartupConfigurationState.Conflict, Evaluate(new(true, StartupWindowMode.Normal, false), Registry(true), Task(true)).State);
     [TestMethod] public void ElevatedTaskAndRegistry_AreConflict() => Assert.AreEqual(StartupConfigurationState.Conflict, Evaluate(new(true, StartupWindowMode.Normal, true), Registry(true), Task(true)).State);
     [TestMethod] public void TransitionToElevated_CreatesTaskThenRemovesRegistry() { var e = Evaluate(new(true, StartupWindowMode.Normal, true), Registry(true)); CollectionAssert.AreEqual(new[] { StartupOperation.CreateOrUpdateScheduledTask, StartupOperation.RemoveRegistry }, e.RequiredOperations.ToArray()); }
-    [TestMethod] public void TransitionToNonElevated_RemovesTaskThenCreatesRegistry() { var e = Evaluate(new(true, StartupWindowMode.Normal, false), task: Task(true)); CollectionAssert.AreEqual(new[] { StartupOperation.RemoveScheduledTask, StartupOperation.CreateOrUpdateRegistry }, e.RequiredOperations.ToArray()); }
+    [TestMethod] public void TransitionToNonElevated_CreatesRegistryThenRemovesTask() { var e = Evaluate(new(true, StartupWindowMode.Normal, false), task: Task(true)); CollectionAssert.AreEqual(new[] { StartupOperation.CreateOrUpdateRegistry, StartupOperation.RemoveScheduledTask }, e.RequiredOperations.ToArray()); }
 
     [DataTestMethod]
     [DataRow(true, false)]

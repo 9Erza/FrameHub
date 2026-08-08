@@ -21,9 +21,19 @@ public static class StartupConfigurationPlanner
         }
         if (actual.Registry.Exists && actual.Task.Exists)
         {
-            return new(StartupConfigurationState.Conflict, Array.Empty<StartupConfigurationReason>(), desired.RunElevated
-                ? new[] { StartupOperation.CreateOrUpdateScheduledTask, StartupOperation.RemoveRegistry }
-                : new[] { StartupOperation.RemoveScheduledTask, StartupOperation.CreateOrUpdateRegistry });
+            if (desired.RunElevated)
+            {
+                operations = !IsValidTask(actual.Task)
+                    ? new List<StartupOperation> { StartupOperation.CreateOrUpdateScheduledTask, StartupOperation.RemoveRegistry }
+                    : new List<StartupOperation> { StartupOperation.RemoveRegistry };
+            }
+            else
+            {
+                operations = !IsValidRegistry(actual.Registry)
+                    ? new List<StartupOperation> { StartupOperation.CreateOrUpdateRegistry, StartupOperation.RemoveScheduledTask }
+                    : new List<StartupOperation> { StartupOperation.RemoveScheduledTask };
+            }
+            return new(StartupConfigurationState.Conflict, Array.Empty<StartupConfigurationReason>(), operations);
         }
         if (desired.RunElevated)
         {
@@ -37,8 +47,8 @@ public static class StartupConfigurationPlanner
         if (actual.Task.Exists) reasons.Add(StartupConfigurationReason.UnexpectedScheduledTask);
         if (!IsValidRegistry(actual.Registry)) reasons.AddRange(RegistryReasons(actual.Registry));
         if (reasons.Count == 0) return new(StartupConfigurationState.Registry, reasons, operations);
-        if (actual.Task.Exists) operations.Add(StartupOperation.RemoveScheduledTask);
         operations.Add(StartupOperation.CreateOrUpdateRegistry);
+        if (actual.Task.Exists) operations.Add(StartupOperation.RemoveScheduledTask);
         return new(StartupConfigurationState.Broken, reasons, operations);
     }
 

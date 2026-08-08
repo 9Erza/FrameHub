@@ -40,8 +40,15 @@
                         <StackPanel>
                             <TextBlock Text="{Binding StartupTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14" />
                             <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding StartWithWindowsLabel}" IsChecked="{Binding StartWithWindows, Mode=TwoWay}" Margin="0,0,0,12" />
-                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding RunAsAdminLabel}" IsChecked="{Binding RunAsAdministrator, Mode=TwoWay}" Margin="0,0,0,12" />
-                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding StartMinimizedLabel}" IsChecked="{Binding StartMinimized, Mode=TwoWay}" Margin="0,0,0,16" />
+                            <TextBlock Text="{Binding StartupBehaviorLabel}" Style="{StaticResource SmallMutedText}" Margin="0,0,0,6" />
+                            <StackPanel Orientation="Horizontal" IsEnabled="{Binding StartupControlsEnabled}" Margin="0,0,0,12">
+                                <RadioButton Content="{Binding StartupNormalLabel}" IsChecked="{Binding StartupModeNormal, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,8,0" />
+                                <RadioButton Content="{Binding StartupMinimizedLabel}" IsChecked="{Binding StartupModeMinimized, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,8,0" />
+                                <RadioButton Content="{Binding StartupTrayLabel}" IsChecked="{Binding StartupModeTray, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" />
+                            </StackPanel>
+                            <CheckBox Style="{StaticResource ToggleSwitch}" Content="{Binding RunAsAdminLabel}" IsChecked="{Binding RunAsAdministrator, Mode=TwoWay}" IsEnabled="{Binding StartupControlsEnabled}" Margin="0,0,0,12" />
+                            <TextBlock Text="{Binding RealStartupStatus}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                            <Button Style="{StaticResource SecondaryButton}" Content="{Binding ApplyStartupText}" Command="{Binding RepairStartupCommand}" Margin="0,0,0,14" />
                             <StackPanel Orientation="Horizontal">
                                 <Button Style="{StaticResource SecondaryButton}" Content="{Binding RestartAsAdminText}" Command="{Binding RestartAsAdminCommand}" />
                                 <TextBlock Text="{Binding AdminStatus}" Style="{StaticResource SmallMutedText}" Margin="14,0,0,0" VerticalAlignment="Center" />

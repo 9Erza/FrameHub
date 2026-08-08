@@ -7,20 +7,20 @@ using System.IO;
 using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
-using System.Xml.Linq;
 
 namespace FrameHub.Core.Services
 {
     /// <summary>
     /// Handles settings persistence, Windows startup entries and elevation checks.
     /// </summary>
-    public class SettingsService : IDisposable
+    public class SettingsService : IDisposable, IStartupConfigurationBackend
     {
         public enum WindowsStartupState { Disabled, Registry, ElevatedScheduledTask, Conflict, Broken }
         public sealed record WindowsStartupStatus(WindowsStartupState State, string Message);
         private readonly string _filePath = AppPaths.GetUserDataFilePath("settings.json");
         private readonly string _appName = "FrameHub";
-        private readonly string _exePath = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+        private readonly string _exePath = GetCurrentExecutablePath();
+        private readonly ITaskSchedulerQuery _taskSchedulerQuery = new TaskSchedulerComQuery();
         private readonly ILogger _logger = LoggerService.Instance;
         private bool _disposed;
 
@@ -71,11 +71,12 @@ namespace FrameHub.Core.Services
         public WindowsStartupStatus GetWindowsStartupStatus()
         {
             string? registryCommand = GetRegistryCommand();
-            var task = QueryScheduledTask();
+            var task = ReadScheduledTaskStartup(new DesiredStartupConfiguration(true, StartupWindowMode.Normal, true));
+            if (!task.ReadSucceeded) return new(WindowsStartupState.Broken, "Scheduled Task state could not be read safely.");
             if (registryCommand != null && task.Exists) return new(WindowsStartupState.Conflict, "Registry and scheduled task are both present.");
             if (registryCommand == null && !task.Exists) return new(WindowsStartupState.Disabled, "Autostart disabled.");
             if (registryCommand != null) return IsExpectedCommand(registryCommand) ? new(WindowsStartupState.Registry, "Autostart configured normally.") : new(WindowsStartupState.Broken, "Registry autostart command requires attention.");
-            return task.IsElevated && IsExpectedTask(task) ? new(WindowsStartupState.ElevatedScheduledTask, "Autostart configured with administrator privileges.") : new(WindowsStartupState.Broken, "Scheduled task requires attention.");
+            return task.IsElevated && task.IsExpectedExecutable ? new(WindowsStartupState.ElevatedScheduledTask, "Autostart configured with administrator privileges.") : new(WindowsStartupState.Broken, "Scheduled task requires attention.");
         }
 
         public StartupConfigurationEvaluation EvaluateStartupConfiguration(AppSettings settings)
@@ -86,7 +87,105 @@ namespace FrameHub.Core.Services
 
         public ActualStartupConfiguration GetActualStartupConfiguration(DesiredStartupConfiguration desired)
         {
-            return new ActualStartupConfiguration(ReadRegistryStartup(desired), ReadScheduledTaskStartup(desired));
+            var actual = new ActualStartupConfiguration(ReadRegistryStartup(desired), ReadScheduledTaskStartup(desired));
+            _logger.Info($"Startup read. Registry: Succeeded={actual.Registry.ReadSucceeded}; Exists={actual.Registry.Exists}. Task: Succeeded={actual.Task.ReadSucceeded}; Exists={actual.Task.Exists}; TaskError={actual.Task.Error ?? "none"}.");
+            return actual;
+        }
+
+        public Task<ActualStartupConfiguration> ReadActualAsync(DesiredStartupConfiguration desired, CancellationToken cancellationToken = default)
+            => Task.Run(() => { cancellationToken.ThrowIfCancellationRequested(); return GetActualStartupConfiguration(desired); }, cancellationToken);
+
+        public Task<StartupOperationResult> ExecuteAsync(StartupOperation operation, DesiredStartupConfiguration desired, CancellationToken cancellationToken = default)
+            => Task.Run(() => ExecuteStartupOperation(operation, desired), cancellationToken);
+
+        public static int RunStartupHelper(IReadOnlyList<string> args)
+        {
+            if (!StartupHelperCommand.TryParse(args, out var command) || command == null) return 64;
+            using var service = new SettingsService();
+            bool success = command.Action == StartupHelperAction.RemoveTask
+                ? service.RemoveScheduledTask()
+                : service.CreateAdvancedScheduledTask(new AppSettings { StartupWindowMode = command.Mode });
+            service._logger.Info($"Startup helper {command.Action} completed: {success}.");
+            return success ? 0 : 1;
+        }
+
+        private StartupOperationResult ExecuteStartupOperation(StartupOperation operation, DesiredStartupConfiguration desired)
+        {
+            try
+            {
+                var result = operation switch
+                {
+                    StartupOperation.RemoveRegistry => new(RemoveRegistryStartup()),
+                    StartupOperation.CreateOrUpdateRegistry => new(CreateOrUpdateRegistryStartup(desired)),
+                    StartupOperation.CreateOrUpdateScheduledTask => ExecuteTaskOperation(new StartupHelperCommand(StartupHelperAction.CreateTask, desired.WindowMode)),
+                    StartupOperation.RemoveScheduledTask => ExecuteTaskRemoval(),
+                    _ => new(false, Error: "Unsupported startup operation.")
+                };
+                _logger.Info($"Startup operation {operation}. Success={result.Success}; DesiredMode={desired.WindowMode}; Error={result.Error ?? "none"}.");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Startup operation failed", ex);
+                return new(false, Error: ex.Message);
+            }
+        }
+
+        private bool RemoveRegistryStartup()
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", writable: true);
+            key?.DeleteValue(_appName, throwOnMissingValue: false);
+            return true;
+        }
+
+        private bool CreateOrUpdateRegistryStartup(DesiredStartupConfiguration desired)
+        {
+            if (string.IsNullOrWhiteSpace(_exePath) || !File.Exists(_exePath))
+            {
+                _logger.Error($"Startup Registry write rejected: current executable path is invalid ('{_exePath}').");
+                return false;
+            }
+            using var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", writable: true)
+                ?? Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", writable: true);
+            if (key == null) return false;
+            string expected = $"{Quote(_exePath)} {desired.Arguments}".Trim();
+            key.SetValue(_appName, expected, RegistryValueKind.String);
+            string? readBack = key.GetValue(_appName) as string;
+            bool verified = string.Equals(readBack, expected, StringComparison.Ordinal);
+            if (!verified) _logger.Warn($"Startup Registry write verification failed. Expected='{expected}'; Actual='{readBack ?? "<null>"}'.");
+            return verified;
+        }
+
+        private StartupOperationResult ExecuteTaskRemoval()
+        {
+            if (RemoveScheduledTask()) return new(true);
+            return ExecuteTaskOperation(new StartupHelperCommand(StartupHelperAction.RemoveTask, StartupWindowMode.Normal));
+        }
+
+        private StartupOperationResult ExecuteTaskOperation(StartupHelperCommand command)
+        {
+            if (IsRunAsAdmin())
+            {
+                bool success = command.Action == StartupHelperAction.RemoveTask ? RemoveScheduledTask() : CreateAdvancedScheduledTask(new AppSettings { StartupWindowMode = command.Mode });
+                return new(success, ElevationRequired: false, Error: success ? null : "Scheduled Task operation failed.");
+            }
+            try
+            {
+                using var process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = _exePath,
+                    Arguments = command.ToArguments(),
+                    UseShellExecute = true,
+                    Verb = "runas"
+                });
+                if (process == null || !process.WaitForExit(30000)) return new(false, true, false, "Elevated startup helper did not complete.");
+                return new(process.ExitCode == 0, true, false, process.ExitCode == 0 ? null : "Elevated startup helper failed.");
+            }
+            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            {
+                return new(false, true, true, "Administrator approval was cancelled.");
+            }
+            catch (Exception ex) { return new(false, true, false, ex.Message); }
         }
 
         private RegistryStartupSnapshot ReadRegistryStartup(DesiredStartupConfiguration desired)
@@ -105,11 +204,7 @@ namespace FrameHub.Core.Services
 
         private ScheduledTaskStartupSnapshot ReadScheduledTaskStartup(DesiredStartupConfiguration desired)
         {
-            var task = QueryScheduledTaskXml();
-            if (!task.ReadSucceeded) return new(false, false, null, string.Empty, false, false, false, false, false, false, task.Error);
-            if (!task.Exists) return new(false, false, null, string.Empty, false, false, false, false, false);
-            string? path = NormalizePath(task.Command);
-            return new(true, task.Enabled, path, task.Arguments ?? string.Empty, path != null && File.Exists(path), task.HasLogonTrigger, task.IsElevated, PathsEqual(path, _exePath), string.Equals(task.Arguments ?? string.Empty, desired.Arguments, StringComparison.OrdinalIgnoreCase));
+            return new ScheduledTaskStartupReader(_taskSchedulerQuery, _exePath).Read(desired);
         }
 
         public bool IsRunAsAdmin()
@@ -142,37 +237,9 @@ namespace FrameHub.Core.Services
 
         public WindowsStartupStatus ApplyWindowsStartup(AppSettings settings)
         {
-            try
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", writable: true)
-                              ?? Registry.CurrentUser.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", writable: true);
-
-                if (!settings.StartWithWindows)
-                {
-                    key?.DeleteValue(_appName, throwOnMissingValue: false);
-                    if (!RemoveScheduledTask() && QueryScheduledTask().Exists)
-                        return new(WindowsStartupState.Broken, "Scheduled Task cleanup failed; autostart requires attention.");
-                    return GetWindowsStartupStatus();
-                }
-
-                if (settings.StartupRunElevated)
-                {
-                    key?.DeleteValue(_appName, throwOnMissingValue: false);
-
-                    if (!CreateAdvancedScheduledTask(settings)) return new(WindowsStartupState.Broken, "Elevated startup could not be configured. Run the repair action as administrator.");
-                    return GetWindowsStartupStatus();
-                }
-
-                if (!RemoveScheduledTask() && QueryScheduledTask().Exists)
-                    return new(WindowsStartupState.Broken, "Scheduled Task cleanup failed; autostart requires attention.");
-                key?.SetValue(_appName, $"{Quote(_exePath)} {BuildStartupArguments(settings.StartupWindowMode)}".Trim());
-                return GetWindowsStartupStatus();
-            }
-            catch (Exception ex)
-            {
-                _logger.Error("Failed to apply Windows startup configuration", ex);
-                return new(WindowsStartupState.Broken, ex.Message);
-            }
+            var desired = new DesiredStartupConfiguration(settings.StartWithWindows, settings.StartupWindowMode, settings.StartupRunElevated);
+            var result = new StartupConfigurationExecutor(this).ApplyAsync(desired).GetAwaiter().GetResult();
+            return new((WindowsStartupState)result.FinalEvaluation.State, result.Error ?? result.FinalEvaluation.State.ToString());
         }
 
         private static AppSettings SanitizeSettings(AppSettings settings)
@@ -301,44 +368,6 @@ namespace FrameHub.Core.Services
             return key?.GetValue(_appName) as string;
         }
 
-        private (bool Exists, bool IsElevated, string? Command, string? Arguments) QueryScheduledTask()
-        {
-            try
-            {
-                using var proc = Process.Start(new ProcessStartInfo { FileName = "schtasks.exe", Arguments = $"/query /tn \"{_appName}\" /xml", UseShellExecute = false, RedirectStandardOutput = true, CreateNoWindow = true });
-                if (proc == null || !proc.WaitForExit(10000) || proc.ExitCode != 0) return default;
-                var xml = XDocument.Parse(proc.StandardOutput.ReadToEnd());
-                XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
-                return (true, string.Equals(xml.Descendants(ns + "RunLevel").FirstOrDefault()?.Value, "HighestAvailable", StringComparison.OrdinalIgnoreCase), xml.Descendants(ns + "Command").FirstOrDefault()?.Value, xml.Descendants(ns + "Arguments").FirstOrDefault()?.Value);
-            }
-            catch { return default; }
-        }
-
-        private (bool ReadSucceeded, bool Exists, bool Enabled, bool HasLogonTrigger, bool IsElevated, string? Command, string? Arguments, string? Error) QueryScheduledTaskXml()
-        {
-            try
-            {
-                using var proc = Process.Start(new ProcessStartInfo { FileName = "schtasks.exe", Arguments = $"/query /tn \"{_appName}\" /xml", UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true });
-                if (proc == null) return (false, false, false, false, false, null, null, "Could not start schtasks.exe.");
-                var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-                var stderrTask = proc.StandardError.ReadToEndAsync();
-                if (!proc.WaitForExit(10000)) return (false, false, false, false, false, null, null, "schtasks query timed out.");
-                string stdout = stdoutTask.GetAwaiter().GetResult();
-                string stderr = stderrTask.GetAwaiter().GetResult();
-                if (proc.ExitCode != 0)
-                {
-                    bool missing = stderr.Contains("cannot find", StringComparison.OrdinalIgnoreCase) || stdout.Contains("cannot find", StringComparison.OrdinalIgnoreCase);
-                    return missing ? (true, false, false, false, false, null, null, null) : (false, false, false, false, false, null, null, $"schtasks query failed: {proc.ExitCode}; {stderr}");
-                }
-                var xml = XDocument.Parse(stdout);
-                XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
-                bool enabled = !bool.TryParse(xml.Descendants(ns + "Settings").Elements(ns + "Enabled").FirstOrDefault()?.Value, out bool parsedEnabled) || parsedEnabled;
-                bool logon = xml.Descendants(ns + "LogonTrigger").Any();
-                bool elevated = string.Equals(xml.Descendants(ns + "RunLevel").FirstOrDefault()?.Value, "HighestAvailable", StringComparison.OrdinalIgnoreCase);
-                return (true, true, enabled, logon, elevated, xml.Descendants(ns + "Command").FirstOrDefault()?.Value, xml.Descendants(ns + "Arguments").FirstOrDefault()?.Value, null);
-            }
-            catch (Exception ex) { return (false, false, false, false, false, null, null, ex.Message); }
-        }
 
         private static string? NormalizePath(string? path)
         {
@@ -348,9 +377,13 @@ namespace FrameHub.Core.Services
 
         private static bool PathsEqual(string? left, string? right) => left != null && right != null && string.Equals(NormalizePath(left), NormalizePath(right), StringComparison.OrdinalIgnoreCase);
 
-        private bool IsExpectedCommand(string command) => command.StartsWith(Quote(_exePath), StringComparison.OrdinalIgnoreCase);
-        private bool IsExpectedTask((bool Exists, bool IsElevated, string? Command, string? Arguments) task) => string.Equals(task.Command, _exePath, StringComparison.OrdinalIgnoreCase);
+        private static string GetCurrentExecutablePath()
+        {
+            string? path = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;
+            return NormalizePath(path) ?? string.Empty;
+        }
 
+        private bool IsExpectedCommand(string command) => command.StartsWith(Quote(_exePath), StringComparison.OrdinalIgnoreCase);
         private static string Quote(string value) => $"\"{value}\"";
 
         private static string BuildStartupArguments(StartupWindowMode mode)
