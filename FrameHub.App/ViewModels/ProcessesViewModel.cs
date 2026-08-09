@@ -229,7 +229,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         foreach (var group in groupList)
         {
             var item = Processes.FirstOrDefault(p => p.Name.Equals(group.Name, StringComparison.OrdinalIgnoreCase));
-            var profile = _runtime.Profiles.FirstOrDefault(p => p.IsEnabled && p.ProcessName.Equals(group.Name, StringComparison.OrdinalIgnoreCase));
+            var profile = _runtime.Profiles.FirstOrDefault(p => p.IsEnabled && ProfileService.MatchesIdentity(p, group.Name, group.ExecutablePath));
             string tag = profile == null
                 ? string.Empty
                 : profile.OptimizationMode == OptimizationMode.CpuSets
@@ -243,6 +243,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
             }
 
             item.Id = group.FirstProcessId;
+            item.ExecutablePath = group.ExecutablePath;
             item.InstanceCount = group.InstanceCount;
             item.RamUsageMB = $"{group.TotalMemoryBytes / 1024 / 1024} MB";
             item.CpuUsage = $"{Math.Round(group.CpuUsagePercent, 1)}%";
@@ -257,7 +258,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     {
         if (SelectedProcess == null) return;
 
-        var profile = _runtime.Profiles.FirstOrDefault(p => p.IsEnabled && p.ProcessName.Equals(SelectedProcess.Name, StringComparison.OrdinalIgnoreCase));
+        var profile = _runtime.Profiles.FirstOrDefault(p => p.IsEnabled && ProfileService.MatchesIdentity(p, SelectedProcess.Name, SelectedProcess.ExecutablePath));
         if (profile != null)
         {
             SelectedPriority = PriorityService.Translate(profile.Priority, _localization.CurrentLanguage);
@@ -313,6 +314,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         {
             ProcessName = SelectedProcess.Name,
             DisplayName = SelectedProcess.Name,
+            ExecutablePath = SelectedProcess.ExecutablePath,
             AffinityMask = mask,
             Priority = PriorityService.Normalize(SelectedPriority, _runtime.Settings.AllowRealtimePriority),
             OptimizationMode = SelectedOptimizationMode,

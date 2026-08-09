@@ -14,7 +14,6 @@ namespace FrameHub.Core.Services
 
         public static string GetUserDataFilePath(string fileName)
         {
-            Directory.CreateDirectory(UserDataDirectory);
             return Path.Combine(UserDataDirectory, fileName);
         }
 
@@ -32,17 +31,20 @@ namespace FrameHub.Core.Services
 
         public static void MigrateLegacyFileIfNeeded(string fileName)
         {
-            Directory.CreateDirectory(UserDataDirectory);
-
-            string legacyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-            string newPath = GetUserDataFilePath(fileName);
-
-            if (!File.Exists(legacyPath) || File.Exists(newPath))
+            try
             {
-                return;
-            }
+                Directory.CreateDirectory(UserDataDirectory);
 
-            File.Copy(legacyPath, newPath, overwrite: false);
+                string legacyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+                string newPath = GetUserDataFilePath(fileName);
+
+                if (!File.Exists(legacyPath) || File.Exists(newPath)) return;
+                File.Copy(legacyPath, newPath, overwrite: false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                // Migration is best-effort; callers can continue with defaults if user storage is unavailable.
+            }
         }
     }
 }

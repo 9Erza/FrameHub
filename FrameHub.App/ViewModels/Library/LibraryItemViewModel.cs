@@ -47,14 +47,7 @@ public sealed class LibraryItemViewModel : ViewModelBase
                 return true;
             }
 
-            if (!string.IsNullOrWhiteSpace(Item.ExecutablePath) && profiles.Any(p => !string.IsNullOrWhiteSpace(p.ExecutablePath) && p.ExecutablePath.Equals(Item.ExecutablePath, StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-
-            string itemProcessName = ProfileService.NormalizeProcessName(Item.ProcessName);
-            return !string.IsNullOrWhiteSpace(itemProcessName)
-                && profiles.Any(p => ProfileService.NormalizeProcessName(p.ProcessName).Equals(itemProcessName, StringComparison.OrdinalIgnoreCase));
+            return profiles.Any(p => ProfileService.MatchesIdentity(p, Item.ProcessName, Item.ExecutablePath));
         }
     }
 

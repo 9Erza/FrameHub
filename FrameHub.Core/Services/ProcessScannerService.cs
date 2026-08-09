@@ -176,6 +176,7 @@ namespace FrameHub.Core.Services
                 double totalCpu = 0;
                 ProcessPriorityClass priority = ProcessPriorityClass.Normal;
                 var instances = new List<ProcessInstanceKey>();
+                var executablePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 int firstPid = 0;
 
                 foreach (var process in group)
@@ -188,6 +189,8 @@ namespace FrameHub.Core.Services
                         var key = CreateInstanceKey(process);
                         instances.Add(key);
                         activeInstances.Add(key);
+                        string? executablePath = TryGetProcessPath(process);
+                        if (!string.IsNullOrWhiteSpace(executablePath)) executablePaths.Add(NormalizeExecutablePath(executablePath)!);
 
                         if (includeResources)
                         {
@@ -214,6 +217,7 @@ namespace FrameHub.Core.Services
                 snapshots.Add(new ProcessGroupSnapshot
                 {
                     Name = group.Key,
+                    ExecutablePath = executablePaths.Count == 1 ? executablePaths.Single() : null,
                     FirstProcessId = firstPid,
                     InstanceCount = instances.Count,
                     TotalMemoryBytes = totalMemory,

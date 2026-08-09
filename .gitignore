@@ -1,5 +1,6 @@
 # Visual Studio
 .vs/
+.idea/
 *.user
 *.suo
 *.userosscache
@@ -8,6 +9,8 @@
 # Build output
 bin/
 obj/
+artifacts/
+TestResults/
 
 # Logs
 *.log

@@ -394,6 +394,8 @@ public sealed class SettingsViewModel : ViewModelBase
         ProfileWatcherSeconds = source.ProfileWatcherSeconds,
         HardwareRefreshSeconds = source.HardwareRefreshSeconds,
         HardwareMonitorEnabled = source.HardwareMonitorEnabled,
+        Cs2SteamUserdataId = source.Cs2SteamUserdataId,
+        Cs2SteamUserdataPath = source.Cs2SteamUserdataPath,
         EnableStorageSensors = source.EnableStorageSensors,
         CheckForUpdates = source.CheckForUpdates,
         CustomLibraryLocations = source.CustomLibraryLocations.ToList()

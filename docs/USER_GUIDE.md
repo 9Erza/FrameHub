@@ -12,4 +12,4 @@ For CS2, close the game before scanning, editing, or restoring config. FrameHub 
 
 Troubleshooting: refresh the library/process list, verify the executable path, close CS2 before config edits, and use Logs for failure details. Protected processes can require administrator permission.
 
-When CS2 config is detected in exactly one Steam userdata folder, FrameHub uses it automatically. If several valid folders exist, choose the numeric Steam userdata ID in the CS2 detail view. Until then, FrameHub blocks editable config reads and all CS2 write actions.
+When CS2 config is detected in exactly one Steam userdata folder, FrameHub uses it automatically. If several valid folders exist, choose the numeric Steam userdata ID in the CS2 detail view. Until then, FrameHub blocks editable config reads and all CS2 write actions. New backups are kept separate for each resolved userdata path.

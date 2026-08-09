@@ -14,7 +14,7 @@ namespace FrameHub.Core.Models
         #region Private Backing Fields
 
         private string _id = Guid.NewGuid().ToString("N");
-        private int _schemaVersion = 2;
+        private int _schemaVersion = 3;
         private OptimizationMode _optimizationMode = OptimizationMode.Affinity;
         private string _processName = string.Empty;
         private string _displayName = string.Empty;
@@ -44,7 +44,7 @@ namespace FrameHub.Core.Models
         public int SchemaVersion
         {
             get => _schemaVersion;
-            set => SetProperty(ref _schemaVersion, value <= 0 ? 2 : value);
+            set => SetProperty(ref _schemaVersion, value <= 0 ? 3 : value);
         }
 
         #endregion
@@ -70,7 +70,7 @@ namespace FrameHub.Core.Models
         }
 
         /// <summary>
-        /// Optional executable path reserved for future path-bound profiles.
+        /// Optional normalized executable path used for path-bound profile identity.
         /// </summary>
         public string? ExecutablePath
         {

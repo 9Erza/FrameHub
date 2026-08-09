@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace FrameHub.Core.Services.GameOptimization;
 
@@ -23,9 +25,9 @@ public sealed class Cs2OptimizationService
         return (item.ExecutablePath ?? string.Empty).EndsWith("cs2.exe", StringComparison.OrdinalIgnoreCase);
     }
 
-    public Cs2ConfigAnalysis Analyze(LibraryItem item, string? selectedUserdataId = null)
+    public Cs2ConfigAnalysis Analyze(LibraryItem item, string? selectedUserdataId = null, string? selectedUserdataPath = null)
     {
-        var resolution = ResolveUserdataAccounts(FindSteamRoots(), selectedUserdataId);
+        var resolution = ResolveUserdataAccounts(FindSteamRoots(), selectedUserdataId, selectedUserdataPath);
         var paths = DetectConfigPaths(item, resolution.Selected);
         var video = ValveConfigParser.ReadKeyValues(paths.VideoConfigPath);
         var machine = ValveConfigParser.ReadKeyValues(paths.MachineConvarsPath);
@@ -48,8 +50,9 @@ public sealed class Cs2OptimizationService
         }
 
         analysis.Summary = BuildSummary(video);
+        if (!resolution.IsResolved) return analysis;
 
-        var backupSettings = ReadLatestBackupSettings();
+        var backupSettings = ReadLatestBackupSettings(analysis);
         if (backupSettings?.Video is { Count: > 0 })
         {
             analysis.Presets.Add(BuildBackupPreset(video, machine, backupSettings.Video, backupSettings.Machine));
@@ -71,12 +74,16 @@ public sealed class Cs2OptimizationService
     {
         try
         {
+            if (!analysis.UserdataResolution.IsResolved)
+            {
+                return new GameConfigBackupResult { Success = false, Message = "Steam userdata account is unresolved." };
+            }
             if (!analysis.Paths.IsComplete)
             {
                 return new GameConfigBackupResult { Success = false, Message = "Nie wykryto konfiguracji CS2." };
             }
 
-            string backupRoot = CreateUniqueBackupDirectory(Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2"), DateTime.Now);
+            string backupRoot = CreateUniqueBackupDirectory(GetAccountBackupRoot(analysis), DateTime.Now);
             Directory.CreateDirectory(backupRoot);
 
             CopyIfExists(analysis.Paths.VideoConfigPath, backupRoot);
@@ -187,10 +194,11 @@ public sealed class Cs2OptimizationService
     {
         try
         {
-            string root = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2");
-            if (!Directory.Exists(root)) return new GameConfigBackupResult { Success = false, Message = "Nie znaleziono folderu kopii zapasowych CS2." };
-
-            string? latest = Directory.GetDirectories(root).OrderByDescending(x => x).FirstOrDefault();
+            if (!analysis.UserdataResolution.IsResolved)
+            {
+                return new GameConfigBackupResult { Success = false, Message = "Steam userdata account is unresolved." };
+            }
+            string? latest = FindLatestBackupDirectory(analysis);
             if (latest == null) return new GameConfigBackupResult { Success = false, Message = "Nie znaleziono kopii zapasowej CS2." };
 
             int restored = 0;
@@ -223,6 +231,10 @@ public sealed class Cs2OptimizationService
     {
         try
         {
+            if (!analysis.UserdataResolution.IsResolved)
+            {
+                return new Cs2AutoexecResult { Success = false, Message = "Steam userdata account is unresolved." };
+            }
             string? path = GetAutoexecPath(analysis);
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -271,6 +283,10 @@ public sealed class Cs2OptimizationService
     {
         try
         {
+            if (!analysis.UserdataResolution.IsResolved)
+            {
+                return new GameConfigApplyResult { Success = false, Message = "Steam userdata account is unresolved." };
+            }
             string? path = GetAutoexecPath(analysis);
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -280,7 +296,7 @@ public sealed class Cs2OptimizationService
             string backupFolder = string.Empty;
             if (File.Exists(path))
             {
-                backupFolder = CreateUniqueBackupDirectory(Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2"), DateTime.Now, "_autoexec");
+                backupFolder = CreateUniqueBackupDirectory(GetAccountBackupRoot(analysis), DateTime.Now, "_autoexec");
                 File.Copy(path, Path.Combine(backupFolder, "autoexec.cfg"), overwrite: true);
             }
 
@@ -376,7 +392,7 @@ public sealed class Cs2OptimizationService
         return null;
     }
 
-    public static Cs2UserdataResolution ResolveUserdataAccounts(IEnumerable<string> steamRoots, string? rememberedUserdataId)
+    public static Cs2UserdataResolution ResolveUserdataAccounts(IEnumerable<string> steamRoots, string? rememberedUserdataId, string? rememberedUserdataPath = null)
     {
         var candidates = new List<SteamUserdataAccountCandidate>();
         foreach (string root in steamRoots.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -394,7 +410,15 @@ public sealed class Cs2OptimizationService
 
         var result = new Cs2UserdataResolution { Candidates = candidates.OrderBy(x => x.UserdataId, StringComparer.Ordinal).ToList() };
         if (result.Candidates.Count == 1) result.Selected = result.Candidates[0];
-        else if (!string.IsNullOrWhiteSpace(rememberedUserdataId)) result.Selected = result.Candidates.FirstOrDefault(x => x.UserdataId.Equals(rememberedUserdataId.Trim(), StringComparison.Ordinal));
+        else if (!string.IsNullOrWhiteSpace(rememberedUserdataId))
+        {
+            var idMatches = result.Candidates.Where(x => x.UserdataId.Equals(rememberedUserdataId.Trim(), StringComparison.Ordinal)).ToList();
+            if (idMatches.Count == 1) result.Selected = idMatches[0];
+            else if (idMatches.Count > 1 && NormalizePath(rememberedUserdataPath) is string rememberedPath)
+            {
+                result.Selected = idMatches.FirstOrDefault(x => x.DirectoryPath.Equals(rememberedPath, StringComparison.OrdinalIgnoreCase));
+            }
+        }
         return result;
     }
 
@@ -724,13 +748,11 @@ public sealed class Cs2OptimizationService
         };
     }
 
-    private static Cs2BackupSettings? ReadLatestBackupSettings()
+    private static Cs2BackupSettings? ReadLatestBackupSettings(Cs2ConfigAnalysis analysis)
     {
         try
         {
-            string root = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2");
-            if (!Directory.Exists(root)) return null;
-            string? latest = Directory.GetDirectories(root).OrderByDescending(x => x).FirstOrDefault();
+            string? latest = FindLatestBackupDirectory(analysis);
             if (latest == null) return null;
 
             string video = Path.Combine(latest, "cs2_video.txt");
@@ -749,6 +771,35 @@ public sealed class Cs2OptimizationService
         {
             return null;
         }
+    }
+
+    private static string GetAccountBackupRoot(Cs2ConfigAnalysis analysis)
+    {
+        var account = analysis.UserdataResolution.Selected ?? throw new InvalidOperationException("Steam userdata account is unresolved.");
+        string safeId = new string(account.UserdataId.Select(ch => char.IsLetterOrDigit(ch) ? ch : '_').ToArray());
+        string normalizedPath = NormalizePath(account.DirectoryPath)?.ToUpperInvariant() ?? account.DirectoryPath;
+        string pathHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedPath)))[..8];
+        return Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2", $"{safeId}_{pathHash}");
+    }
+
+    private static string? FindLatestBackupDirectory(Cs2ConfigAnalysis analysis)
+    {
+        var candidates = new List<string>();
+        string accountRoot = GetAccountBackupRoot(analysis);
+        if (Directory.Exists(accountRoot)) candidates.AddRange(Directory.GetDirectories(accountRoot));
+
+        // Old backups had no account identity. They are safe to offer only when one account is valid.
+        if (analysis.UserdataResolution.Candidates.Count == 1)
+        {
+            string legacyRoot = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2");
+            if (Directory.Exists(legacyRoot))
+            {
+                candidates.AddRange(Directory.GetDirectories(legacyRoot)
+                    .Where(path => File.Exists(Path.Combine(path, "cs2_video.txt")) || File.Exists(Path.Combine(path, "autoexec.cfg"))));
+            }
+        }
+
+        return candidates.OrderByDescending(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase).FirstOrDefault();
     }
 
     private static List<GameSettingOption> ResolutionOptions() => new()

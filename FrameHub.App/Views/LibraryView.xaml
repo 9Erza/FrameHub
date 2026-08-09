@@ -98,10 +98,12 @@
                     <TabItem Header="{Binding CpuTabTitle}">
                         <Grid Margin="0,16,0,0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.25*" />
-                                <ColumnDefinition Width="16" />
-                                <ColumnDefinition Width="0.75*" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
                             <Border Grid.Column="0" Style="{StaticResource CardBorder}">
                                 <StackPanel>
@@ -191,7 +193,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Column="2" Style="{StaticResource SectionSurface}">
+                            <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource SectionSurface}" Margin="0,16,0,0">
                                 <StackPanel>
                                     <TextBlock Text="{Binding CpuInfoTitle}" Style="{StaticResource SectionTitleText}" />
                                     <TextBlock Text="{Binding DetectedProcessorLabel}" Style="{StaticResource TinyCapsText}" Margin="0,16,0,4" />
@@ -248,7 +250,7 @@
                                 <TextBlock Text="{Binding Cs2EditLockMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{StaticResource BrushWarning}" />
 
                                 <StackPanel Visibility="{Binding NeedsCs2AccountSelection, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,12">
-                                    <TextBlock Text="Steam userdata ID" Style="{StaticResource TinyCapsText}" Margin="0,0,0,4" />
+                                    <TextBlock Text="{Binding Cs2AccountLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,4" />
                                     <ComboBox ItemsSource="{Binding Cs2Accounts}" SelectedItem="{Binding SelectedCs2Account}" DisplayMemberPath="UserdataId" Width="260" HorizontalAlignment="Left" />
                                     <TextBlock Text="{Binding Cs2AccountSelectionMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,5,0,0" />
                                 </StackPanel>

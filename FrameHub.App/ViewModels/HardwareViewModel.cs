@@ -15,6 +15,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     private bool _disposed;
     private bool _pollInProgress;
     private CancellationTokenSource? _pollCancellation;
+    private bool _closeSensorsAfterPoll;
     private double _cpuTemp;
     private double _gpuTemp;
     private double _gpuLoad;
@@ -86,9 +87,9 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
 
     private void StartMonitor()
     {
+        _closeSensorsAfterPoll = false;
         _hardwareMonitor ??= new HardwareMonitorService(_runtime.Settings.EnableStorageSensors);
         _hardwareMonitor.Configure(_runtime.Settings.EnableStorageSensors);
-        _hardwareMonitor.Start();
         _timer.Start();
         _ = UpdateMetricsAsync();
         _runtime.AddActivity("Hardware monitor enabled.");
@@ -98,11 +99,18 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     {
         _timer.Stop();
         _pollCancellation?.Cancel();
-        _hardwareMonitor?.Stop(closeSensors);
-        if (closeSensors)
+        if (closeSensors && _pollInProgress)
         {
-            _hardwareMonitor?.Dispose();
-            _hardwareMonitor = null;
+            _closeSensorsAfterPoll = true;
+        }
+        else
+        {
+            _hardwareMonitor?.Stop(closeSensors);
+            if (closeSensors)
+            {
+                _hardwareMonitor?.Dispose();
+                _hardwareMonitor = null;
+            }
         }
         _runtime.AddActivity("Hardware monitor disabled.");
     }
@@ -133,6 +141,12 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         finally
         {
             _pollInProgress = false;
+            if (_closeSensorsAfterPoll)
+            {
+                _closeSensorsAfterPoll = false;
+                _hardwareMonitor?.Dispose();
+                _hardwareMonitor = null;
+            }
         }
     }
 

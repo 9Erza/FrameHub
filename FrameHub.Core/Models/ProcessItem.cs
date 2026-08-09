@@ -17,6 +17,7 @@ namespace FrameHub.Core.Models
 
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
+        public string? ExecutablePath { get; set; }
         public string DisplayName => Name;
         public string ModeDisplay => string.IsNullOrEmpty(ModeTag) ? "-" : ModeTag;
 

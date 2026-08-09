@@ -367,6 +367,7 @@ public sealed class LibraryViewModel : ViewModelBase
             if (value != null)
             {
                 _runtime.Settings.Cs2SteamUserdataId = value.UserdataId;
+                _runtime.Settings.Cs2SteamUserdataPath = value.DirectoryPath;
                 _runtime.SaveSettings(_runtime.Settings);
                 AnalyzeCs2IfSelected();
             }
@@ -374,9 +375,14 @@ public sealed class LibraryViewModel : ViewModelBase
             OnPropertyChanged(nameof(CanEditCs2Config));
         }
     }
-    public string Cs2AccountSelectionMessage => IsPolish ? "Wykryto kilka profili Steam. Wybierz konto używane przez Counter-Strike 2." : "Multiple Steam profiles were detected. Select the account used by Counter-Strike 2.";
+    public string Cs2AccountLabel => _localization.T("CS2.Account.Label");
+    public string Cs2AccountSelectionMessage => _localization.T("CS2.Account.Multiple");
     public bool CanEditCs2Config => (!IsCs2Selected || !IsCs2Running) && !NeedsCs2AccountSelection && (_cs2Analysis?.UserdataResolution.IsResolved ?? true);
-    public string Cs2EditLockMessage => IsCs2Running ? Cs2RunningLockText : Cs2StoppedEditText;
+    public string Cs2EditLockMessage => IsCs2Running
+        ? Cs2RunningLockText
+        : IsCs2Selected && _cs2Analysis != null && !_cs2Analysis.UserdataResolution.IsResolved
+            ? _localization.T("CS2.Account.Unresolved")
+            : Cs2StoppedEditText;
     public string SelectedItemTitle => SelectedItem?.DisplayName ?? NoSelectionText;
 
     public string SelectedPriority
@@ -493,7 +499,7 @@ public sealed class LibraryViewModel : ViewModelBase
         ClearAllCoresCommand = new RelayCommand(_ => SetAllCores(false));
         DisableSmtCommand = new RelayCommand(_ => DisableSmtThreads());
         DisableECoresCommand = new RelayCommand(_ => DisableEfficiencyCores());
-        ScanCs2Command = new RelayCommand(_ => AnalyzeCs2IfSelected(), _ => IsCs2Selected && CanEditCs2Config);
+        ScanCs2Command = new RelayCommand(_ => AnalyzeCs2IfSelected(), _ => IsCs2Selected && !IsCs2Running);
         BackupCs2Command = new RelayCommand(_ => BackupCs2(), _ => IsCs2Selected && _cs2Analysis?.Paths.IsComplete == true && CanEditCs2Config);
         ApplyCs2PresetCommand = new RelayCommand(_ => ApplyCs2Preset(), _ => IsCs2Selected && SelectedCs2Preset != null && _cs2Analysis?.Paths.IsComplete == true && CanEditCs2Config);
         RestoreCs2BackupCommand = new RelayCommand(_ => RestoreLatestCs2Backup(), _ => IsCs2Selected && CanEditCs2Config);
@@ -785,18 +791,8 @@ public sealed class LibraryViewModel : ViewModelBase
         var byLibraryItemId = _runtime.Profiles.FirstOrDefault(p => p.LibraryItemId?.Equals(SelectedItem.Item.Id, StringComparison.OrdinalIgnoreCase) == true);
         if (byLibraryItemId != null) return byLibraryItemId;
 
-        if (!string.IsNullOrWhiteSpace(SelectedItem.Item.ExecutablePath))
-        {
-            var byExecutablePath = _runtime.Profiles.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.ExecutablePath) && p.ExecutablePath.Equals(SelectedItem.Item.ExecutablePath, StringComparison.OrdinalIgnoreCase));
-            if (byExecutablePath != null) return byExecutablePath;
-        }
-
-        string selectedProcessName = ProfileService.NormalizeProcessName(SelectedItem.Item.ProcessName);
-        if (!string.IsNullOrWhiteSpace(selectedProcessName))
-        {
-            var byProcessName = _runtime.Profiles.FirstOrDefault(p => ProfileService.NormalizeProcessName(p.ProcessName).Equals(selectedProcessName, StringComparison.OrdinalIgnoreCase));
-            if (byProcessName != null) return byProcessName;
-        }
+        var byIdentity = _runtime.Profiles.FirstOrDefault(p => ProfileService.MatchesIdentity(p, SelectedItem.Item.ProcessName, SelectedItem.Item.ExecutablePath));
+        if (byIdentity != null) return byIdentity;
 
         return null;
     }
@@ -931,8 +927,7 @@ public sealed class LibraryViewModel : ViewModelBase
             return false;
         }
 
-        var competitivePreset = _cs2Analysis.Presets.FirstOrDefault(preset => preset.Id.Equals("cs2_competitive_baseline", StringComparison.OrdinalIgnoreCase))
-            ?? _cs2Service.Analyze(SelectedItem!.Item).Presets.FirstOrDefault(preset => preset.Id.Equals("cs2_competitive_baseline", StringComparison.OrdinalIgnoreCase));
+        var competitivePreset = _cs2Analysis.Presets.FirstOrDefault(preset => preset.Id.Equals("cs2_competitive_baseline", StringComparison.OrdinalIgnoreCase));
 
         if (competitivePreset == null)
         {
@@ -952,10 +947,13 @@ public sealed class LibraryViewModel : ViewModelBase
         }
 
         var result = _cs2Service.ApplyPreset(_cs2Analysis, competitivePreset);
-        Cs2StatusMessage = result.Message;
+        string userMessage = result.Success
+            ? string.Format(_localization.T("CS2.Operation.ApplySuccess"), result.AppliedChanges, result.BackupFolder)
+            : _localization.T("CS2.Operation.ApplyFailed");
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
         AnalyzeCs2IfSelected();
-        message = result.Message;
+        Cs2StatusMessage = userMessage;
+        message = userMessage;
         return result.Success;
     }
 
@@ -1182,15 +1180,25 @@ public sealed class LibraryViewModel : ViewModelBase
             return;
         }
 
-        _cs2Analysis = _cs2Service.Analyze(SelectedItem.Item, _runtime.Settings.Cs2SteamUserdataId);
+        _cs2Analysis = _cs2Service.Analyze(SelectedItem.Item, _runtime.Settings.Cs2SteamUserdataId, _runtime.Settings.Cs2SteamUserdataPath);
         Cs2Accounts.Clear();
         foreach (var account in _cs2Analysis.UserdataResolution.Candidates) Cs2Accounts.Add(account);
         _selectedCs2Account = _cs2Analysis.UserdataResolution.Selected;
         OnPropertyChanged(nameof(SelectedCs2Account));
         OnPropertyChanged(nameof(NeedsCs2AccountSelection));
         OnPropertyChanged(nameof(CanEditCs2Config));
-        Cs2StatusMessage = _cs2Analysis.StatusMessage;
-        foreach (var preset in _cs2Analysis.Presets) Cs2Presets.Add(preset);
+        OnPropertyChanged(nameof(Cs2EditLockMessage));
+        Cs2StatusMessage = !_cs2Analysis.UserdataResolution.IsResolved
+            ? (_cs2Analysis.UserdataResolution.Candidates.Count > 1
+                ? _localization.T("CS2.Account.Multiple")
+                : _localization.T("CS2.Account.None"))
+            : (_cs2Analysis.Paths.IsComplete ? _localization.T("CS2.Detected") : _localization.T("CS2.NotDetected"));
+        foreach (var preset in _cs2Analysis.Presets)
+        {
+            string localizedName = _localization.T($"CS2.Preset.{preset.Id}.Name");
+            if (!localizedName.StartsWith("CS2.Preset.", StringComparison.OrdinalIgnoreCase)) preset.DisplayName = localizedName;
+            Cs2Presets.Add(preset);
+        }
 
         if (selectCustomPresetAfterScan)
         {
@@ -1434,7 +1442,9 @@ public sealed class LibraryViewModel : ViewModelBase
         {
             Cs2AutoexecText = result.Content;
         }
-        Cs2AutoexecStatusMessage = result.Message;
+        Cs2AutoexecStatusMessage = result.Success
+            ? string.Format(_localization.T("CS2.Operation.AutoexecLoaded"), result.Path)
+            : _localization.T("CS2.Operation.AutoexecLoadFailed");
         OnPropertyChanged(nameof(Cs2AutoexecPath));
     }
 
@@ -1443,7 +1453,9 @@ public sealed class LibraryViewModel : ViewModelBase
         if (!EnsureCs2CanEdit("save autoexec.cfg")) return;
         if (!EnsureCs2Analysis() || _cs2Analysis == null) return;
         var result = _cs2Service.SaveAutoexec(_cs2Analysis, Cs2AutoexecText);
-        Cs2AutoexecStatusMessage = result.Message;
+        Cs2AutoexecStatusMessage = result.Success
+            ? string.Format(_localization.T("CS2.Operation.AutoexecSaved"), _cs2Service.GetAutoexecPath(_cs2Analysis))
+            : _localization.T("CS2.Operation.AutoexecSaveFailed");
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
         OnPropertyChanged(nameof(Cs2AutoexecPath));
     }
@@ -1615,12 +1627,15 @@ public sealed class LibraryViewModel : ViewModelBase
         if (!EnsureCs2CanEdit("backup CS2 config")) return;
         if (_cs2Analysis == null) return;
         var result = _cs2Service.CreateBackup(_cs2Analysis);
-        Cs2StatusMessage = result.Message;
+        string userMessage = result.Success
+            ? string.Format(_localization.T("CS2.Operation.BackupSuccess"), result.BackupFolder)
+            : _localization.T("CS2.Operation.BackupFailed");
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
         if (result.Success)
         {
             AnalyzeCs2IfSelected();
         }
+        Cs2StatusMessage = userMessage;
     }
 
     private void ApplyCs2Preset()
@@ -1636,7 +1651,9 @@ public sealed class LibraryViewModel : ViewModelBase
 
         foreach (var vm in Cs2SettingChanges) vm.Change.IsSelected = vm.IsSelected;
         var result = _cs2Service.ApplyPreset(_cs2Analysis, SelectedCs2Preset);
-        Cs2StatusMessage = result.Message;
+        string userMessage = result.Success
+            ? string.Format(_localization.T("CS2.Operation.ApplySuccess"), result.AppliedChanges, result.BackupFolder)
+            : _localization.T("CS2.Operation.ApplyFailed");
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
 
         if (result.Success && wasCustomPreset)
@@ -1647,6 +1664,7 @@ public sealed class LibraryViewModel : ViewModelBase
         {
             AnalyzeCs2IfSelected();
         }
+        Cs2StatusMessage = userMessage;
     }
 
     private void RestoreLatestCs2Backup()
@@ -1655,7 +1673,9 @@ public sealed class LibraryViewModel : ViewModelBase
         if (_cs2Analysis == null) AnalyzeCs2IfSelected();
         if (_cs2Analysis == null) return;
         var result = _cs2Service.RestoreLatestBackup(_cs2Analysis);
-        Cs2StatusMessage = result.Message;
+        Cs2StatusMessage = result.Success
+            ? _localization.T("CS2.Operation.RestoreSuccess")
+            : _localization.T("CS2.Operation.RestoreFailed");
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
     }
 }

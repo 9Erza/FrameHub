@@ -51,18 +51,26 @@ namespace FrameHub.Core.Logging
 
         private void OpenFile()
         {
-            var directory = Path.GetDirectoryName(_config.LogFilePath);
-            if (!string.IsNullOrWhiteSpace(directory))
+            try
             {
-                Directory.CreateDirectory(directory);
+                var directory = Path.GetDirectoryName(_config.LogFilePath);
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                RollIfNeeded();
+
+                _streamWriter = new StreamWriter(_config.LogFilePath, append: true, Encoding.UTF8)
+                {
+                    AutoFlush = true
+                };
             }
-
-            RollIfNeeded();
-
-            _streamWriter = new StreamWriter(_config.LogFilePath, append: true, Encoding.UTF8)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
-                AutoFlush = true
-            };
+                _streamWriter = null;
+                Console.WriteLine($"[WARN] File logging unavailable: {ex.Message}");
+            }
         }
 
         private void RollIfNeeded()

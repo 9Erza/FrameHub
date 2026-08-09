@@ -244,6 +244,8 @@ namespace FrameHub.Core.Services
 
         private static AppSettings SanitizeSettings(AppSettings settings)
         {
+            // Monitoring is deliberately session-only and always starts disabled.
+            settings.HardwareMonitorEnabled = false;
             settings.Language = settings.Language == "pl" ? "pl" : "en";
             settings.LogLevelValue = Math.Clamp(settings.LogLevelValue, 0, 4);
             settings.LogFilePath = string.IsNullOrWhiteSpace(settings.LogFilePath)

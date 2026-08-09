@@ -15,6 +15,8 @@ namespace FrameHub.App;
 public partial class MainWindow : Window
 {
     private WinForms.NotifyIcon? _trayIcon;
+    private WinForms.ToolStripItem? _trayOpenItem;
+    private WinForms.ToolStripItem? _trayExitItem;
     private bool _isExitRequested;
     private bool _isHidingToTray;
 
@@ -23,7 +25,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        DataContext = new ShellViewModel();
+        var shellViewModel = new ShellViewModel();
+        DataContext = shellViewModel;
+        shellViewModel.UiLanguageChanged += (_, _) => RefreshTrayTexts();
         Loaded += MainWindow_Loaded;
         SourceInitialized += (_, _) =>
         {
@@ -56,8 +60,8 @@ public partial class MainWindow : Window
         }
 
         var menu = new WinForms.ContextMenuStrip();
-        menu.Items.Add("Open FrameHub", null, (_, _) => ShowFromTray());
-        menu.Items.Add("Exit", null, (_, _) => ExitApplication());
+        _trayOpenItem = menu.Items.Add(ViewModel?.TrayOpenText ?? "Open FrameHub", null, (_, _) => ShowFromTray());
+        _trayExitItem = menu.Items.Add(ViewModel?.TrayExitText ?? "Exit", null, (_, _) => ExitApplication());
 
         _trayIcon = new WinForms.NotifyIcon
         {
@@ -185,6 +189,12 @@ public partial class MainWindow : Window
             MaxWidth = SystemParameters.WorkArea.Width;
             MaxHeight = SystemParameters.WorkArea.Height;
         }
+    }
+
+    private void RefreshTrayTexts()
+    {
+        if (_trayOpenItem != null) _trayOpenItem.Text = ViewModel?.TrayOpenText ?? "Open FrameHub";
+        if (_trayExitItem != null) _trayExitItem.Text = ViewModel?.TrayExitText ?? "Exit";
     }
 
     private void UpdateResponsiveShell()

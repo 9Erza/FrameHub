@@ -152,6 +152,8 @@ namespace FrameHub.Core.Services
             for (int i = 0; i < left.Count; i++)
             {
                 if (!string.Equals(left[i].ProcessName, NormalizeProcessName(right[i].ProcessName), StringComparison.OrdinalIgnoreCase)) return false;
+                if (left[i].SchemaVersion != right[i].SchemaVersion) return false;
+                if (!string.Equals(left[i].ExecutablePath, NormalizeExecutablePath(right[i].ExecutablePath), StringComparison.OrdinalIgnoreCase)) return false;
                 if (left[i].AffinityMask != right[i].AffinityMask) return false;
                 if (!string.Equals(left[i].LibraryItemId, right[i].LibraryItemId, StringComparison.OrdinalIgnoreCase)) return false;
                 if (left[i].Priority != PriorityService.Normalize(right[i].Priority, allowRealtime: true)) return false;

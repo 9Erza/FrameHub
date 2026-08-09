@@ -10,4 +10,4 @@ Session Optimization detects configured candidates, records suspended processes 
 
 Current debt: some UI text is still supplied directly by view models rather than localization keys; new user-facing text should use the localization service.
 
-CS2 userdata resolution works only with local folders containing a valid CS2 video config. A sole candidate is automatic; several candidates require the persisted numeric userdata ID before config paths are exposed.
+CS2 userdata resolution works only with local folders containing a valid CS2 video config. A sole candidate is automatic; several candidates require the persisted numeric userdata ID and normalized path identity before config paths are exposed. New backups are partitioned by that account identity; legacy unscoped backups are offered only when exactly one valid account exists.

@@ -114,9 +114,9 @@ public sealed class DashboardViewModel : ViewModelBase
         });
         Metrics.Add(new MetricCardViewModel
         {
-            Title = _localization.CurrentLanguage == "pl" ? "Biblioteka gier" : "Game Library",
+            Title = _localization.T("Dashboard.LibraryMetric.Title"),
             Value = libraryGames.ToString(),
-            Detail = _localization.CurrentLanguage == "pl" ? "Gry skonfigurowane w bibliotece" : "Games configured in the library",
+            Detail = _localization.T("Dashboard.LibraryMetric.Detail"),
             Accent = "#F59E0B"
         });
 

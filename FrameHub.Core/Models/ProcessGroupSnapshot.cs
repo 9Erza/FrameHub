@@ -10,6 +10,7 @@ namespace FrameHub.Core.Models
     public sealed class ProcessGroupSnapshot
     {
         public string Name { get; set; } = string.Empty;
+        public string? ExecutablePath { get; set; }
         public int FirstProcessId { get; set; }
         public int InstanceCount { get; set; }
         public long TotalMemoryBytes { get; set; }

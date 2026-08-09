@@ -9,6 +9,7 @@ namespace FrameHub.App.ViewModels;
 
 public sealed class ShellViewModel : ViewModelBase, IDisposable
 {
+    public event EventHandler? UiLanguageChanged;
     private readonly LocalizationService _localization;
     private readonly SettingsService _settingsService;
     private readonly AppRuntimeService _runtime;
@@ -59,6 +60,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public string AuthorLabel => _localization.T("Footer.AuthorLabel");
     public string WebsiteTooltip => _localization.T("Footer.Website");
     public string SupportTooltip => _localization.T("Footer.Support");
+    public string TrayOpenText => _localization.T("Tray.Open");
+    public string TrayExitText => _localization.T("Tray.Exit");
     public string ProjectVersionLabel => $"FrameHub {AppVersion}";
 
     public object CurrentViewModel
@@ -98,6 +101,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             _runtime.ReloadSettings();
             _settingsViewModel.ReloadFromRuntime();
             RefreshTexts();
+            UiLanguageChanged?.Invoke(this, EventArgs.Empty);
         };
         _runtime.WatcherStateChanged += (_, _) =>
         {
@@ -174,6 +178,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(AuthorLabel));
         OnPropertyChanged(nameof(WebsiteTooltip));
         OnPropertyChanged(nameof(SupportTooltip));
+        OnPropertyChanged(nameof(TrayOpenText));
+        OnPropertyChanged(nameof(TrayExitText));
     }
 
     private void OpenExternalLink(FrameHubExternalLink link)

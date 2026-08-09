@@ -68,19 +68,24 @@ namespace FrameHub.Core.Services
                 .GroupBy(p => ProfileService.NormalizeProcessName(p.ProcessName), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
                     g => g.Key,
-                    g => g.OrderBy(p => p.UpdatedAt).Last(),
+                    g => g.OrderByDescending(p => !string.IsNullOrWhiteSpace(p.ExecutablePath)).ThenByDescending(p => p.UpdatedAt).ToList(),
                     StringComparer.OrdinalIgnoreCase);
 
             var batch = new OptimizationBatchResult();
 
             foreach (var snapshot in snapshots)
             {
-                if (!byName.TryGetValue(snapshot.Name, out var profile)) continue;
+                if (!byName.TryGetValue(snapshot.Name, out var matchingProfiles)) continue;
 
                 foreach (var instance in snapshot.Instances)
                 {
-                    var result = ApplyProfileToPid(instance, snapshot.Name, profile, allowRealtimePriority, force);
-                    batch.Results.Add(result);
+                    foreach (var profile in matchingProfiles)
+                    {
+                        var result = ApplyProfileToPid(instance, snapshot.Name, profile, allowRealtimePriority, force);
+                        if (result.Message == "SKIPPED_IDENTITY_MISMATCH") continue;
+                        batch.Results.Add(result);
+                        break;
+                    }
                 }
             }
 
