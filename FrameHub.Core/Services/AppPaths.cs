@@ -12,6 +12,13 @@ namespace FrameHub.Core.Services
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "FrameHub");
 
+        /// <summary>Machine-local storage for large or machine-specific data.</summary>
+        public static string LocalDataDirectory { get; } = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FrameHub");
+
+        public static string BenchmarkDirectory { get; } = Path.Combine(LocalDataDirectory, "Benchmarks");
+
         public static string GetUserDataFilePath(string fileName)
         {
             return Path.Combine(UserDataDirectory, fileName);
