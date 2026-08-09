@@ -62,7 +62,9 @@ See the [User Guide](docs/USER_GUIDE.md), [Architecture](docs/ARCHITECTURE.md), 
 
 ## Project
 
-Created by [9Erza](https://github.com/9Erza). Visit [DobryPC.pl](https://dobrypc.pl) or support the project through [Buy Me a Coffee](https://buymeacoffee.com/9erza). Repository: [9Erza/FrameHub](https://github.com/9Erza/FrameHub).
+Created by [9Erza](https://github.com/9Erza). 
+Visit [DobryPC.pl](https://dobrypc.pl) or support the project through [Buy Me a Coffee](https://buymeacoffee.com/9erza). 
+Repository: [9Erza/FrameHub](https://github.com/9Erza/FrameHub).
 
 ## License and disclaimer
 
