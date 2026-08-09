@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using System.Windows.Input;
+using FrameHub.App.ViewModels;
 using WpfUserControl = System.Windows.Controls.UserControl;
 
 namespace FrameHub.App.Views;
@@ -20,6 +22,27 @@ public partial class SettingsView : WpfUserControl
             UpdateResponsiveLayout();
             SettingsScroll.ScrollToTop();
         };
+    }
+
+    private void RecordBenchmarkHotkeyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not SettingsViewModel viewModel) return;
+        viewModel.BeginBenchmarkHotkeyRecording();
+        RecordBenchmarkHotkeyButton.Focus();
+        Keyboard.Focus(RecordBenchmarkHotkeyButton);
+    }
+
+    private void RecordBenchmarkHotkeyButton_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (DataContext is not SettingsViewModel viewModel || !viewModel.IsRecordingBenchmarkHotkey) return;
+        e.Handled = true;
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key == Key.Escape)
+        {
+            viewModel.CancelBenchmarkHotkeyRecording();
+            return;
+        }
+        viewModel.TryRecordBenchmarkHotkey(key, Keyboard.Modifiers);
     }
 
     private void UpdateResponsiveLayout()

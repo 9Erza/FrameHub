@@ -22,6 +22,7 @@ namespace FrameHub.App.ViewModels;
 public sealed class LibraryViewModel : ViewModelBase
 {
     public event Action<string, string>? InfoDialogRequested;
+    public event Action<LibraryItem>? BenchmarkRequested;
 
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
@@ -87,6 +88,7 @@ public sealed class LibraryViewModel : ViewModelBase
     public string NoSelectionText => _localization.T("Library.NoSelection");
     public string LaunchText => _localization.T("Library.Launch");
     public string OpenFolderText => _localization.T("Library.OpenFolder");
+    public string BenchmarkText => _localization.T("Library.Benchmark");
     public string ProfileEditorTitle => _localization.T("Library.ProfileEditorTitle");
     public string ProfileEditorHintText => _localization.T("Library.ProfileEditorHint");
     public string CpuCoresTitle => _localization.T("Library.CpuCores");
@@ -245,6 +247,7 @@ public sealed class LibraryViewModel : ViewModelBase
     public ICommand SelectItemCommand { get; }
     public ICommand LaunchSelectedCommand { get; }
     public ICommand OpenSelectedFolderCommand { get; }
+    public ICommand BenchmarkSelectedCommand { get; }
     public ICommand CreateUpdateProfileCommand { get; }
     public ICommand ApplyLinkedProfileCommand { get; }
     public ICommand SelectAllCoresCommand { get; }
@@ -493,6 +496,7 @@ public sealed class LibraryViewModel : ViewModelBase
         SelectItemCommand = new RelayCommand(parameter => SelectedItem = parameter as LibraryItemViewModel);
         LaunchSelectedCommand = new RelayCommand(_ => LaunchSelected(), _ => SelectedItem != null && File.Exists(SelectedItem.Item.ExecutablePath));
         OpenSelectedFolderCommand = new RelayCommand(_ => OpenSelectedFolder(), _ => SelectedItem != null);
+        BenchmarkSelectedCommand = new RelayCommand(_ => RequestBenchmark(), _ => SelectedItem != null && SelectedItem.Item.Type == LibraryItemType.Game);
         CreateUpdateProfileCommand = new RelayCommand(_ => CreateOrUpdateProfileForSelected(), _ => SelectedItem != null && !string.IsNullOrWhiteSpace(SelectedItem.Item.ProcessName));
         ApplyLinkedProfileCommand = new RelayCommand(_ => ApplyLinkedProfile(), _ => SelectedItem != null && !string.IsNullOrWhiteSpace(SelectedItem.Item.ProcessName));
         SelectAllCoresCommand = new RelayCommand(_ => SetAllCores(true));
@@ -966,6 +970,11 @@ public sealed class LibraryViewModel : ViewModelBase
             WorkingDirectory = Path.GetDirectoryName(SelectedItem.Item.ExecutablePath),
             UseShellExecute = true
         });
+    }
+
+    private void RequestBenchmark()
+    {
+        if (SelectedItem?.Item is LibraryItem item) BenchmarkRequested?.Invoke(item);
     }
 
     private void OpenSelectedFolder()

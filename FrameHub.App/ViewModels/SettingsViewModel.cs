@@ -3,6 +3,7 @@ using FrameHub.App.Services;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
+using FrameHub.Core.Services.Benchmarking;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -24,12 +25,17 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _isStartupBusy;
     private StartupConfigurationState _startupStatusState;
     private int _startupApplyRequests;
+    private bool _isRecordingBenchmarkHotkey;
+    private string _benchmarkHotkeyStatus = string.Empty;
 
     public ICommand RestartAsAdminCommand { get; }
     public ICommand CheckUpdatesCommand { get; }
     public ICommand OpenAppDataCommand { get; }
     public ICommand OpenLogsCommand { get; }
     public ICommand RepairStartupCommand { get; }
+    public ICommand OpenThirdPartyNoticesCommand { get; }
+    public ICommand OpenPresentMonProjectCommand { get; }
+    public ICommand ClearBenchmarkHotkeyCommand { get; }
 
     public string Title => _localization.T("Settings.Title");
     public string Subtitle => _localization.T("Settings.Subtitle");
@@ -71,6 +77,45 @@ public sealed class SettingsViewModel : ViewModelBase
     public string OpenAppDataText => _localization.T("Settings.OpenAppData");
     public string OpenLogsText => _localization.T("Settings.OpenLogs");
     public string AdminStatus => _runtime.SettingsService.IsRunAsAdmin() ? _localization.T("Settings.AdminYes") : _localization.T("Settings.AdminNo");
+    public string BenchmarkEngineTitle => _localization.T("Settings.BenchmarkEngine.Title");
+    public string BenchmarkEngineDescription => _localization.T("Settings.BenchmarkEngine.Description");
+    public string BenchmarkEngineStatus { get; private set; } = string.Empty;
+    public string BenchmarkEngineVersion { get; private set; } = string.Empty;
+    public string BenchmarkSafetyText => _localization.T("Settings.BenchmarkEngine.Safety");
+    public string ThirdPartyLicense => _localization.T("Settings.BenchmarkEngine.License");
+    public string OpenThirdPartyNoticesText => _localization.T("Settings.BenchmarkEngine.Notices");
+    public string OpenPresentMonProjectText => _localization.T("Settings.BenchmarkEngine.Project");
+    public string ThirdPartyComponents => _localization.T("Settings.ThirdParty.Components");
+    public string BenchmarkHotkeyTitle => _localization.T("Settings.BenchmarkHotkey.Title");
+    public string BenchmarkHotkeyDescription => _localization.T("Settings.BenchmarkHotkey.Description");
+    public string BenchmarkHotkeyEnableLabel => _localization.T("Settings.BenchmarkHotkey.Enable");
+    public string BenchmarkHotkeyCombinationLabel => _localization.T("Settings.BenchmarkHotkey.Combination");
+    public string BenchmarkHotkeyRecordText => IsRecordingBenchmarkHotkey ? _localization.T("Settings.BenchmarkHotkey.Recording") : _localization.T("Settings.BenchmarkHotkey.Record");
+    public string BenchmarkHotkeyClearText => _localization.T("Settings.BenchmarkHotkey.Clear");
+    public string BenchmarkHotkeyDisplay => BenchmarkHotkeyGesture.FromSettings(true, _settings.BenchmarkHotkeyModifiers, _settings.BenchmarkHotkeyVirtualKey)?.ToString() ?? _localization.T("Benchmark.Hotkey.NotConfigured");
+    public IReadOnlyList<string> BenchmarkHotkeyTokens => BenchmarkHotkeyGesture.FromSettings(true, _settings.BenchmarkHotkeyModifiers, _settings.BenchmarkHotkeyVirtualKey) is BenchmarkHotkeyGesture gesture
+        ? gesture.ToString().Split(" + ", StringSplitOptions.RemoveEmptyEntries)
+        : [_localization.T("Benchmark.Hotkey.NotConfigured")];
+    public string BenchmarkHotkeyStatus { get => _benchmarkHotkeyStatus; private set => SetProperty(ref _benchmarkHotkeyStatus, value); }
+    public bool IsRecordingBenchmarkHotkey { get => _isRecordingBenchmarkHotkey; private set { if (SetProperty(ref _isRecordingBenchmarkHotkey, value)) OnPropertyChanged(nameof(BenchmarkHotkeyRecordText)); } }
+    public bool BenchmarkHotkeyEnabled
+    {
+        get => _settings.BenchmarkHotkeyEnabled;
+        set
+        {
+            if (value && BenchmarkHotkeyGesture.FromSettings(true, _settings.BenchmarkHotkeyModifiers, _settings.BenchmarkHotkeyVirtualKey) is null)
+            {
+                BenchmarkHotkeyStatus = _localization.T("Settings.BenchmarkHotkey.ConfigureFirst");
+                OnPropertyChanged();
+                return;
+            }
+            if (_settings.BenchmarkHotkeyEnabled == value) return;
+            _settings.BenchmarkHotkeyEnabled = value;
+            BenchmarkHotkeyStatus = string.Empty;
+            SaveSettings();
+            OnPropertyChanged();
+        }
+    }
     public string StartupStatus => RealStartupStatus;
     public string RealStartupStatus { get => _realStartupStatus; private set => SetProperty(ref _realStartupStatus, value); }
     public bool StartupRequiresAttention { get => _startupRequiresAttention; private set => SetProperty(ref _startupRequiresAttention, value); }
@@ -198,11 +243,16 @@ public sealed class SettingsViewModel : ViewModelBase
         OpenAppDataCommand = new RelayCommand(_ => OpenFolder(AppPaths.UserDataDirectory));
         OpenLogsCommand = new RelayCommand(_ => OpenFolder(Path.GetDirectoryName(LoggerService.Shared.Configuration.LogFilePath) ?? AppPaths.UserDataDirectory));
         RepairStartupCommand = new RelayCommand(_ => _ = SaveStartupSettingsAsync());
+        OpenThirdPartyNoticesCommand = new RelayCommand(_ => OpenThirdPartyNotices());
+        OpenPresentMonProjectCommand = new RelayCommand(_ => ExternalLinkService.TryOpen(FrameHubExternalLink.PresentMon));
+        ClearBenchmarkHotkeyCommand = new RelayCommand(_ => ClearBenchmarkHotkey());
+        ProbeBenchmarkEngine();
         _ = RefreshStartupStatusAsync();
     }
 
     public void RefreshTexts()
     {
+        ProbeBenchmarkEngine();
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(Subtitle));
         OnPropertyChanged(nameof(StartupTitle));
@@ -243,6 +293,24 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(OpenAppDataText));
         OnPropertyChanged(nameof(OpenLogsText));
         OnPropertyChanged(nameof(AdminStatus));
+        OnPropertyChanged(nameof(BenchmarkEngineTitle));
+        OnPropertyChanged(nameof(BenchmarkEngineDescription));
+        OnPropertyChanged(nameof(BenchmarkEngineStatus));
+        OnPropertyChanged(nameof(BenchmarkEngineVersion));
+        OnPropertyChanged(nameof(BenchmarkSafetyText));
+        OnPropertyChanged(nameof(ThirdPartyLicense));
+        OnPropertyChanged(nameof(OpenThirdPartyNoticesText));
+        OnPropertyChanged(nameof(OpenPresentMonProjectText));
+        OnPropertyChanged(nameof(ThirdPartyComponents));
+        OnPropertyChanged(nameof(BenchmarkHotkeyTitle));
+        OnPropertyChanged(nameof(BenchmarkHotkeyDescription));
+        OnPropertyChanged(nameof(BenchmarkHotkeyEnableLabel));
+        OnPropertyChanged(nameof(BenchmarkHotkeyCombinationLabel));
+        OnPropertyChanged(nameof(BenchmarkHotkeyRecordText));
+        OnPropertyChanged(nameof(BenchmarkHotkeyClearText));
+        OnPropertyChanged(nameof(BenchmarkHotkeyDisplay));
+        OnPropertyChanged(nameof(BenchmarkHotkeyTokens));
+        OnPropertyChanged(nameof(BenchmarkHotkeyStatus));
         OnPropertyChanged(nameof(IsEnglish));
         OnPropertyChanged(nameof(IsPolish));
     }
@@ -350,6 +418,81 @@ public sealed class SettingsViewModel : ViewModelBase
         Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
     }
 
+    public void BeginBenchmarkHotkeyRecording()
+    {
+        IsRecordingBenchmarkHotkey = true;
+        BenchmarkHotkeyStatus = _localization.T("Settings.BenchmarkHotkey.RecordingPrompt");
+    }
+
+    public void CancelBenchmarkHotkeyRecording()
+    {
+        IsRecordingBenchmarkHotkey = false;
+        BenchmarkHotkeyStatus = string.Empty;
+    }
+
+    public bool TryRecordBenchmarkHotkey(Key key, ModifierKeys modifiers)
+    {
+        if (!BenchmarkHotkeyGesture.TryCreate(key, modifiers, out BenchmarkHotkeyGesture gesture))
+        {
+            BenchmarkHotkeyStatus = _localization.T("Settings.BenchmarkHotkey.Invalid");
+            return false;
+        }
+
+        _settings.BenchmarkHotkeyModifiers = (uint)gesture.Modifiers;
+        _settings.BenchmarkHotkeyVirtualKey = gesture.VirtualKey;
+        _settings.BenchmarkHotkeyEnabled = true;
+        IsRecordingBenchmarkHotkey = false;
+        BenchmarkHotkeyStatus = _localization.T("Settings.BenchmarkHotkey.Saved");
+        SaveSettings();
+        OnPropertyChanged(nameof(BenchmarkHotkeyEnabled));
+        OnPropertyChanged(nameof(BenchmarkHotkeyDisplay));
+        OnPropertyChanged(nameof(BenchmarkHotkeyTokens));
+        return true;
+    }
+
+    public void ReportBenchmarkHotkeyRegistrationFailure()
+    {
+        _settings.BenchmarkHotkeyEnabled = false;
+        BenchmarkHotkeyStatus = _localization.T("Settings.BenchmarkHotkey.Conflict");
+        SaveSettings();
+        OnPropertyChanged(nameof(BenchmarkHotkeyEnabled));
+    }
+
+    private void ClearBenchmarkHotkey()
+    {
+        _settings.BenchmarkHotkeyEnabled = false;
+        _settings.BenchmarkHotkeyModifiers = 0;
+        _settings.BenchmarkHotkeyVirtualKey = 0;
+        IsRecordingBenchmarkHotkey = false;
+        BenchmarkHotkeyStatus = string.Empty;
+        SaveSettings();
+        OnPropertyChanged(nameof(BenchmarkHotkeyEnabled));
+        OnPropertyChanged(nameof(BenchmarkHotkeyDisplay));
+        OnPropertyChanged(nameof(BenchmarkHotkeyTokens));
+    }
+
+    private void ProbeBenchmarkEngine()
+    {
+        try
+        {
+            string path = new PresentMonApiDllLocator().Locate();
+            BenchmarkEngineStatus = _localization.T("Benchmark.Engine.Ready");
+            BenchmarkEngineVersion = FileVersionInfo.GetVersionInfo(path).FileVersion ?? _localization.T("Benchmark.Unavailable");
+        }
+        catch
+        {
+            BenchmarkEngineStatus = _localization.T("Benchmark.Engine.Unavailable");
+            BenchmarkEngineVersion = _localization.T("Benchmark.Unavailable");
+        }
+    }
+
+    private void OpenThirdPartyNotices()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "THIRD-PARTY-NOTICES.md");
+        if (File.Exists(path)) Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+        else StatusMessage = _localization.T("Settings.BenchmarkEngine.NoticesMissing");
+    }
+
     private void RefreshAllValues()
     {
         OnPropertyChanged(nameof(IsEnglish));
@@ -373,6 +516,9 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(StartupStatusState));
         OnPropertyChanged(nameof(IsStartupBusy));
         OnPropertyChanged(nameof(StartupControlsEnabled));
+        OnPropertyChanged(nameof(BenchmarkHotkeyEnabled));
+        OnPropertyChanged(nameof(BenchmarkHotkeyDisplay));
+        OnPropertyChanged(nameof(BenchmarkHotkeyTokens));
     }
 
     private static AppSettings Clone(AppSettings source) => new()
@@ -398,6 +544,9 @@ public sealed class SettingsViewModel : ViewModelBase
         Cs2SteamUserdataPath = source.Cs2SteamUserdataPath,
         EnableStorageSensors = source.EnableStorageSensors,
         CheckForUpdates = source.CheckForUpdates,
+        BenchmarkHotkeyEnabled = source.BenchmarkHotkeyEnabled,
+        BenchmarkHotkeyModifiers = source.BenchmarkHotkeyModifiers,
+        BenchmarkHotkeyVirtualKey = source.BenchmarkHotkeyVirtualKey,
         CustomLibraryLocations = source.CustomLibraryLocations.ToList()
     };
 }

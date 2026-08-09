@@ -1,6 +1,6 @@
 # Benchmarking architecture (FrameHub v0.6 development)
 
-This document is the implementation contract for the v0.6 benchmarking subsystem. No benchmark UI is included yet.
+This document is the implementation contract for the v0.6 benchmarking subsystem and its WPF user workflow.
 
 ## Production capture architecture
 
@@ -58,6 +58,16 @@ Machine-local captures are stored below `%LOCALAPPDATA%\FrameHub\Benchmarks`:
 
 `session.json` records identity and capture state. `raw-frames.json` preserves API-produced `BenchmarkFrameSample` values. `summary.json` contains analyzer results, swap-chain selection, and quality diagnostics. Status progresses from `Created` to `Capturing` and then `Completed`; cancellation becomes `Cancelled`, and other failures become `Failed`. A summary is written only after successful analysis.
 
+## WPF workflow
+
+The single **Benchmarks** page contains Capture, History and Compare tabs. It detects enabled Game Library entries with exact configured-path matching and the conservative unique-name fallback for path-inaccessible processes. It auto-selects only when exactly one benchmarkable game instance exists, refreshes lightly while active, and never presents a generic process picker. Game Library can navigate directly to this page with the exact `LibraryItem` preselected.
+
+Capture is asynchronous, exact-PID, cancellation-token driven, and limited to one UI capture. Preset/custom durations and the optional countdown are UI orchestration only. Result rendering uses the stored analyzer summary; raw frames are loaded lazily only for the primary `MsBetweenPresents` graph. History enumerates existing schema-v1 directories—including developer-harness output—newest first, isolates corrupt entries, and validates every recursive delete remains inside the benchmark root. Compare accepts two completed sessions for the same library identity and applies `(B-A)/abs(A)*100` without synthesizing a score.
+
+The optional global benchmark hotkey is disabled and unassigned by default. FrameHub registers the user-selected combination with the Windows `RegisterHotKey` API after the main native window handle exists and unregisters it when disabled, changed, or during shutdown. It uses no low-level keyboard hook. Hotkey Start reuses the selected running library target, or the sole running benchmarkable library game; multiple candidates are treated as ambiguous and never guessed. Hotkey Start has an effective zero-second countdown without changing the stored UI countdown, while a second press cancels the active countdown/capture. Feedback is recorded in activity logs and shown through the existing tray notification without focusing FrameHub.
+
+The UI records the currently active CPU profile and Session Optimization state without changing either one. Readiness is a compact FrameHub engine state; repair guidance is user-facing while original PresentMon/API diagnostics remain in logs and an expander.
+
 ## Analysis contract
 
 The primary presented stream uses finite positive `MsBetweenPresents` values for the exact target PID and selected swap chain. FrameHub retains its own deterministic AVG FPS, median, 1% low, 0.1% low, P95/P99, minimum, and maximum calculations. No cosmetic outlier removal is applied.
@@ -85,7 +95,6 @@ FrameHub Setup is an offline-capable single installer. During a distributable in
 
 ## Known limitations
 
-- There is no Benchmark page or end-user capture workflow yet.
 - OS, GPU/driver support, overlays, variable refresh, frame generation, and application behavior can affect PresentMon data.
 - Analysis version 1 does not segment scenes, warm-up, pauses, loading screens, or frame types.
 - Raw QPC timestamps are retained but are not used for continuity without frequency metadata.

@@ -11,7 +11,7 @@ namespace FrameHub.App.Services;
 /// Application-level runtime coordinator for profiles, process scanning and hardware topology.
 /// Heavy UI scans and hardware telemetry are opt-in, while profile monitoring stays active in the background.
 /// </summary>
-public sealed class AppRuntimeService : IDisposable
+public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 {
     private readonly DispatcherTimer _profileWatcherTimer;
     private readonly Dictionary<string, DateTime> _failureLogThrottle = new(StringComparer.OrdinalIgnoreCase);

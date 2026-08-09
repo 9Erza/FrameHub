@@ -55,6 +55,10 @@ Name: "desktopicon"; Description: "Utwórz skrót na pulpicie"; GroupDescription
 
 [Files]
 Source: "..\artifacts\publish\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\docs\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\licenses\PresentMon-LICENSE.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "..\licenses\Sora-OFL.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "..\licenses\SpaceGrotesk-OFL.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "{#PresentMonMsiPath}"; DestDir: "{tmp}"; Flags: dontcopy
 
 [Icons]
@@ -70,6 +74,15 @@ const
   PresentMonApiDllName = 'PresentMonAPI2.dll';
   RequiredPresentMonVersionMS = $00020005;
   RequiredPresentMonVersionLS = $00010000;
+
+function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo,
+  MemoTypeInfo, MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;
+begin
+  Result := MemoDirInfo + NewLine + NewLine + MemoGroupInfo + NewLine +
+    MemoTasksInfo + NewLine + NewLine +
+    'FrameHub includes Intel PresentMon 2.5.1 as a benchmark prerequisite. ' +
+    'Setup installs or repairs it automatically when required.';
+end;
 
 function ServiceExecutableFromImagePath(const ImagePath: String): String;
 var

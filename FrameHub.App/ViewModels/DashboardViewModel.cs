@@ -4,6 +4,10 @@ using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services.SessionOptimization;
 using FrameHub.Core.Services.Library;
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Windows.Input;
+using FrameHub.Core.Models.Benchmarking;
+using FrameHub.Core.Services.Benchmarking;
 
 namespace FrameHub.App.ViewModels;
 
@@ -14,6 +18,9 @@ public sealed class DashboardViewModel : ViewModelBase
     private readonly SessionOptimizationSettingsService _sessionSettingsService = new();
     private readonly SessionStateService _sessionStateService = new();
     private readonly LibraryService _libraryService = new();
+    private readonly BenchmarkStorageService _benchmarkStorage = new();
+    public Action? BenchmarkNavigationRequested { get; set; }
+    public ICommand OpenBenchmarksCommand { get; }
 
     public string Title => _localization.T("Dashboard.Title");
     public string Subtitle => _localization.T("Dashboard.Subtitle");
@@ -37,6 +44,10 @@ public sealed class DashboardViewModel : ViewModelBase
     public string SessionOptimizationTitle => _localization.T("Dashboard.SessionOptimization.Title");
     public string LastProfileTitle => _localization.T("Dashboard.LastProfile.Title");
     public string LoggingTitle => _localization.T("Dashboard.Logging.Title");
+    public string LatestBenchmarkTitle => _localization.T("Dashboard.Benchmark.Title");
+    public string LatestBenchmarkGame { get; private set; } = string.Empty;
+    public string LatestBenchmarkResult { get; private set; } = string.Empty;
+    public string OpenBenchmarksText => _localization.T("Dashboard.Benchmark.Open");
 
     public ObservableCollection<MetricCardViewModel> Metrics { get; } = new();
     public ObservableCollection<ActivityItemViewModel> Activity => _runtime.Activity;
@@ -45,6 +56,7 @@ public sealed class DashboardViewModel : ViewModelBase
     {
         _localization = localization;
         _runtime = runtime;
+        OpenBenchmarksCommand = new RelayCommand(_ => BenchmarkNavigationRequested?.Invoke());
         _runtime.WatcherStateChanged += (_, _) => RefreshTexts();
         _runtime.RuntimeStateChanged += (_, _) => RefreshTexts();
         _runtime.ProfilesChanged += (_, _) => RefreshTexts();
@@ -60,6 +72,12 @@ public sealed class DashboardViewModel : ViewModelBase
         int totalProfiles = _runtime.Profiles.Count;
         int autoGames = sessionSettings.AutoEnabledGameIds.Distinct(StringComparer.OrdinalIgnoreCase).Count();
         int libraryGames = _libraryService.LoadItems().Count;
+        BenchmarkHistoryEntry? latestBenchmark = _benchmarkStorage.EnumerateSessions().Sessions
+            .FirstOrDefault(entry => entry.Metadata.Status == BenchmarkSessionStatus.Completed && entry.Summary?.PrimaryPresentedMetrics is not null);
+        LatestBenchmarkGame = latestBenchmark?.Metadata.Game.DisplayName ?? _localization.T("Dashboard.Benchmark.Empty");
+        LatestBenchmarkResult = latestBenchmark?.Summary?.PrimaryPresentedMetrics is { } metrics
+            ? string.Format(CultureInfo.CurrentCulture, _localization.T("Dashboard.Benchmark.Result"), metrics.AverageFps, metrics.OnePercentLowFps, latestBenchmark.Metadata.StartUtc.ToLocalTime())
+            : _localization.T("Dashboard.Benchmark.EmptyDetail");
 
         SessionStateValue = isSessionActive
             ? _localization.T("Dashboard.SessionState.ValueActive")
@@ -141,5 +159,9 @@ public sealed class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(SessionOptimizationTitle));
         OnPropertyChanged(nameof(LastProfileTitle));
         OnPropertyChanged(nameof(LoggingTitle));
+        OnPropertyChanged(nameof(LatestBenchmarkTitle));
+        OnPropertyChanged(nameof(LatestBenchmarkGame));
+        OnPropertyChanged(nameof(LatestBenchmarkResult));
+        OnPropertyChanged(nameof(OpenBenchmarksText));
     }
 }

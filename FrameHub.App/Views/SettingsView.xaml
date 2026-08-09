@@ -86,6 +86,42 @@
             <StackPanel x:Name="RightSettingsColumn" Grid.Column="2" Grid.Row="0">
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
                     <StackPanel>
+                        <TextBlock Text="{Binding BenchmarkEngineTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding BenchmarkEngineDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                        <StackPanel Orientation="Horizontal"><Border Style="{StaticResource StatusBadge}"><TextBlock Text="{Binding BenchmarkEngineStatus}" Style="{StaticResource StatusText}" /></Border><TextBlock Text="{Binding BenchmarkEngineVersion}" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center" Margin="10,0,0,0" /></StackPanel>
+                        <TextBlock Text="{Binding ThirdPartyComponents}" Style="{StaticResource DataTitleText}" Margin="0,10,0,0" />
+                        <TextBlock Text="{Binding ThirdPartyLicense}" Style="{StaticResource SettingDescriptionText}" Margin="0,3,0,0" />
+                        <TextBlock Text="{Binding BenchmarkSafetyText}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                        <StackPanel Orientation="Horizontal"><Button Style="{StaticResource SubtleButton}" Content="{Binding OpenThirdPartyNoticesText}" Command="{Binding OpenThirdPartyNoticesCommand}"/><Button Style="{StaticResource SubtleButton}" Content="{Binding OpenPresentMonProjectText}" Command="{Binding OpenPresentMonProjectCommand}" Margin="8,0,0,0"/></StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="{Binding BenchmarkHotkeyTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding BenchmarkHotkeyDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding BenchmarkHotkeyEnableLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding BenchmarkHotkeyEnabled, Mode=TwoWay}"/>
+                        </Grid>
+                        <TextBlock Text="{Binding BenchmarkHotkeyCombinationLabel}" Style="{StaticResource TinyCapsText}"/>
+                        <ItemsControl ItemsSource="{Binding BenchmarkHotkeyTokens}" Margin="0,7,0,10">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate><DataTemplate><Border Background="{StaticResource BrushSurfaceInteractive}" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1" CornerRadius="4" Padding="8,5" Margin="0,0,5,0"><TextBlock Text="{Binding}" Style="{StaticResource StatusText}"/></Border></DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="RecordBenchmarkHotkeyButton"
+                                    Style="{StaticResource SubtleButton}"
+                                    Content="{Binding BenchmarkHotkeyRecordText}"
+                                    Click="RecordBenchmarkHotkeyButton_Click"
+                                    PreviewKeyDown="RecordBenchmarkHotkeyButton_PreviewKeyDown"/>
+                            <Button Style="{StaticResource SubtleButton}" Content="{Binding BenchmarkHotkeyClearText}" Command="{Binding ClearBenchmarkHotkeyCommand}" Margin="8,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding BenchmarkHotkeyStatus}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,9,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+                    <StackPanel>
                         <TextBlock Text="{Binding LoggingTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding UpdatesDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
                         <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding CheckUpdatesLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding CheckForUpdates, Mode=TwoWay}" /></Grid>

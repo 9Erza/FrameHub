@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Integrated the v0.6 PresentMon Service/API backend into WPF with exact-PID library-game detection, asynchronous capture/cancellation, readiness and diagnostics.
+- Added Capture, History and same-game Compare tabs, session management, result context and a spike-preserving frame-time chart.
+- Added schema-v1 history discovery compatible with harness sessions, corrupt-session isolation, safe deletion, dashboard/Game Library integration and EN/PL localization.
+- Added PresentMon transparency in Settings and Setup, installed third-party notices, the pinned upstream MIT license, and separate harness logging.
+
 ## [0.5.0] - 2026-08-09
 
 - Completed the major FrameHub UI/UX overhaul.

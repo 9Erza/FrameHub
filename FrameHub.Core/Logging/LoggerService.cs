@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Reflection;
 using FrameHub.Core.Services;
 
 namespace FrameHub.Core.Logging
@@ -9,7 +10,10 @@ namespace FrameHub.Core.Logging
     {
         public bool IsEnabled { get; set; } = true;
         public ILogLevel LogLevel { get; set; } = FrameHub.Core.Logging.LogLevel.Info;
-        public string LogFilePath { get; set; } = AppPaths.GetUserDataFilePath("FrameHub.log");
+        public string LogFilePath { get; set; } = AppPaths.GetUserDataFilePath(
+            string.Equals(Assembly.GetEntryAssembly()?.GetName().Name, "FrameHub.BenchmarkHarness", StringComparison.OrdinalIgnoreCase)
+                ? "FrameHub.BenchmarkHarness.log"
+                : "FrameHub.log");
         public bool EnableConsoleOutput { get; set; } = false;
         public string DateFormat { get; set; } = "yyyy-MM-dd HH:mm:ss";
         public string SourceName { get; set; } = "FrameHub";

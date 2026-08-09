@@ -10,6 +10,7 @@ namespace FrameHub.App.ViewModels;
 public sealed class ShellViewModel : ViewModelBase, IDisposable
 {
     public event EventHandler? UiLanguageChanged;
+    public event Action<string>? UserNotificationRequested;
     private readonly LocalizationService _localization;
     private readonly SettingsService _settingsService;
     private readonly AppRuntimeService _runtime;
@@ -22,6 +23,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     private readonly DashboardViewModel _dashboardViewModel;
     private readonly LibraryViewModel _libraryViewModel;
     private readonly SessionOptimizationViewModel _sessionOptimizationViewModel;
+    private readonly BenchmarkViewModel _benchmarkViewModel;
     private readonly ProcessesViewModel _processesViewModel;
     private readonly ProfilesViewModel _profilesViewModel;
     private readonly HardwareViewModel _hardwareViewModel;
@@ -31,9 +33,9 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<NavigationItemViewModel> NavigationItems { get; }
     public IEnumerable<NavigationItemViewModel> MainGroupItems => NavigationItems.Take(1);
-    public IEnumerable<NavigationItemViewModel> GamingGroupItems => NavigationItems.Skip(1).Take(2);
-    public IEnumerable<NavigationItemViewModel> PerformanceGroupItems => NavigationItems.Skip(3).Take(3);
-    public IEnumerable<NavigationItemViewModel> SystemGroupItems => NavigationItems.Skip(6).Take(1);
+    public IEnumerable<NavigationItemViewModel> GamingGroupItems => NavigationItems.Skip(1).Take(3);
+    public IEnumerable<NavigationItemViewModel> PerformanceGroupItems => NavigationItems.Skip(4).Take(3);
+    public IEnumerable<NavigationItemViewModel> SystemGroupItems => NavigationItems.Skip(7).Take(1);
     public NavigationItemViewModel SettingsNavigationItem => NavigationItems[^1];
     public ICommand NavigateCommand { get; }
     public ICommand OpenRepositoryCommand { get; }
@@ -90,6 +92,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _dashboardViewModel = new DashboardViewModel(_localization, _runtime);
         _libraryViewModel = new LibraryViewModel(_localization, _runtime);
         _sessionOptimizationViewModel = new SessionOptimizationViewModel(_localization, _runtime);
+        _benchmarkViewModel = new BenchmarkViewModel(_localization, _runtime);
         _processesViewModel = new ProcessesViewModel(_localization, _runtime);
         _profilesViewModel = new ProfilesViewModel(_localization, _runtime);
         _hardwareViewModel = new HardwareViewModel(_localization, _runtime);
@@ -119,6 +122,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             new(_localization) { Key = "Dashboard", TitleKey = "Nav.Dashboard", Icon = "\uE80F" },
             new(_localization) { Key = "Library", TitleKey = "Nav.Library", Icon = "\uE7FC" },
             new(_localization) { Key = "Session", TitleKey = "Nav.Session", Icon = "\uEC4A" },
+            new(_localization) { Key = "Benchmarks", TitleKey = "Nav.Benchmarks", Icon = "\uE9D2" },
             new(_localization) { Key = "Processes", TitleKey = "Nav.CoreControl", Icon = "\uE950" },
             new(_localization) { Key = "Profiles", TitleKey = "Nav.ProfilesRules", Icon = "\uE734" },
             new(_localization) { Key = "Hardware", TitleKey = "Nav.Hardware", Icon = "\uE9D9" },
@@ -131,6 +135,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             ["Dashboard"] = _dashboardViewModel,
             ["Library"] = _libraryViewModel,
             ["Session"] = _sessionOptimizationViewModel,
+            ["Benchmarks"] = _benchmarkViewModel,
             ["Processes"] = _processesViewModel,
             ["Profiles"] = _profilesViewModel,
             ["Hardware"] = _hardwareViewModel,
@@ -144,6 +149,15 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OpenWebsiteCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Website));
         OpenSupportCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Support));
 
+        _libraryViewModel.BenchmarkRequested += item =>
+        {
+            _benchmarkViewModel.Preselect(item);
+            Navigate("Benchmarks");
+        };
+        _runtime.RuntimeStateChanged += (_, _) => _benchmarkViewModel.RefreshHotkeyStatus();
+        _benchmarkViewModel.UserNotificationRequested += message => UserNotificationRequested?.Invoke(message);
+        _dashboardViewModel.BenchmarkNavigationRequested = () => Navigate("Benchmarks");
+
         _currentViewModel = _dashboardViewModel;
         Navigate("Dashboard");
     }
@@ -155,6 +169,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _dashboardViewModel.RefreshTexts();
         _libraryViewModel.RefreshTexts();
         _sessionOptimizationViewModel.RefreshTexts();
+        _benchmarkViewModel.RefreshTexts();
         _processesViewModel.RefreshTexts();
         _profilesViewModel.RefreshTexts();
         _hardwareViewModel.RefreshTexts();
@@ -208,6 +223,15 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         {
             _processesViewModel.Start();
         }
+
+        if (!_currentKey.Equals("Benchmarks", StringComparison.OrdinalIgnoreCase) && key.Equals("Benchmarks", StringComparison.OrdinalIgnoreCase))
+        {
+            _benchmarkViewModel.Activate();
+        }
+        else if (_currentKey.Equals("Benchmarks", StringComparison.OrdinalIgnoreCase) && !key.Equals("Benchmarks", StringComparison.OrdinalIgnoreCase))
+        {
+            _benchmarkViewModel.Deactivate();
+        }
         else if (_currentKey.Equals("Processes", StringComparison.OrdinalIgnoreCase) && !key.Equals("Processes", StringComparison.OrdinalIgnoreCase))
         {
             _processesViewModel.Stop();
@@ -226,6 +250,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             DashboardViewModel dashboard => dashboard.Title,
             LibraryViewModel library => library.Title,
             SessionOptimizationViewModel session => session.Title,
+            BenchmarkViewModel benchmark => benchmark.Title,
             ProcessesViewModel processes => processes.Title,
             ProfilesViewModel profiles => profiles.Title,
             HardwareViewModel hardware => hardware.Title,
@@ -238,6 +263,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             DashboardViewModel dashboard => dashboard.Subtitle,
             LibraryViewModel library => library.Subtitle,
             SessionOptimizationViewModel session => session.Subtitle,
+            BenchmarkViewModel benchmark => benchmark.Subtitle,
             ProcessesViewModel processes => processes.Subtitle,
             ProfilesViewModel profiles => profiles.Subtitle,
             HardwareViewModel hardware => hardware.Subtitle,
@@ -252,8 +278,30 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         if (_disposed) return;
         _disposed = true;
         _sessionOptimizationViewModel.Dispose();
+        _benchmarkViewModel.Dispose();
         _processesViewModel.Dispose();
         _hardwareViewModel.Dispose();
         _runtime.Dispose();
     }
+
+    public async Task ShutdownAsync()
+    {
+        await _benchmarkViewModel.CancelAndWaitForCleanupAsync();
+        Dispose();
+    }
+
+    public async Task HandleBenchmarkHotkeyAsync()
+    {
+        try
+        {
+            await _benchmarkViewModel.HandleGlobalHotkeyAsync();
+        }
+        catch (Exception ex)
+        {
+            _runtime.AddActivity($"{_localization.T("Benchmark.Hotkey.CouldNotStart")}: {ex.Message}", "Error");
+            UserNotificationRequested?.Invoke(_localization.T("Benchmark.Hotkey.CouldNotStart"));
+        }
+    }
+
+    public void ReportBenchmarkHotkeyRegistrationFailure() => _settingsViewModel.ReportBenchmarkHotkeyRegistrationFailure();
 }

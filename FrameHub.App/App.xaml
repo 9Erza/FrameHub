@@ -29,6 +29,9 @@
             <DataTemplate DataType="{x:Type vm:SessionOptimizationViewModel}">
                 <views:SessionOptimizationView />
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:BenchmarkViewModel}">
+                <views:BenchmarkView />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:ProcessesViewModel}">
                 <views:ProcessesView />
             </DataTemplate>

@@ -6,8 +6,8 @@
 
 **Windows gaming and performance control without black-box tweaks.**
 
-Per-game CPU profiles, background-process session optimization,  
-CS2 configuration and local hardware monitoring in one desktop application.
+Game library, per-game CPU profiles, session optimization, local frame-time benchmarking,
+CS2 configuration and hardware monitoring in one desktop application.
 
 [**English**](README.md) · [Polski](README.pl.md)
 
@@ -50,10 +50,19 @@ The project currently focuses on:
 | --- | --- |
 | **Game Library** | Scan Steam, Epic and custom folders, add executables manually and configure CPU settings for a specific game. |
 | **Session Optimization** | Temporarily suspend selected background applications while a configured game session is active, then restore them safely. |
+| **Benchmarks (v0.6 development)** | Detect running library games, capture exact-process frame timing, graph frame times, retain local history and compare same-game sessions. |
 | **Processes & CPU** | Inspect a running process and immediately apply CPU Sets, Processor Affinity or process priority. |
 | **Profiles & Rules** | Save process settings and let the profile watcher apply them automatically when a matching executable starts. |
 | **Hardware Monitor** | Opt-in local CPU, GPU and RAM telemetry. Monitoring is disabled again on every new FrameHub launch. |
 | **Logs & Settings** | Diagnostics, language, tray behavior, logging and Windows startup configuration. |
+
+### Benchmarking (v0.6 development)
+
+Start a game from Game Library, open **Benchmarks** (or use the game's **Benchmark** action), choose a duration, and reproduce the same scene each time. FrameHub shows Average FPS, median, 1% Low, 0.1% Low, P95/P99 frame time, quality diagnostics, a spike-preserving frame-time graph, local history, and same-game comparisons. Raw frames and summaries remain on this machine under `%LOCALAPPDATA%\FrameHub\Benchmarks`; FrameHub adds no upload, analytics, account, or cloud service.
+
+Benchmark capture uses Intel PresentMon Shared Service/API. The official pinned PresentMon v2.5.1 MSI is embedded in the single FrameHub Setup, so users do not download a second installer. PresentMon is a shared MIT-licensed prerequisite and may remain installed after FrameHub is removed; see [Third-party notices](docs/THIRD-PARTY-NOTICES.md).
+
+FrameHub itself does not inject DLLs into games, read or modify game memory, install a FrameHub kernel driver, or bypass anti-cheat. It uses PresentMon's documented service/API/ETW path. Game and anti-cheat compatibility can vary, so compatibility with every title is not guaranteed.
 
 ---
 
