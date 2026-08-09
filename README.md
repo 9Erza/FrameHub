@@ -1,71 +1,280 @@
+<div align="center">
+
+<img src="FrameHub.App/Assets/FrameHubLogo.png" alt="FrameHub logo" width="220" />
+
 # FrameHub
 
-[English](README.md) | [Polski](README.pl.md)
+**Windows gaming and performance control without black-box tweaks.**
 
-![FrameHub logo](FrameHub.App/Assets/FrameHubLogo.png)
+Per-game CPU profiles, background-process session optimization,  
+CS2 configuration and local hardware monitoring in one desktop application.
 
-FrameHub is an open-source Windows gaming and performance utility for explicit per-game CPU profiles, background-process session optimization, and selected game configuration.
+[**English**](README.md) · [Polski](README.pl.md)
 
-![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4) ![.NET](https://img.shields.io/badge/.NET-10-512BD4) [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square)
+![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
+[![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-MIT-2EA44F?style=flat-square)](LICENSE)
+![Status](https://img.shields.io/badge/v0.5-unreleased-F59E0B?style=flat-square)
 
-FrameHub is in active development; v0.5 is unreleased.
+</div>
 
-## What each module does
+> [!NOTE]
+> FrameHub is under active development. **v0.5 is currently unreleased.**  
+> The repository reflects ongoing development and may change before the v0.5 release.
 
-| Module | Purpose |
+---
+
+## What is FrameHub?
+
+**FrameHub** is an open-source Windows utility focused on explicit, reversible and user-controlled gaming optimization.
+
+Instead of applying hidden system tweaks or generic "FPS boost" packs, FrameHub gives you direct control over:
+
+- what gets changed,
+- when it is applied,
+- which processes are affected,
+- and what should be restored afterwards.
+
+The project currently focuses on:
+
+- **per-game CPU and process profiles,**
+- **temporary background-process optimization while gaming,**
+- **safe Counter-Strike 2 configuration workflows,**
+- **optional local hardware monitoring and diagnostics.**
+
+---
+
+## Modules
+
+| Module | What it does |
 | --- | --- |
-| Game Library | Scan Steam, Epic, custom folders, or add an executable; configure a per-game CPU profile. |
-| Session Optimization | Temporarily suspend selected background applications while a selected game session is active. |
-| Processes & CPU | Apply CPU Sets/Affinity and priority to a running process now. |
-| Profiles & Rules | Save process settings and let the profile watcher apply them later. |
-| Hardware Monitor | Opt-in local CPU/GPU/RAM telemetry; off at every launch. |
-| Logs & Settings | Diagnostics, language, tray behavior, and Windows startup configuration. |
+| **Game Library** | Scan Steam, Epic and custom folders, add executables manually and configure CPU settings for a specific game. |
+| **Session Optimization** | Temporarily suspend selected background applications while a configured game session is active, then restore them safely. |
+| **Processes & CPU** | Inspect a running process and immediately apply CPU Sets, Processor Affinity or process priority. |
+| **Profiles & Rules** | Save process settings and let the profile watcher apply them automatically when a matching executable starts. |
+| **Hardware Monitor** | Opt-in local CPU, GPU and RAM telemetry. Monitoring is disabled again on every new FrameHub launch. |
+| **Logs & Settings** | Diagnostics, language, tray behavior, logging and Windows startup configuration. |
+
+---
 
 ## Features
 
-- Steam, Epic, custom-folder, and manual executable library entries.
-- Per-game CPU profiles, CPU Sets with Affinity fallback, and process priority.
-- Path-bound process profile identities when an executable path is available; legacy name-only profiles remain supported.
-- Profile watcher, safe suspend/recovery for Session Optimization, and manual sessions.
-- CS2 graphics configuration, autoexec editing, collision-safe backups, and Steam Cloud/running-game safeguards.
-- One valid CS2 Steam userdata profile is selected automatically; multiple profiles require an explicit numeric userdata-ID choice before writes.
-- Optional local hardware monitoring, PL/EN UI, logs, tray behavior, and Windows startup options.
+### Game Library
+
+- Steam library scanning.
+- Epic Games library scanning.
+- Custom library folders.
+- Manual executable entries.
+- Per-game configuration.
+- Running-game detection.
+- CPU profile assignment for individual games.
+- Filtering of known non-game Steam support packages.
+
+### Session Optimization
+
+- Automatic game detection.
+- Manual optimization sessions.
+- Temporary suspension of selected background applications.
+- Safe restoration after a session.
+- Recovery state for interrupted sessions.
+- Process validation designed to reduce incorrect resume operations.
+- Automatic and manual session workflows.
+
+### CPU and process control
+
+- CPU Sets support.
+- Processor Affinity fallback.
+- Process priority management.
+- Per-game CPU profiles.
+- Saved process profiles.
+- Background profile watcher.
+- Path-bound profile identities when an executable path is available.
+- Protection against accidentally matching unrelated same-name executables.
+- Legacy name-only profiles remain supported.
+
+### Counter-Strike 2
+
+- CS2 graphics/config workflow.
+- `autoexec.cfg` editing helper.
+- Backup-before-write safety flow.
+- Collision-safe backup names.
+- Steam Cloud warnings.
+- CS2-running safety checks.
+- Multiple Steam `userdata` profiles handled safely.
+- One valid userdata profile is selected automatically.
+- Multiple valid candidates require explicit selection before write operations are enabled.
+
+### Hardware monitoring
+
+- Local CPU telemetry.
+- Local GPU telemetry.
+- RAM monitoring.
+- Monitoring is completely opt-in.
+- Sensor polling runs only after monitoring is explicitly enabled.
+- Monitoring starts disabled again after every new FrameHub launch.
+
+### Windows integration
+
+- Polish and English UI.
+- Application logs and activity history.
+- Tray support.
+- Minimize-to-tray and close-to-tray behavior.
+- Windows startup configuration.
+- Normal startup through the current user context.
+- Optional elevated startup configuration when required.
+- Administrator privileges are not required for normal application use.
+
+---
 
 ## Safety and transparency
 
-FrameHub does not use DLL injection, game-memory manipulation, anti-cheat bypasses, or a kernel driver. CPU and process changes are explicit; Session Optimization suspends and later resumes processes it recorded. CS2 changes are text-config edits with backups. Hardware sensors are opened only after you enable monitoring. Some process and startup operations can require elevation; normal use does not require always running as administrator.
+FrameHub is deliberately conservative about optimization.
+
+FrameHub does **not**:
+
+- inject DLLs into games,
+- modify game memory,
+- install a kernel driver,
+- bypass anti-cheat systems,
+- silently apply undocumented Windows tweaks,
+- use generic "one-click FPS boost" packs,
+- silently write to an ambiguous CS2 Steam account.
+
+CPU and process changes are explicit and user-controlled.
+
+Session Optimization records processes suspended during a session so they can be restored afterwards.
+
+CS2 configuration changes are text-based and protected by backups and runtime safety checks.
+
+Hardware sensors are initialized only after you explicitly enable monitoring.
+
+> [!WARNING]
+> No third-party utility can guarantee compatibility with every game, anti-cheat platform or hardware configuration.  
+> Review the settings you apply and test changes on your own system.
+
+---
 
 ## Quick start
 
-1. Build FrameHub on Windows.
-2. Scan **Game Library** and select a game.
-3. Save or apply a CPU profile if desired.
-4. Configure **Session Optimization** for background applications you explicitly choose.
-5. Enable **Hardware Monitor** only when you want telemetry.
+1. Open **Game Library**.
+2. Scan Steam, Epic or your custom folders, or add a game manually.
+3. Select a game and configure a CPU profile if desired.
+4. Configure **Session Optimization** if you want FrameHub to temporarily suspend selected background applications while gaming.
+5. Use **Processes & CPU** when you want direct control over an already running process.
+6. Enable **Hardware Monitor** only when you want local telemetry.
+
+For detailed usage instructions, see the [User Guide](docs/USER_GUIDE.md).
+
+---
 
 ## Build from source
 
-Requires Windows and the .NET 10 SDK.
+### Requirements
+
+- Windows 10 or Windows 11
+- .NET 10 SDK
+- Git
+
+Clone the repository:
 
 ```powershell
 git clone https://github.com/9Erza/FrameHub.git
 cd FrameHub
+```
+
+Restore dependencies:
+
+```powershell
 dotnet restore .\FrameHub.slnx
+```
+
+Build:
+
+```powershell
 dotnet build .\FrameHub.slnx
+```
+
+Run tests:
+
+```powershell
 dotnet test .\FrameHub.slnx
+```
+
+Run FrameHub:
+
+```powershell
 dotnet run --project .\FrameHub.App\FrameHub.App.csproj
 ```
 
-FrameHub stores settings, library data, profiles, session recovery data, logs, and backups under `%APPDATA%\FrameHub`.
+---
 
-See the [User Guide](docs/USER_GUIDE.md), [Architecture](docs/ARCHITECTURE.md), [Roadmap](docs/ROADMAP.md), and [Contributing guide](CONTRIBUTING.md).
+## Application data
 
-## Project
+FrameHub stores application data under:
 
-Created by [9Erza](https://github.com/9Erza). 
-Visit [DobryPC.pl](https://dobrypc.pl) or support the project through [Buy Me a Coffee](https://buymeacoffee.com/9erza). 
-Repository: [9Erza/FrameHub](https://github.com/9Erza/FrameHub).
+```text
+%APPDATA%\FrameHub
+```
 
-## License and disclaimer
+This includes:
 
-Licensed under [MIT](LICENSE). Performance results and game compatibility vary by hardware and game; test changes yourself, especially on anti-cheat protected titles.
+- settings,
+- game library data,
+- saved profiles,
+- application logs,
+- Session Optimization recovery data,
+- application-managed backups.
+
+---
+
+## Documentation
+
+- **[User Guide](docs/USER_GUIDE.md)**  
+  Detailed usage instructions.
+
+- **[Polish User Guide](docs/USER_GUIDE.pl.md)**  
+  Instrukcja użytkownika po polsku.
+
+- **[Architecture](docs/ARCHITECTURE.md)**  
+  Current architecture and major service boundaries.
+
+- **[Roadmap](docs/ROADMAP.md)**  
+  Implemented, planned and experimental work.
+
+- **[Changelog](CHANGELOG.md)**  
+  Current unreleased changes and future release history.
+
+- **[Contributing](CONTRIBUTING.md)**  
+  Development and contribution guidelines.
+
+- **[Security Policy](SECURITY.md)**  
+  Information about reporting security-sensitive issues.
+
+---
+
+## Project & support
+
+### Author
+
+[**9Erza on GitHub**](https://github.com/9Erza)
+
+### Website
+
+[**DobryPC.pl**](https://dobrypc.pl)
+
+### Support development
+
+[**☕ Buy Me a Coffee**](https://buymeacoffee.com/9erza)
+
+### Repository
+
+[**github.com/9Erza/FrameHub**](https://github.com/9Erza/FrameHub)
+
+If FrameHub is useful to you, **starring the repository** or supporting development helps the project grow.
+
+---
+
+## License
+
+FrameHub is licensed under the [MIT License](LICENSE).
