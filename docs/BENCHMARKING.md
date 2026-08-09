@@ -17,7 +17,7 @@ FrameHub
 
 The proven environment uses PresentMon v2.5.1, API 3.3.0, service `PresentMonSharedService`, and the matching middleware at `%ProgramFiles%\Intel\PresentMonSharedService\PresentMonAPI2.dll`. Runtime discovery first honors the developer-only `--presentmon-api-dll` absolute-path override, then resolves the DLL beside the configured Windows service executable, then checks the official installation directory. FrameHub does not copy or load an arbitrary private middleware DLL.
 
-The standalone PresentMon console executable and CSV capture path are retired. Production capture does not launch `PresentMon.exe`, construct console arguments, create a named `FrameHub_*` ETW session, parse console CSV, capture child stdout/stderr, or fall back to a console backend. Intel's PresentMon Capture Application can be useful to developers as a diagnostic/control client, but FrameHub does not use it for normal capture.
+Production capture is Service/API only. FrameHub does not launch a capture helper process, create a FrameHub-owned ETW session, parse file output, capture child stdout/stderr, or fall back to a legacy backend. Intel's PresentMon Capture Application can be useful to developers as a diagnostic/control client, but FrameHub does not use it for normal capture.
 
 FrameHub does not inject DLLs into games, read or modify game memory, hook graphics APIs, request debug privileges, install a kernel driver, or implement anti-cheat bypasses. PresentMon owns ETW collection behind its documented Shared Service/API boundary.
 
@@ -37,14 +37,6 @@ The production query is intentionally fixed to the real-machine-validated set:
 - `FrameType` (`Enum`)
 
 Every metric is registered only when introspection confirms a usable frame-event type. Query-returned offsets and sizes are bounds-checked against the returned blob size, and each populated frame uses its own `buffer + index * blobSize` base. `pNumFramesToRead` is reset to full capacity before every consume call.
-
-## Legacy ETW-session postmortem
-
-The retired console backend passed `--session_name FrameHub_<benchmark-session-guid>` to the standalone child process. The child therefore created and owned the named ETW session. Normal timed/process-exit completion relied on PresentMon shutting that session down while exiting.
-
-The cancellation path instead called `Process.Kill(entireProcessTree: true)` and then waited for the terminated child. There was no owner-scoped post-kill ETW stop operation, so an abruptly terminated console process could leave its named kernel ETW session running. This was the code path that permitted the observed stale `FrameHub_*` session. The backend and its session-creation code have been removed; FrameHub does not perform unsafe prefix-based cleanup of system ETW sessions.
-
-The observed recovery involved both stopping the stale session and restarting `PresentMonSharedService`, so it does not prove which individual action restored capture. It does prove that the old backend had an ETW ownership leak and that the Shared Service/API data path works in a clean state.
 
 ## Identity and safety
 
@@ -85,11 +77,11 @@ dotnet run --project .\FrameHub.BenchmarkHarness --configuration Release -- `
   --seconds 30
 ```
 
-`--backend api` is accepted for explicitness; any retired `csv` value is rejected. Other options are `--game-id`, `--presentmon-api-dll`, and `--output`. The harness prints API version, registered metric types, blob/buffer dimensions, consume-call counts, sample decode counts, analyzer results, quality, and storage location.
+`--backend api` is accepted for explicitness; retired backend values are rejected. Other options are `--game-id`, `--presentmon-api-dll`, and `--output`. The harness prints API version, registered metric types, blob/buffer dimensions, consume-call counts, sample decode counts, analyzer results, quality, and storage location.
 
 ## Packaging contract
 
-The final user experience will be one FrameHub installer that handles the official PresentMon prerequisite. End users must not be required to download PresentMon separately, locate its middleware DLL, or configure the service manually. Installer chaining, prerequisite ownership, coexistence, upgrade, and uninstall behavior are deferred to a later task; the current installer and stable FrameHub AppId are unchanged.
+FrameHub Setup is an offline-capable single installer. During a distributable installer build, `installer\Prepare-PresentMonPrerequisite.ps1` fetches the official Intel PresentMon v2.5.1 MSI into the gitignored `artifacts\prerequisites\PresentMon` cache and verifies its pinned SHA-256 before Inno Setup embeds it. At install time, setup checks the installed `PresentMonSharedService` configuration and co-located `PresentMonAPI2.dll` file/version. A verified v2.5.1 installation is reused; otherwise setup runs the embedded MSI silently with `/qn /norestart`, then verifies the service/API. It never distributes a private middleware DLL, removes PresentMon during FrameHub uninstall, or automatically downgrades an existing newer/unverified shared installation. See [third-party notices](THIRD-PARTY-NOTICES.md).
 
 ## Known limitations
 

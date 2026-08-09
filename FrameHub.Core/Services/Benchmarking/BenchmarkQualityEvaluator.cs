@@ -22,15 +22,15 @@ public sealed class BenchmarkQualityEvaluator
 
         if (metrics is { ValidFrameCount: > 0 and < 60 }) Add(issues, "low_sample_count", BenchmarkQualitySeverity.Warning, "Fewer than 60 usable presented-frame intervals were analyzed.");
         if (ambiguousSwapChain) Add(issues, "ambiguous_swap_chain", BenchmarkQualitySeverity.Warning, "Two swap chains had materially similar dominance scores; the deterministic tie-breaker was used.");
-        if (diagnostics.IncompleteLastRow) Add(issues, "incomplete_csv", BenchmarkQualitySeverity.Warning, "The raw CSV ended with an incomplete row.");
+        if (diagnostics.IncompleteInput) Add(issues, "incomplete_input", BenchmarkQualitySeverity.Warning, "The raw frame input ended incompletely.");
 
-        double malformedRatio = diagnostics.DataRowsRead == 0 ? 0 : (double)diagnostics.MalformedRows / diagnostics.DataRowsRead;
-        if (malformedRatio > 0.20) Add(issues, "many_malformed_rows", BenchmarkQualitySeverity.Error, "More than 20% of CSV data rows were malformed.");
-        else if (diagnostics.MalformedRows > 0) Add(issues, "malformed_rows", BenchmarkQualitySeverity.Warning, $"{diagnostics.MalformedRows} malformed CSV row(s) were excluded.");
+        double rejectedRatio = diagnostics.RecordsRead == 0 ? 0 : (double)diagnostics.RejectedRecords / diagnostics.RecordsRead;
+        if (rejectedRatio > 0.20) Add(issues, "many_rejected_records", BenchmarkQualitySeverity.Error, "More than 20% of raw frame records were rejected.");
+        else if (diagnostics.RejectedRecords > 0) Add(issues, "rejected_records", BenchmarkQualitySeverity.Warning, $"{diagnostics.RejectedRecords} raw frame record(s) were excluded.");
 
         if (!frameTypeAvailable) Add(issues, "frame_type_unavailable", BenchmarkQualitySeverity.Information, "PresentMon did not provide FrameType; generated frames cannot be classified.");
         if (mixedFrameTypes) Add(issues, "mixed_frame_types", BenchmarkQualitySeverity.Warning, "Multiple FrameType values are present. Aggregate metrics are explicitly unfiltered; per-type counts are retained.");
-        if (diagnostics.MissingOptionalColumns.Count > 0) Add(issues, "optional_telemetry_unavailable", BenchmarkQualitySeverity.Information, $"Optional PresentMon columns unavailable: {string.Join(", ", diagnostics.MissingOptionalColumns)}.");
+        if (diagnostics.UnavailableOptionalMetrics.Count > 0) Add(issues, "optional_telemetry_unavailable", BenchmarkQualitySeverity.Information, $"Optional PresentMon metrics unavailable: {string.Join(", ", diagnostics.UnavailableOptionalMetrics)}.");
 
         BenchmarkQualityLevel level = issues.Any(issue => issue.Severity == BenchmarkQualitySeverity.Error)
             ? BenchmarkQualityLevel.Invalid

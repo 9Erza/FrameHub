@@ -62,7 +62,7 @@ public sealed class BenchmarkHarnessOptions
                     outputRoot = value;
                     break;
                 case "--backend":
-                    if (value != "api") { error = "--backend only accepts 'api'; the console/CSV backend has been retired."; return false; }
+                    if (value != "api") { error = "--backend only accepts 'api'; legacy capture backends have been retired."; return false; }
                     break;
                 default:
                     error = $"Unknown argument '{argument}'.";

@@ -206,6 +206,16 @@ Run FrameHub:
 dotnet run --project .\FrameHub.App\FrameHub.App.csproj
 ```
 
+### Build the installer
+
+Install Inno Setup 6, then run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
+```
+
+The build prepares the official Intel PresentMon v2.5.1 MSI automatically, verifies its pinned SHA-256, embeds it in the generated FrameHub Setup, and keeps the prerequisite cache under the gitignored `artifacts\prerequisites\PresentMon` directory.
+
 ---
 
 ## Application data

@@ -53,9 +53,9 @@ public sealed class BenchmarkHarnessOptionsTests
     }
 
     [TestMethod]
-    public void RetiredCsvBackend_IsRejected()
+    public void RetiredBackend_IsRejected()
     {
-        Assert.IsFalse(BenchmarkHarnessOptions.TryParse(["--backend", "csv", "--pid", "42"], out _, out string? error));
+        Assert.IsFalse(BenchmarkHarnessOptions.TryParse(["--backend", "legacy", "--pid", "42"], out _, out string? error));
         StringAssert.Contains(error, "retired");
     }
 }

@@ -9,6 +9,7 @@
 # Build output
 bin/
 obj/
+# Includes the installer prerequisite cache and generated setup payloads.
 artifacts/
 TestResults/
 

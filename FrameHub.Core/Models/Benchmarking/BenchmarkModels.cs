@@ -204,11 +204,11 @@ public sealed class BenchmarkQualityResult
 
 public sealed class BenchmarkDataDiagnostics
 {
-    public int DataRowsRead { get; set; }
+    public int RecordsRead { get; set; }
     public int SamplesParsed { get; set; }
-    public int MalformedRows { get; set; }
-    public bool IncompleteLastRow { get; set; }
-    public IReadOnlyList<string> MissingOptionalColumns { get; set; } = Array.Empty<string>();
+    public int RejectedRecords { get; set; }
+    public bool IncompleteInput { get; set; }
+    public IReadOnlyList<string> UnavailableOptionalMetrics { get; set; } = Array.Empty<string>();
     public IReadOnlyList<string> Warnings { get; set; } = Array.Empty<string>();
 }
 
