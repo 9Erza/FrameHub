@@ -1,76 +1,102 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <FontFamily x:Key="FontUi">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="FontDisplay">Segoe UI Variable Display, Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="FontMono">Cascadia Mono, Consolas</FontFamily>
+
     <Style TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontFamily" Value="{StaticResource FontUi}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
         <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
-        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
-        <Setter Property="TextOptions.TextHintingMode" Value="Fixed" />
     </Style>
 
     <Style x:Key="PageEyebrowText" TargetType="TextBlock">
         <Setter Property="FontSize" Value="11" />
-        <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
-    </Style>
-
-    <Style x:Key="PageTitleText" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="30" />
         <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource BrushAccentPrimary}" />
+    </Style>
+    <Style x:Key="PageTitleText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontDisplay}" />
+        <Setter Property="FontSize" Value="29" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="36" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
     </Style>
-
     <Style x:Key="PageSubtitleText" TargetType="TextBlock">
         <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="LineHeight" Value="21" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+    </Style>
+    <Style x:Key="SectionTitleText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontDisplay}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="24" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+    </Style>
+    <Style x:Key="DataTitleText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="20" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+    </Style>
+    <Style x:Key="BodyText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="LineHeight" Value="21" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+    </Style>
+    <Style x:Key="SecondaryBodyText" TargetType="TextBlock" BasedOn="{StaticResource BodyText}">
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="LineHeight" Value="20" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
     </Style>
-
-    <Style x:Key="SectionTitleText" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="20" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
-    </Style>
-
-    <Style x:Key="SettingTitleText" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
-    </Style>
-
-    <Style x:Key="SettingDescriptionText" TargetType="TextBlock">
+    <Style x:Key="CaptionText" TargetType="TextBlock">
         <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="LineHeight" Value="17" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+    </Style>
+    <Style x:Key="MetricText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontDisplay}" />
+        <Setter Property="FontSize" Value="28" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="34" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+    </Style>
+    <Style x:Key="CodeText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontMono}" />
+        <Setter Property="FontSize" Value="12" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+    </Style>
+
+    <Style x:Key="SettingTitleText" TargetType="TextBlock" BasedOn="{StaticResource DataTitleText}" />
+    <Style x:Key="SettingDescriptionText" TargetType="TextBlock" BasedOn="{StaticResource SecondaryBodyText}">
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
-
     <Style x:Key="StatusText" TargetType="TextBlock">
         <Setter Property="FontSize" Value="12" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
     </Style>
-
     <Style x:Key="CardTitleText" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+    </Style>
+    <Style x:Key="CardValueText" TargetType="TextBlock" BasedOn="{StaticResource MetricText}" />
+    <Style x:Key="SmallMutedText" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}" />
+    <Style x:Key="TinyCapsText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
     </Style>
-
-    <Style x:Key="CardValueText" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="27" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
-    </Style>
-
-    <Style x:Key="SmallMutedText" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="12" />
-        <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
-    </Style>
-
-    <Style x:Key="TinyCapsText" TargetType="TextBlock">
+    <Style x:Key="NavGroupText" TargetType="TextBlock">
         <Setter Property="FontSize" Value="10" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
     </Style>
 </ResourceDictionary>

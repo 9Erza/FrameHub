@@ -9,6 +9,7 @@
     <Resource Include="Assets\FrameHubLogo.png" />
     <Resource Include="Assets\pl_flag.png" />
     <Resource Include="Assets\us_flag.png" />
+    <Resource Include="Assets\BuyMeACoffee.png" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -18,6 +19,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>Assets\FrameHub.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>0.4.0</Version>

@@ -72,11 +72,27 @@ public sealed class Cs2ConfigPaths
     public bool IsComplete => !string.IsNullOrWhiteSpace(VideoConfigPath) && System.IO.File.Exists(VideoConfigPath);
 }
 
+public sealed class SteamUserdataAccountCandidate
+{
+    public string UserdataId { get; set; } = string.Empty;
+    public string DirectoryPath { get; set; } = string.Empty;
+    public string ConfigFolderPath { get; set; } = string.Empty;
+    public override string ToString() => UserdataId;
+}
+
+public sealed class Cs2UserdataResolution
+{
+    public List<SteamUserdataAccountCandidate> Candidates { get; set; } = new();
+    public SteamUserdataAccountCandidate? Selected { get; set; }
+    public bool IsResolved => Selected != null;
+}
+
 public sealed class Cs2ConfigAnalysis
 {
     public bool IsDetected { get; set; }
     public string StatusMessage { get; set; } = string.Empty;
     public Cs2ConfigPaths Paths { get; set; } = new();
+    public Cs2UserdataResolution UserdataResolution { get; set; } = new();
     public Dictionary<string, string> VideoSettings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> MachineConvars { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<GameOptimizationPreset> Presets { get; set; } = new();

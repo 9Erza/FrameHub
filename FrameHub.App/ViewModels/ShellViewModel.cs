@@ -29,17 +29,37 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     private readonly Dictionary<string, object> _views;
 
     public ObservableCollection<NavigationItemViewModel> NavigationItems { get; }
+    public IEnumerable<NavigationItemViewModel> MainGroupItems => NavigationItems.Take(1);
+    public IEnumerable<NavigationItemViewModel> GamingGroupItems => NavigationItems.Skip(1).Take(2);
+    public IEnumerable<NavigationItemViewModel> PerformanceGroupItems => NavigationItems.Skip(3).Take(3);
+    public IEnumerable<NavigationItemViewModel> SystemGroupItems => NavigationItems.Skip(6).Take(1);
+    public NavigationItemViewModel SettingsNavigationItem => NavigationItems[^1];
     public ICommand NavigateCommand { get; }
+    public ICommand OpenRepositoryCommand { get; }
+    public ICommand OpenAuthorCommand { get; }
+    public ICommand OpenWebsiteCommand { get; }
+    public ICommand OpenSupportCommand { get; }
 
     public AppRuntimeService Runtime => _runtime;
 
     public string AppName { get; } = "FrameHub";
     public string AppVersion { get; } = new AppInfo().Version;
     public string CoreFoundationStatus => _localization.T("Status.CoreMigrated");
+    public bool IsWatcherActive => _runtime.IsProfileWatcherActive;
     public string WatcherStatus => _runtime.IsProfileWatcherActive ? _localization.T("Status.WatcherActive") : _localization.T("Status.WatcherInactive");
     public string MinimizeTooltip => _localization.T("Window.Minimize");
     public string MaximizeRestoreTooltip => _localization.T("Window.MaximizeRestore");
     public string CloseTooltip => _localization.T("Window.Close");
+    public string MainGroupTitle => _localization.T("Nav.Group.Main");
+    public string GamingGroupTitle => _localization.T("Nav.Group.Gaming");
+    public string PerformanceGroupTitle => _localization.T("Nav.Group.Performance");
+    public string SystemGroupTitle => _localization.T("Nav.Group.System");
+    public string RepositoryTooltip => _localization.T("Footer.Repository");
+    public string AuthorTooltip => _localization.T("Footer.Author");
+    public string AuthorLabel => _localization.T("Footer.AuthorLabel");
+    public string WebsiteTooltip => _localization.T("Footer.Website");
+    public string SupportTooltip => _localization.T("Footer.Support");
+    public string ProjectVersionLabel => $"FrameHub {AppVersion}";
 
     public object CurrentViewModel
     {
@@ -79,7 +99,11 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             _settingsViewModel.ReloadFromRuntime();
             RefreshTexts();
         };
-        _runtime.WatcherStateChanged += (_, _) => OnPropertyChanged(nameof(WatcherStatus));
+        _runtime.WatcherStateChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsWatcherActive));
+            OnPropertyChanged(nameof(WatcherStatus));
+        };
         _runtime.ProfilesChanged += (_, _) =>
         {
             _dashboardViewModel.RefreshTexts();
@@ -111,6 +135,10 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         };
 
         NavigateCommand = new RelayCommand(parameter => Navigate(parameter?.ToString() ?? "Dashboard"));
+        OpenRepositoryCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Repository));
+        OpenAuthorCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Author));
+        OpenWebsiteCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Website));
+        OpenSupportCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Support));
 
         _currentViewModel = _dashboardViewModel;
         Navigate("Dashboard");
@@ -132,10 +160,28 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         Navigate(_currentKey);
 
         OnPropertyChanged(nameof(CoreFoundationStatus));
+        OnPropertyChanged(nameof(IsWatcherActive));
         OnPropertyChanged(nameof(WatcherStatus));
         OnPropertyChanged(nameof(MinimizeTooltip));
         OnPropertyChanged(nameof(MaximizeRestoreTooltip));
         OnPropertyChanged(nameof(CloseTooltip));
+        OnPropertyChanged(nameof(MainGroupTitle));
+        OnPropertyChanged(nameof(GamingGroupTitle));
+        OnPropertyChanged(nameof(PerformanceGroupTitle));
+        OnPropertyChanged(nameof(SystemGroupTitle));
+        OnPropertyChanged(nameof(RepositoryTooltip));
+        OnPropertyChanged(nameof(AuthorTooltip));
+        OnPropertyChanged(nameof(AuthorLabel));
+        OnPropertyChanged(nameof(WebsiteTooltip));
+        OnPropertyChanged(nameof(SupportTooltip));
+    }
+
+    private void OpenExternalLink(FrameHubExternalLink link)
+    {
+        if (!ExternalLinkService.TryOpen(link))
+        {
+            _runtime.AddActivity(_localization.T("Footer.OpenFailed"), "Warn");
+        }
     }
 
 

@@ -1,26 +1,41 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- FrameHub dark application theme. -->
-    <Color x:Key="ColorWindowChrome">#060A12</Color>
-    <Color x:Key="ColorBackground">#070B13</Color>
-    <Color x:Key="ColorBackgroundAlt">#0A0F1C</Color>
-    <Color x:Key="ColorSidebar">#0B1222</Color>
-    <Color x:Key="ColorSurface">#0F172A</Color>
-    <Color x:Key="ColorSurfaceAlt">#121D34</Color>
-    <Color x:Key="ColorSurfaceHover">#1A2740</Color>
-    <Color x:Key="ColorSurfaceSelected">#1B376A</Color>
-    <Color x:Key="ColorBorder">#26344E</Color>
-    <Color x:Key="ColorBorderSoft">#1C2941</Color>
-    <Color x:Key="ColorPrimary">#5B8CFF</Color>
-    <Color x:Key="ColorPrimaryDark">#2563EB</Color>
-    <Color x:Key="ColorPrimarySoft">#152B58</Color>
-    <Color x:Key="ColorCyan">#38BDF8</Color>
-    <Color x:Key="ColorSuccess">#22C55E</Color>
-    <Color x:Key="ColorWarning">#F59E0B</Color>
-    <Color x:Key="ColorDanger">#EF4444</Color>
-    <Color x:Key="ColorTextPrimary">#F8FAFC</Color>
-    <Color x:Key="ColorTextSecondary">#B6C2D8</Color>
-    <Color x:Key="ColorTextMuted">#74839B</Color>
+    <!-- Neutral graphite foundation. Hierarchy comes from luminance, not outlines. -->
+    <Color x:Key="ColorBackground">#0B0D10</Color>
+    <Color x:Key="ColorBackgroundAlt">#0F1216</Color>
+    <Color x:Key="ColorSidebar">#0D0F12</Color>
+    <Color x:Key="ColorTitlebar">#0A0C0F</Color>
+
+    <Color x:Key="ColorSurface">#13161B</Color>
+    <Color x:Key="ColorSurfaceRaised">#181C22</Color>
+    <Color x:Key="ColorSurfaceInteractive">#1C2128</Color>
+    <Color x:Key="ColorSurfaceHover">#232A33</Color>
+    <Color x:Key="ColorSurfaceSelected">#162A38</Color>
+
+    <Color x:Key="ColorBorderSubtle">#242A32</Color>
+    <Color x:Key="ColorBorderDefault">#323A45</Color>
+    <Color x:Key="ColorBorderStrong">#46515F</Color>
+
+    <Color x:Key="ColorTextPrimary">#F3F5F7</Color>
+    <Color x:Key="ColorTextSecondary">#C6CBD2</Color>
+    <Color x:Key="ColorTextMuted">#929AA5</Color>
+    <Color x:Key="ColorTextDisabled">#646C76</Color>
+
+    <Color x:Key="ColorAccentPrimary">#38BDF8</Color>
+    <Color x:Key="ColorAccentSecondary">#8B82FF</Color>
+    <Color x:Key="ColorAccentSoft">#142C39</Color>
+    <Color x:Key="ColorAccentHover">#62CDF9</Color>
+
+    <Color x:Key="ColorSuccess">#43D39E</Color>
+    <Color x:Key="ColorSuccessSoft">#142E27</Color>
+    <Color x:Key="ColorWarning">#F2B94B</Color>
+    <Color x:Key="ColorWarningSoft">#332816</Color>
+    <Color x:Key="ColorError">#F2767C</Color>
+    <Color x:Key="ColorErrorSoft">#351B20</Color>
+    <Color x:Key="ColorInformation">#72AFFF</Color>
+    <Color x:Key="ColorInformationSoft">#17263B</Color>
+    <Color x:Key="ColorCoffee">#FFDD00</Color>
+    <Color x:Key="ColorCoffeeSoft">#2B2715</Color>
 
     <Thickness x:Key="Space4">4</Thickness>
     <Thickness x:Key="Space8">8</Thickness>
@@ -28,45 +43,54 @@
     <Thickness x:Key="Space16">16</Thickness>
     <Thickness x:Key="Space24">24</Thickness>
     <Thickness x:Key="Space32">32</Thickness>
+    <Thickness x:Key="Space40">40</Thickness>
     <CornerRadius x:Key="CornerSmall">6</CornerRadius>
-    <CornerRadius x:Key="CornerMedium">10</CornerRadius>
-    <CornerRadius x:Key="CornerLarge">14</CornerRadius>
+    <CornerRadius x:Key="CornerMedium">8</CornerRadius>
+    <CornerRadius x:Key="CornerLarge">11</CornerRadius>
 
-    <SolidColorBrush x:Key="BrushWindowChrome" Color="{StaticResource ColorWindowChrome}" />
     <SolidColorBrush x:Key="BrushBackground" Color="{StaticResource ColorBackground}" />
     <SolidColorBrush x:Key="BrushBackgroundAlt" Color="{StaticResource ColorBackgroundAlt}" />
     <SolidColorBrush x:Key="BrushSidebar" Color="{StaticResource ColorSidebar}" />
+    <SolidColorBrush x:Key="BrushTitlebar" Color="{StaticResource ColorTitlebar}" />
     <SolidColorBrush x:Key="BrushSurface" Color="{StaticResource ColorSurface}" />
-    <SolidColorBrush x:Key="BrushSurfaceAlt" Color="{StaticResource ColorSurfaceAlt}" />
+    <SolidColorBrush x:Key="BrushSurfaceRaised" Color="{StaticResource ColorSurfaceRaised}" />
+    <SolidColorBrush x:Key="BrushSurfaceInteractive" Color="{StaticResource ColorSurfaceInteractive}" />
     <SolidColorBrush x:Key="BrushSurfaceHover" Color="{StaticResource ColorSurfaceHover}" />
     <SolidColorBrush x:Key="BrushSurfaceSelected" Color="{StaticResource ColorSurfaceSelected}" />
-    <SolidColorBrush x:Key="BrushBorder" Color="{StaticResource ColorBorder}" />
-    <SolidColorBrush x:Key="BrushBorderSoft" Color="{StaticResource ColorBorderSoft}" />
-    <SolidColorBrush x:Key="BrushPrimary" Color="{StaticResource ColorPrimary}" />
-    <SolidColorBrush x:Key="BrushPrimaryDark" Color="{StaticResource ColorPrimaryDark}" />
-    <SolidColorBrush x:Key="BrushPrimarySoft" Color="{StaticResource ColorPrimarySoft}" />
-    <SolidColorBrush x:Key="BrushCyan" Color="{StaticResource ColorCyan}" />
-    <SolidColorBrush x:Key="BrushSuccess" Color="{StaticResource ColorSuccess}" />
-    <SolidColorBrush x:Key="BrushWarning" Color="{StaticResource ColorWarning}" />
-    <SolidColorBrush x:Key="BrushDanger" Color="{StaticResource ColorDanger}" />
+    <SolidColorBrush x:Key="BrushBorderSubtle" Color="{StaticResource ColorBorderSubtle}" />
+    <SolidColorBrush x:Key="BrushBorderDefault" Color="{StaticResource ColorBorderDefault}" />
+    <SolidColorBrush x:Key="BrushBorderStrong" Color="{StaticResource ColorBorderStrong}" />
     <SolidColorBrush x:Key="BrushTextPrimary" Color="{StaticResource ColorTextPrimary}" />
     <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource ColorTextSecondary}" />
     <SolidColorBrush x:Key="BrushTextMuted" Color="{StaticResource ColorTextMuted}" />
+    <SolidColorBrush x:Key="BrushTextDisabled" Color="{StaticResource ColorTextDisabled}" />
+    <SolidColorBrush x:Key="BrushAccentPrimary" Color="{StaticResource ColorAccentPrimary}" />
+    <SolidColorBrush x:Key="BrushAccentSecondary" Color="{StaticResource ColorAccentSecondary}" />
+    <SolidColorBrush x:Key="BrushAccentSoft" Color="{StaticResource ColorAccentSoft}" />
+    <SolidColorBrush x:Key="BrushAccentHover" Color="{StaticResource ColorAccentHover}" />
+    <SolidColorBrush x:Key="BrushSuccess" Color="{StaticResource ColorSuccess}" />
+    <SolidColorBrush x:Key="BrushSuccessSoft" Color="{StaticResource ColorSuccessSoft}" />
+    <SolidColorBrush x:Key="BrushWarning" Color="{StaticResource ColorWarning}" />
+    <SolidColorBrush x:Key="BrushWarningSoft" Color="{StaticResource ColorWarningSoft}" />
+    <SolidColorBrush x:Key="BrushError" Color="{StaticResource ColorError}" />
+    <SolidColorBrush x:Key="BrushErrorSoft" Color="{StaticResource ColorErrorSoft}" />
+    <SolidColorBrush x:Key="BrushInformation" Color="{StaticResource ColorInformation}" />
+    <SolidColorBrush x:Key="BrushInformationSoft" Color="{StaticResource ColorInformationSoft}" />
+    <SolidColorBrush x:Key="BrushCoffee" Color="{StaticResource ColorCoffee}" />
+    <SolidColorBrush x:Key="BrushCoffeeSoft" Color="{StaticResource ColorCoffeeSoft}" />
 
-    <LinearGradientBrush x:Key="BrushAppBackground" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#070B13" Offset="0" />
-        <GradientStop Color="#081121" Offset="0.45" />
-        <GradientStop Color="#050812" Offset="1" />
-    </LinearGradientBrush>
-
-    <LinearGradientBrush x:Key="BrushHeroGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#13254A" Offset="0" />
-        <GradientStop Color="#0F172A" Offset="0.55" />
-        <GradientStop Color="#0A0F1C" Offset="1" />
-    </LinearGradientBrush>
-
-    <LinearGradientBrush x:Key="BrushPrimaryGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#5B8CFF" Offset="0" />
-        <GradientStop Color="#38BDF8" Offset="1" />
-    </LinearGradientBrush>
+    <!-- Compatibility aliases used by existing presentation bindings. -->
+    <SolidColorBrush x:Key="BrushWindowChrome" Color="{StaticResource ColorTitlebar}" />
+    <SolidColorBrush x:Key="BrushSurfaceAlt" Color="{StaticResource ColorSurfaceInteractive}" />
+    <SolidColorBrush x:Key="BrushBorder" Color="{StaticResource ColorBorderDefault}" />
+    <SolidColorBrush x:Key="BrushBorderSoft" Color="{StaticResource ColorBorderSubtle}" />
+    <SolidColorBrush x:Key="BrushPrimary" Color="{StaticResource ColorAccentPrimary}" />
+    <SolidColorBrush x:Key="BrushPrimaryDark" Color="#1497CC" />
+    <SolidColorBrush x:Key="BrushPrimarySoft" Color="{StaticResource ColorAccentSoft}" />
+    <SolidColorBrush x:Key="BrushCyan" Color="{StaticResource ColorAccentPrimary}" />
+    <SolidColorBrush x:Key="BrushDanger" Color="{StaticResource ColorError}" />
+    <SolidColorBrush x:Key="BrushAppBackground" Color="{StaticResource ColorBackground}" />
+    <SolidColorBrush x:Key="BrushHeroGradient" Color="{StaticResource ColorSurfaceRaised}" />
+    <SolidColorBrush x:Key="BrushPrimaryGradient" Color="{StaticResource ColorAccentPrimary}" />
+    <SolidColorBrush x:Key="BrushSelectedGradient" Color="{StaticResource ColorSurfaceSelected}" />
 </ResourceDictionary>

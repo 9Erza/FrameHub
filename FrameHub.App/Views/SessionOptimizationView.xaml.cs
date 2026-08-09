@@ -6,4 +6,9 @@ public partial class SessionOptimizationView : System.Windows.Controls.UserContr
     {
         InitializeComponent();
     }
+
+    private void PageScrollViewer_Loaded(object sender, System.Windows.RoutedEventArgs e)
+    {
+        PageScrollViewer.ScrollToTop();
+    }
 }

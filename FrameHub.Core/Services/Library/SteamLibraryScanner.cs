@@ -42,7 +42,7 @@ public sealed class SteamLibraryScanner
                     string installPath = Path.Combine(steamApps, "common", installDir);
                     string? exe = ExecutableResolver.FindBestExecutable(installPath, name);
 
-                    result.Items.Add(new LibraryItem
+                    var item = new LibraryItem
                     {
                         DisplayName = name,
                         Source = LibrarySource.Steam,
@@ -54,7 +54,8 @@ public sealed class SteamLibraryScanner
                         IconPath = exe,
                         IsEnabled = true,
                         WatchProcess = true
-                    });
+                    };
+                    if (LibraryItemFilter.IsSupportedLibraryItem(item)) result.Items.Add(item);
                 }
                 catch (Exception ex)
                 {

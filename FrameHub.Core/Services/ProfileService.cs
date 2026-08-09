@@ -98,11 +98,11 @@ namespace FrameHub.Core.Services
 
         private static ProcessProfile SanitizeProfile(ProcessProfile profile)
         {
-            profile.SchemaVersion = 2;
+            profile.SchemaVersion = 3;
             profile.Id = string.IsNullOrWhiteSpace(profile.Id) ? Guid.NewGuid().ToString("N") : profile.Id;
             profile.ProcessName = NormalizeProcessName(profile.ProcessName);
             profile.DisplayName = string.IsNullOrWhiteSpace(profile.DisplayName) ? profile.ProcessName : profile.DisplayName;
-            profile.ExecutablePath = string.IsNullOrWhiteSpace(profile.ExecutablePath) ? null : profile.ExecutablePath.Trim();
+            profile.ExecutablePath = NormalizeExecutablePath(profile.ExecutablePath);
             profile.LibraryItemId = string.IsNullOrWhiteSpace(profile.LibraryItemId) ? null : profile.LibraryItemId.Trim();
             profile.Priority = PriorityService.Normalize(profile.Priority, allowRealtime: true);
             profile.CreatedAt = profile.CreatedAt == default ? DateTime.UtcNow : profile.CreatedAt;
@@ -128,6 +128,21 @@ namespace FrameHub.Core.Services
             return value.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                 ? Path.GetFileNameWithoutExtension(value)
                 : value;
+        }
+
+        public static string? NormalizeExecutablePath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return null;
+            try { return Path.GetFullPath(path.Trim()); }
+            catch { return path.Trim(); }
+        }
+
+        /// <summary>Path-bound profiles never fall back to a same-name executable.</summary>
+        public static bool MatchesIdentity(ProcessProfile profile, string? processName, string? executablePath)
+        {
+            if (!NormalizeProcessName(profile.ProcessName).Equals(NormalizeProcessName(processName), StringComparison.OrdinalIgnoreCase)) return false;
+            string? profilePath = NormalizeExecutablePath(profile.ExecutablePath);
+            return profilePath is null || (NormalizeExecutablePath(executablePath) is string path && profilePath.Equals(path, StringComparison.OrdinalIgnoreCase));
         }
 
         private static bool ProfilesEquivalent(IReadOnlyList<ProcessProfile> left, IReadOnlyList<ProcessProfile> right)

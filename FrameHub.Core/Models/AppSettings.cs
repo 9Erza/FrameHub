@@ -49,6 +49,7 @@ namespace FrameHub.Core.Models
         public bool HardwareMonitorEnabled { get; set; } = false;
         public bool EnableStorageSensors { get; set; } = false;
         public bool CheckForUpdates { get; set; } = true;
+        public string? Cs2SteamUserdataId { get; set; }
 
         /// <summary>
         /// User-selected folders scanned by the Library module. Launcher manifests are still detected separately.

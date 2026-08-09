@@ -90,6 +90,7 @@ public sealed class LibraryService
         var result = new List<LibraryItem>();
         foreach (var item in items)
         {
+            if (!LibraryItemFilter.IsSupportedLibraryItem(item)) continue;
             if (string.IsNullOrWhiteSpace(item.DisplayName) && string.IsNullOrWhiteSpace(item.ExecutablePath)) continue;
 
             item.Id = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString("N") : item.Id.Trim();

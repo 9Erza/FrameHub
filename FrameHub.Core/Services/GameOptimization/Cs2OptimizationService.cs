@@ -23,9 +23,10 @@ public sealed class Cs2OptimizationService
         return (item.ExecutablePath ?? string.Empty).EndsWith("cs2.exe", StringComparison.OrdinalIgnoreCase);
     }
 
-    public Cs2ConfigAnalysis Analyze(LibraryItem item)
+    public Cs2ConfigAnalysis Analyze(LibraryItem item, string? selectedUserdataId = null)
     {
-        var paths = DetectConfigPaths(item);
+        var resolution = ResolveUserdataAccounts(FindSteamRoots(), selectedUserdataId);
+        var paths = DetectConfigPaths(item, resolution.Selected);
         var video = ValveConfigParser.ReadKeyValues(paths.VideoConfigPath);
         var machine = ValveConfigParser.ReadKeyValues(paths.MachineConvarsPath);
 
@@ -33,10 +34,18 @@ public sealed class Cs2OptimizationService
         {
             IsDetected = paths.IsComplete,
             Paths = paths,
+            UserdataResolution = resolution,
             VideoSettings = video,
             MachineConvars = machine,
             StatusMessage = paths.IsComplete ? "Wykryto konfigurację CS2." : "Nie znaleziono konfiguracji obrazu CS2. Dodaj ręcznie folder userdata Steam albo uruchom CS2 przynajmniej raz.",
         };
+
+        if (!resolution.IsResolved)
+        {
+            analysis.StatusMessage = resolution.Candidates.Count > 1
+                ? "Multiple Steam userdata profiles were detected. Select the account used by Counter-Strike 2."
+                : "No valid Steam userdata profile with CS2 configuration was found.";
+        }
 
         analysis.Summary = BuildSummary(video);
 
@@ -67,7 +76,7 @@ public sealed class Cs2OptimizationService
                 return new GameConfigBackupResult { Success = false, Message = "Nie wykryto konfiguracji CS2." };
             }
 
-            string backupRoot = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss"));
+            string backupRoot = CreateUniqueBackupDirectory(Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2"), DateTime.Now);
             Directory.CreateDirectory(backupRoot);
 
             CopyIfExists(analysis.Paths.VideoConfigPath, backupRoot);
@@ -271,8 +280,7 @@ public sealed class Cs2OptimizationService
             string backupFolder = string.Empty;
             if (File.Exists(path))
             {
-                backupFolder = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_autoexec");
-                Directory.CreateDirectory(backupFolder);
+                backupFolder = CreateUniqueBackupDirectory(Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2"), DateTime.Now, "_autoexec");
                 File.Copy(path, Path.Combine(backupFolder, "autoexec.cfg"), overwrite: true);
             }
 
@@ -303,6 +311,17 @@ public sealed class Cs2OptimizationService
         return normalized.Replace("\n", Environment.NewLine).TrimEnd() + Environment.NewLine;
     }
 
+    public static string CreateUniqueBackupDirectory(string root, DateTime timestamp, string suffix = "")
+    {
+        Directory.CreateDirectory(root);
+        string stem = timestamp.ToString("yyyyMMdd_HHmmss_fff") + suffix;
+        string candidate = Path.Combine(root, stem);
+        int counter = 1;
+        while (Directory.Exists(candidate)) candidate = Path.Combine(root, $"{stem}_{counter++}");
+        Directory.CreateDirectory(candidate);
+        return candidate;
+    }
+
     private static int RestoreIfAvailable(string backupFolder, string? targetPath)
     {
         if (string.IsNullOrWhiteSpace(targetPath)) return 0;
@@ -313,15 +332,16 @@ public sealed class Cs2OptimizationService
         return 1;
     }
 
-    private Cs2ConfigPaths DetectConfigPaths(LibraryItem item)
+    private Cs2ConfigPaths DetectConfigPaths(LibraryItem item, SteamUserdataAccountCandidate? account)
     {
         var paths = new Cs2ConfigPaths();
         paths.GameCfgFolder = DetectGameCfgFolder(item);
 
-        foreach (string folder in FindPotentialUserCfgFolders(item))
+        if (account != null)
         {
+            string folder = account.ConfigFolderPath;
             string video = Path.Combine(folder, "cs2_video.txt");
-            if (!File.Exists(video)) continue;
+            if (!File.Exists(video)) return paths;
 
             paths.UserCfgFolder = folder;
             paths.UserDataLocalFolder = Directory.GetParent(folder)?.FullName;
@@ -329,7 +349,6 @@ public sealed class Cs2OptimizationService
             paths.MachineConvarsPath = Path.Combine(folder, "cs2_machine_convars.vcfg");
             paths.UserConvarsPath = Directory.EnumerateFiles(folder, "cs2_user_convars_*_slot*.vcfg", SearchOption.TopDirectoryOnly).FirstOrDefault();
             paths.UserKeysPath = Directory.EnumerateFiles(folder, "cs2_user_keys_*_slot*.vcfg", SearchOption.TopDirectoryOnly).FirstOrDefault();
-            return paths;
         }
 
         return paths;
@@ -357,11 +376,10 @@ public sealed class Cs2OptimizationService
         return null;
     }
 
-    private static IEnumerable<string> FindPotentialUserCfgFolders(LibraryItem item)
+    public static Cs2UserdataResolution ResolveUserdataAccounts(IEnumerable<string> steamRoots, string? rememberedUserdataId)
     {
-        var roots = FindSteamRoots().ToList();
-
-        foreach (string root in roots)
+        var candidates = new List<SteamUserdataAccountCandidate>();
+        foreach (string root in steamRoots.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             string userdata = Path.Combine(root, "userdata");
             if (!Directory.Exists(userdata)) continue;
@@ -369,30 +387,18 @@ public sealed class Cs2OptimizationService
             foreach (string user in Directory.EnumerateDirectories(userdata, "*", SearchOption.TopDirectoryOnly))
             {
                 string cfg = Path.Combine(user, "730", "local", "cfg");
-                if (Directory.Exists(cfg)) yield return cfg;
-
-                string local = Path.Combine(user, "730", "local");
-                if (Directory.Exists(local)) yield return local;
+                if (!File.Exists(Path.Combine(cfg, "cs2_video.txt"))) continue;
+                candidates.Add(new SteamUserdataAccountCandidate { UserdataId = Path.GetFileName(user), DirectoryPath = NormalizePath(user)!, ConfigFolderPath = NormalizePath(cfg)! });
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(item.InstallPath))
-        {
-            string? drive = Path.GetPathRoot(item.InstallPath);
-            if (!string.IsNullOrWhiteSpace(drive))
-            {
-                string programSteam = Path.Combine(drive, "Steam", "userdata");
-                if (Directory.Exists(programSteam))
-                {
-                    foreach (string user in Directory.EnumerateDirectories(programSteam, "*", SearchOption.TopDirectoryOnly))
-                    {
-                        string cfg = Path.Combine(user, "730", "local", "cfg");
-                        if (Directory.Exists(cfg)) yield return cfg;
-                    }
-                }
-            }
-        }
+        var result = new Cs2UserdataResolution { Candidates = candidates.OrderBy(x => x.UserdataId, StringComparer.Ordinal).ToList() };
+        if (result.Candidates.Count == 1) result.Selected = result.Candidates[0];
+        else if (!string.IsNullOrWhiteSpace(rememberedUserdataId)) result.Selected = result.Candidates.FirstOrDefault(x => x.UserdataId.Equals(rememberedUserdataId.Trim(), StringComparison.Ordinal));
+        return result;
     }
+
+    private static string? NormalizePath(string? path) { try { return string.IsNullOrWhiteSpace(path) ? null : Path.GetFullPath(path); } catch { return path; } }
 
     private static IEnumerable<string> FindSteamRoots()
     {

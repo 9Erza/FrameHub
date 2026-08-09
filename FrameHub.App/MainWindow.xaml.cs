@@ -25,12 +25,18 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = new ShellViewModel();
         Loaded += MainWindow_Loaded;
-        SourceInitialized += (_, _) => ApplyCurrentScreenWorkArea();
+        SourceInitialized += (_, _) =>
+        {
+            ApplyCurrentScreenWorkArea();
+        };
         StateChanged += MainWindow_StateChanged;
+        SizeChanged += (_, _) => UpdateResponsiveShell();
+        Tag = true;
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        UpdateResponsiveShell();
         InitializeTrayIcon();
         ApplyStartupWindowBehavior();
     }
@@ -179,6 +185,15 @@ public partial class MainWindow : Window
             MaxWidth = SystemParameters.WorkArea.Width;
             MaxHeight = SystemParameters.WorkArea.Height;
         }
+    }
+
+    private void UpdateResponsiveShell()
+    {
+        bool compact = ActualWidth > 0 && ActualWidth < 1080;
+        NavigationColumn.Width = new GridLength(224);
+        NavigationPane.Padding = new Thickness(12, 18, 12, 14);
+        PageHost.Margin = compact ? new Thickness(18, 20, 18, 24) : new Thickness(28, 24, 28, 28);
+        Tag = true;
     }
 
     private void HideToTray()

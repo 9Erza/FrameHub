@@ -1,40 +1,45 @@
 <Window x:Class="FrameHub.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        mc:Ignorable="d"
         Title="FrameHub"
         Icon="/FrameHub.App;component/Assets/FrameHub.ico"
-        Height="850"
-        Width="1480"
-        MinHeight="760"
-        MinWidth="1260"
-        Background="{StaticResource BrushBackground}"
+        Height="900"
+        Width="1540"
+        MinHeight="460"
+        MinWidth="880"
+        Background="Transparent"
         WindowStyle="None"
         ResizeMode="CanResize"
         AllowsTransparency="False"
         WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True"
-        SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display"
-        TextOptions.TextRenderingMode="ClearType"
-        TextOptions.TextHintingMode="Fixed"
-        RenderOptions.ClearTypeHint="Enabled">
+        SnapsToDevicePixels="False"
+        TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <DataTemplate x:Key="NavigationItemTemplate">
+            <RadioButton Style="{StaticResource NavRadioButton}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Key}" Opacity="{Binding ItemOpacity}" ToolTip="{Binding Title}" AutomationProperties.Name="{Binding Title}">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="32" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding Icon}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Visibility="{Binding Tag, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <Border Grid.Column="2" Style="{StaticResource BadgeBorder}" Visibility="{Binding BadgeVisibility}" Margin="8,0,0,0"><TextBlock Text="{Binding Badge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" /></Border>
+                </Grid>
+            </RadioButton>
+        </DataTemplate>
+    </Window.Resources>
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="38" ResizeBorderThickness="6" GlassFrameThickness="0" UseAeroCaptionButtons="False" />
+        <shell:WindowChrome CaptionHeight="42" ResizeBorderThickness="6" GlassFrameThickness="0" UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
 
-    <Border Background="{StaticResource BrushAppBackground}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+    <Border Background="{StaticResource BrushAppBackground}" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="38" />
+                <RowDefinition Height="42" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Custom dark title bar for the borderless FrameHub window. -->
-            <Grid Grid.Row="0" Background="{StaticResource BrushWindowChrome}" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid Grid.Row="0" Background="{StaticResource BrushTitlebar}" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -42,100 +47,82 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
-                    <Border Width="24" Height="24" CornerRadius="7" Background="{StaticResource BrushPrimarySoft}" Margin="0,0,10,0" BorderBrush="{StaticResource BrushBorderSoft}" BorderThickness="1" ClipToBounds="True">
-                        <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="Fant" />
+                    <Border Width="27" Height="27" CornerRadius="8" Background="{StaticResource BrushAccentSoft}" Margin="0,0,10,0" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1" ClipToBounds="True">
+                        <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
                     </Border>
-                    <TextBlock Text="FrameHub" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" />
-                    <Border Background="{StaticResource BrushPrimarySoft}" CornerRadius="6" Padding="8,3" Margin="12,0,0,0">
-                        <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" />
-                    </Border>
+                    <TextBlock Text="FrameHub" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
                 </StackPanel>
 
+                <Border Grid.Column="1" Height="1" Background="{StaticResource BrushBorderSubtle}" VerticalAlignment="Bottom" />
+
                 <StackPanel Grid.Column="2" Orientation="Horizontal" shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Content="—" Click="MinimizeButton_Click" ToolTip="{Binding MinimizeTooltip}" />
-                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Content="□" Click="MaximizeRestoreButton_Click" ToolTip="{Binding MaximizeRestoreTooltip}" />
-                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeCloseButton}" Content="×" Click="CloseButton_Click" ToolTip="{Binding CloseTooltip}" />
+                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Click="MinimizeButton_Click" ToolTip="{Binding MinimizeTooltip}" AutomationProperties.Name="{Binding MinimizeTooltip}"><Path Data="{StaticResource IconWindowMinimize}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform" /></Button>
+                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeButton}" Click="MaximizeRestoreButton_Click" ToolTip="{Binding MaximizeRestoreTooltip}" AutomationProperties.Name="{Binding MaximizeRestoreTooltip}">
+                        <Grid Width="12" Height="12">
+                            <Path Data="{StaticResource IconWindowMaximize}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform"><Path.Style><Style TargetType="Path"><Setter Property="Visibility" Value="Visible" /><Style.Triggers><DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></Path.Style></Path>
+                            <Path Data="{StaticResource IconWindowRestore}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform"><Path.Style><Style TargetType="Path"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Path.Style></Path>
+                        </Grid>
+                    </Button>
+                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource ChromeCloseButton}" Click="CloseButton_Click" ToolTip="{Binding CloseTooltip}" AutomationProperties.Name="{Binding CloseTooltip}"><Path Data="{StaticResource IconWindowClose}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform" /></Button>
                 </StackPanel>
             </Grid>
 
             <Grid Grid.Row="1" Background="Transparent">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="252" />
+                    <ColumnDefinition x:Name="NavigationColumn" Width="224" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0"
-                        Background="{StaticResource BrushSidebar}"
-                        BorderBrush="{StaticResource BrushBorderSoft}"
-                        BorderThickness="0,0,1,0"
-                        Padding="16,16,16,14">
+                <Border x:Name="NavigationPane" Grid.Column="0" Background="{StaticResource BrushSidebar}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,1,0" Padding="12,18,12,14">
                     <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                            <TextBlock Text="{Binding AppName}" FontSize="20" FontWeight="SemiBold" />
-                        </StackPanel>
-
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl ItemsSource="{Binding NavigationItems}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <RadioButton Style="{StaticResource NavRadioButton}"
-                                                     IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                     Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                     CommandParameter="{Binding Key}"
-                                                     Opacity="{Binding ItemOpacity}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="34" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0"
-                                                           Text="{Binding Icon}"
-                                                           FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
-                                                           FontSize="15"
-                                                           VerticalAlignment="Center" />
-                                                <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                                <Border Grid.Column="2" Style="{StaticResource BadgeBorder}" Visibility="{Binding BadgeVisibility}" Margin="10,0,0,0">
-                                                    <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushTextSecondary}" />
-                                                </Border>
-                                            </Grid>
-                                        </RadioButton>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="{Binding MainGroupTitle}" Style="{StaticResource NavGroupText}" Margin="11,0,0,5" Visibility="{Binding Tag, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                <ItemsControl ItemsSource="{Binding MainGroupItems}" ItemTemplate="{StaticResource NavigationItemTemplate}" />
+                                <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="7,10,7,8" />
+                                <TextBlock Text="{Binding GamingGroupTitle}" Style="{StaticResource NavGroupText}" Margin="11,0,0,5" Visibility="{Binding Tag, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                <ItemsControl ItemsSource="{Binding GamingGroupItems}" ItemTemplate="{StaticResource NavigationItemTemplate}" />
+                                <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="7,10,7,8" />
+                                <TextBlock Text="{Binding PerformanceGroupTitle}" Style="{StaticResource NavGroupText}" Margin="11,0,0,5" Visibility="{Binding Tag, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                <ItemsControl ItemsSource="{Binding PerformanceGroupItems}" ItemTemplate="{StaticResource NavigationItemTemplate}" />
+                                <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="7,10,7,8" />
+                                <TextBlock Text="{Binding SystemGroupTitle}" Style="{StaticResource NavGroupText}" Margin="11,0,0,5" Visibility="{Binding Tag, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                <ItemsControl ItemsSource="{Binding SystemGroupItems}" ItemTemplate="{StaticResource NavigationItemTemplate}" />
+                            </StackPanel>
                         </ScrollViewer>
 
-                        <StackPanel Grid.Row="2" Margin="0,12,0,0">
-                            <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" Style="{StaticResource SmallMutedText}" />
+                        <StackPanel Grid.Row="1" Margin="0,10,0,0">
+                            <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="7,0,7,8" />
+                            <ContentControl Content="{Binding SettingsNavigationItem}" ContentTemplate="{StaticResource NavigationItemTemplate}" />
+
+                            <StackPanel Margin="0,12,0,0">
+                                <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                                <Button Style="{StaticResource FooterLinkButton}" Command="{Binding OpenAuthorCommand}" ToolTip="{Binding AuthorTooltip}" AutomationProperties.Name="{Binding AuthorTooltip}"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource IconGitHub}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,10,0" /><TextBlock Text="{Binding AuthorLabel}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" /></StackPanel></Button>
+                                <Button Style="{StaticResource FooterLinkButton}" Command="{Binding OpenWebsiteCommand}" ToolTip="{Binding WebsiteTooltip}" AutomationProperties.Name="{Binding WebsiteTooltip}"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource IconGlobe}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,10,0" /><TextBlock Text="{Binding WebsiteTooltip}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" /></StackPanel></Button>
+                                <Button Style="{StaticResource FooterSupportButton}" Command="{Binding OpenSupportCommand}" ToolTip="{Binding SupportTooltip}" AutomationProperties.Name="{Binding SupportTooltip}" Margin="0,2,0,8"><StackPanel Orientation="Horizontal"><Image Source="/FrameHub.App;component/Assets/BuyMeACoffee.png" Width="17" Height="17" Stretch="Uniform" Margin="0,0,9,0" RenderOptions.BitmapScalingMode="HighQuality" /><TextBlock Text="{Binding SupportTooltip}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" /></StackPanel></Button>
+                                <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="8,0,8,6" />
+                                <Button Style="{StaticResource FooterProjectButton}" Command="{Binding OpenRepositoryCommand}" ToolTip="{Binding RepositoryTooltip}" AutomationProperties.Name="{Binding RepositoryTooltip}"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource IconGitHub}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,9,0" /><TextBlock Text="{Binding ProjectVersionLabel}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" /></StackPanel></Button>
+                            </StackPanel>
+
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <Grid Grid.Column="1" Margin="32,28,32,30">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <Grid Grid.Row="0" Margin="0,0,0,22">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                <Grid x:Name="PageHost" Grid.Column="1" Margin="28,24,28,28">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="FRAMEHUB" Style="{StaticResource PageEyebrowText}" />
-                            <TextBlock Text="{Binding CurrentTitle}" Style="{StaticResource PageTitleText}" Margin="0,6,0,0" />
-                            <TextBlock Text="{Binding CurrentSubtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,7,0,0" />
+                            <TextBlock Text="{Binding CurrentTitle}" Style="{StaticResource PageTitleText}" />
+                            <TextBlock Text="{Binding CurrentSubtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,4,0,0" TextWrapping="Wrap" />
                         </StackPanel>
+                        <Border Grid.Column="1" VerticalAlignment="Top" Margin="20,3,0,0" Visibility="{Binding Tag, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Border.Style><Style TargetType="Border" BasedOn="{StaticResource BadgeBorder}"><Style.Triggers><DataTrigger Binding="{Binding IsWatcherActive}" Value="True"><Setter Property="Background" Value="{StaticResource BrushSuccessSoft}" /><Setter Property="BorderBrush" Value="{StaticResource BrushSuccess}" /></DataTrigger></Style.Triggers></Style></Border.Style>
+                            <StackPanel Orientation="Horizontal"><Ellipse Width="7" Height="7" Margin="0,0,7,0"><Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="{StaticResource BrushTextMuted}" /><Style.Triggers><DataTrigger Binding="{Binding IsWatcherActive}" Value="True"><Setter Property="Fill" Value="{StaticResource BrushSuccess}" /></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="{Binding WatcherStatus}" Style="{StaticResource StatusText}" /></StackPanel>
+                        </Border>
                     </Grid>
-
-                    <ContentControl Grid.Row="1" Content="{Binding CurrentViewModel}" />
+                    <ContentControl x:Name="PageContent" Grid.Row="1" Content="{Binding CurrentViewModel}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
                 </Grid>
             </Grid>
         </Grid>

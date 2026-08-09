@@ -3,6 +3,7 @@ using FrameHub.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 
 namespace FrameHub.Core.Services
@@ -35,6 +36,7 @@ namespace FrameHub.Core.Services
                 processes = Process.GetProcessesByName(processName);
                 foreach (var process in processes)
                 {
+                    if (!ProfileService.MatchesIdentity(profile, process.ProcessName, TryGetProcessPath(process))) continue;
                     var result = ApplyProfileToProcess(process, profile, allowRealtimePriority, force);
                     batch.Results.Add(result);
                 }
@@ -51,6 +53,12 @@ namespace FrameHub.Core.Services
             batch.Successful = batch.Results.Count(r => r.Success);
             batch.Failed = batch.Total - batch.Successful;
             return batch;
+        }
+
+        private static string? TryGetProcessPath(Process process)
+        {
+            try { return process.MainModule?.FileName; }
+            catch { return null; }
         }
 
         public OptimizationBatchResult ApplyProfilesForSnapshots(IEnumerable<ProcessProfile> profiles, IEnumerable<ProcessGroupSnapshot> snapshots, bool allowRealtimePriority, bool force)
@@ -89,6 +97,10 @@ namespace FrameHub.Core.Services
 
         private OptimizationResult ApplyProfileToPid(ProcessInstanceKey key, string processName, ProcessProfile profile, bool allowRealtimePriority, bool force)
         {
+            if (!MatchesRunningProcessIdentity(key.ProcessId, processName, profile))
+            {
+                return new OptimizationResult { Success = false, ProcessId = key.ProcessId, ProcessName = processName, Message = "SKIPPED_IDENTITY_MISMATCH" };
+            }
             string priority = PriorityService.Normalize(profile.Priority, allowRealtimePriority);
             var mode = NormalizeOptimizationMode(profile.OptimizationMode);
             string signature = BuildProfileSignature(profile, priority, mode, allowRealtimePriority);
@@ -171,6 +183,19 @@ namespace FrameHub.Core.Services
                     process.Dispose();
                 }
             }
+        }
+
+        private static bool MatchesRunningProcessIdentity(int processId, string processName, ProcessProfile profile)
+        {
+            if (string.IsNullOrWhiteSpace(profile.ExecutablePath)) return ProfileService.MatchesIdentity(profile, processName, null);
+            try
+            {
+                using var process = Process.GetProcessById(processId);
+                string? path;
+                try { path = process.MainModule?.FileName; } catch { path = null; }
+                return ProfileService.MatchesIdentity(profile, process.ProcessName, path);
+            }
+            catch { return false; }
         }
 
         public void ClearAllCache() => _appliedProfileSignatures.Clear();

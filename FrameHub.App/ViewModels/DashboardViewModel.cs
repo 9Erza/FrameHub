@@ -2,6 +2,7 @@ using FrameHub.App.Helpers;
 using FrameHub.App.Services;
 using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services.SessionOptimization;
+using FrameHub.Core.Services.Library;
 using System.Collections.ObjectModel;
 
 namespace FrameHub.App.ViewModels;
@@ -12,6 +13,7 @@ public sealed class DashboardViewModel : ViewModelBase
     private readonly AppRuntimeService _runtime;
     private readonly SessionOptimizationSettingsService _sessionSettingsService = new();
     private readonly SessionStateService _sessionStateService = new();
+    private readonly LibraryService _libraryService = new();
 
     public string Title => _localization.T("Dashboard.Title");
     public string Subtitle => _localization.T("Dashboard.Subtitle");
@@ -57,6 +59,7 @@ public sealed class DashboardViewModel : ViewModelBase
         int enabledProfiles = _runtime.Profiles.Count(p => p.IsEnabled);
         int totalProfiles = _runtime.Profiles.Count;
         int autoGames = sessionSettings.AutoEnabledGameIds.Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        int libraryGames = _libraryService.LoadItems().Count;
 
         SessionStateValue = isSessionActive
             ? _localization.T("Dashboard.SessionState.ValueActive")
@@ -111,11 +114,9 @@ public sealed class DashboardViewModel : ViewModelBase
         });
         Metrics.Add(new MetricCardViewModel
         {
-            Title = _localization.T("Metric.Logging.Title"),
-            Value = _runtime.Settings.LogEnabled ? _localization.T("Metric.Logging.ValueOn") : _localization.T("Metric.Logging.ValueOff"),
-            Detail = _runtime.Activity.Count == 1
-                ? _localization.T("Metric.Logging.DetailOne")
-                : string.Format(_localization.T("Metric.Logging.DetailMany"), _runtime.Activity.Count),
+            Title = _localization.CurrentLanguage == "pl" ? "Biblioteka gier" : "Game Library",
+            Value = libraryGames.ToString(),
+            Detail = _localization.CurrentLanguage == "pl" ? "Gry skonfigurowane w bibliotece" : "Games configured in the library",
             Accent = "#F59E0B"
         });
 

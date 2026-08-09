@@ -43,6 +43,7 @@ public sealed class LibraryViewModel : ViewModelBase
     private GameOptimizationPreset? _selectedCs2Preset;
     private bool _suppressCs2PresetRefresh;
     private string _cs2StatusMessage = string.Empty;
+    private SteamUserdataAccountCandidate? _selectedCs2Account;
     private string _cs2AutoexecText = string.Empty;
     private string _cs2AutoexecStatusMessage = string.Empty;
     private bool _isCs2Running;
@@ -62,6 +63,7 @@ public sealed class LibraryViewModel : ViewModelBase
     public string Subtitle => _localization.T("Library.Subtitle");
     public string ScanTitle => _localization.T("Library.ScanTitle");
     public string ManualTitle => _localization.T("Library.ManualTitle");
+    public string ManageLibraryTitle => _localization.T("Library.ManageTitle");
     public string ItemsTitle => _localization.T("Library.ItemsTitle");
     public string CustomFoldersTitle => _localization.T("Library.CustomFoldersTitle");
     public string EmptyText => _localization.T("Library.Empty");
@@ -354,7 +356,26 @@ public sealed class LibraryViewModel : ViewModelBase
             CommandManager.InvalidateRequerySuggested();
         }
     }
-    public bool CanEditCs2Config => !IsCs2Selected || !IsCs2Running;
+    public ObservableCollection<SteamUserdataAccountCandidate> Cs2Accounts { get; } = new();
+    public bool NeedsCs2AccountSelection => IsCs2Selected && Cs2Accounts.Count > 1 && _selectedCs2Account == null;
+    public SteamUserdataAccountCandidate? SelectedCs2Account
+    {
+        get => _selectedCs2Account;
+        set
+        {
+            if (!SetProperty(ref _selectedCs2Account, value)) return;
+            if (value != null)
+            {
+                _runtime.Settings.Cs2SteamUserdataId = value.UserdataId;
+                _runtime.SaveSettings(_runtime.Settings);
+                AnalyzeCs2IfSelected();
+            }
+            OnPropertyChanged(nameof(NeedsCs2AccountSelection));
+            OnPropertyChanged(nameof(CanEditCs2Config));
+        }
+    }
+    public string Cs2AccountSelectionMessage => IsPolish ? "Wykryto kilka profili Steam. Wybierz konto używane przez Counter-Strike 2." : "Multiple Steam profiles were detected. Select the account used by Counter-Strike 2.";
+    public bool CanEditCs2Config => (!IsCs2Selected || !IsCs2Running) && !NeedsCs2AccountSelection && (_cs2Analysis?.UserdataResolution.IsResolved ?? true);
     public string Cs2EditLockMessage => IsCs2Running ? Cs2RunningLockText : Cs2StoppedEditText;
     public string SelectedItemTitle => SelectedItem?.DisplayName ?? NoSelectionText;
 
@@ -1161,7 +1182,13 @@ public sealed class LibraryViewModel : ViewModelBase
             return;
         }
 
-        _cs2Analysis = _cs2Service.Analyze(SelectedItem.Item);
+        _cs2Analysis = _cs2Service.Analyze(SelectedItem.Item, _runtime.Settings.Cs2SteamUserdataId);
+        Cs2Accounts.Clear();
+        foreach (var account in _cs2Analysis.UserdataResolution.Candidates) Cs2Accounts.Add(account);
+        _selectedCs2Account = _cs2Analysis.UserdataResolution.Selected;
+        OnPropertyChanged(nameof(SelectedCs2Account));
+        OnPropertyChanged(nameof(NeedsCs2AccountSelection));
+        OnPropertyChanged(nameof(CanEditCs2Config));
         Cs2StatusMessage = _cs2Analysis.StatusMessage;
         foreach (var preset in _cs2Analysis.Presets) Cs2Presets.Add(preset);
 

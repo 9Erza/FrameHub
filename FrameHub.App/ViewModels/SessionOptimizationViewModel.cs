@@ -56,10 +56,23 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     public ICommand TestDetectionCommand { get; }
 
     public string Title => IsPolish ? "Optymalizacja sesji" : "Session Optimization";
-    public string Subtitle => IsPolish ? "Wstrzymywanie aplikacji tła dla wybranych gier." : "Suspend background apps for selected games.";
+    public string Subtitle => IsPolish
+        ? "Zwolnij zasoby podczas grania, tymczasowo wstrzymując wybrane aplikacje."
+        : "Free resources while gaming by temporarily suspending selected applications.";
 
     public string AutoModeTitle => IsPolish ? "Automatyzacja" : "Automation";
     public string ManualModeTitle => IsPolish ? "Ręczne włączenie sesji optymalizacji" : "Manual session start";
+    public string AutoModeDescription => IsPolish
+        ? "Automatycznie rozpocznij optymalizację po uruchomieniu wybranej gry."
+        : "Automatically begin optimization when a configured game starts.";
+    public string WhatGetsPausedTitle => IsPolish ? "Co wstrzymywać" : "What gets paused";
+    public string WhatGetsPausedDescription => IsPolish
+        ? "Wybierz aplikacje, które FrameHub może tymczasowo wstrzymać podczas sesji."
+        : "Choose which applications FrameHub may temporarily suspend during a session.";
+    public string ManualModeDescription => IsPolish
+        ? "Wybierz grę i uruchom sesję teraz."
+        : "Choose a game and start a session now.";
+    public string AdvancedOptionsTitle => IsPolish ? "Opcje zaawansowane" : "Advanced options";
     public string SessionOptionsTitle => IsPolish ? "Opcje sesji" : "Session options";
     public string BackgroundRulesTitle => IsPolish ? "Podstawowe aplikacje do wstrzymania" : "Base apps to suspend";
     public string RunningProcessesTitle => IsPolish ? "Ręczny wybór procesów" : "Manual process selection";
@@ -225,6 +238,14 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     public bool IsSessionActive => _activeSession?.IsActive == true;
     public bool IsIdle => !IsSessionActive;
+    public bool IsRecoveryPending => _activeSession?.IsRecoveryPending == true;
+    public string SessionStateDisplay => IsRecoveryPending
+        ? _localization.T("Session.State.Recovery")
+        : IsSessionActive
+            ? (_activeSession?.Trigger.Equals("Auto", StringComparison.OrdinalIgnoreCase) == true
+                ? _localization.T("Session.State.Automatic")
+                : _localization.T("Session.State.Active"))
+            : _localization.T("Session.State.Idle");
     public bool HasCandidates => Candidates.Count > 0;
     public bool HasSuspendedProcesses => SuspendedProcesses.Count > 0;
     public bool HasRunningProcesses => RunningProcesses.Count > 0;
@@ -373,6 +394,11 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(Subtitle));
         OnPropertyChanged(nameof(AutoModeTitle));
         OnPropertyChanged(nameof(ManualModeTitle));
+        OnPropertyChanged(nameof(AutoModeDescription));
+        OnPropertyChanged(nameof(WhatGetsPausedTitle));
+        OnPropertyChanged(nameof(WhatGetsPausedDescription));
+        OnPropertyChanged(nameof(ManualModeDescription));
+        OnPropertyChanged(nameof(AdvancedOptionsTitle));
         OnPropertyChanged(nameof(SessionOptionsTitle));
         OnPropertyChanged(nameof(BackgroundRulesTitle));
         OnPropertyChanged(nameof(RunningProcessesTitle));
@@ -409,6 +435,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(PidColumnHeader));
         OnPropertyChanged(nameof(TimeColumnHeader));
         OnPropertyChanged(nameof(ActiveSessionInfo));
+        OnPropertyChanged(nameof(IsRecoveryPending));
+        OnPropertyChanged(nameof(SessionStateDisplay));
 
         foreach (var rule in Rules)
         {
@@ -1057,6 +1085,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged(nameof(IsSessionActive));
         OnPropertyChanged(nameof(IsIdle));
+        OnPropertyChanged(nameof(IsRecoveryPending));
+        OnPropertyChanged(nameof(SessionStateDisplay));
         OnPropertyChanged(nameof(ActiveSessionInfo));
         OnPropertyChanged(nameof(HasCandidates));
         OnPropertyChanged(nameof(NoCandidatesVisible));

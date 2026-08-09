@@ -129,7 +129,7 @@ public sealed class AppRuntimeService : IDisposable
         if (replaceSameProcessName)
         {
             profiles = profiles
-                .Where(p => !p.ProcessName.Equals(profile.ProcessName, StringComparison.OrdinalIgnoreCase))
+                .Where(p => !ProfileService.MatchesIdentity(p, profile.ProcessName, profile.ExecutablePath))
                 .ToList();
         }
 

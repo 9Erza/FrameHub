@@ -2,7 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              UseLayoutRounding="True"
-             SnapsToDevicePixels="True">
+             SnapsToDevicePixels="False">
     <!-- The page title and description are owned by MainWindow/ShellViewModel. -->
     <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
         <Grid x:Name="ContentLayout" MaxWidth="1120" HorizontalAlignment="Stretch" Margin="0,0,0,24">
@@ -20,7 +20,7 @@
             <StackPanel x:Name="LeftSettingsColumn" Grid.Column="0" Grid.Row="0">
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="{Binding LanguageTitle}" Style="{StaticResource SectionTitleText}" FontSize="17" />
+                        <TextBlock Text="{Binding LanguageTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding LanguageDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
                         <StackPanel Orientation="Horizontal">
                             <RadioButton Content="{Binding EnglishLabel}" IsChecked="{Binding IsEnglish, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,8,0" />
@@ -31,7 +31,7 @@
 
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="{Binding StartupTitle}" Style="{StaticResource SectionTitleText}" FontSize="17" Margin="0,0,0,12" />
+                        <TextBlock Text="{Binding StartupTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12" />
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <StackPanel>
@@ -75,7 +75,7 @@
 
                 <Border Style="{StaticResource SettingsSectionSurface}">
                     <StackPanel>
-                        <TextBlock Text="{Binding BehaviorTitle}" Style="{StaticResource SectionTitleText}" FontSize="17" />
+                        <TextBlock Text="{Binding BehaviorTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding TrayDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
                         <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding MinimizeToTrayLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding MinimizeToTray, Mode=TwoWay}" /></Grid>
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding CloseToTrayLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding CloseToTray, Mode=TwoWay}" /></Grid>
@@ -86,7 +86,7 @@
             <StackPanel x:Name="RightSettingsColumn" Grid.Column="2" Grid.Row="0">
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="{Binding LoggingTitle}" Style="{StaticResource SectionTitleText}" FontSize="17" />
+                        <TextBlock Text="{Binding LoggingTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding UpdatesDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
                         <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding CheckUpdatesLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding CheckForUpdates, Mode=TwoWay}" /></Grid>
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding LogEnabledLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding LogEnabled, Mode=TwoWay}" /></Grid>
@@ -96,7 +96,7 @@
 
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="{Binding SafetyTitle}" Style="{StaticResource SectionTitleText}" FontSize="17" Margin="0,0,0,12" />
+                        <TextBlock Text="{Binding SafetyTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12" />
                         <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding AllowRealtimeLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AllowRealtimePriority, Mode=TwoWay}" /></Grid>
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding StorageSensorsLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding EnableStorageSensors, Mode=TwoWay}" /></Grid>
                     </StackPanel>
@@ -104,7 +104,7 @@
 
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="{Binding DiagnosticsTitle}" Style="{StaticResource SectionTitleText}" FontSize="17" />
+                        <TextBlock Text="{Binding DiagnosticsTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding DiagnosticsDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
                         <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="18"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ProcessRefreshLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><TextBox Grid.Column="1" Style="{StaticResource CompactNumberTextBox}" Text="{Binding ProcessListRefreshSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/><TextBlock Grid.Column="2" Text="s" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center" HorizontalAlignment="Right"/></Grid>
                         <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="18"/></Grid.ColumnDefinitions><TextBlock Text="{Binding WatcherRefreshLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><TextBox Grid.Column="1" Style="{StaticResource CompactNumberTextBox}" Text="{Binding ProfileWatcherSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/><TextBlock Grid.Column="2" Text="s" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center" HorizontalAlignment="Right"/></Grid>
@@ -115,7 +115,7 @@
 
                 <Border Style="{StaticResource SettingsSectionSurface}">
                     <StackPanel>
-                        <TextBlock Text="{Binding RestartAsAdminText}" Style="{StaticResource SectionTitleText}" FontSize="17" />
+                        <TextBlock Text="{Binding RestartAsAdminText}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding RestartAdminDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
                         <StackPanel Orientation="Horizontal"><Border Style="{StaticResource BadgeBorder}" VerticalAlignment="Center"><TextBlock Text="{Binding AdminStatus}" Style="{StaticResource StatusText}" /></Border><Button Style="{StaticResource SubtleButton}" Content="{Binding RestartAsAdminText}" Command="{Binding RestartAsAdminCommand}" Margin="12,0,0,0" /></StackPanel>
                     </StackPanel>

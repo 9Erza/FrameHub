@@ -24,6 +24,10 @@ public sealed class ProfilesViewModel : ViewModelBase
     public string DeleteButtonText => _localization.T("Profiles.Delete");
     public string SaveChangesButtonText => _localization.T("Profiles.SaveChanges");
     public string EmptyText => _localization.T("Profiles.Empty");
+    public string EmptyStateText => _localization.T("Profiles.EmptyState");
+    public string SelectProfileTitle => _localization.T("Profiles.SelectTitle");
+    public string SelectProfileDescription => _localization.T("Profiles.SelectDescription");
+    public string RefreshText => _localization.T("Profiles.Refresh");
     public string NameHeader => _localization.T("Profiles.Name");
     public string ModeHeader => _localization.T("Profiles.Mode");
     public string PriorityHeader => _localization.T("Profiles.Priority");
@@ -178,6 +182,10 @@ public sealed class ProfilesViewModel : ViewModelBase
         OnPropertyChanged(nameof(DeleteButtonText));
         OnPropertyChanged(nameof(SaveChangesButtonText));
         OnPropertyChanged(nameof(EmptyText));
+        OnPropertyChanged(nameof(EmptyStateText));
+        OnPropertyChanged(nameof(SelectProfileTitle));
+        OnPropertyChanged(nameof(SelectProfileDescription));
+        OnPropertyChanged(nameof(RefreshText));
         OnPropertyChanged(nameof(NameHeader));
         OnPropertyChanged(nameof(ModeHeader));
         OnPropertyChanged(nameof(PriorityHeader));
