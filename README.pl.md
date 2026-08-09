@@ -20,8 +20,7 @@ konfiguracja CS2 i lokalny monitoring sprzętu w jednej aplikacji desktopowej.
 </div>
 
 > [!NOTE]
-> FrameHub jest aktywnie rozwijany. **Wersja v0.5 nie została jeszcze wydana.**  
-> Repozytorium zawiera aktualny stan rozwoju projektu i może się jeszcze zmienić przed publikacją v0.5.
+> **Aktualne wydanie: v0.5.0.** FrameHub jest nadal aktywnie rozwijany; bieżące zmiany znajdziesz w [Changelogu](CHANGELOG.md) i [Roadmapie](docs/ROADMAP.md).
 
 ---
 
