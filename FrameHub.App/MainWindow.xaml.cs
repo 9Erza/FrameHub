@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using WinForms = System.Windows.Forms;
+using FrameHub.App.Services;
 
 namespace FrameHub.App;
 
@@ -19,6 +20,7 @@ public partial class MainWindow : Window
     private WinForms.ToolStripItem? _trayExitItem;
     private bool _isExitRequested;
     private bool _isHidingToTray;
+    private GlobalHotkeyService? _globalHotkeyService;
 
     private ShellViewModel? ViewModel => DataContext as ShellViewModel;
 
@@ -28,10 +30,22 @@ public partial class MainWindow : Window
         var shellViewModel = new ShellViewModel();
         DataContext = shellViewModel;
         shellViewModel.UiLanguageChanged += (_, _) => RefreshTrayTexts();
+        shellViewModel.UserNotificationRequested += ShowBenchmarkNotification;
+        shellViewModel.Runtime.RuntimeStateChanged += (_, _) => ApplyBenchmarkHotkeyRegistration();
         Loaded += MainWindow_Loaded;
         SourceInitialized += (_, _) =>
         {
             ApplyCurrentScreenWorkArea();
+            HwndSource? source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+            if (source is not null)
+            {
+                _globalHotkeyService = new GlobalHotkeyService(source);
+                _globalHotkeyService.HotkeyPressed += async (_, _) =>
+                {
+                    if (ViewModel is ShellViewModel shell) await shell.HandleBenchmarkHotkeyAsync();
+                };
+                ApplyBenchmarkHotkeyRegistration();
+            }
         };
         StateChanged += MainWindow_StateChanged;
         SizeChanged += (_, _) => UpdateResponsiveShell();
@@ -197,6 +211,26 @@ public partial class MainWindow : Window
         if (_trayExitItem != null) _trayExitItem.Text = ViewModel?.TrayExitText ?? "Exit";
     }
 
+    private void ApplyBenchmarkHotkeyRegistration()
+    {
+        if (_globalHotkeyService is null || ViewModel is not ShellViewModel shell) return;
+        var settings = shell.Runtime.Settings;
+        BenchmarkHotkeyGesture? gesture = BenchmarkHotkeyGesture.FromSettings(
+            settings.BenchmarkHotkeyEnabled,
+            settings.BenchmarkHotkeyModifiers,
+            settings.BenchmarkHotkeyVirtualKey);
+        bool registered = _globalHotkeyService.UpdateRegistration(gesture);
+        if (gesture is not null && !registered) shell.ReportBenchmarkHotkeyRegistrationFailure();
+    }
+
+    private void ShowBenchmarkNotification(string message)
+    {
+        if (_trayIcon is null) InitializeTrayIcon();
+        if (_trayIcon is null) return;
+        _trayIcon.Visible = true;
+        _trayIcon.ShowBalloonTip(2500, "FrameHub", message, WinForms.ToolTipIcon.Info);
+    }
+
     private void UpdateResponsiveShell()
     {
         bool compact = ActualWidth > 0 && ActualWidth < 1080;
@@ -243,7 +277,9 @@ public partial class MainWindow : Window
         Close();
     }
 
-    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    private bool _shutdownCompleted;
+
+    protected override async void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         if (!_isExitRequested && !_isHidingToTray && ViewModel?.Runtime.Settings.CloseToTray == true)
         {
@@ -252,11 +288,25 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!_shutdownCompleted && ViewModel is ShellViewModel shell)
+        {
+            e.Cancel = true;
+            IsEnabled = false;
+            _globalHotkeyService?.Dispose();
+            _globalHotkeyService = null;
+            await shell.ShutdownAsync();
+            _shutdownCompleted = true;
+            Close();
+            return;
+        }
+
         base.OnClosing(e);
     }
 
     protected override void OnClosed(EventArgs e)
     {
+        _globalHotkeyService?.Dispose();
+        _globalHotkeyService = null;
         _trayIcon?.Dispose();
         _trayIcon = null;
 

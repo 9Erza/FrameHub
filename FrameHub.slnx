@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="FrameHub.App/FrameHub.App.csproj" />
+  <Project Path="FrameHub.BenchmarkHarness/FrameHub.BenchmarkHarness.csproj" />
   <Project Path="FrameHub.Core/FrameHub.Core.csproj" />
   <Project Path="FrameHub.Tests/FrameHub.Tests.csproj" />
 </Solution>

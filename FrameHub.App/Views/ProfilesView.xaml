@@ -13,7 +13,7 @@
 
                 <DataGrid x:Name="ProfilesGrid" Grid.Row="1" Margin="1" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessName}" Width="*" />
+                        <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ProcessName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                         <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding DisplayOptimizationMode}" Width="150" />
                         <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding DisplayPriority}" Width="105" />
                         <DataGridCheckBoxColumn Header="{Binding Data.EnabledHeader, Source={StaticResource VmProxy}}" Binding="{Binding IsEnabled}" Width="76" />

@@ -7,7 +7,8 @@ public enum FrameHubExternalLink
     Repository,
     Author,
     Website,
-    Support
+    Support,
+    PresentMon
 }
 
 public static class ExternalLinkService
@@ -18,7 +19,8 @@ public static class ExternalLinkService
             [FrameHubExternalLink.Repository] = new("https://github.com/9Erza/FrameHub"),
             [FrameHubExternalLink.Author] = new("https://github.com/9Erza"),
             [FrameHubExternalLink.Website] = new("https://dobrypc.pl"),
-            [FrameHubExternalLink.Support] = new("https://buymeacoffee.com/9erza")
+            [FrameHubExternalLink.Support] = new("https://buymeacoffee.com/9erza"),
+            [FrameHubExternalLink.PresentMon] = new("https://github.com/GameTechDev/PresentMon")
         };
 
     public static bool TryOpen(FrameHubExternalLink link)

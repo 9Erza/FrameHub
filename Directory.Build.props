@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <FrameHubVersion Condition="'$(FrameHubVersion)' == ''">$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)version.txt').Trim())</FrameHubVersion>
+    <Version>$(FrameHubVersion)</Version>
+    <InformationalVersion>$(FrameHubVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>

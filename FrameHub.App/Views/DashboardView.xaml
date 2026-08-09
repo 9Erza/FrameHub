@@ -38,6 +38,10 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
+            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding LatestBenchmarkTitle}" Style="{StaticResource SectionTitleText}"/><TextBlock Text="{Binding LatestBenchmarkGame}" Style="{StaticResource DataTitleText}" Margin="0,6,0,0"/><TextBlock Text="{Binding LatestBenchmarkResult}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0"/></StackPanel><Button Grid.Column="1" Style="{StaticResource SubtleButton}" Content="{Binding OpenBenchmarksText}" Command="{Binding OpenBenchmarksCommand}" VerticalAlignment="Center" Margin="16,0,0,0"/></Grid>
+            </Border>
+
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="1.08*" /><ColumnDefinition Width="0.92*" /></Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Style="{StaticResource SectionSurface}" Margin="0,0,12,0">

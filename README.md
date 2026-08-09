@@ -6,8 +6,8 @@
 
 **Windows gaming and performance control without black-box tweaks.**
 
-Per-game CPU profiles, background-process session optimization,  
-CS2 configuration and local hardware monitoring in one desktop application.
+Game library, per-game CPU profiles, session optimization, local frame-time benchmarking,
+CS2 configuration and hardware monitoring in one desktop application.
 
 [**English**](README.md) · [Polski](README.pl.md)
 
@@ -15,12 +15,12 @@ CS2 configuration and local hardware monitoring in one desktop application.
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-2EA44F?style=flat-square)](LICENSE)
-![Release](https://img.shields.io/badge/release-v0.5.0-2EA44F?style=flat-square)
+![Release](https://img.shields.io/badge/release-v0.6.0-2EA44F?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Current release: v0.5.0.** FrameHub remains actively developed; see the [Changelog](CHANGELOG.md) and [Roadmap](docs/ROADMAP.md) for ongoing work.
+> **Current release: v0.6.0.** See the [Changelog](CHANGELOG.md) for release details and the [Roadmap](docs/ROADMAP.md) for future work.
 
 ---
 
@@ -39,6 +39,7 @@ The project currently focuses on:
 
 - **per-game CPU and process profiles,**
 - **temporary background-process optimization while gaming,**
+- **local per-frame benchmarking, history and same-game comparison,**
 - **safe Counter-Strike 2 configuration workflows,**
 - **optional local hardware monitoring and diagnostics.**
 
@@ -50,10 +51,19 @@ The project currently focuses on:
 | --- | --- |
 | **Game Library** | Scan Steam, Epic and custom folders, add executables manually and configure CPU settings for a specific game. |
 | **Session Optimization** | Temporarily suspend selected background applications while a configured game session is active, then restore them safely. |
+| **Benchmarks** | Detect running library games, capture exact-process frame timing, graph frame times, retain local history and compare same-game sessions. |
 | **Processes & CPU** | Inspect a running process and immediately apply CPU Sets, Processor Affinity or process priority. |
 | **Profiles & Rules** | Save process settings and let the profile watcher apply them automatically when a matching executable starts. |
 | **Hardware Monitor** | Opt-in local CPU, GPU and RAM telemetry. Monitoring is disabled again on every new FrameHub launch. |
 | **Logs & Settings** | Diagnostics, language, tray behavior, logging and Windows startup configuration. |
+
+### Benchmarking in v0.6.0
+
+Start a game from Game Library, open **Benchmarks** (or use the game's **Benchmark** action), choose a duration, and reproduce the same scene each time. FrameHub shows Average FPS, median, 1% Low, 0.1% Low, P95/P99 frame time, quality diagnostics, a spike-preserving frame-time graph, local history, and same-game comparisons. Raw frames and summaries remain on this machine under `%LOCALAPPDATA%\FrameHub\Benchmarks`; FrameHub adds no upload, analytics, account, or cloud service.
+
+Benchmark capture uses Intel PresentMon Shared Service/API. The official pinned PresentMon v2.5.1 MSI is embedded in the single FrameHub Setup, so users do not download a second installer. PresentMon is a shared MIT-licensed prerequisite and may remain installed after FrameHub is removed; see [Third-party notices](docs/THIRD-PARTY-NOTICES.md).
+
+FrameHub itself does not inject DLLs into games, read or modify game memory, install a FrameHub kernel driver, or bypass anti-cheat. It uses PresentMon's documented service/API/ETW path. Game and anti-cheat compatibility can vary, so compatibility with every title is not guaranteed.
 
 ---
 
@@ -206,6 +216,16 @@ Run FrameHub:
 dotnet run --project .\FrameHub.App\FrameHub.App.csproj
 ```
 
+### Build the installer
+
+Install Inno Setup 6, then run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\Build-Installer.ps1
+```
+
+The build prepares the official Intel PresentMon v2.5.1 MSI automatically, verifies its pinned SHA-256, embeds it in the generated FrameHub Setup, and keeps the prerequisite cache under the gitignored `artifacts\prerequisites\PresentMon` directory.
+
 ---
 
 ## Application data
@@ -242,7 +262,7 @@ This includes:
   Implemented, planned and experimental work.
 
 - **[Changelog](CHANGELOG.md)**  
-  Current unreleased changes and future release history.
+  Current release notes and release history.
 
 - **[Contributing](CONTRIBUTING.md)**  
   Development and contribution guidelines.

@@ -10,6 +10,12 @@
     <Resource Include="Assets\pl_flag.png" />
     <Resource Include="Assets\us_flag.png" />
     <Resource Include="Assets\BuyMeACoffee.png" />
+    <Resource Include="Assets\Fonts\Sora-Medium.ttf" />
+    <Resource Include="Assets\Fonts\Sora-SemiBold.ttf" />
+    <Resource Include="Assets\Fonts\Sora-Bold.ttf" />
+    <Resource Include="Assets\Fonts\Sora-ExtraBold.ttf" />
+    <Resource Include="Assets\Fonts\SpaceGrotesk-Medium.ttf" />
+    <Resource Include="Assets\Fonts\SpaceGrotesk-Bold.ttf" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -22,9 +28,6 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>Assets\FrameHub.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.5.0</Version>
-    <InformationalVersion>$(Version)</InformationalVersion>
-    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
 </Project>

@@ -49,6 +49,9 @@ namespace FrameHub.Core.Models
         public bool HardwareMonitorEnabled { get; set; } = false;
         public bool EnableStorageSensors { get; set; } = false;
         public bool CheckForUpdates { get; set; } = true;
+        public bool BenchmarkHotkeyEnabled { get; set; } = false;
+        public uint BenchmarkHotkeyModifiers { get; set; }
+        public int BenchmarkHotkeyVirtualKey { get; set; }
         public string? Cs2SteamUserdataId { get; set; }
         public string? Cs2SteamUserdataPath { get; set; }
 

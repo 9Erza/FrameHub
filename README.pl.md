@@ -6,8 +6,8 @@
 
 **Kontrola wydajności i optymalizacji gier w Windows — bez ukrytych tweaków i „magicznych” paczek FPS.**
 
-Profile CPU dla gier, optymalizacja procesów w tle,  
-konfiguracja CS2 i lokalny monitoring sprzętu w jednej aplikacji desktopowej.
+Biblioteka gier, profile CPU, optymalizacja sesji i lokalne benchmarki czasu klatek,
+konfiguracja CS2 oraz monitoring sprzętu w jednej aplikacji desktopowej.
 
 [English](README.md) · [**Polski**](README.pl.md)
 
@@ -15,12 +15,12 @@ konfiguracja CS2 i lokalny monitoring sprzętu w jednej aplikacji desktopowej.
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![Licencja](https://img.shields.io/badge/licencja-MIT-2EA44F?style=flat-square)](LICENSE)
-![Wydanie](https://img.shields.io/badge/wydanie-v0.5.0-2EA44F?style=flat-square)
+![Wydanie](https://img.shields.io/badge/wydanie-v0.6.0-2EA44F?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Aktualne wydanie: v0.5.0.** FrameHub jest nadal aktywnie rozwijany; bieżące zmiany znajdziesz w [Changelogu](CHANGELOG.md) i [Roadmapie](docs/ROADMAP.md).
+> **Aktualne wydanie: v0.6.0.** Szczegóły wydania znajdziesz w [Changelogu](CHANGELOG.md), a dalsze plany w [Roadmapie](docs/ROADMAP.md).
 
 ---
 
@@ -39,6 +39,7 @@ Projekt skupia się obecnie na:
 
 - **profilach CPU i procesów dla konkretnych gier,**
 - **tymczasowym ograniczaniu aplikacji działających w tle podczas grania,**
+- **lokalnych benchmarkach pojedynczych klatek, historii i porównywaniu wyników tej samej gry,**
 - **bezpiecznej konfiguracji Counter-Strike 2,**
 - **opcjonalnym lokalnym monitoringu sprzętu i diagnostyce.**
 
@@ -51,11 +52,20 @@ Projekt skupia się obecnie na:
 | **Biblioteka gier** | Skanowanie Steam, Epic i własnych folderów, ręczne dodawanie plików wykonywalnych oraz konfiguracja ustawień CPU dla konkretnej gry. |
 | **Optymalizacja sesji** | Tymczasowe wstrzymywanie wybranych aplikacji działających w tle podczas aktywnej sesji gry i bezpieczne przywracanie ich po zakończeniu. |
 | **Procesy i CPU** | Podgląd uruchomionego procesu i natychmiastowe zastosowanie CPU Sets, Processor Affinity lub priorytetu procesu. |
+| **Benchmarki** | Wykrywanie uruchomionych gier z biblioteki, pomiar dokładnego procesu, wykres czasu klatek, lokalna historia i porównanie sesji tej samej gry. |
 | **Profile i reguły** | Zapisywanie ustawień procesów i automatyczne stosowanie ich przez monitor profili po uruchomieniu odpowiedniego pliku wykonywalnego. |
 | **Monitor sprzętu** | Opcjonalna lokalna telemetria CPU, GPU i RAM. Monitoring jest ponownie wyłączony po każdym nowym uruchomieniu FrameHub. |
 | **Logi i ustawienia** | Diagnostyka, język, zachowanie w zasobniku systemowym, logowanie oraz konfiguracja autostartu Windows. |
 
 ---
+
+### Benchmarki w v0.6.0
+
+Uruchom grę z Biblioteki gier, otwórz **Benchmarki** (albo użyj akcji **Benchmark** przy grze), wybierz czas i za każdym razem odtwórz tę samą scenę. FrameHub pokazuje średnie FPS, medianę, 1% Low, 0,1% Low, P95/P99 czasu klatki, diagnostykę jakości, wykres zachowujący skoki, lokalną historię oraz porównania tej samej gry. Surowe klatki i podsumowania pozostają na komputerze w `%LOCALAPPDATA%\FrameHub\Benchmarks`; FrameHub nie wysyła ich do chmury i nie dodaje analityki ani kont.
+
+Pomiar wykorzystuje Intel PresentMon Shared Service/API. Oficjalny instalator PresentMon v2.5.1 MSI jest osadzony w jednym FrameHub Setup, więc użytkownik nie pobiera drugiego instalatora. PresentMon jest współdzielonym składnikiem na licencji MIT i może pozostać po usunięciu FrameHub; zobacz [informacje o składnikach zewnętrznych](docs/THIRD-PARTY-NOTICES.md).
+
+Sam FrameHub nie wstrzykuje bibliotek DLL do gier, nie odczytuje ani nie zmienia pamięci gry, nie instaluje sterownika jądra FrameHub i nie omija anti-cheat. Korzysta z udokumentowanej ścieżki usługi/API/ETW PresentMon. Zgodność zależy od gry i anti-cheat i nie jest gwarantowana dla każdego tytułu.
 
 ## Funkcje
 
@@ -243,7 +253,7 @@ Znajdują się tam między innymi:
   Funkcje zaimplementowane, planowane i eksperymentalne.
 
 - **[Changelog](CHANGELOG.md)**  
-  Aktualnie przygotowywane zmiany i historia przyszłych wydań.
+  Informacje o aktualnym wydaniu i historia wydań.
 
 - **[Contributing](CONTRIBUTING.md)**  
   Informacje dotyczące rozwoju projektu i zgłaszania zmian.
@@ -278,4 +288,3 @@ Jeżeli FrameHub jest dla Ciebie przydatny, możesz pomóc projektowi zostawiaj�
 ## Licencja
 
 FrameHub jest dostępny na licencji [MIT](LICENSE).
-
