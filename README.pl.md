@@ -15,7 +15,7 @@ konfiguracja CS2 i lokalny monitoring sprzętu w jednej aplikacji desktopowej.
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![Licencja](https://img.shields.io/badge/licencja-MIT-2EA44F?style=flat-square)](LICENSE)
-![Status](https://img.shields.io/badge/v0.5-w%20przygotowaniu-F59E0B?style=flat-square)
+![Wydanie](https://img.shields.io/badge/wydanie-v0.5.0-2EA44F?style=flat-square)
 
 </div>
 
@@ -279,3 +279,4 @@ Jeżeli FrameHub jest dla Ciebie przydatny, możesz pomóc projektowi zostawiaj�
 ## Licencja
 
 FrameHub jest dostępny na licencji [MIT](LICENSE).
+
