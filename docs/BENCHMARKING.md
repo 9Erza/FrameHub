@@ -1,6 +1,6 @@
-# Benchmarking architecture (FrameHub v0.6 development)
+# Benchmarking architecture (FrameHub v0.6.0)
 
-This document is the implementation contract for the v0.6 benchmarking subsystem and its WPF user workflow.
+This document is the implementation contract for the released v0.6.0 benchmarking subsystem and its WPF user workflow.
 
 ## Production capture architecture
 

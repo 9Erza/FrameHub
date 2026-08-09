@@ -18,7 +18,7 @@ Upstream source and licensing: <https://github.com/GameTechDev/PresentMon>.
 
 ## Sora
 
-FrameHub bundles unmodified static Sora font files for its primary interface typography. The files were obtained from the official Sora repository at revision `7f9a9c5d0ccd1c099cfac420aa27133df1c5fdc4`.
+FrameHub v0.6.0 retains unmodified static Sora font files as packaged application assets. The active interface typography uses Segoe UI. The files were obtained from the official Sora repository at revision `7f9a9c5d0ccd1c099cfac420aa27133df1c5fdc4`.
 
 Copyright 2019 The Sora Project Authors (<https://github.com/sora-xor/sora-font>)
 
@@ -28,7 +28,7 @@ Upstream source: <https://github.com/sora-xor/sora-font>.
 
 ## Space Grotesk
 
-FrameHub bundles unmodified static Space Grotesk font files for benchmark and performance display typography. The files were obtained from the official Space Grotesk 2.0.0 revision `7220f5d04813fe83babe76d4fd23e02275021280`.
+FrameHub v0.6.0 retains unmodified static Space Grotesk font files as packaged application assets. The active interface typography uses Segoe UI. The files were obtained from the official Space Grotesk 2.0.0 revision `7220f5d04813fe83babe76d4fd23e02275021280`.
 
 Copyright 2020 The Space Grotesk Project Authors (<https://github.com/floriankarsten/space-grotesk>)
 

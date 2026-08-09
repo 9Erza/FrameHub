@@ -14,7 +14,7 @@ Troubleshooting: refresh the library/process list, verify the executable path, c
 
 When CS2 config is detected in exactly one Steam userdata folder, FrameHub uses it automatically. If several valid folders exist, choose the numeric Steam userdata ID in the CS2 detail view. Until then, FrameHub blocks editable config reads and all CS2 write actions. New backups are kept separate for each resolved userdata path.
 
-## Benchmarks (v0.6 development)
+## Benchmarks (v0.6.0)
 
 1. Add or scan the game in **Game Library**.
 2. Start the game.
