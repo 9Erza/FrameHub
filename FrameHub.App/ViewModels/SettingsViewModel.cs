@@ -469,13 +469,36 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         PairedDevices.Clear();
         var devices = _runtime.CompanionServer.DeviceStore.Devices;
+        string scopeTelemetryLabel = _localization.T("Settings.CompanionScopeTelemetry");
+        string revokeLabel = _localization.T("Settings.CompanionRevoke");
+        string neverUsedText = _localization.T("Settings.CompanionNeverUsed");
+
         foreach (var dev in devices)
         {
-            PairedDevices.Add(new PairedDeviceItemViewModel(dev, RevokeDevice));
+            PairedDevices.Add(new PairedDeviceItemViewModel(
+                dev,
+                RevokeDevice,
+                ToggleDeviceScope,
+                scopeTelemetryLabel,
+                revokeLabel,
+                neverUsedText));
         }
         OnPropertyChanged(nameof(HasPairedDevices));
         OnPropertyChanged(nameof(IsDeviceStoreFaulted));
         OnPropertyChanged(nameof(DeviceStoreFaultMessage));
+    }
+
+    private void ToggleDeviceScope(Guid id, string scope, bool enable)
+    {
+        if (enable)
+        {
+            _runtime.CompanionServer.DeviceStore.GrantScope(id, scope);
+        }
+        else
+        {
+            _runtime.CompanionServer.DeviceStore.RevokeScope(id, scope);
+        }
+        RefreshPairedDevices();
     }
 
     private void StartPairing()

@@ -302,6 +302,53 @@ public sealed class SettingsCompanionIntegrationTests
         }
     }
 
+    [TestMethod]
+    public async Task TelemetryProvider_Lifecycle_StartStopAndDispose()
+    {
+        using var runtime = CreateTestRuntime();
+        var provider = runtime.TelemetryProvider;
+
+        // Provider starts unstarted
+        Assert.IsFalse(provider.IsRunning);
+
+        // Start() starts loop
+        provider.Start();
+        Assert.IsTrue(provider.IsRunning);
+
+        // Start() again is idempotent
+        provider.Start();
+        Assert.IsTrue(provider.IsRunning);
+
+        // StopAsync() stops loop
+        await provider.StopAsync();
+        Assert.IsFalse(provider.IsRunning);
+
+        // StopAsync() again is safe
+        await provider.StopAsync();
+        Assert.IsFalse(provider.IsRunning);
+
+        // Start() after stop works again
+        provider.Start();
+        Assert.IsTrue(provider.IsRunning);
+
+        // Cleanup
+        await provider.StopAsync();
+    }
+
+    [TestMethod]
+    public void Localization_TelemetryPermissionKeys_Exist()
+    {
+        string enTelemetry = LocalizationService.Translate("Settings.CompanionScopeTelemetry", "en");
+        string plTelemetry = LocalizationService.Translate("Settings.CompanionScopeTelemetry", "pl");
+        string enNever = LocalizationService.Translate("Settings.CompanionNeverUsed", "en");
+        string plNever = LocalizationService.Translate("Settings.CompanionNeverUsed", "pl");
+
+        Assert.AreEqual("Telemetry", enTelemetry);
+        Assert.AreEqual("Telemetria", plTelemetry);
+        Assert.AreEqual("Never", enNever);
+        Assert.AreEqual("Nigdy", plNever);
+    }
+
     private static int GetFreePort()
     {
         for (int i = 0; i < 5; i++)

@@ -3,6 +3,8 @@ using System.Text;
 using FrameHub.Companion.Models;
 using FrameHub.Companion.Persistence;
 
+using FrameHub.Companion.Authentication;
+
 namespace FrameHub.Companion.Pairing;
 
 public sealed class PairingEngine
@@ -117,7 +119,7 @@ public sealed class PairingEngine
                 DisplayName: string.IsNullOrWhiteSpace(displayName) ? "Mobile Device" : displayName.Trim(),
                 SourceIp: sourceIp,
                 RequestedAtUtc: _clock(),
-                RequestedScopes: new List<string> { "read:status" }
+                RequestedScopes: new List<string> { CompanionScopes.ReadStatus }
             );
 
             _pendingTcs = new TaskCompletionSource<PairingApprovalResult>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -199,7 +201,7 @@ public sealed class PairingEngine
                 CredentialHash = hash,
                 CreatedAtUtc = _clock(),
                 LastUsedAtUtc = null,
-                Scopes = new List<string> { "read:status" }
+                Scopes = new List<string> { CompanionScopes.ReadStatus }
             };
 
             _deviceStore.AddDevice(record);

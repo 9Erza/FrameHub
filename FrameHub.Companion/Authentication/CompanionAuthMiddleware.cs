@@ -78,7 +78,7 @@ public sealed class CompanionAuthMiddleware
                 return;
             }
 
-            if (!device.Scopes.Contains("read:status", StringComparer.OrdinalIgnoreCase))
+            if (!device.Scopes.Contains(CompanionScopes.ReadStatus, StringComparer.OrdinalIgnoreCase))
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 return;
@@ -90,7 +90,58 @@ public sealed class CompanionAuthMiddleware
             return;
         }
 
-        // 4. Default for any other endpoint: Require Authentication
+        // 4. Telemetry GET Endpoint
+        if (path.Equals("/api/v1/telemetry", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsGet(context.Request.Method))
+        {
+            // Unauthenticated ONLY on 127.0.0.1 / loopback
+            if (isLoopbackLocal && isLoopbackRemote)
+            {
+                await _next(context);
+                return;
+            }
+
+            // On LAN: Authentication is REQUIRED with read:telemetry scope
+            if (!TryAuthenticateBearer(context, deviceStore, out var device, out var authErrorStatusCode))
+            {
+                context.Response.StatusCode = authErrorStatusCode;
+                return;
+            }
+
+            if (!device.Scopes.Contains(CompanionScopes.ReadTelemetry, StringComparer.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            deviceStore.UpdateLastUsed(device.Id, DateTimeOffset.UtcNow);
+            context.Items["PairedDevice"] = device;
+            await _next(context);
+            return;
+        }
+
+        // 5. WebSocket Ticket Endpoint (POST /api/v1/telemetry/ws-ticket)
+        if (path.Equals("/api/v1/telemetry/ws-ticket", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(context.Request.Method))
+        {
+            // ALWAYS authenticated paired DeviceId + read:telemetry, INCLUDING localhost
+            if (!TryAuthenticateBearer(context, deviceStore, out var device, out var authErrorStatusCode))
+            {
+                context.Response.StatusCode = authErrorStatusCode;
+                return;
+            }
+
+            if (!device.Scopes.Contains(CompanionScopes.ReadTelemetry, StringComparer.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            deviceStore.UpdateLastUsed(device.Id, DateTimeOffset.UtcNow);
+            context.Items["PairedDevice"] = device;
+            await _next(context);
+            return;
+        }
+
+        // 6. Default for any other endpoint: Require Authentication
         if (!TryAuthenticateBearer(context, deviceStore, out var authenticatedDevice, out var defaultErrorStatusCode))
         {
             context.Response.StatusCode = defaultErrorStatusCode;

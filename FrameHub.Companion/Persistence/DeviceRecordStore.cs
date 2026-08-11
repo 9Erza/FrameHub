@@ -6,6 +6,8 @@ using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
 
+using FrameHub.Companion.Authentication;
+
 namespace FrameHub.Companion.Persistence;
 
 public sealed class DeviceRecordStore
@@ -76,6 +78,68 @@ public sealed class DeviceRecordStore
                 FaultMessage = ex.Message;
                 LoggerService.Instance.Error($"Paired devices store file corrupted or unreadable at '{_filePath}': {ex.Message}");
             }
+        }
+    }
+
+    public PairedDeviceRecord? GetDeviceById(Guid id)
+    {
+        lock (_lock)
+        {
+            if (IsFaulted) return null;
+            return _devices.FirstOrDefault(d => d.Id == id);
+        }
+    }
+
+    public bool GrantScope(Guid id, string scope)
+    {
+        if (!CompanionScopes.IsValidScope(scope)) return false;
+
+        lock (_lock)
+        {
+            if (IsFaulted)
+            {
+                throw new InvalidOperationException("Cannot modify paired device store while in a faulted state.");
+            }
+
+            int index = _devices.FindIndex(d => d.Id == id);
+            if (index < 0) return false;
+
+            var existing = _devices[index];
+            if (existing.Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase))
+            {
+                return true; // Idempotent success
+            }
+
+            var updatedScopes = existing.Scopes.ToList();
+            updatedScopes.Add(scope.Trim());
+            _devices[index] = existing with { Scopes = updatedScopes };
+            return SaveInternal();
+        }
+    }
+
+    public bool RevokeScope(Guid id, string scope)
+    {
+        if (!CompanionScopes.IsValidScope(scope)) return false;
+
+        lock (_lock)
+        {
+            if (IsFaulted)
+            {
+                throw new InvalidOperationException("Cannot modify paired device store while in a faulted state.");
+            }
+
+            int index = _devices.FindIndex(d => d.Id == id);
+            if (index < 0) return false;
+
+            var existing = _devices[index];
+            if (!existing.Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase))
+            {
+                return true; // Idempotent success
+            }
+
+            var updatedScopes = existing.Scopes.Where(s => !s.Equals(scope.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+            _devices[index] = existing with { Scopes = updatedScopes };
+            return SaveInternal();
         }
     }
 

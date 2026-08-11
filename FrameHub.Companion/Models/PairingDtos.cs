@@ -20,5 +20,5 @@ public sealed record PairingResponseDto
     public string Credential { get; init; } = string.Empty;
 
     [JsonPropertyName("scopes")]
-    public List<string> Scopes { get; init; } = new();
+    public IReadOnlyList<string> Scopes { get; init; } = new List<string>();
 }

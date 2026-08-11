@@ -43,6 +43,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public int OptimizedProcessCount { get; private set; }
 
     public CompanionServer CompanionServer { get; } = new();
+    public AppTelemetrySnapshotProvider TelemetryProvider { get; }
 
     public AppRuntimeService(string? customSettingsFilePath = null)
         : this(new SettingsService(customSettingsFilePath))
@@ -69,6 +70,9 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             Interval = TimeSpan.FromSeconds(Math.Clamp(Settings.ProfileWatcherSeconds, 1, 30))
         };
         _profileWatcherTimer.Tick += async (_, _) => await RunProfileWatcherOnceAsync();
+
+        TelemetryProvider = new AppTelemetrySnapshotProvider(this);
+        CompanionServer.ConfigureTelemetryProvider(TelemetryProvider, AcquireHardwareLease);
 
         AddActivity("Działanie FrameHub uruchomione.");
         AddActivity(GetWatcherStartupText());
@@ -116,11 +120,20 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
             if (options.Enabled)
             {
-                await CompanionServer.StartAsync(options).ConfigureAwait(false);
+                bool started = await CompanionServer.StartAsync(options).ConfigureAwait(false);
+                if (started)
+                {
+                    TelemetryProvider.Start();
+                }
+                else
+                {
+                    await TelemetryProvider.StopAsync().ConfigureAwait(false);
+                }
             }
             else
             {
                 await CompanionServer.StopAsync().ConfigureAwait(false);
+                await TelemetryProvider.StopAsync().ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -319,13 +332,101 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             Settings.LogSourceName);
     }
 
+    private readonly HardwareMonitorService _hardwareMonitor = new();
+    private int _hardwareConsumerCount;
+    private readonly object _hardwareLock = new();
+
+    public bool IsHardwareMonitoringActive
+    {
+        get
+        {
+            lock (_hardwareLock)
+            {
+                return _hardwareConsumerCount > 0 && _hardwareMonitor.IsInitialized;
+            }
+        }
+    }
+
+    public IHardwareMonitorLease AcquireHardwareLease()
+    {
+        lock (_hardwareLock)
+        {
+            _hardwareConsumerCount++;
+            if (_hardwareConsumerCount == 1)
+            {
+                _hardwareMonitor.Configure(Settings.EnableStorageSensors);
+                _hardwareMonitor.Start();
+            }
+            return new HardwareMonitorLease(this);
+        }
+    }
+
+    internal void ReleaseHardwareLease()
+    {
+        lock (_hardwareLock)
+        {
+            if (_hardwareConsumerCount > 0)
+            {
+                _hardwareConsumerCount--;
+                if (_hardwareConsumerCount == 0)
+                {
+                    _hardwareMonitor.Stop(closeSensors: false);
+                }
+            }
+        }
+    }
+
+    public HardwareMetrics GetHardwareMetrics()
+    {
+        lock (_hardwareLock)
+        {
+            if (_hardwareConsumerCount <= 0)
+            {
+                return new HardwareMetrics();
+            }
+            return _hardwareMonitor.GetAllMetrics();
+        }
+    }
+
+    public void ConfigureHardwareStorageSensors(bool enableStorageSensors)
+    {
+        lock (_hardwareLock)
+        {
+            _hardwareMonitor.Configure(enableStorageSensors);
+        }
+    }
+
+    private sealed class HardwareMonitorLease : IHardwareMonitorLease
+    {
+        private readonly AppRuntimeService _owner;
+        private int _disposed;
+
+        public HardwareMonitorLease(AppRuntimeService owner)
+        {
+            _owner = owner;
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                _owner.ReleaseHardwareLease();
+            }
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        TelemetryProvider.Dispose();
         CompanionServer.Dispose();
         _companionSyncGate.Dispose();
         _profileWatcherTimer.Stop();
+        lock (_hardwareLock)
+        {
+            _hardwareMonitor.Dispose();
+        }
         HardwareTopologyService.ReleaseCpuLoadCounters();
         HardwareTopologyService.Dispose();
         SettingsService.Dispose();

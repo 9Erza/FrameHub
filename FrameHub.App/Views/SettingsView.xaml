@@ -182,12 +182,14 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SettingTitleText}"/>
                                             <TextBlock Text="{Binding CreatedAtText}" Style="{StaticResource SmallMutedText}"/>
                                         </StackPanel>
-                                        <Button Grid.Column="1" Style="{StaticResource SubtleButton}" Content="Revoke" Command="{Binding RevokeCommand}" VerticalAlignment="Center"/>
+                                        <CheckBox Grid.Column="1" Content="{Binding ScopeTelemetryLabel}" IsChecked="{Binding ReadTelemetryEnabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                        <Button Grid.Column="2" Style="{StaticResource SubtleButton}" Content="{Binding RevokeLabel}" Command="{Binding RevokeCommand}" VerticalAlignment="Center"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

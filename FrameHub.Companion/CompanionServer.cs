@@ -5,11 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using FrameHub.Companion.Authentication;
+using FrameHub.Companion.Handlers;
 using FrameHub.Companion.Network;
 using FrameHub.Companion.Pairing;
 using FrameHub.Companion.Persistence;
+using FrameHub.Companion.Providers;
 using FrameHub.Companion.RateLimiting;
 using FrameHub.Core.Logging;
+using FrameHub.Core.Services;
 
 namespace FrameHub.Companion;
 
@@ -20,10 +23,13 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
     private WebApplication? _app;
     private CompanionStatusInfo _status = new();
     private bool _disposed;
+    private ITelemetrySnapshotProvider? _snapshotProvider;
+    private Func<IHardwareMonitorLease>? _hardwareLeaser;
 
     public DeviceRecordStore DeviceStore { get; }
     public PairingEngine PairingEngine { get; }
     public PairingRateLimiter RateLimiter { get; }
+    public WebSocketTicketStore TicketStore { get; }
 
     public CompanionStatusInfo Status
     {
@@ -51,6 +57,13 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
         DeviceStore = deviceStore ?? new DeviceRecordStore();
         PairingEngine = new PairingEngine(DeviceStore, clock);
         RateLimiter = new PairingRateLimiter(5, TimeSpan.FromMinutes(1), clock);
+        TicketStore = new WebSocketTicketStore(clock);
+    }
+
+    public void ConfigureTelemetryProvider(ITelemetrySnapshotProvider provider, Func<IHardwareMonitorLease>? hardwareLeaser = null)
+    {
+        _snapshotProvider = provider;
+        _hardwareLeaser = hardwareLeaser;
     }
 
     public async Task<bool> StartAsync(CompanionOptions options, CancellationToken cancellationToken = default)
@@ -115,6 +128,10 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
                 builder.Services.AddSingleton(DeviceStore);
                 builder.Services.AddSingleton(PairingEngine);
                 builder.Services.AddSingleton(RateLimiter);
+                builder.Services.AddSingleton(TicketStore);
+
+                var snapshotProvider = _snapshotProvider ?? new NullTelemetrySnapshotProvider();
+                builder.Services.AddSingleton(snapshotProvider);
 
                 builder.WebHost.UseKestrel(kestrel =>
                 {
@@ -132,6 +149,23 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
                     .AddApplicationPart(typeof(CompanionServer).Assembly);
 
                 app = builder.Build();
+
+                app.UseWebSockets();
+
+                app.Use(async (context, next) =>
+                {
+                    if (context.Request.Path.Equals("/api/v1/telemetry/ws", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await TelemetryWebSocketHandler.HandleWebSocketRequestAsync(
+                            context,
+                            TicketStore,
+                            DeviceStore,
+                            snapshotProvider,
+                            _hardwareLeaser);
+                        return;
+                    }
+                    await next();
+                });
 
                 app.UseMiddleware<CompanionAuthMiddleware>();
                 app.MapControllers();
@@ -212,6 +246,7 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
         _app = null;
 
         PairingEngine.CancelPairingSession();
+        TicketStore.Clear();
 
         if (app != null)
         {
