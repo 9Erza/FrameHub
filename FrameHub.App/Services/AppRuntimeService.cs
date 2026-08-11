@@ -19,7 +19,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     private bool _watcherBusy;
     private bool _disposed;
 
-    public SettingsService SettingsService { get; } = new();
+    public SettingsService SettingsService { get; }
     public AppSettings Settings { get; private set; }
     public ProfileService ProfileService { get; } = new();
     public ProcessService ProcessService { get; } = new();
@@ -44,8 +44,14 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
     public CompanionServer CompanionServer { get; } = new();
 
-    public AppRuntimeService()
+    public AppRuntimeService(string? customSettingsFilePath = null)
+        : this(new SettingsService(customSettingsFilePath))
     {
+    }
+
+    public AppRuntimeService(SettingsService settingsService)
+    {
+        SettingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         Settings = SettingsService.LoadSettings();
         ConfigureLoggerFromSettings();
 

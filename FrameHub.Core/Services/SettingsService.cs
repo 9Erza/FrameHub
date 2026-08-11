@@ -17,12 +17,21 @@ namespace FrameHub.Core.Services
     {
         public enum WindowsStartupState { Disabled, Registry, ElevatedScheduledTask, Conflict, Broken }
         public sealed record WindowsStartupStatus(WindowsStartupState State, string Message);
-        private readonly string _filePath = AppPaths.GetUserDataFilePath("settings.json");
+        private readonly string _filePath;
         private readonly string _appName = "FrameHub";
         private readonly string _exePath = GetCurrentExecutablePath();
         private readonly ITaskSchedulerQuery _taskSchedulerQuery = new TaskSchedulerComQuery();
         private readonly ILogger _logger = LoggerService.Instance;
         private bool _disposed;
+
+        public string SettingsFilePath => _filePath;
+
+        public SettingsService(string? settingsFilePath = null)
+        {
+            _filePath = !string.IsNullOrWhiteSpace(settingsFilePath)
+                ? settingsFilePath
+                : AppPaths.GetUserDataFilePath("settings.json");
+        }
 
         public AppSettings Load() => LoadSettings();
 

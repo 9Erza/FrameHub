@@ -81,6 +81,38 @@
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding CloseToTrayLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding CloseToTray, Mode=TwoWay}" /></Grid>
                     </StackPanel>
                 </Border>
+
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding CompanionTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding CompanionDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,12" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding CompanionEnableLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding CompanionEnabled, Mode=TwoWay}"/>
+                        </Grid>
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,0,0,12" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding CompanionPortLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Style="{StaticResource CompactNumberTextBox}" Text="{Binding CompanionPortText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="70"/>
+                        </Grid>
+                        <TextBlock Text="{Binding CompanionPortValidationError}" Style="{StaticResource SmallMutedText}" Foreground="#FF6C6C" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="{Binding HasCompanionPortValidationError, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,0,0,12" />
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding CompanionStatusLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
+                            <Border Grid.Column="1" Style="{StaticResource StatusBadge}" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding CompanionStatusText}" Style="{StaticResource StatusText}"/>
+                            </Border>
+                        </Grid>
+                        <StackPanel Visibility="{Binding IsCompanionRunning, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,8,0,0">
+                            <TextBlock Text="{Binding CompanionEndpointLabel}" Style="{StaticResource TinyCapsText}"/>
+                            <TextBox Text="{Binding CompanionEndpointText, Mode=OneWay}" Style="{StaticResource CompactNumberTextBox}" IsReadOnly="True" BorderThickness="0" Background="Transparent" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding CompanionErrorMessage}" Style="{StaticResource SmallMutedText}" Foreground="#FF6C6C" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding IsCompanionFailed, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
 
             <StackPanel x:Name="RightSettingsColumn" Grid.Column="2" Grid.Row="0">
