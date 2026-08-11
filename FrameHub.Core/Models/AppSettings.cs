@@ -55,6 +55,9 @@ namespace FrameHub.Core.Models
         public string? Cs2SteamUserdataId { get; set; }
         public string? Cs2SteamUserdataPath { get; set; }
 
+        public bool CompanionEnabled { get; set; } = false;
+        public int CompanionPort { get; set; } = 47821;
+
         /// <summary>
         /// User-selected folders scanned by the Library module. Launcher manifests are still detected separately.
         /// </summary>

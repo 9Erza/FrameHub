@@ -1,4 +1,5 @@
 using FrameHub.App.ViewModels;
+using FrameHub.Companion;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
@@ -41,6 +42,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public string LastAppliedProfile { get; private set; } = string.Empty;
     public int OptimizedProcessCount { get; private set; }
 
+    public CompanionServer CompanionServer { get; } = new();
+
     public AppRuntimeService()
     {
         Settings = SettingsService.LoadSettings();
@@ -64,6 +67,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         AddActivity("Działanie FrameHub uruchomione.");
         AddActivity(GetWatcherStartupText());
         StartProfileWatcher();
+        _ = SyncCompanionServerStateAsync();
     }
 
 
@@ -86,6 +90,39 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         ConfigureLoggerFromSettings();
         _profileWatcherTimer.Interval = TimeSpan.FromSeconds(Math.Clamp(Settings.ProfileWatcherSeconds, 1, 30));
+        _ = SyncCompanionServerStateAsync();
+    }
+
+    private readonly SemaphoreSlim _companionSyncGate = new(1, 1);
+
+    public async Task SyncCompanionServerStateAsync()
+    {
+        await _companionSyncGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var options = new CompanionOptions
+            {
+                Enabled = Settings.CompanionEnabled,
+                Port = Settings.CompanionPort > 0 ? Settings.CompanionPort : 47821
+            };
+
+            if (options.Enabled)
+            {
+                await CompanionServer.StartAsync(options).ConfigureAwait(false);
+            }
+            else
+            {
+                await CompanionServer.StopAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"Failed to synchronize Companion server state: {ex.Message}");
+        }
+        finally
+        {
+            _companionSyncGate.Release();
+        }
     }
 
     public void StartProfileWatcher()
@@ -278,6 +315,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         if (_disposed) return;
         _disposed = true;
+        CompanionServer.Dispose();
+        _companionSyncGate.Dispose();
         _profileWatcherTimer.Stop();
         HardwareTopologyService.ReleaseCpuLoadCounters();
         HardwareTopologyService.Dispose();

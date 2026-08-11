@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FrameHub.Core\FrameHub.Core.csproj" />
+    <ProjectReference Include="..\FrameHub.Companion\FrameHub.Companion.csproj" />
   </ItemGroup>
 
   <ItemGroup>
