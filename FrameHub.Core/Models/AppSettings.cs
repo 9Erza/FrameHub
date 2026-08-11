@@ -56,6 +56,8 @@ namespace FrameHub.Core.Models
         public string? Cs2SteamUserdataPath { get; set; }
 
         public bool CompanionEnabled { get; set; } = false;
+        public bool CompanionLanEnabled { get; set; } = false;
+        public string? CompanionLanAddress { get; set; }
         public int CompanionPort { get; set; } = 47821;
 
         /// <summary>

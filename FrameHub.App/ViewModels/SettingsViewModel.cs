@@ -1,10 +1,15 @@
 using FrameHub.App.Helpers;
 using FrameHub.App.Services;
 using FrameHub.Companion;
+using FrameHub.Companion.Models;
+using FrameHub.Companion.Network;
+using FrameHub.Companion.Pairing;
+using FrameHub.Companion.Persistence;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
 using FrameHub.Core.Services.Benchmarking;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -322,6 +327,93 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
+    public ObservableCollection<LanCandidateIp> AvailableLanAddresses { get; } = new();
+    public ObservableCollection<PairedDeviceItemViewModel> PairedDevices { get; } = new();
+
+    public ICommand RefreshLanAddressesCommand { get; }
+    public ICommand StartPairingCommand { get; }
+    public ICommand CancelPairingCommand { get; }
+    public ICommand CopyPairingUrlCommand { get; }
+    public ICommand AllowPairingCommand { get; }
+    public ICommand DenyPairingCommand { get; }
+    public ICommand ResetDeviceStoreCommand { get; }
+
+    public string CompanionLanEnableLabel => _localization.T("Settings.CompanionLanEnable");
+    public string CompanionLanAddressLabel => _localization.T("Settings.CompanionLanAddress");
+    public string CompanionLanRefreshLabel => _localization.T("Settings.CompanionLanRefresh");
+    public string CompanionLanStatusLabel => _localization.T("Settings.CompanionLanStatus");
+    public string CompanionPairButtonLabel => _localization.T("Settings.CompanionPairButton");
+    public string CompanionCancelPairButtonLabel => _localization.T("Settings.CompanionCancelPairButton");
+    public string CompanionCopyUrlLabel => _localization.T("Settings.CompanionCopyUrl");
+    public string CompanionPendingTitle => _localization.T("Settings.CompanionPendingTitle");
+    public string CompanionAllowLabel => _localization.T("Settings.CompanionAllow");
+    public string CompanionDenyLabel => _localization.T("Settings.CompanionDeny");
+    public string CompanionPairedDevicesTitle => _localization.T("Settings.CompanionPairedDevicesTitle");
+    public string CompanionNoPairedDevicesLabel => _localization.T("Settings.CompanionNoPairedDevices");
+    public string CompanionStoreFaultTitle => _localization.T("Settings.CompanionStoreFaultTitle");
+    public string CompanionStoreFaultMessage => _localization.T("Settings.CompanionStoreFaultMessage");
+    public string CompanionResetStoreLabel => _localization.T("Settings.CompanionResetStore");
+
+    public bool CompanionLanEnabled
+    {
+        get => _settings.CompanionLanEnabled;
+        set
+        {
+            if (_settings.CompanionLanEnabled == value) return;
+            _settings.CompanionLanEnabled = value;
+            if (value && string.IsNullOrWhiteSpace(_settings.CompanionLanAddress))
+            {
+                RefreshLanAddresses();
+            }
+            SaveSettings();
+            OnPropertyChanged();
+            UpdateCompanionStatusProperties();
+        }
+    }
+
+    public string? CompanionLanAddress
+    {
+        get => _settings.CompanionLanAddress;
+        set
+        {
+            if (_settings.CompanionLanAddress == value) return;
+            _settings.CompanionLanAddress = value;
+            SaveSettings();
+            OnPropertyChanged();
+            UpdateCompanionStatusProperties();
+        }
+    }
+
+    public string LanStatusText
+    {
+        get
+        {
+            if (!_settings.CompanionLanEnabled)
+                return _localization.T("Settings.CompanionLanDisabled");
+
+            var status = _runtime.CompanionServer.Status;
+            if (status.LanFaulted)
+                return string.Format(_localization.T("Settings.CompanionLanFault"), status.LanErrorMessage ?? "Unavailable");
+
+            if (status.LanBoundAddress != null)
+                return status.LanBoundAddress;
+
+            return _localization.T("Settings.CompanionStateStarting");
+        }
+    }
+
+    public bool IsPairingActive => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().IsActive;
+    public string PairingUrl => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PairingUrl ?? string.Empty;
+    public string PairingToken => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PairingToken ?? string.Empty;
+
+    public bool HasPendingPairingRequest => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PendingRequest != null;
+    public string PendingDeviceName => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PendingRequest?.DisplayName ?? string.Empty;
+    public string PendingSourceIp => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PendingRequest?.SourceIp ?? string.Empty;
+
+    public bool HasPairedDevices => PairedDevices.Count > 0;
+    public bool IsDeviceStoreFaulted => _runtime.CompanionServer.DeviceStore.IsFaulted;
+    public string DeviceStoreFaultMessage => _runtime.CompanionServer.DeviceStore.FaultMessage ?? string.Empty;
+
     public SettingsViewModel(LocalizationService localization, AppRuntimeService runtime)
     {
         _localization = localization;
@@ -332,6 +424,7 @@ public sealed class SettingsViewModel : ViewModelBase
         StatusMessage = _localization.T("Settings.Saved");
 
         _runtime.CompanionServer.StatusChanged += OnCompanionStatusChanged;
+        _runtime.CompanionServer.PairingEngine.SessionStatusChanged += OnPairingSessionStatusChanged;
 
         RestartAsAdminCommand = new RelayCommand(_ => _runtime.SettingsService.RestartAsAdmin());
         CheckUpdatesCommand = new RelayCommand(_ => _ = CheckUpdatesAsync());
@@ -341,8 +434,117 @@ public sealed class SettingsViewModel : ViewModelBase
         OpenThirdPartyNoticesCommand = new RelayCommand(_ => OpenThirdPartyNotices());
         OpenPresentMonProjectCommand = new RelayCommand(_ => ExternalLinkService.TryOpen(FrameHubExternalLink.PresentMon));
         ClearBenchmarkHotkeyCommand = new RelayCommand(_ => ClearBenchmarkHotkey());
+
+        RefreshLanAddressesCommand = new RelayCommand(_ => RefreshLanAddresses());
+        StartPairingCommand = new RelayCommand(_ => StartPairing());
+        CancelPairingCommand = new RelayCommand(_ => CancelPairing());
+        CopyPairingUrlCommand = new RelayCommand(_ => CopyPairingUrl());
+        AllowPairingCommand = new RelayCommand(_ => AllowPairing());
+        DenyPairingCommand = new RelayCommand(_ => DenyPairing());
+        ResetDeviceStoreCommand = new RelayCommand(_ => ResetDeviceStore());
+
+        RefreshLanAddresses();
+        RefreshPairedDevices();
+
         ProbeBenchmarkEngine();
         _ = RefreshStartupStatusAsync();
+    }
+
+    public void RefreshLanAddresses()
+    {
+        AvailableLanAddresses.Clear();
+        var candidates = LanAddressService.GetAvailableLanAddresses();
+        foreach (var candidate in candidates)
+        {
+            AvailableLanAddresses.Add(candidate);
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.CompanionLanAddress) && AvailableLanAddresses.Count > 0)
+        {
+            CompanionLanAddress = AvailableLanAddresses[0].IpAddress;
+        }
+    }
+
+    public void RefreshPairedDevices()
+    {
+        PairedDevices.Clear();
+        var devices = _runtime.CompanionServer.DeviceStore.Devices;
+        foreach (var dev in devices)
+        {
+            PairedDevices.Add(new PairedDeviceItemViewModel(dev, RevokeDevice));
+        }
+        OnPropertyChanged(nameof(HasPairedDevices));
+        OnPropertyChanged(nameof(IsDeviceStoreFaulted));
+        OnPropertyChanged(nameof(DeviceStoreFaultMessage));
+    }
+
+    private void StartPairing()
+    {
+        string host = !string.IsNullOrWhiteSpace(_settings.CompanionLanAddress)
+            ? _settings.CompanionLanAddress
+            : "127.0.0.1";
+        int port = _settings.CompanionPort > 0 ? _settings.CompanionPort : 47821;
+        _runtime.CompanionServer.PairingEngine.StartPairingSession(host, port);
+    }
+
+    private void CancelPairing()
+    {
+        _runtime.CompanionServer.PairingEngine.CancelPairingSession();
+    }
+
+    private void CopyPairingUrl()
+    {
+        string url = PairingUrl;
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            try { System.Windows.Clipboard.SetText(url); } catch { }
+        }
+    }
+
+    private void AllowPairing()
+    {
+        _runtime.CompanionServer.PairingEngine.AllowPendingRequest(out _, out _);
+        RefreshPairedDevices();
+    }
+
+    private void DenyPairing()
+    {
+        _runtime.CompanionServer.PairingEngine.DenyPendingRequest();
+        RefreshPairedDevices();
+    }
+
+    private void RevokeDevice(Guid id)
+    {
+        _runtime.CompanionServer.DeviceStore.RevokeDevice(id);
+        RefreshPairedDevices();
+    }
+
+    private void ResetDeviceStore()
+    {
+        _runtime.CompanionServer.DeviceStore.ResetStore();
+        RefreshPairedDevices();
+    }
+
+    private void OnPairingSessionStatusChanged(object? sender, PairingSessionStatus e)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        {
+            dispatcher.InvokeAsync(UpdatePairingProperties);
+        }
+        else
+        {
+            UpdatePairingProperties();
+        }
+    }
+
+    private void UpdatePairingProperties()
+    {
+        OnPropertyChanged(nameof(IsPairingActive));
+        OnPropertyChanged(nameof(PairingUrl));
+        OnPropertyChanged(nameof(PairingToken));
+        OnPropertyChanged(nameof(HasPendingPairingRequest));
+        OnPropertyChanged(nameof(PendingDeviceName));
+        OnPropertyChanged(nameof(PendingSourceIp));
     }
 
     private void OnCompanionStatusChanged(object? sender, CompanionStatusInfo status)
@@ -364,6 +566,9 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(CompanionErrorMessage));
         OnPropertyChanged(nameof(IsCompanionRunning));
         OnPropertyChanged(nameof(IsCompanionFailed));
+        OnPropertyChanged(nameof(LanStatusText));
+        OnPropertyChanged(nameof(CompanionLanEnabled));
+        OnPropertyChanged(nameof(CompanionLanAddress));
     }
 
     public void RefreshTexts()

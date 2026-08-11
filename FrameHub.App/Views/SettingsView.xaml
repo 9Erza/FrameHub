@@ -111,6 +111,87 @@
                             <TextBox Text="{Binding CompanionEndpointText, Mode=OneWay}" Style="{StaticResource CompactNumberTextBox}" IsReadOnly="True" BorderThickness="0" Background="Transparent" Margin="0,2,0,0"/>
                         </StackPanel>
                         <TextBlock Text="{Binding CompanionErrorMessage}" Style="{StaticResource SmallMutedText}" Foreground="#FF6C6C" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding IsCompanionFailed, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                        <!-- M3 LAN Access & Pairing Controls -->
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,12,0,12" />
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding CompanionLanEnableLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding CompanionLanEnabled, Mode=TwoWay}"/>
+                        </Grid>
+
+                        <StackPanel Visibility="{Binding CompanionLanEnabled, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding CompanionLanAddressLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableLanAddresses}" SelectedValue="{Binding CompanionLanAddress, Mode=TwoWay}" SelectedValuePath="IpAddress" DisplayMemberPath="IpAddress" Width="140"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding CompanionLanStatusLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LanStatusText}" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Pair New Device Button -->
+                            <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionPairButtonLabel}" Command="{Binding StartPairingCommand}" Margin="0,6,0,0" HorizontalAlignment="Left"/>
+
+                            <!-- Active Pairing Window Panel -->
+                            <Border Visibility="{Binding IsPairingActive, Converter={StaticResource BoolToVisibilityConverter}}" Background="{StaticResource BrushSurfaceInteractive}" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Pairing Window Active (3 min)" Style="{StaticResource DataTitleText}"/>
+                                    <TextBlock Text="{Binding CompanionPairingUrl}" Style="{StaticResource TinyCapsText}" Margin="0,4,0,0"/>
+                                    <TextBox Text="{Binding PairingUrl, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource CompactNumberTextBox}" Margin="0,2,0,8"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionCopyUrlLabel}" Command="{Binding CopyPairingUrlCommand}"/>
+                                        <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionCancelPairButtonLabel}" Command="{Binding CancelPairingCommand}" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Pending Pairing Approval Panel -->
+                            <Border Visibility="{Binding HasPendingPairingRequest, Converter={StaticResource BoolToVisibilityConverter}}" Background="#1E2A3A" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding CompanionPendingTitle}" Style="{StaticResource SectionTitleText}" Foreground="#3B82F6"/>
+                                    <TextBlock Text="{Binding PendingDeviceName}" Style="{StaticResource SettingTitleText}" Margin="0,4,0,0"/>
+                                    <TextBlock Text="{Binding PendingSourceIp}" Style="{StaticResource SmallMutedText}" Margin="0,2,0,10"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Style="{StaticResource PrimaryButton}" Content="{Binding CompanionAllowLabel}" Command="{Binding AllowPairingCommand}"/>
+                                        <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionDenyLabel}" Command="{Binding DenyPairingCommand}" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Device Store Fault Alert -->
+                        <Border Visibility="{Binding IsDeviceStoreFaulted, Converter={StaticResource BoolToVisibilityConverter}}" Background="#2A1E1E" BorderBrush="#FF6C6C" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="{Binding CompanionStoreFaultTitle}" Style="{StaticResource SectionTitleText}" Foreground="#FF6C6C"/>
+                                <TextBlock Text="{Binding CompanionStoreFaultMessage}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,8"/>
+                                <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionResetStoreLabel}" Command="{Binding ResetDeviceStoreCommand}" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Paired Devices List -->
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,12,0,12" />
+                        <TextBlock Text="{Binding CompanionPairedDevicesTitle}" Style="{StaticResource DataTitleText}"/>
+                        <TextBlock Text="{Binding CompanionNoPairedDevicesLabel}" Style="{StaticResource SmallMutedText}" Margin="0,4,0,0" Visibility="{Binding HasPairedDevices, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                        <ItemsControl ItemsSource="{Binding PairedDevices}" Margin="0,6,0,0" Visibility="{Binding HasPairedDevices, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayName}" Style="{StaticResource SettingTitleText}"/>
+                                            <TextBlock Text="{Binding CreatedAtText}" Style="{StaticResource SmallMutedText}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleButton}" Content="Revoke" Command="{Binding RevokeCommand}" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
             </StackPanel>

@@ -109,6 +109,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             var options = new CompanionOptions
             {
                 Enabled = Settings.CompanionEnabled,
+                LanEnabled = Settings.CompanionLanEnabled,
+                LanAddress = Settings.CompanionLanAddress,
                 Port = Settings.CompanionPort > 0 ? Settings.CompanionPort : 47821
             };
 
