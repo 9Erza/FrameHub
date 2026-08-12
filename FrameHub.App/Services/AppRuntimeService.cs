@@ -3,6 +3,7 @@ using FrameHub.Companion;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
+using FrameHub.Core.Services.Benchmarking;
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
 
@@ -44,6 +45,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
     public CompanionServer CompanionServer { get; } = new();
     public AppTelemetrySnapshotProvider TelemetryProvider { get; }
+    public BenchmarkCaptureCoordinator BenchmarkCoordinator { get; }
+    IBenchmarkCaptureCoordinator IBenchmarkRuntimeContext.BenchmarkCoordinator => BenchmarkCoordinator;
 
     public AppRuntimeService(string? customSettingsFilePath = null)
         : this(new SettingsService(customSettingsFilePath))
@@ -73,12 +76,14 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
         TelemetryProvider = new AppTelemetrySnapshotProvider(this);
         CompanionServer.ConfigureTelemetryProvider(TelemetryProvider, AcquireHardwareLease);
+        BenchmarkCoordinator = new BenchmarkCaptureCoordinator();
 
         AddActivity("Działanie FrameHub uruchomione.");
         AddActivity(GetWatcherStartupText());
         StartProfileWatcher();
         _ = SyncCompanionServerStateAsync();
     }
+
 
 
     public void SaveSettings(AppSettings settings)
@@ -419,6 +424,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         if (_disposed) return;
         _disposed = true;
+        BenchmarkCoordinator.Dispose();
         TelemetryProvider.Dispose();
         CompanionServer.Dispose();
         _companionSyncGate.Dispose();

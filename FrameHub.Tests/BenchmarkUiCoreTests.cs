@@ -328,6 +328,19 @@ public sealed class BenchmarkViewModelWorkflowTests
         StringAssert.Contains(vm.TechnicalError, "capture_failed");
     }
 
+    [TestMethod]
+    public void DisposingViewModel_UnsubscribesFromCoordinatorStateChanged()
+    {
+        var coordinator = new BenchmarkCaptureCoordinator(new BenchmarkStorageService(_root));
+        var game = new LibraryItem { Id = "game", DisplayName = "Game", Source = LibrarySource.Manual, ExecutablePath = @"C:\Games\game.exe", ProcessName = "game", IsEnabled = true };
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(123, "game", @"C:\Games\game.exe", DateTime.UtcNow)]));
+        var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), new BenchmarkStorageService(_root), detector, () => [game], () => new FakeBackend(new BenchmarkStorageService(_root), BackendMode.Success), () => false, engineProbe: () => (true, "2.5.1", null), coordinator: coordinator);
+
+        vm.Dispose();
+
+        Assert.AreEqual(BenchmarkUiState.Idle, vm.State);
+    }
+
     private BenchmarkViewModel Create(BackendMode mode, out FakeBackend backend)
     {
         var storage = new BenchmarkStorageService(_root);
@@ -391,6 +404,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         public AppSettings Settings { get; } = new();
         public List<ProcessProfile> Profiles { get; } = [];
         public string? LastAppliedProfile => null;
+        public IBenchmarkCaptureCoordinator BenchmarkCoordinator { get; } = new BenchmarkCaptureCoordinator();
         public void AddActivity(string message, string level = "Info") { }
     }
 }
@@ -449,7 +463,7 @@ public sealed class BenchmarkPresentationTests
         Metadata = new BenchmarkSessionMetadata { SessionId = Guid.NewGuid(), StartUtc = DateTime.UtcNow, Game = new BenchmarkTarget { LibraryItemId = gameId, DisplayName = name, LibrarySource = "Manual" }, Status = BenchmarkSessionStatus.Completed },
         Summary = new BenchmarkSummary { PrimaryPresentedMetrics = new BenchmarkMetricSet { AverageFps = average, OnePercentLowFps = average * .8, P99FrameTimeMs = 10 }, Quality = new BenchmarkQualityResult { Level = BenchmarkQualityLevel.Valid } }
     };
-    private sealed class ComparisonRuntime : IBenchmarkRuntimeContext { public AppSettings Settings { get; } = new(); public List<ProcessProfile> Profiles { get; } = []; public string? LastAppliedProfile => null; public void AddActivity(string message, string level = "Info") { } }
+    private sealed class ComparisonRuntime : IBenchmarkRuntimeContext { public AppSettings Settings { get; } = new(); public List<ProcessProfile> Profiles { get; } = []; public string? LastAppliedProfile => null; public IBenchmarkCaptureCoordinator BenchmarkCoordinator { get; } = new BenchmarkCaptureCoordinator(); public void AddActivity(string message, string level = "Info") { } }
 }
 
 [TestClass]
@@ -573,6 +587,117 @@ public sealed class BenchmarkShellAndLocalizationTests
         Assert.AreEqual(BindingMode.OneWay, diagnosticsMode);
         Assert.IsNotNull(activeFontSources);
         Assert.IsTrue(activeFontSources.All(source => source == "Segoe UI"), "All active FrameHub typography resources must use Segoe UI.");
+    }
+
+    [TestMethod]
+    public void SettingsView_MaterializesWithoutXamlParseException()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                if (Application.Current == null)
+                {
+                    var application = new FrameHub.App.App();
+                    application.InitializeComponent();
+                }
+                var view = new SettingsView();
+                view.Measure(new Size(1200, 800));
+                view.Arrange(new Rect(0, 0, 1200, 800));
+                view.UpdateLayout();
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.IsTrue(thread.Join(TimeSpan.FromSeconds(10)), "SettingsView materialization test timed out.");
+        if (failure is not null) Assert.Fail($"SettingsView materialization failed: {failure}");
+    }
+
+    [TestMethod]
+    public void LogsView_MaterializesWithoutXamlParseException()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                if (Application.Current == null)
+                {
+                    var application = new FrameHub.App.App();
+                    application.InitializeComponent();
+                }
+                var view = new LogsView
+                {
+                    DataContext = new DummyLogsViewModel
+                    {
+                        Activity = [new ActivityItemViewModel { Time = "12:00", Message = "Test log line", Level = "Info" }]
+                    }
+                };
+                view.Measure(new Size(1200, 800));
+                view.Arrange(new Rect(0, 0, 1200, 800));
+                view.UpdateLayout();
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.IsTrue(thread.Join(TimeSpan.FromSeconds(10)), "LogsView materialization test timed out.");
+        if (failure is not null) Assert.Fail($"LogsView materialization failed: {failure}");
+    }
+
+    [TestMethod]
+    public void AllNavigationViews_MaterializeWithoutXamlParseException()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                if (Application.Current == null)
+                {
+                    var application = new FrameHub.App.App();
+                    application.InitializeComponent();
+                }
+
+                UserControl[] views =
+                [
+                    new DashboardView(),
+                    new LibraryView(),
+                    new SessionOptimizationView(),
+                    new BenchmarkView(),
+                    new ProcessesView(),
+                    new ProfilesView(),
+                    new HardwareView(),
+                    new LogsView
+                    {
+                        DataContext = new DummyLogsViewModel
+                        {
+                            Activity = [new ActivityItemViewModel { Time = "12:00", Message = "Test log line", Level = "Info" }]
+                        }
+                    },
+                    new SettingsView()
+                ];
+
+                foreach (var view in views)
+                {
+                    view.Measure(new Size(1200, 800));
+                    view.Arrange(new Rect(0, 0, 1200, 800));
+                    view.UpdateLayout();
+                }
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.IsTrue(thread.Join(TimeSpan.FromSeconds(10)), "AllNavigationViews materialization test timed out.");
+        if (failure is not null) Assert.Fail($"AllNavigationViews materialization failed: {failure}");
+    }
+
+    private sealed class DummyLogsViewModel
+    {
+        public System.Collections.ObjectModel.ObservableCollection<ActivityItemViewModel> Activity { get; init; } = new();
     }
 
     private sealed class ReadOnlyBenchmarkOutputs
