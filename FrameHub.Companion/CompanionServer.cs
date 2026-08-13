@@ -24,6 +24,7 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
     private CompanionStatusInfo _status = new();
     private bool _disposed;
     private ITelemetrySnapshotProvider? _snapshotProvider;
+    private ICompanionBenchmarkProvider? _benchmarkProvider;
     private Func<IHardwareMonitorLease>? _hardwareLeaser;
 
     public DeviceRecordStore DeviceStore { get; }
@@ -65,6 +66,12 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
         _snapshotProvider = provider;
         _hardwareLeaser = hardwareLeaser;
     }
+
+    public void ConfigureBenchmarkProvider(ICompanionBenchmarkProvider provider)
+    {
+        _benchmarkProvider = provider;
+    }
+
 
     public async Task<bool> StartAsync(CompanionOptions options, CancellationToken cancellationToken = default)
     {
@@ -133,6 +140,12 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
                 var snapshotProvider = _snapshotProvider ?? new NullTelemetrySnapshotProvider();
                 builder.Services.AddSingleton(snapshotProvider);
 
+                if (_benchmarkProvider != null)
+                {
+                    builder.Services.AddSingleton(_benchmarkProvider);
+                }
+
+
                 builder.WebHost.UseKestrel(kestrel =>
                 {
                     // Strict localhost loopback binding (127.0.0.1) - NEVER 0.0.0.0 or ListenAnyIP
@@ -166,6 +179,9 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
                     }
                     await next();
                 });
+
+                app.UseDefaultFiles();
+                app.UseStaticFiles();
 
                 app.UseMiddleware<CompanionAuthMiddleware>();
                 app.MapControllers();

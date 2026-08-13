@@ -77,12 +77,17 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         TelemetryProvider = new AppTelemetrySnapshotProvider(this);
         CompanionServer.ConfigureTelemetryProvider(TelemetryProvider, AcquireHardwareLease);
         BenchmarkCoordinator = new BenchmarkCaptureCoordinator();
+        BenchmarkProvider = new AppBenchmarkProvider(this);
+        CompanionServer.ConfigureBenchmarkProvider(BenchmarkProvider);
 
         AddActivity("Działanie FrameHub uruchomione.");
         AddActivity(GetWatcherStartupText());
         StartProfileWatcher();
         _ = SyncCompanionServerStateAsync();
     }
+
+    public AppBenchmarkProvider BenchmarkProvider { get; }
+
 
 
 

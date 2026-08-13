@@ -470,6 +470,8 @@ public sealed class SettingsViewModel : ViewModelBase
         PairedDevices.Clear();
         var devices = _runtime.CompanionServer.DeviceStore.Devices;
         string scopeTelemetryLabel = _localization.T("Settings.CompanionScopeTelemetry");
+        string scopeReadBenchmarksLabel = _localization.T("Settings.CompanionScopeReadBenchmarks");
+        string scopeWriteBenchmarksLabel = _localization.T("Settings.CompanionScopeWriteBenchmarks");
         string revokeLabel = _localization.T("Settings.CompanionRevoke");
         string neverUsedText = _localization.T("Settings.CompanionNeverUsed");
 
@@ -480,6 +482,8 @@ public sealed class SettingsViewModel : ViewModelBase
                 RevokeDevice,
                 ToggleDeviceScope,
                 scopeTelemetryLabel,
+                scopeReadBenchmarksLabel,
+                scopeWriteBenchmarksLabel,
                 revokeLabel,
                 neverUsedText));
         }

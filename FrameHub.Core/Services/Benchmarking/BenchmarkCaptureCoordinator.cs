@@ -83,6 +83,20 @@ public sealed class BenchmarkCaptureCoordinator : IBenchmarkCaptureCoordinator
 
     public Task<BenchmarkCaptureOutcome> StartCaptureAsync(BenchmarkCaptureRequest request, CancellationToken cancellationToken = default)
     {
+        var handle = TryStartCapture(request, cancellationToken);
+        if (!handle.Accepted)
+        {
+            return Task.FromResult(new BenchmarkCaptureOutcome
+            {
+                Status = CoordinatorStatus.AlreadyRunning,
+                ErrorCode = handle.ErrorCode ?? "already_running"
+            });
+        }
+        return handle.CompletionTask!;
+    }
+
+    public BenchmarkCaptureStartHandle TryStartCapture(BenchmarkCaptureRequest request, CancellationToken cancellationToken = default)
+    {
         ArgumentNullException.ThrowIfNull(request);
 
         CancellationTokenSource linkedCts;
@@ -97,11 +111,12 @@ public sealed class BenchmarkCaptureCoordinator : IBenchmarkCaptureCoordinator
 
             if (_activeTask != null)
             {
-                return Task.FromResult(new BenchmarkCaptureOutcome
+                return new BenchmarkCaptureStartHandle
                 {
-                    Status = CoordinatorStatus.AlreadyRunning,
-                    ErrorCode = "already_running"
-                });
+                    Accepted = false,
+                    ErrorCode = "already_running",
+                    CompletionTask = null
+                };
             }
 
             _activeCts = new CancellationTokenSource();
@@ -114,10 +129,16 @@ public sealed class BenchmarkCaptureCoordinator : IBenchmarkCaptureCoordinator
 
             captureTask = Task.Run(() => ExecuteCapturePipelineAsync(request, linkedCts, token));
             _activeTask = captureTask;
-        }
 
-        return captureTask;
+            return new BenchmarkCaptureStartHandle
+            {
+                Accepted = true,
+                ErrorCode = null,
+                CompletionTask = captureTask
+            };
+        }
     }
+
 
     private async Task<BenchmarkCaptureOutcome> ExecuteCapturePipelineAsync(
         BenchmarkCaptureRequest request,

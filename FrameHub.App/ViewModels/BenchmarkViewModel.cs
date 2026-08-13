@@ -249,11 +249,14 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         _ = RefreshHistoryAsync();
     }
 
+    private bool _isLocallyAwaitingCapture;
+
     private void OnCoordinatorStateChanged(object? sender, BenchmarkCaptureStateSnapshot snapshot)
     {
         void Action()
         {
             if (_disposed) return;
+
             if (snapshot.State == CoordinatorState.Waiting)
             {
                 RemainingCountdown = snapshot.RemainingCountdownSeconds;
@@ -271,6 +274,67 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
                 _captureClock.Stop();
                 _progressTimer.Stop();
             }
+            else if (snapshot.State == CoordinatorState.Stopping)
+            {
+                _captureClock.Stop();
+                _progressTimer.Stop();
+            }
+            else if (snapshot.State == CoordinatorState.Completed)
+            {
+                _captureClock.Stop();
+                _progressTimer.Stop();
+
+                if (!_isLocallyAwaitingCapture)
+                {
+                    ElapsedSeconds = snapshot.CaptureStartedAtUtc.HasValue
+                        ? Math.Max(0, (DateTimeOffset.UtcNow - snapshot.CaptureStartedAtUtc.Value).TotalSeconds)
+                        : _captureClock.Elapsed.TotalSeconds;
+                    State = BenchmarkUiState.Completed;
+                    StatusMessage = _localization.T("Benchmark.Message.Completed");
+                    _ = RefreshHistoryAsync();
+                    _ = ResetTerminalStateAsync(BenchmarkUiState.Completed);
+                }
+            }
+            else if (snapshot.State == CoordinatorState.Cancelled)
+            {
+                _captureClock.Stop();
+                _progressTimer.Stop();
+
+                if (!_isLocallyAwaitingCapture)
+                {
+                    State = BenchmarkUiState.Cancelled;
+                    StatusMessage = _localization.T("Benchmark.Message.Cancelled");
+                    _ = RefreshHistoryAsync();
+                    _ = ResetTerminalStateAsync(BenchmarkUiState.Cancelled);
+                }
+            }
+            else if (snapshot.State == CoordinatorState.Failed)
+            {
+                _captureClock.Stop();
+                _progressTimer.Stop();
+
+                if (!_isLocallyAwaitingCapture)
+                {
+                    State = BenchmarkUiState.Failed;
+                    string code = snapshot.ErrorCode ?? "capture_failed";
+                    StatusMessage = FriendlyError(code);
+                    TechnicalError = $"[{code}]";
+                    _ = RefreshHistoryAsync();
+                    _ = ResetTerminalStateAsync(BenchmarkUiState.Failed);
+                }
+            }
+            else if (snapshot.State == CoordinatorState.Idle)
+            {
+                _captureClock.Stop();
+                _progressTimer.Stop();
+
+                if (!_isLocallyAwaitingCapture && State != BenchmarkUiState.Idle)
+                {
+                    State = BenchmarkUiState.Idle;
+                }
+            }
+
+            RaiseCommandStates();
         }
 
         if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
@@ -370,55 +434,62 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         _runtime.AddActivity(string.Format(_localization.T("Benchmark.Log.Started"), running.LibraryItem.DisplayName, RequestedDurationSeconds));
         if (notify) UserNotificationRequested?.Invoke(string.Format(_localization.T("Benchmark.Hotkey.Started"), running.LibraryItem.DisplayName));
 
-        _captureClock.Restart();
-        _progressTimer.Start();
-
-        BenchmarkCaptureOutcome outcome = await _coordinator.StartCaptureAsync(request);
-
-        _captureClock.Stop();
-        _progressTimer.Stop();
-
-        if (outcome.Status == CoordinatorStatus.Completed)
+        _isLocallyAwaitingCapture = true;
+        try
         {
-            ElapsedSeconds = outcome.Result?.Session.Metadata.CaptureDurationSeconds ?? _captureClock.Elapsed.TotalSeconds;
-            await RefreshHistoryAsync();
-            if (outcome.Result is not null)
+            _captureClock.Restart();
+            _progressTimer.Start();
+
+            BenchmarkCaptureOutcome outcome = await _coordinator.StartCaptureAsync(request);
+
+            _captureClock.Stop();
+            _progressTimer.Stop();
+
+            if (outcome.Status == CoordinatorStatus.Completed)
             {
-                BenchmarkHistoryItemViewModel? completed = History.FirstOrDefault(item => item.Entry.Metadata.SessionId == outcome.Result.Session.Metadata.SessionId);
-                if (completed is not null) await ShowHistoryResultAsync(completed);
+                ElapsedSeconds = outcome.Result?.Session.Metadata.CaptureDurationSeconds ?? _captureClock.Elapsed.TotalSeconds;
+                await RefreshHistoryAsync();
+                if (outcome.Result is not null)
+                {
+                    BenchmarkHistoryItemViewModel? completed = History.FirstOrDefault(item => item.Entry.Metadata.SessionId == outcome.Result.Session.Metadata.SessionId);
+                    if (completed is not null) await ShowHistoryResultAsync(completed);
+                }
+                State = BenchmarkUiState.Completed;
+                StatusMessage = _localization.T("Benchmark.Message.Completed");
+                _runtime.AddActivity(string.Format(_localization.T("Benchmark.Log.Completed"), running.LibraryItem.DisplayName));
+                if (notify) UserNotificationRequested?.Invoke(_localization.T("Benchmark.Hotkey.Completed"));
+                _ = ResetTerminalStateAsync(BenchmarkUiState.Completed);
             }
-            State = BenchmarkUiState.Completed;
-            StatusMessage = _localization.T("Benchmark.Message.Completed");
-            _runtime.AddActivity(string.Format(_localization.T("Benchmark.Log.Completed"), running.LibraryItem.DisplayName));
-            if (notify) UserNotificationRequested?.Invoke(_localization.T("Benchmark.Hotkey.Completed"));
-            _ = ResetTerminalStateAsync(BenchmarkUiState.Completed);
+            else if (outcome.Status == CoordinatorStatus.Cancelled)
+            {
+                State = BenchmarkUiState.Cancelled;
+                StatusMessage = _localization.T("Benchmark.Message.Cancelled");
+                _runtime.AddActivity(_localization.T("Benchmark.Log.Cancelled"), "Warn");
+                await RefreshHistoryAsync();
+                _ = ResetTerminalStateAsync(BenchmarkUiState.Cancelled);
+            }
+            else if (outcome.Status == CoordinatorStatus.Failed)
+            {
+                State = BenchmarkUiState.Failed;
+                string code = outcome.ErrorCode ?? "capture_failed";
+                StatusMessage = FriendlyError(code);
+                TechnicalError = string.IsNullOrWhiteSpace(outcome.TechnicalDetail) ? $"[{code}]" : $"[{code}] {outcome.TechnicalDetail}";
+                _logger.Error($"Benchmark capture failed [{code}].");
+                _runtime.AddActivity(string.Format(_localization.T("Benchmark.Log.Failed"), code), "Error");
+                await RefreshHistoryAsync();
+                if (notify) UserNotificationRequested?.Invoke(_localization.T("Benchmark.Hotkey.CouldNotStart"));
+                _ = ResetTerminalStateAsync(BenchmarkUiState.Failed);
+            }
+            else if (outcome.Status == CoordinatorStatus.AlreadyRunning)
+            {
+                _logger.Warn("StartCaptureAsync ignored because benchmark capture is already running.");
+            }
         }
-        else if (outcome.Status == CoordinatorStatus.Cancelled)
+        finally
         {
-            State = BenchmarkUiState.Cancelled;
-            StatusMessage = _localization.T("Benchmark.Message.Cancelled");
-            _runtime.AddActivity(_localization.T("Benchmark.Log.Cancelled"), "Warn");
-            await RefreshHistoryAsync();
-            _ = ResetTerminalStateAsync(BenchmarkUiState.Cancelled);
+            _isLocallyAwaitingCapture = false;
+            RaiseCommandStates();
         }
-        else if (outcome.Status == CoordinatorStatus.Failed)
-        {
-            State = BenchmarkUiState.Failed;
-            string code = outcome.ErrorCode ?? "capture_failed";
-            StatusMessage = FriendlyError(code);
-            TechnicalError = string.IsNullOrWhiteSpace(outcome.TechnicalDetail) ? $"[{code}]" : $"[{code}] {outcome.TechnicalDetail}";
-            _logger.Error($"Benchmark capture failed [{code}].");
-            _runtime.AddActivity(string.Format(_localization.T("Benchmark.Log.Failed"), code), "Error");
-            await RefreshHistoryAsync();
-            if (notify) UserNotificationRequested?.Invoke(_localization.T("Benchmark.Hotkey.CouldNotStart"));
-            _ = ResetTerminalStateAsync(BenchmarkUiState.Failed);
-        }
-        else if (outcome.Status == CoordinatorStatus.AlreadyRunning)
-        {
-            _logger.Warn("StartCaptureAsync ignored because benchmark capture is already running.");
-        }
-
-        RaiseCommandStates();
     }
 
     public void Stop() => _ = _coordinator.StopAsync();

@@ -321,6 +321,67 @@ public sealed class BenchmarkCaptureCoordinatorTests
         Assert.IsTrue(captureTask.IsCompleted, "Active capture task must be completed when StopAsync finishes.");
     }
 
+    [TestMethod]
+    public async Task TryStartCapture_WhenIdle_ReturnsAcceptedWithTask()
+    {
+        var storage = new BenchmarkStorageService(_tempDir);
+        var coordinator = new BenchmarkCaptureCoordinator(storage, () => new TestFakeBackend(storage, BackendMode.Success), new TestFakeIdentityProvider());
+
+        var handle = coordinator.TryStartCapture(CreateSampleRequest());
+
+        Assert.IsTrue(handle.Accepted);
+        Assert.IsNull(handle.ErrorCode);
+        Assert.IsNotNull(handle.CompletionTask);
+
+        var outcome = await handle.CompletionTask;
+        Assert.AreEqual(CoordinatorStatus.Completed, outcome.Status);
+    }
+
+    [TestMethod]
+    public async Task TryStartCapture_WhileActive_ReturnsRejectedWithoutSecondBackendOrSession()
+    {
+        var storage = new BenchmarkStorageService(_tempDir);
+        int backendCalls = 0;
+        IBenchmarkCaptureBackend CreateBackend()
+        {
+            Interlocked.Increment(ref backendCalls);
+            return new TestFakeBackend(storage, BackendMode.WaitForCancellation);
+        }
+
+        var coordinator = new BenchmarkCaptureCoordinator(storage, CreateBackend, new TestFakeIdentityProvider());
+
+        var handle1 = coordinator.TryStartCapture(CreateSampleRequest());
+        Assert.IsTrue(handle1.Accepted);
+
+        var handle2 = coordinator.TryStartCapture(CreateSampleRequest());
+        Assert.IsFalse(handle2.Accepted);
+        Assert.AreEqual("already_running", handle2.ErrorCode);
+        Assert.IsNull(handle2.CompletionTask);
+
+        await coordinator.StopAsync();
+        await handle1.CompletionTask!;
+
+        Assert.AreEqual(1, backendCalls, "Second rejected start must not create backend");
+        Assert.AreEqual(1, storage.EnumerateSessions().Sessions.Count, "Second rejected start must not create session");
+    }
+
+    [TestMethod]
+    public async Task TryStartCapture_FastCompletion_AcceptanceDoesNotDependOnTaskIsCompleted()
+    {
+        var storage = new BenchmarkStorageService(_tempDir);
+        var coordinator = new BenchmarkCaptureCoordinator(storage, () => new TestFakeBackend(storage, BackendMode.Success), new TestFakeIdentityProvider());
+
+        var handle = coordinator.TryStartCapture(CreateSampleRequest());
+        Assert.IsTrue(handle.Accepted);
+
+        // Await completion so task is completed
+        await handle.CompletionTask!;
+
+        // The handle itself remains Accepted=true regardless of completion timing
+        Assert.IsTrue(handle.Accepted);
+    }
+
+
     private enum BackendMode
     {
         Success,

@@ -341,6 +341,150 @@ public sealed class BenchmarkViewModelWorkflowTests
         Assert.AreEqual(BenchmarkUiState.Idle, vm.State);
     }
 
+    [TestMethod]
+    public async Task ExternalStart_NormalCompletion_LeavesVmInactiveAndNotStuckInCompleting()
+    {
+        var storage = new BenchmarkStorageService(_root);
+        var coordinator = new BenchmarkCaptureCoordinator(storage, () => new FakeBackend(storage, BackendMode.Success));
+        var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
+        using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Success), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+
+        await vm.RefreshGamesAsync();
+        Assert.IsTrue(vm.CanStart);
+
+        var request = new BenchmarkCaptureRequest
+        {
+            Target = new BenchmarkTarget { LibraryItemId = game.Id, DisplayName = game.DisplayName },
+            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = DateTime.UtcNow },
+            AppVersion = "1.0",
+            DurationSeconds = 1,
+            CountdownSeconds = 0
+        };
+
+        var handle = coordinator.TryStartCapture(request);
+        Assert.IsTrue(handle.Accepted);
+        Assert.IsTrue(vm.IsCaptureActive, "VM should observe external capture becoming active.");
+
+        await handle.CompletionTask!;
+
+        Assert.IsFalse(coordinator.IsActive);
+        Assert.IsFalse(vm.IsCaptureActive, "VM must not remain active after external completion.");
+        Assert.AreNotEqual(BenchmarkUiState.Completing, vm.State);
+        Assert.AreEqual(BenchmarkUiState.Completed, vm.State);
+        Assert.IsTrue(vm.CanStart, "Desktop Start button must be available again after external completion.");
+    }
+
+    [TestMethod]
+    public async Task ExternalStart_CountdownAndStop_LeavesVmInactiveAndNotStuckInWaiting()
+    {
+        var storage = new BenchmarkStorageService(_root);
+        var coordinator = new BenchmarkCaptureCoordinator(storage, () => new FakeBackend(storage, BackendMode.Success), delayProvider: async (delay, ct) => await Task.Delay(10000, ct));
+        var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
+        using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Success), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+
+        await vm.RefreshGamesAsync();
+
+        var request = new BenchmarkCaptureRequest
+        {
+            Target = new BenchmarkTarget { LibraryItemId = game.Id, DisplayName = game.DisplayName },
+            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = DateTime.UtcNow },
+            AppVersion = "1.0",
+            DurationSeconds = 10,
+            CountdownSeconds = 5
+        };
+
+        var handle = coordinator.TryStartCapture(request);
+        Assert.IsTrue(handle.Accepted);
+        Assert.AreEqual(BenchmarkUiState.Waiting, vm.State);
+
+        await coordinator.StopAsync();
+        await handle.CompletionTask!;
+
+        Assert.IsFalse(coordinator.IsActive);
+        Assert.IsFalse(vm.IsCaptureActive, "VM must not remain in Waiting state after external cancellation.");
+        Assert.AreEqual(BenchmarkUiState.Cancelled, vm.State);
+    }
+
+    [TestMethod]
+    public async Task ExternalStart_Failure_LeavesVmInactiveWithFriendlyError()
+    {
+        var storage = new BenchmarkStorageService(_root);
+        var coordinator = new BenchmarkCaptureCoordinator(storage, () => new FakeBackend(storage, BackendMode.Failure));
+        var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
+        using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Failure), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+
+        await vm.RefreshGamesAsync();
+
+        var request = new BenchmarkCaptureRequest
+        {
+            Target = new BenchmarkTarget { LibraryItemId = game.Id, DisplayName = game.DisplayName },
+            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = DateTime.UtcNow },
+            AppVersion = "1.0",
+            DurationSeconds = 1,
+            CountdownSeconds = 0
+        };
+
+        var handle = coordinator.TryStartCapture(request);
+        await handle.CompletionTask!;
+
+        Assert.IsFalse(vm.IsCaptureActive);
+        Assert.AreEqual(BenchmarkUiState.Failed, vm.State);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(vm.StatusMessage));
+    }
+
+    [TestMethod]
+    public async Task LocalStart_DoesNotDuplicateSideEffects()
+    {
+        var fakeRuntime = new FakeRuntime();
+        var storage = new BenchmarkStorageService(_root);
+        var createdBackend = new FakeBackend(storage, BackendMode.Success);
+        var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
+        using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), fakeRuntime, storage, detector, () => [game], () => createdBackend, () => false, engineProbe: () => (true, "1.0", null));
+
+        await vm.RefreshGamesAsync();
+        vm.CountdownSeconds = 0;
+
+        await vm.StartAsync();
+
+        int startedCount = fakeRuntime.Activity.Count(a => a.Contains("Game 1"));
+        Assert.AreEqual(2, startedCount, "Log activity should record exact start and completion events without duplication.");
+    }
+
+    [TestMethod]
+    public async Task AfterExternalCaptureCompleted_DesktopStartIsPossible()
+    {
+        var storage = new BenchmarkStorageService(_root);
+        var coordinator = new BenchmarkCaptureCoordinator(storage, () => new FakeBackend(storage, BackendMode.Success));
+        var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
+        using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Success), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+
+        await vm.RefreshGamesAsync();
+
+        var request = new BenchmarkCaptureRequest
+        {
+            Target = new BenchmarkTarget { LibraryItemId = game.Id, DisplayName = game.DisplayName },
+            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = DateTime.UtcNow },
+            AppVersion = "1.0",
+            DurationSeconds = 1,
+            CountdownSeconds = 0
+        };
+
+        var handle = coordinator.TryStartCapture(request);
+        await handle.CompletionTask!;
+
+        Assert.IsTrue(vm.CanStart, "Start command must be available for desktop after external capture finishes.");
+
+        vm.CountdownSeconds = 0;
+        await vm.StartAsync();
+
+        Assert.AreEqual(BenchmarkUiState.Completed, vm.State);
+    }
+
     private BenchmarkViewModel Create(BackendMode mode, out FakeBackend backend)
     {
         var storage = new BenchmarkStorageService(_root);
@@ -405,7 +549,8 @@ public sealed class BenchmarkViewModelWorkflowTests
         public List<ProcessProfile> Profiles { get; } = [];
         public string? LastAppliedProfile => null;
         public IBenchmarkCaptureCoordinator BenchmarkCoordinator { get; } = new BenchmarkCaptureCoordinator();
-        public void AddActivity(string message, string level = "Info") { }
+        public List<string> Activity { get; } = [];
+        public void AddActivity(string message, string level = "Info") => Activity.Add(message);
     }
 }
 

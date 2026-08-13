@@ -49,3 +49,10 @@ public sealed record BenchmarkCaptureOutcome
     public string? ErrorCode { get; init; }
     public string? TechnicalDetail { get; init; }
 }
+
+public sealed record BenchmarkCaptureStartHandle
+{
+    public required bool Accepted { get; init; }
+    public string? ErrorCode { get; init; }
+    public Task<BenchmarkCaptureOutcome>? CompletionTask { get; init; }
+}
