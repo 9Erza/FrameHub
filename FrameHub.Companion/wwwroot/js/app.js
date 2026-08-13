@@ -109,7 +109,7 @@
         const dot = elements.authBadge.querySelector('.status-dot');
         dot.className = 'status-dot ' + (isPaired ? 'connected' : 'disconnected');
         elements.authText.textContent = statusMsg || (isPaired ? 'Paired & Connected' : 'Unpaired / Local');
-        
+
         if (isPaired) {
             elements.pairingSection.classList.add('hidden');
         } else {
@@ -167,7 +167,7 @@
         for (let i = 0; i <= yGridCount; i++) {
             const val = minY + (maxY - minY) * (i / yGridCount);
             const yPos = padding.top + plotH - (i / yGridCount) * plotH;
-            
+
             ctx.beginPath();
             ctx.moveTo(padding.left, yPos);
             ctx.lineTo(width - padding.right, yPos);
@@ -283,7 +283,7 @@
 
             const targets = await response.json();
             elements.targetSelect.innerHTML = '';
-            
+
             if (Array.isArray(targets) && targets.length > 0) {
                 targets.forEach(t => {
                     const opt = document.createElement('option');

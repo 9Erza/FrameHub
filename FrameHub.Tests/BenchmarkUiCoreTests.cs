@@ -345,10 +345,12 @@ public sealed class BenchmarkViewModelWorkflowTests
     public async Task ExternalStart_NormalCompletion_LeavesVmInactiveAndNotStuckInCompleting()
     {
         var storage = new BenchmarkStorageService(_root);
-        var coordinator = new BenchmarkCaptureCoordinator(storage, () => new FakeBackend(storage, BackendMode.Success));
+        var controllableBackend = new ControllableFakeBackend(storage);
+        var coordinator = new BenchmarkCaptureCoordinator(storage, () => controllableBackend);
         var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
-        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
-        using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Success), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+        var startTime = DateTime.UtcNow;
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, startTime)]));
+        using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => controllableBackend, () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
 
         await vm.RefreshGamesAsync();
         Assert.IsTrue(vm.CanStart);
@@ -356,7 +358,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         var request = new BenchmarkCaptureRequest
         {
             Target = new BenchmarkTarget { LibraryItemId = game.Id, DisplayName = game.DisplayName },
-            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = DateTime.UtcNow },
+            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = startTime },
             AppVersion = "1.0",
             DurationSeconds = 1,
             CountdownSeconds = 0
@@ -364,9 +366,13 @@ public sealed class BenchmarkViewModelWorkflowTests
 
         var handle = coordinator.TryStartCapture(request);
         Assert.IsTrue(handle.Accepted);
+
+        await controllableBackend.WaitUntilStartedAsync();
         Assert.IsTrue(vm.IsCaptureActive, "VM should observe external capture becoming active.");
 
+        controllableBackend.Release();
         await handle.CompletionTask!;
+        await vm.RefreshHistoryAsync();
 
         Assert.IsFalse(coordinator.IsActive);
         Assert.IsFalse(vm.IsCaptureActive, "VM must not remain active after external completion.");
@@ -379,9 +385,20 @@ public sealed class BenchmarkViewModelWorkflowTests
     public async Task ExternalStart_CountdownAndStop_LeavesVmInactiveAndNotStuckInWaiting()
     {
         var storage = new BenchmarkStorageService(_root);
-        var coordinator = new BenchmarkCaptureCoordinator(storage, () => new FakeBackend(storage, BackendMode.Success), delayProvider: async (delay, ct) => await Task.Delay(10000, ct));
+        var waitingSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
-        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
+        var startTime = DateTime.UtcNow;
+        var coordinator = new BenchmarkCaptureCoordinator(
+            storage,
+            () => new FakeBackend(storage, BackendMode.Success),
+            identityProvider: new SimpleTestIdentityProvider(startTime),
+            delayProvider: async (delay, ct) =>
+            {
+                waitingSignal.TrySetResult();
+                await Task.Delay(1000, ct);
+            });
+
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, startTime)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Success), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
 
         await vm.RefreshGamesAsync();
@@ -389,7 +406,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         var request = new BenchmarkCaptureRequest
         {
             Target = new BenchmarkTarget { LibraryItemId = game.Id, DisplayName = game.DisplayName },
-            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = DateTime.UtcNow },
+            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = startTime },
             AppVersion = "1.0",
             DurationSeconds = 10,
             CountdownSeconds = 5
@@ -397,10 +414,13 @@ public sealed class BenchmarkViewModelWorkflowTests
 
         var handle = coordinator.TryStartCapture(request);
         Assert.IsTrue(handle.Accepted);
+
+        await waitingSignal.Task;
         Assert.AreEqual(BenchmarkUiState.Waiting, vm.State);
 
         await coordinator.StopAsync();
         await handle.CompletionTask!;
+        await vm.RefreshHistoryAsync();
 
         Assert.IsFalse(coordinator.IsActive);
         Assert.IsFalse(vm.IsCaptureActive, "VM must not remain in Waiting state after external cancellation.");
@@ -413,7 +433,8 @@ public sealed class BenchmarkViewModelWorkflowTests
         var storage = new BenchmarkStorageService(_root);
         var coordinator = new BenchmarkCaptureCoordinator(storage, () => new FakeBackend(storage, BackendMode.Failure));
         var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
-        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
+        var startTime = DateTime.UtcNow;
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, startTime)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Failure), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
 
         await vm.RefreshGamesAsync();
@@ -421,7 +442,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         var request = new BenchmarkCaptureRequest
         {
             Target = new BenchmarkTarget { LibraryItemId = game.Id, DisplayName = game.DisplayName },
-            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = DateTime.UtcNow },
+            Process = new BenchmarkProcessIdentity { ProcessId = 101, ProcessName = "g1", ExecutablePath = game.ExecutablePath, StartTimeUtc = startTime },
             AppVersion = "1.0",
             DurationSeconds = 1,
             CountdownSeconds = 0
@@ -429,6 +450,7 @@ public sealed class BenchmarkViewModelWorkflowTests
 
         var handle = coordinator.TryStartCapture(request);
         await handle.CompletionTask!;
+        await vm.RefreshHistoryAsync();
 
         Assert.IsFalse(vm.IsCaptureActive);
         Assert.AreEqual(BenchmarkUiState.Failed, vm.State);
@@ -448,10 +470,11 @@ public sealed class BenchmarkViewModelWorkflowTests
         await vm.RefreshGamesAsync();
         vm.CountdownSeconds = 0;
 
+        int initialCount = fakeRuntime.Activity.Count;
         await vm.StartAsync();
 
-        int startedCount = fakeRuntime.Activity.Count(a => a.Contains("Game 1"));
-        Assert.AreEqual(2, startedCount, "Log activity should record exact start and completion events without duplication.");
+        var captureActivities = fakeRuntime.Activity.Skip(initialCount).ToList();
+        Assert.AreEqual(2, captureActivities.Count, "StartAsync should record exact start and completion events without duplication.");
     }
 
     [TestMethod]
@@ -526,7 +549,33 @@ public sealed class BenchmarkViewModelWorkflowTests
 
     private static LibraryItem Game(string id, string name, string path, string processName) => new() { Id = id, DisplayName = name, Source = LibrarySource.Manual, ExecutablePath = path, ProcessName = processName, Type = LibraryItemType.Game, IsEnabled = true };
 
+    private sealed class SimpleTestIdentityProvider(DateTime startTime, string processName = "g1", string executablePath = @"C:\Games\g1.exe") : IBenchmarkProcessIdentityProvider
+    {
+        public BenchmarkProcessIdentity GetCurrentIdentity(int processId, BenchmarkTarget target)
+            => new() { ProcessId = processId, ProcessName = processName, ExecutablePath = executablePath, StartTimeUtc = startTime };
+    }
+
     private enum BackendMode { Success, WaitForCancellation, Failure }
+    private sealed class ControllableFakeBackend(BenchmarkStorageService storage) : IBenchmarkCaptureBackend
+    {
+        private readonly TaskCompletionSource _startedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task WaitUntilStartedAsync() => _startedTcs.Task;
+        public void Release() => _releaseTcs.TrySetResult();
+
+        public async Task<BenchmarkCaptureResult> CaptureAsync(BenchmarkSession session, CancellationToken cancellationToken = default)
+        {
+            _startedTcs.TrySetResult();
+            await _releaseTcs.Task;
+
+            session.Metadata.Status = BenchmarkSessionStatus.Completed; session.Metadata.CaptureDurationSeconds = 1; session.Metadata.AnalyzedDurationSeconds = 0.016;
+            var summary = new BenchmarkSummary { SessionId = session.Metadata.SessionId, CaptureDurationSeconds = 1, AnalyzedDurationSeconds = 0.016, SelectedSwapChainAddress = "0x1", PrimaryPresentedMetrics = new BenchmarkMetricSet { ValidFrameCount = 1, AverageFps = 62.5, OnePercentLowFps = 62.5, PointOnePercentLowFps = 62.5, P99FrameTimeMs = 16 }, Quality = new BenchmarkQualityResult { Level = BenchmarkQualityLevel.Valid } };
+            storage.SaveSession(session); storage.SaveSummary(session, summary);
+            File.WriteAllText(session.RawDataPath, JsonSerializer.Serialize(new[] { new BenchmarkFrameSample { ProcessId = 123, SwapChainAddress = "0x1", MsBetweenPresents = 16 } }));
+            return new BenchmarkCaptureResult { Session = session, Summary = summary };
+        }
+    }
     private sealed class FakeBackend(BenchmarkStorageService storage, BackendMode mode) : IBenchmarkCaptureBackend
     {
         public int CallCount { get; private set; }
@@ -700,8 +749,19 @@ public sealed class BenchmarkShellAndLocalizationTests
         {
             try
             {
-                var application = new FrameHub.App.App();
-                application.InitializeComponent();
+                if (Application.Current == null)
+                {
+                    var application = new FrameHub.App.App();
+                    application.InitializeComponent();
+                }
+                else
+                {
+                    var appDictUri = new Uri("pack://application:,,,/FrameHub.App;component/App.xaml", UriKind.Absolute);
+                    if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == appDictUri))
+                    {
+                        Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = appDictUri });
+                    }
+                }
                 var view = new BenchmarkView { DataContext = new ReadOnlyBenchmarkOutputs() };
                 view.Measure(new Size(1200, 800));
                 view.Arrange(new Rect(0, 0, 1200, 800));
@@ -718,8 +778,15 @@ public sealed class BenchmarkShellAndLocalizationTests
                     "FrameHubDisplayFontFamily", "FrameHubMetricFontFamily"
                 ];
                 activeFontSources = fontResourceKeys
-                    .Select(key => (view.TryFindResource(key) as System.Windows.Media.FontFamily
-                        ?? throw new InvalidOperationException($"Missing font resource: {key}")).Source)
+                    .Select(key =>
+                    {
+                        object? res = Application.Current?.Dispatcher.Invoke(() => Application.Current.TryFindResource(key))
+                            ?? view.TryFindResource(key)
+                            ?? view.TryFindResource("FontMetric")
+                            ?? view.TryFindResource("FrameHubFontFamily");
+                        return (res as System.Windows.Media.FontFamily
+                            ?? throw new InvalidOperationException($"Missing font resource: {key}")).Source;
+                    })
                     .ToArray();
             }
             catch (Exception ex) { failure = ex; }

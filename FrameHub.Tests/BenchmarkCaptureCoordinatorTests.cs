@@ -119,10 +119,11 @@ public sealed class BenchmarkCaptureCoordinatorTests
     {
         var storage = new BenchmarkStorageService(_tempDir);
         int backendCalls = 0;
+        var firstBackend = new TestFakeBackend(storage, BackendMode.WaitForCancellation);
         IBenchmarkCaptureBackend CreateBackend()
         {
             Interlocked.Increment(ref backendCalls);
-            return new TestFakeBackend(storage, BackendMode.WaitForCancellation);
+            return firstBackend;
         }
 
         var coordinator = new BenchmarkCaptureCoordinator(storage, CreateBackend, new TestFakeIdentityProvider());
@@ -134,6 +135,7 @@ public sealed class BenchmarkCaptureCoordinatorTests
         Assert.AreEqual(CoordinatorStatus.AlreadyRunning, secondOutcome.Status);
         Assert.AreEqual("already_running", secondOutcome.ErrorCode);
 
+        await firstBackend.WaitUntilCaptureStartedAsync();
         await coordinator.StopAsync();
         BenchmarkCaptureOutcome firstOutcome = await first;
         Assert.AreEqual(CoordinatorStatus.Cancelled, firstOutcome.Status);
@@ -234,23 +236,27 @@ public sealed class BenchmarkCaptureCoordinatorTests
     {
         var storage = new BenchmarkStorageService(_tempDir);
         int backendCalls = 0;
+        var firstBackend = new TestFakeBackend(storage, BackendMode.WaitForCancellation);
+
         IBenchmarkCaptureBackend CreateBackend()
         {
             int current = Interlocked.Increment(ref backendCalls);
             return current == 1
-                ? new TestFakeBackend(storage, BackendMode.WaitForCancellation)
+                ? firstBackend
                 : new TestFakeBackend(storage, BackendMode.Success);
         }
 
         var coordinator = new BenchmarkCaptureCoordinator(storage, CreateBackend, new TestFakeIdentityProvider());
 
         Task<BenchmarkCaptureOutcome> taskA = coordinator.StartCaptureAsync(CreateSampleRequest());
+        await firstBackend.WaitUntilCaptureStartedAsync();
         await coordinator.StopAsync();
         var outcomeA = await taskA;
         Assert.AreEqual(CoordinatorStatus.Cancelled, outcomeA.Status);
 
         var outcomeB = await coordinator.StartCaptureAsync(CreateSampleRequest());
         Assert.AreEqual(CoordinatorStatus.Completed, outcomeB.Status);
+        Assert.AreEqual(2, backendCalls, "Both capture A and capture B must instantiate backends.");
     }
 
     [TestMethod]
@@ -342,10 +348,11 @@ public sealed class BenchmarkCaptureCoordinatorTests
     {
         var storage = new BenchmarkStorageService(_tempDir);
         int backendCalls = 0;
+        var firstBackend = new TestFakeBackend(storage, BackendMode.WaitForCancellation);
         IBenchmarkCaptureBackend CreateBackend()
         {
             Interlocked.Increment(ref backendCalls);
-            return new TestFakeBackend(storage, BackendMode.WaitForCancellation);
+            return firstBackend;
         }
 
         var coordinator = new BenchmarkCaptureCoordinator(storage, CreateBackend, new TestFakeIdentityProvider());
@@ -358,6 +365,7 @@ public sealed class BenchmarkCaptureCoordinatorTests
         Assert.AreEqual("already_running", handle2.ErrorCode);
         Assert.IsNull(handle2.CompletionTask);
 
+        await firstBackend.WaitUntilCaptureStartedAsync();
         await coordinator.StopAsync();
         await handle1.CompletionTask!;
 

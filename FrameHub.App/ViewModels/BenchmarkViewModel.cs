@@ -337,14 +337,32 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
             RaiseCommandStates();
         }
 
-        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        DispatchIfRequired(Action);
+    }
+
+    private static void DispatchIfRequired(Action action)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher)
         {
-            dispatcher.BeginInvoke(Action);
+            if (dispatcher.CheckAccess())
+            {
+                action();
+            }
+            else if (dispatcher.Thread.IsAlive && !dispatcher.HasShutdownStarted && !dispatcher.HasShutdownFinished)
+            {
+                try
+                {
+                    dispatcher.BeginInvoke(action);
+                }
+                catch (InvalidOperationException)
+                {
+                    // Dispatcher was shut down or unavailable during invoke
+                }
+            }
+            return;
         }
-        else
-        {
-            Action();
-        }
+
+        action();
     }
 
     public void Activate()

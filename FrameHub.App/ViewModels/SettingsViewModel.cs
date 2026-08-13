@@ -554,14 +554,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private void OnPairingSessionStatusChanged(object? sender, PairingSessionStatus e)
     {
-        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
-        {
-            dispatcher.InvokeAsync(UpdatePairingProperties);
-        }
-        else
-        {
-            UpdatePairingProperties();
-        }
+        DispatchIfRequired(UpdatePairingProperties);
     }
 
     private void UpdatePairingProperties()
@@ -576,14 +569,32 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private void OnCompanionStatusChanged(object? sender, CompanionStatusInfo status)
     {
-        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        DispatchIfRequired(UpdateCompanionStatusProperties);
+    }
+
+    private static void DispatchIfRequired(Action action)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher)
         {
-            dispatcher.InvokeAsync(UpdateCompanionStatusProperties);
+            if (dispatcher.CheckAccess())
+            {
+                action();
+            }
+            else if (dispatcher.Thread.IsAlive && !dispatcher.HasShutdownStarted && !dispatcher.HasShutdownFinished)
+            {
+                try
+                {
+                    dispatcher.InvokeAsync(action);
+                }
+                catch (InvalidOperationException)
+                {
+                    // Dispatcher was shut down or unavailable during invoke
+                }
+            }
+            return;
         }
-        else
-        {
-            UpdateCompanionStatusProperties();
-        }
+
+        action();
     }
 
     public void UpdateCompanionStatusProperties()
