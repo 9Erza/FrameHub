@@ -7,12 +7,11 @@
     <FontFamily x:Key="FrameHubFontExtraBold">Segoe UI</FontFamily>
     <FontFamily x:Key="FrameHubDisplayFontFamily">Segoe UI</FontFamily>
     <FontFamily x:Key="FrameHubMetricFontFamily">Segoe UI</FontFamily>
-    <FontFamily x:Key="FontMono">Segoe UI</FontFamily>
-
     <!-- Compatibility aliases keep every existing view on the same centralized family. -->
     <StaticResource x:Key="FontUi" ResourceKey="FrameHubFontFamily" />
     <StaticResource x:Key="FontDisplay" ResourceKey="FrameHubFontBold" />
     <StaticResource x:Key="FontMetric" ResourceKey="FrameHubMetricFontFamily" />
+    <StaticResource x:Key="FontMono" ResourceKey="FrameHubFontFamily" />
 
     <Style TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontFamily}" />

@@ -1,7 +1,9 @@
 using FrameHub.App.ViewModels;
+using FrameHub.Companion;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
+using FrameHub.Core.Services.Benchmarking;
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
 
@@ -18,7 +20,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     private bool _watcherBusy;
     private bool _disposed;
 
-    public SettingsService SettingsService { get; } = new();
+    public SettingsService SettingsService { get; }
     public AppSettings Settings { get; private set; }
     public ProfileService ProfileService { get; } = new();
     public ProcessService ProcessService { get; } = new();
@@ -41,8 +43,19 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public string LastAppliedProfile { get; private set; } = string.Empty;
     public int OptimizedProcessCount { get; private set; }
 
-    public AppRuntimeService()
+    public CompanionServer CompanionServer { get; } = new();
+    public AppTelemetrySnapshotProvider TelemetryProvider { get; }
+    public BenchmarkCaptureCoordinator BenchmarkCoordinator { get; }
+    IBenchmarkCaptureCoordinator IBenchmarkRuntimeContext.BenchmarkCoordinator => BenchmarkCoordinator;
+
+    public AppRuntimeService(string? customSettingsFilePath = null)
+        : this(new SettingsService(customSettingsFilePath))
     {
+    }
+
+    public AppRuntimeService(SettingsService settingsService)
+    {
+        SettingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         Settings = SettingsService.LoadSettings();
         ConfigureLoggerFromSettings();
 
@@ -61,10 +74,21 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         };
         _profileWatcherTimer.Tick += async (_, _) => await RunProfileWatcherOnceAsync();
 
+        TelemetryProvider = new AppTelemetrySnapshotProvider(this);
+        CompanionServer.ConfigureTelemetryProvider(TelemetryProvider, AcquireHardwareLease);
+        BenchmarkCoordinator = new BenchmarkCaptureCoordinator();
+        BenchmarkProvider = new AppBenchmarkProvider(this);
+        CompanionServer.ConfigureBenchmarkProvider(BenchmarkProvider);
+
         AddActivity("Działanie FrameHub uruchomione.");
         AddActivity(GetWatcherStartupText());
         StartProfileWatcher();
+        _ = SyncCompanionServerStateAsync();
     }
+
+    public AppBenchmarkProvider BenchmarkProvider { get; }
+
+
 
 
     public void SaveSettings(AppSettings settings)
@@ -86,6 +110,50 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         ConfigureLoggerFromSettings();
         _profileWatcherTimer.Interval = TimeSpan.FromSeconds(Math.Clamp(Settings.ProfileWatcherSeconds, 1, 30));
+        _ = SyncCompanionServerStateAsync();
+    }
+
+    private readonly SemaphoreSlim _companionSyncGate = new(1, 1);
+
+    public async Task SyncCompanionServerStateAsync()
+    {
+        await _companionSyncGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var options = new CompanionOptions
+            {
+                Enabled = Settings.CompanionEnabled,
+                LanEnabled = Settings.CompanionLanEnabled,
+                LanAddress = Settings.CompanionLanAddress,
+                Port = Settings.CompanionPort > 0 ? Settings.CompanionPort : 47821
+            };
+
+            if (options.Enabled)
+            {
+                bool started = await CompanionServer.StartAsync(options).ConfigureAwait(false);
+                if (started)
+                {
+                    TelemetryProvider.Start();
+                }
+                else
+                {
+                    await TelemetryProvider.StopAsync().ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                await CompanionServer.StopAsync().ConfigureAwait(false);
+                await TelemetryProvider.StopAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"Failed to synchronize Companion server state: {ex.Message}");
+        }
+        finally
+        {
+            _companionSyncGate.Release();
+        }
     }
 
     public void StartProfileWatcher()
@@ -274,11 +342,102 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             Settings.LogSourceName);
     }
 
+    private readonly HardwareMonitorService _hardwareMonitor = new();
+    private int _hardwareConsumerCount;
+    private readonly object _hardwareLock = new();
+
+    public bool IsHardwareMonitoringActive
+    {
+        get
+        {
+            lock (_hardwareLock)
+            {
+                return _hardwareConsumerCount > 0 && _hardwareMonitor.IsInitialized;
+            }
+        }
+    }
+
+    public IHardwareMonitorLease AcquireHardwareLease()
+    {
+        lock (_hardwareLock)
+        {
+            _hardwareConsumerCount++;
+            if (_hardwareConsumerCount == 1)
+            {
+                _hardwareMonitor.Configure(Settings.EnableStorageSensors);
+                _hardwareMonitor.Start();
+            }
+            return new HardwareMonitorLease(this);
+        }
+    }
+
+    internal void ReleaseHardwareLease()
+    {
+        lock (_hardwareLock)
+        {
+            if (_hardwareConsumerCount > 0)
+            {
+                _hardwareConsumerCount--;
+                if (_hardwareConsumerCount == 0)
+                {
+                    _hardwareMonitor.Stop(closeSensors: false);
+                }
+            }
+        }
+    }
+
+    public HardwareMetrics GetHardwareMetrics()
+    {
+        lock (_hardwareLock)
+        {
+            if (_hardwareConsumerCount <= 0)
+            {
+                return new HardwareMetrics();
+            }
+            return _hardwareMonitor.GetAllMetrics();
+        }
+    }
+
+    public void ConfigureHardwareStorageSensors(bool enableStorageSensors)
+    {
+        lock (_hardwareLock)
+        {
+            _hardwareMonitor.Configure(enableStorageSensors);
+        }
+    }
+
+    private sealed class HardwareMonitorLease : IHardwareMonitorLease
+    {
+        private readonly AppRuntimeService _owner;
+        private int _disposed;
+
+        public HardwareMonitorLease(AppRuntimeService owner)
+        {
+            _owner = owner;
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                _owner.ReleaseHardwareLease();
+            }
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        BenchmarkCoordinator.Dispose();
+        TelemetryProvider.Dispose();
+        CompanionServer.Dispose();
+        _companionSyncGate.Dispose();
         _profileWatcherTimer.Stop();
+        lock (_hardwareLock)
+        {
+            _hardwareMonitor.Dispose();
+        }
         HardwareTopologyService.ReleaseCpuLoadCounters();
         HardwareTopologyService.Dispose();
         SettingsService.Dispose();

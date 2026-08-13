@@ -10,7 +10,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
     private readonly DispatcherTimer _timer;
-    private HardwareMonitorService? _hardwareMonitor;
+    private IHardwareMonitorLease? _hardwareLease;
     private bool _isMonitorEnabled;
     private bool _disposed;
     private bool _pollInProgress;
@@ -88,8 +88,8 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     private void StartMonitor()
     {
         _closeSensorsAfterPoll = false;
-        _hardwareMonitor ??= new HardwareMonitorService(_runtime.Settings.EnableStorageSensors);
-        _hardwareMonitor.Configure(_runtime.Settings.EnableStorageSensors);
+        _runtime.ConfigureHardwareStorageSensors(_runtime.Settings.EnableStorageSensors);
+        _hardwareLease ??= _runtime.AcquireHardwareLease();
         _timer.Start();
         _ = UpdateMetricsAsync();
         _runtime.AddActivity("Hardware monitor enabled.");
@@ -105,19 +105,15 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         }
         else
         {
-            _hardwareMonitor?.Stop(closeSensors);
-            if (closeSensors)
-            {
-                _hardwareMonitor?.Dispose();
-                _hardwareMonitor = null;
-            }
+            _hardwareLease?.Dispose();
+            _hardwareLease = null;
         }
         _runtime.AddActivity("Hardware monitor disabled.");
     }
 
     private async Task UpdateMetricsAsync()
     {
-        if (_hardwareMonitor == null || !IsMonitorEnabled || _pollInProgress || _disposed) return;
+        if (_hardwareLease == null || !IsMonitorEnabled || _pollInProgress || _disposed) return;
         _pollInProgress = true;
         _pollCancellation?.Cancel();
         _pollCancellation = new CancellationTokenSource();
@@ -125,8 +121,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
 
         try
         {
-            var monitor = _hardwareMonitor;
-            var metrics = await Task.Run(monitor.GetAllMetrics, cancellation);
+            var metrics = await Task.Run(_runtime.GetHardwareMetrics, cancellation);
             if (cancellation.IsCancellationRequested || !IsMonitorEnabled || _disposed) return;
             CpuTemp = Math.Round(metrics.CpuTemp, 1);
             GpuTemp = Math.Round(metrics.GpuTemp, 1);
@@ -143,9 +138,8 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
             _pollInProgress = false;
             if (_closeSensorsAfterPoll)
             {
-                _closeSensorsAfterPoll = false;
-                _hardwareMonitor?.Dispose();
-                _hardwareMonitor = null;
+                _hardwareLease?.Dispose();
+                _hardwareLease = null;
             }
         }
     }

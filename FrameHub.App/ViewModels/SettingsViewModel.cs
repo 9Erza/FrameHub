@@ -1,9 +1,15 @@
 using FrameHub.App.Helpers;
 using FrameHub.App.Services;
+using FrameHub.Companion;
+using FrameHub.Companion.Models;
+using FrameHub.Companion.Network;
+using FrameHub.Companion.Pairing;
+using FrameHub.Companion.Persistence;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
 using FrameHub.Core.Services.Benchmarking;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -230,13 +236,195 @@ public sealed class SettingsViewModel : ViewModelBase
         set { value = Math.Clamp(value, 1, 10); if (_settings.HardwareRefreshSeconds == value) return; _settings.HardwareRefreshSeconds = value; SaveSettings(); OnPropertyChanged(); }
     }
 
+    private string _companionPortValidationError = string.Empty;
+    public string CompanionPortValidationError
+    {
+        get => _companionPortValidationError;
+        private set => SetProperty(ref _companionPortValidationError, value);
+    }
+
+    public bool HasCompanionPortValidationError => !string.IsNullOrEmpty(CompanionPortValidationError);
+
+    public string CompanionTitle => _localization.T("Settings.CompanionTitle");
+    public string CompanionDescription => _localization.T("Settings.CompanionDescription");
+    public string CompanionEnableLabel => _localization.T("Settings.CompanionEnable");
+    public string CompanionPortLabel => _localization.T("Settings.CompanionPort");
+    public string CompanionStatusLabel => _localization.T("Settings.CompanionStatus");
+    public string CompanionEndpointLabel => _localization.T("Settings.CompanionEndpoint");
+
+    public bool CompanionEnabled
+    {
+        get => _settings.CompanionEnabled;
+        set
+        {
+            if (_settings.CompanionEnabled == value) return;
+            _settings.CompanionEnabled = value;
+            SaveSettings();
+            OnPropertyChanged();
+            UpdateCompanionStatusProperties();
+        }
+    }
+
+    private string _companionPortText = string.Empty;
+    public string CompanionPortText
+    {
+        get => _companionPortText;
+        set
+        {
+            _companionPortText = value ?? string.Empty;
+            if (int.TryParse(_companionPortText, out int port) && port >= 1 && port <= 65535)
+            {
+                CompanionPortValidationError = string.Empty;
+                if (_settings.CompanionPort != port)
+                {
+                    _settings.CompanionPort = port;
+                    SaveSettings();
+                    UpdateCompanionStatusProperties();
+                }
+            }
+            else
+            {
+                CompanionPortValidationError = _localization.T("Settings.CompanionPortInvalid");
+            }
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasCompanionPortValidationError));
+            OnPropertyChanged(nameof(CompanionPort));
+        }
+    }
+
+    public int CompanionPort
+    {
+        get => _settings.CompanionPort;
+        set => CompanionPortText = value.ToString();
+    }
+
+    public string CompanionStatusText
+    {
+        get
+        {
+            var status = _runtime.CompanionServer.Status;
+            return status.State switch
+            {
+                CompanionServiceState.Starting => _localization.T("Settings.CompanionStateStarting"),
+                CompanionServiceState.Running => _localization.T("Settings.CompanionStateRunning"),
+                CompanionServiceState.Failed => _localization.T("Settings.CompanionStateFailed"),
+                _ => _localization.T("Settings.CompanionStateDisabled")
+            };
+        }
+    }
+
+    public bool IsCompanionRunning => _runtime.CompanionServer.Status.State == CompanionServiceState.Running;
+    public bool IsCompanionFailed => _runtime.CompanionServer.Status.State == CompanionServiceState.Failed;
+
+    public string CompanionEndpointText => IsCompanionRunning ? (_runtime.CompanionServer.Status.BoundAddress ?? string.Empty) : string.Empty;
+
+    public string CompanionErrorMessage
+    {
+        get
+        {
+            if (!IsCompanionFailed) return string.Empty;
+            return string.Format(_localization.T("Settings.CompanionFailedMessage"), _settings.CompanionPort);
+        }
+    }
+
+    public ObservableCollection<LanCandidateIp> AvailableLanAddresses { get; } = new();
+    public ObservableCollection<PairedDeviceItemViewModel> PairedDevices { get; } = new();
+
+    public ICommand RefreshLanAddressesCommand { get; }
+    public ICommand StartPairingCommand { get; }
+    public ICommand CancelPairingCommand { get; }
+    public ICommand CopyPairingUrlCommand { get; }
+    public ICommand AllowPairingCommand { get; }
+    public ICommand DenyPairingCommand { get; }
+    public ICommand ResetDeviceStoreCommand { get; }
+
+    public string CompanionLanEnableLabel => _localization.T("Settings.CompanionLanEnable");
+    public string CompanionLanAddressLabel => _localization.T("Settings.CompanionLanAddress");
+    public string CompanionLanRefreshLabel => _localization.T("Settings.CompanionLanRefresh");
+    public string CompanionLanStatusLabel => _localization.T("Settings.CompanionLanStatus");
+    public string CompanionPairButtonLabel => _localization.T("Settings.CompanionPairButton");
+    public string CompanionCancelPairButtonLabel => _localization.T("Settings.CompanionCancelPairButton");
+    public string CompanionCopyUrlLabel => _localization.T("Settings.CompanionCopyUrl");
+    public string CompanionPendingTitle => _localization.T("Settings.CompanionPendingTitle");
+    public string CompanionAllowLabel => _localization.T("Settings.CompanionAllow");
+    public string CompanionDenyLabel => _localization.T("Settings.CompanionDeny");
+    public string CompanionPairedDevicesTitle => _localization.T("Settings.CompanionPairedDevicesTitle");
+    public string CompanionNoPairedDevicesLabel => _localization.T("Settings.CompanionNoPairedDevices");
+    public string CompanionStoreFaultTitle => _localization.T("Settings.CompanionStoreFaultTitle");
+    public string CompanionStoreFaultMessage => _localization.T("Settings.CompanionStoreFaultMessage");
+    public string CompanionResetStoreLabel => _localization.T("Settings.CompanionResetStore");
+
+    public bool CompanionLanEnabled
+    {
+        get => _settings.CompanionLanEnabled;
+        set
+        {
+            if (_settings.CompanionLanEnabled == value) return;
+            _settings.CompanionLanEnabled = value;
+            if (value && string.IsNullOrWhiteSpace(_settings.CompanionLanAddress))
+            {
+                RefreshLanAddresses();
+            }
+            SaveSettings();
+            OnPropertyChanged();
+            UpdateCompanionStatusProperties();
+        }
+    }
+
+    public string? CompanionLanAddress
+    {
+        get => _settings.CompanionLanAddress;
+        set
+        {
+            if (_settings.CompanionLanAddress == value) return;
+            _settings.CompanionLanAddress = value;
+            SaveSettings();
+            OnPropertyChanged();
+            UpdateCompanionStatusProperties();
+        }
+    }
+
+    public string LanStatusText
+    {
+        get
+        {
+            if (!_settings.CompanionLanEnabled)
+                return _localization.T("Settings.CompanionLanDisabled");
+
+            var status = _runtime.CompanionServer.Status;
+            if (status.LanFaulted)
+                return string.Format(_localization.T("Settings.CompanionLanFault"), status.LanErrorMessage ?? "Unavailable");
+
+            if (status.LanBoundAddress != null)
+                return status.LanBoundAddress;
+
+            return _localization.T("Settings.CompanionStateStarting");
+        }
+    }
+
+    public bool IsPairingActive => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().IsActive;
+    public string PairingUrl => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PairingUrl ?? string.Empty;
+    public string PairingToken => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PairingToken ?? string.Empty;
+
+    public bool HasPendingPairingRequest => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PendingRequest != null;
+    public string PendingDeviceName => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PendingRequest?.DisplayName ?? string.Empty;
+    public string PendingSourceIp => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PendingRequest?.SourceIp ?? string.Empty;
+
+    public bool HasPairedDevices => PairedDevices.Count > 0;
+    public bool IsDeviceStoreFaulted => _runtime.CompanionServer.DeviceStore.IsFaulted;
+    public string DeviceStoreFaultMessage => _runtime.CompanionServer.DeviceStore.FaultMessage ?? string.Empty;
+
     public SettingsViewModel(LocalizationService localization, AppRuntimeService runtime)
     {
         _localization = localization;
         _runtime = runtime;
         _startupApplyCoordinator = new StartupApplyCoordinator(runtime.SettingsService, LoggerService.Instance);
         _settings = Clone(runtime.Settings);
+        _companionPortText = _settings.CompanionPort.ToString();
         StatusMessage = _localization.T("Settings.Saved");
+
+        _runtime.CompanionServer.StatusChanged += OnCompanionStatusChanged;
+        _runtime.CompanionServer.PairingEngine.SessionStatusChanged += OnPairingSessionStatusChanged;
 
         RestartAsAdminCommand = new RelayCommand(_ => _runtime.SettingsService.RestartAsAdmin());
         CheckUpdatesCommand = new RelayCommand(_ => _ = CheckUpdatesAsync());
@@ -246,8 +434,168 @@ public sealed class SettingsViewModel : ViewModelBase
         OpenThirdPartyNoticesCommand = new RelayCommand(_ => OpenThirdPartyNotices());
         OpenPresentMonProjectCommand = new RelayCommand(_ => ExternalLinkService.TryOpen(FrameHubExternalLink.PresentMon));
         ClearBenchmarkHotkeyCommand = new RelayCommand(_ => ClearBenchmarkHotkey());
+
+        RefreshLanAddressesCommand = new RelayCommand(_ => RefreshLanAddresses());
+        StartPairingCommand = new RelayCommand(_ => StartPairing());
+        CancelPairingCommand = new RelayCommand(_ => CancelPairing());
+        CopyPairingUrlCommand = new RelayCommand(_ => CopyPairingUrl());
+        AllowPairingCommand = new RelayCommand(_ => AllowPairing());
+        DenyPairingCommand = new RelayCommand(_ => DenyPairing());
+        ResetDeviceStoreCommand = new RelayCommand(_ => ResetDeviceStore());
+
+        RefreshLanAddresses();
+        RefreshPairedDevices();
+
         ProbeBenchmarkEngine();
         _ = RefreshStartupStatusAsync();
+    }
+
+    public void RefreshLanAddresses()
+    {
+        AvailableLanAddresses.Clear();
+        var candidates = LanAddressService.GetAvailableLanAddresses();
+        foreach (var candidate in candidates)
+        {
+            AvailableLanAddresses.Add(candidate);
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.CompanionLanAddress) && AvailableLanAddresses.Count > 0)
+        {
+            CompanionLanAddress = AvailableLanAddresses[0].IpAddress;
+        }
+    }
+
+    public void RefreshPairedDevices()
+    {
+        PairedDevices.Clear();
+        var devices = _runtime.CompanionServer.DeviceStore.Devices;
+        string scopeTelemetryLabel = _localization.T("Settings.CompanionScopeTelemetry");
+        string scopeReadBenchmarksLabel = _localization.T("Settings.CompanionScopeReadBenchmarks");
+        string scopeWriteBenchmarksLabel = _localization.T("Settings.CompanionScopeWriteBenchmarks");
+        string revokeLabel = _localization.T("Settings.CompanionRevoke");
+        string neverUsedText = _localization.T("Settings.CompanionNeverUsed");
+
+        foreach (var dev in devices)
+        {
+            PairedDevices.Add(new PairedDeviceItemViewModel(
+                dev,
+                RevokeDevice,
+                ToggleDeviceScope,
+                scopeTelemetryLabel,
+                scopeReadBenchmarksLabel,
+                scopeWriteBenchmarksLabel,
+                revokeLabel,
+                neverUsedText));
+        }
+        OnPropertyChanged(nameof(HasPairedDevices));
+        OnPropertyChanged(nameof(IsDeviceStoreFaulted));
+        OnPropertyChanged(nameof(DeviceStoreFaultMessage));
+    }
+
+    private void ToggleDeviceScope(Guid id, string scope, bool enable)
+    {
+        if (enable)
+        {
+            _runtime.CompanionServer.DeviceStore.GrantScope(id, scope);
+        }
+        else
+        {
+            _runtime.CompanionServer.DeviceStore.RevokeScope(id, scope);
+        }
+        RefreshPairedDevices();
+    }
+
+    private void StartPairing()
+    {
+        string host = !string.IsNullOrWhiteSpace(_settings.CompanionLanAddress)
+            ? _settings.CompanionLanAddress
+            : "127.0.0.1";
+        int port = _settings.CompanionPort > 0 ? _settings.CompanionPort : 47821;
+        _runtime.CompanionServer.PairingEngine.StartPairingSession(host, port);
+    }
+
+    private void CancelPairing()
+    {
+        _runtime.CompanionServer.PairingEngine.CancelPairingSession();
+    }
+
+    private void CopyPairingUrl()
+    {
+        string url = PairingUrl;
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            try { System.Windows.Clipboard.SetText(url); } catch { }
+        }
+    }
+
+    private void AllowPairing()
+    {
+        _runtime.CompanionServer.PairingEngine.AllowPendingRequest(out _, out _);
+        RefreshPairedDevices();
+    }
+
+    private void DenyPairing()
+    {
+        _runtime.CompanionServer.PairingEngine.DenyPendingRequest();
+        RefreshPairedDevices();
+    }
+
+    private void RevokeDevice(Guid id)
+    {
+        _runtime.CompanionServer.DeviceStore.RevokeDevice(id);
+        RefreshPairedDevices();
+    }
+
+    private void ResetDeviceStore()
+    {
+        _runtime.CompanionServer.DeviceStore.ResetStore();
+        RefreshPairedDevices();
+    }
+
+    private void OnPairingSessionStatusChanged(object? sender, PairingSessionStatus e)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        {
+            dispatcher.InvokeAsync(UpdatePairingProperties);
+        }
+        else
+        {
+            UpdatePairingProperties();
+        }
+    }
+
+    private void UpdatePairingProperties()
+    {
+        OnPropertyChanged(nameof(IsPairingActive));
+        OnPropertyChanged(nameof(PairingUrl));
+        OnPropertyChanged(nameof(PairingToken));
+        OnPropertyChanged(nameof(HasPendingPairingRequest));
+        OnPropertyChanged(nameof(PendingDeviceName));
+        OnPropertyChanged(nameof(PendingSourceIp));
+    }
+
+    private void OnCompanionStatusChanged(object? sender, CompanionStatusInfo status)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        {
+            dispatcher.InvokeAsync(UpdateCompanionStatusProperties);
+        }
+        else
+        {
+            UpdateCompanionStatusProperties();
+        }
+    }
+
+    public void UpdateCompanionStatusProperties()
+    {
+        OnPropertyChanged(nameof(CompanionStatusText));
+        OnPropertyChanged(nameof(CompanionEndpointText));
+        OnPropertyChanged(nameof(CompanionErrorMessage));
+        OnPropertyChanged(nameof(IsCompanionRunning));
+        OnPropertyChanged(nameof(IsCompanionFailed));
+        OnPropertyChanged(nameof(LanStatusText));
+        OnPropertyChanged(nameof(CompanionLanEnabled));
+        OnPropertyChanged(nameof(CompanionLanAddress));
     }
 
     public void RefreshTexts()
@@ -310,14 +658,22 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(BenchmarkHotkeyClearText));
         OnPropertyChanged(nameof(BenchmarkHotkeyDisplay));
         OnPropertyChanged(nameof(BenchmarkHotkeyTokens));
-        OnPropertyChanged(nameof(BenchmarkHotkeyStatus));
         OnPropertyChanged(nameof(IsEnglish));
         OnPropertyChanged(nameof(IsPolish));
+        OnPropertyChanged(nameof(CompanionTitle));
+        OnPropertyChanged(nameof(CompanionDescription));
+        OnPropertyChanged(nameof(CompanionEnableLabel));
+        OnPropertyChanged(nameof(CompanionPortLabel));
+        OnPropertyChanged(nameof(CompanionStatusLabel));
+        OnPropertyChanged(nameof(CompanionEndpointLabel));
+        UpdateCompanionStatusProperties();
     }
 
     public void ReloadFromRuntime()
     {
         _settings = Clone(_runtime.Settings);
+        _companionPortText = _settings.CompanionPort.ToString();
+        CompanionPortValidationError = string.Empty;
         RefreshAllValues();
     }
 
@@ -519,6 +875,10 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(BenchmarkHotkeyEnabled));
         OnPropertyChanged(nameof(BenchmarkHotkeyDisplay));
         OnPropertyChanged(nameof(BenchmarkHotkeyTokens));
+        OnPropertyChanged(nameof(CompanionEnabled));
+        OnPropertyChanged(nameof(CompanionPortText));
+        OnPropertyChanged(nameof(CompanionPort));
+        UpdateCompanionStatusProperties();
     }
 
     private static AppSettings Clone(AppSettings source) => new()
@@ -547,6 +907,8 @@ public sealed class SettingsViewModel : ViewModelBase
         BenchmarkHotkeyEnabled = source.BenchmarkHotkeyEnabled,
         BenchmarkHotkeyModifiers = source.BenchmarkHotkeyModifiers,
         BenchmarkHotkeyVirtualKey = source.BenchmarkHotkeyVirtualKey,
+        CompanionEnabled = source.CompanionEnabled,
+        CompanionPort = source.CompanionPort,
         CustomLibraryLocations = source.CustomLibraryLocations.ToList()
     };
 }

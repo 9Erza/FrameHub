@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrameHub Companion — Benchmark</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- App Header -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">⚡</div>
+                <div class="brand-text">
+                    <h1>FrameHub Companion</h1>
+                    <span class="sub-title">Benchmark Control</span>
+                </div>
+            </div>
+            <div class="auth-status-badge" id="auth-status-badge">
+                <span class="status-dot disconnected"></span>
+                <span id="auth-status-text">Checking Pairing...</span>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Pairing / Authentication Card -->
+            <section class="card pairing-card" id="pairing-section">
+                <div class="card-header">
+                    <h2>Device Pairing</h2>
+                    <span class="badge badge-info">Required for LAN control</span>
+                </div>
+                <div class="card-body">
+                    <p class="pairing-instructions">
+                        Enter the pairing token shown on your desktop or scan the QR code to pair this device.
+                    </p>
+                    <form id="pairing-form" class="pairing-form">
+                        <div class="form-group">
+                            <label for="pairing-token">Pairing Token</label>
+                            <input type="text" id="pairing-token" placeholder="Enter 6-character / pairing token..." required autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="display-name">Device Name</label>
+                            <input type="text" id="display-name" placeholder="e.g. Mobile Browser" value="Companion Client">
+                        </div>
+                        <button type="submit" id="btn-pair" class="btn btn-primary">
+                            <span>Pair Device</span>
+                        </button>
+                    </form>
+                    <div id="pairing-pending" class="pairing-pending-box hidden">
+                        <div class="spinner"></div>
+                        <p>Pairing request submitted. Please approve on your desktop...</p>
+                    </div>
+                    <div id="pairing-error" class="error-banner hidden"></div>
+                </div>
+            </section>
+
+            <!-- Error Notification Banner -->
+            <div id="global-error" class="error-banner hidden"></div>
+
+            <!-- Benchmark Setup & Targets Card -->
+            <section class="card" id="benchmark-setup-section">
+                <div class="card-header">
+                    <h2>Capture Setup</h2>
+                    <span class="badge badge-secondary" id="target-count-badge">0 targets available</span>
+                </div>
+                <div class="card-body">
+                    <div class="form-grid">
+                        <div class="form-group col-span-2">
+                            <label for="target-select">Benchmark Target</label>
+                            <div class="select-wrapper">
+                                <select id="target-select" disabled>
+                                    <option value="">Loading targets...</option>
+                                </select>
+                                <button type="button" id="btn-refresh-targets" class="btn btn-icon" title="Refresh Targets">🔄</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="duration-select">Duration (Seconds)</label>
+                            <select id="duration-select">
+                                <option value="10">10 seconds</option>
+                                <option value="30">30 seconds</option>
+                                <option value="60" selected>60 seconds</option>
+                                <option value="120">120 seconds</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="countdown-select">Countdown (Seconds)</label>
+                            <select id="countdown-select">
+                                <option value="0">Instant (0s)</option>
+                                <option value="3" selected>3 seconds</option>
+                                <option value="5">5 seconds</option>
+                                <option value="10">10 seconds</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="action-bar">
+                        <button id="btn-start" class="btn btn-success btn-lg" disabled>
+                            <span>▶ Start Benchmark</span>
+                        </button>
+                        <button id="btn-stop" class="btn btn-danger btn-lg" disabled>
+                            <span>⏹ Stop Benchmark</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Authoritative Status Card -->
+            <section class="card" id="benchmark-status-section">
+                <div class="card-header">
+                    <h2>Live Benchmark Status</h2>
+                    <div class="state-pill state-idle" id="state-badge">
+                        <span class="state-dot"></span>
+                        <span id="state-text">Idle</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="status-grid">
+                        <div class="stat-card">
+                            <span class="stat-label">Active Game Target</span>
+                            <span class="stat-value" id="status-target">None selected</span>
+                        </div>
+                        <div class="stat-card" id="countdown-card">
+                            <span class="stat-label">Countdown</span>
+                            <span class="stat-value highlight-amber" id="status-countdown">--</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Elapsed Time</span>
+                            <span class="stat-value" id="status-elapsed">0.0s</span>
+                        </div>
+                    </div>
+
+                    <div class="progress-container" id="progress-container">
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar" id="status-progress-bar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Completed Result Card -->
+            <section class="card hidden" id="result-section">
+                <div class="card-header">
+                    <h2>Latest Benchmark Result</h2>
+                    <span class="badge badge-success">Completed</span>
+                </div>
+                <div class="card-body">
+                    <div class="result-title" id="result-game-name">Cyberpunk 2077</div>
+                    <div class="metrics-grid">
+                        <div class="metric-card metric-primary">
+                            <span class="metric-label">Average FPS</span>
+                            <span class="metric-value" id="res-avg-fps">--</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">1% Low FPS</span>
+                            <span class="metric-value" id="res-one-low">--</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">0.1% Low FPS</span>
+                            <span class="metric-value" id="res-point-one-low">--</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">P99 Frame Time</span>
+                            <span class="metric-value" id="res-p99-frametime">--</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Duration</span>
+                            <span class="metric-value" id="res-duration">--</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Quality Level</span>
+                            <span class="metric-value" id="res-quality">--</span>
+                        </div>
+                    <div class="chart-wrapper">
+                        <div class="chart-header">
+                            <span class="chart-title">Frametime Graph (ms)</span>
+                            <span class="chart-subtitle" id="chart-point-count">--</span>
+                        </div>
+                        <canvas id="frametime-canvas" width="800" height="220"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent History Section -->
+            <section class="card" id="history-section">
+                <div class="card-header">
+                    <h2>Recent Sessions</h2>
+                    <div class="header-actions">
+                        <button type="button" id="btn-compare-sessions" class="btn btn-sm btn-primary" disabled>Compare Selected (0/2)</button>
+                        <button type="button" id="btn-refresh-history" class="btn btn-sm btn-secondary">Refresh</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-center" style="width: 40px;">Select</th>
+                                    <th>Game</th>
+                                    <th>Status</th>
+                                    <th>Duration</th>
+                                    <th>Avg FPS</th>
+                                    <th>Captured At</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No benchmark sessions recorded yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Comparison Section -->
+            <section class="card hidden" id="comparison-section">
+                <div class="card-header">
+                    <h2>Session Comparison</h2>
+                    <button type="button" id="btn-close-comparison" class="btn btn-sm btn-secondary">Close</button>
+                </div>
+                <div class="card-body">
+                    <div class="comparison-header-info">
+                        <div class="comp-session-box session-a">
+                            <span class="comp-label">Session A (Baseline)</span>
+                            <div class="comp-name" id="comp-a-name">--</div>
+                            <div class="comp-date" id="comp-a-date">--</div>
+                        </div>
+                        <div class="comp-vs">VS</div>
+                        <div class="comp-session-box session-b">
+                            <span class="comp-label">Session B (Comparison)</span>
+                            <div class="comp-name" id="comp-b-name">--</div>
+                            <div class="comp-date" id="comp-b-date">--</div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table comp-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Session A</th>
+                                    <th>Session B</th>
+                                    <th>Delta</th>
+                                    <th>% Delta</th>
+                                    <th>Evaluation</th>
+                                </tr>
+                            </thead>
+                            <tbody id="comparison-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- App Footer -->
+        <footer class="app-footer">
+            <p>FrameHub Companion &bull; Single Source of Truth: BenchmarkCaptureCoordinator</p>
+        </footer>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

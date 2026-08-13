@@ -1,0 +1,9 @@
+namespace FrameHub.Companion;
+
+public sealed record CompanionOptions
+{
+    public bool Enabled { get; init; } = false;
+    public bool LanEnabled { get; init; } = false;
+    public string? LanAddress { get; init; }
+    public int Port { get; init; } = 47821;
+}
