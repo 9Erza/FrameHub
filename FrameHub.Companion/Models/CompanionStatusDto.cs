@@ -16,4 +16,7 @@ public sealed record CompanionStatusDto
 
     [JsonPropertyName("state")]
     public string State { get; init; } = "ready";
+
+    [JsonPropertyName("desktopLanguage")]
+    public string DesktopLanguage { get; init; } = "en";
 }

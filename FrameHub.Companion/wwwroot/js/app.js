@@ -8,6 +8,8 @@
     let lastCompletedSessionId = null;
     let hasFetchedResultForCurrentCompletedState = false;
     let isFetchingCompletedResult = false;
+    let activeTab = 'home';
+    let desktopLanguageSynced = false;
 
     // DOM Elements
     const elements = {
@@ -21,6 +23,24 @@
         pairingPending: document.getElementById('pairing-pending'),
         pairingError: document.getElementById('pairing-error'),
         globalError: document.getElementById('global-error'),
+
+        appNav: document.getElementById('app-nav'),
+        homeView: document.getElementById('home-view'),
+        libraryView: document.getElementById('library-view'),
+        benchmarksView: document.getElementById('benchmarks-view'),
+        settingsView: document.getElementById('settings-view'),
+        navTabHome: document.getElementById('nav-tab-home'),
+        navTabLibrary: document.getElementById('nav-tab-library'),
+        navTabBenchmarks: document.getElementById('nav-tab-benchmarks'),
+        navTabSettings: document.getElementById('nav-tab-settings'),
+        languageSelect: document.getElementById('language-select'),
+
+        btnRefreshLibrary: document.getElementById('btn-refresh-library'),
+        libraryLoading: document.getElementById('library-loading'),
+        libraryEmpty: document.getElementById('library-empty'),
+        libraryError: document.getElementById('library-error'),
+        libraryList: document.getElementById('library-list'),
+
         targetSelect: document.getElementById('target-select'),
         targetCountBadge: document.getElementById('target-count-badge'),
         btnRefreshTargets: document.getElementById('btn-refresh-targets'),
@@ -53,10 +73,68 @@
         compBDate: document.getElementById('comp-b-date'),
         comparisonTableBody: document.getElementById('comparison-table-body'),
         btnRefreshHistory: document.getElementById('btn-refresh-history'),
-        historyTableBody: document.getElementById('history-table-body')
+        historyTableBody: document.getElementById('history-table-body'),
+        liveDashboardSection: document.getElementById('live-dashboard-section'),
+        liveGameName: document.getElementById('live-game-name'),
+        liveGameBadge: document.getElementById('live-game-badge'),
+        liveStatusDot: document.getElementById('live-status-dot'),
+        benchmarkActiveNotice: document.getElementById('benchmark-active-notice'),
+        liveFps: document.getElementById('live-fps'),
+        liveFrametime: document.getElementById('live-frametime'),
+        liveOneLow: document.getElementById('live-one-low'),
+        livePointOneLow: document.getElementById('live-point-one-low'),
+        hwCpuLoad: document.getElementById('hw-cpu-load'),
+        hwCpuTemp: document.getElementById('hw-cpu-temp'),
+        hwGpuLoad: document.getElementById('hw-gpu-load'),
+        hwGpuTemp: document.getElementById('hw-gpu-temp'),
+        hwRamUsage: document.getElementById('hw-ram-usage'),
+        hwVramUsage: document.getElementById('hw-vram-usage'),
+
+        optSection: document.getElementById('session-optimization-section'),
+        optStateBadge: document.getElementById('opt-state-badge'),
+        optGameName: document.getElementById('opt-game-name'),
+        optSuspendedCount: document.getElementById('opt-suspended-count'),
+        optTaskbarBadge: document.getElementById('opt-taskbar-badge'),
+        optRecoveryBadge: document.getElementById('opt-recovery-badge'),
+        btnApplyOpt: document.getElementById('btn-apply-optimization'),
+        btnRestoreOpt: document.getElementById('btn-restore-optimization'),
+        btnRefreshOpt: document.getElementById('btn-refresh-optimization'),
+        optFeedback: document.getElementById('opt-feedback')
     };
 
     let selectedSessionIds = new Set();
+
+    // Navigation Tab Switching
+    function switchTab(tabName) {
+        if (!['home', 'library', 'benchmarks', 'settings'].includes(tabName)) return;
+        activeTab = tabName;
+
+        if (elements.homeView) elements.homeView.classList.toggle('hidden', activeTab !== 'home');
+        if (elements.libraryView) elements.libraryView.classList.toggle('hidden', activeTab !== 'library');
+        if (elements.benchmarksView) elements.benchmarksView.classList.toggle('hidden', activeTab !== 'benchmarks');
+        if (elements.settingsView) elements.settingsView.classList.toggle('hidden', activeTab !== 'settings');
+
+        const navItems = [
+            { el: elements.navTabHome, tab: 'home' },
+            { el: elements.navTabLibrary, tab: 'library' },
+            { el: elements.navTabBenchmarks, tab: 'benchmarks' },
+            { el: elements.navTabSettings, tab: 'settings' }
+        ];
+
+        navItems.forEach(function (item) {
+            if (item.el) {
+                const isActive = item.tab === activeTab;
+                item.el.classList.toggle('active', isActive);
+                item.el.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            }
+        });
+
+        if (activeTab === 'library') {
+            fetchLibraryItems();
+        } else if (activeTab === 'home') {
+            fetchOptimizationState();
+        }
+    }
 
     // Helper: Auth Header
     function getAuthHeaders() {
@@ -108,13 +186,54 @@
     function updateAuthUi(isPaired, statusMsg) {
         const dot = elements.authBadge.querySelector('.status-dot');
         dot.className = 'status-dot ' + (isPaired ? 'connected' : 'disconnected');
-        elements.authText.textContent = statusMsg || (isPaired ? 'Paired & Connected' : 'Unpaired / Local');
+
+        const i18n = window.FrameHubI18n;
+        let text = statusMsg;
+        if (i18n) {
+            if (isPaired) text = i18n.t('auth.connected');
+            else if (statusMsg === 'Pairing Required') text = i18n.t('auth.required');
+            else text = i18n.t('auth.disconnected');
+        }
+        elements.authText.textContent = text;
 
         if (isPaired) {
             elements.pairingSection.classList.add('hidden');
+            if (elements.appNav) elements.appNav.classList.remove('hidden');
+            switchTab(activeTab);
         } else {
             elements.pairingSection.classList.remove('hidden');
+            if (elements.appNav) elements.appNav.classList.add('hidden');
+            if (elements.homeView) elements.homeView.classList.add('hidden');
+            if (elements.libraryView) elements.libraryView.classList.add('hidden');
+            if (elements.benchmarksView) elements.benchmarksView.classList.add('hidden');
+            if (elements.settingsView) elements.settingsView.classList.add('hidden');
         }
+    }
+
+    // Single post-auth language sync with Desktop
+    async function syncDesktopLanguageOnce() {
+        if (desktopLanguageSynced) return;
+        desktopLanguageSynced = true;
+
+        try {
+            const resp = await fetch('/api/v1/status', { headers: getAuthHeaders() });
+            if (resp.ok) {
+                const statusData = await resp.json();
+                if (statusData && statusData.desktopLanguage) {
+                    let hasExplicit = false;
+                    try {
+                        hasExplicit = !!localStorage.getItem('companion_language');
+                    } catch (_) { }
+
+                    if (!hasExplicit && window.FrameHubI18n) {
+                        window.FrameHubI18n.setLanguage(statusData.desktopLanguage, false);
+                        if (elements.languageSelect) {
+                            elements.languageSelect.value = window.FrameHubI18n.getCurrentLanguage();
+                        }
+                    }
+                }
+            }
+        } catch (_) { }
     }
 
     // Canvas Frametime Chart Drawer
@@ -127,15 +246,18 @@
 
         ctx.clearRect(0, 0, width, height);
 
+        const i18n = window.FrameHubI18n;
+
         if (!points || !Array.isArray(points) || points.length === 0) {
-            elements.chartPointCount.textContent = 'No chart points';
+            elements.chartPointCount.textContent = i18n ? i18n.t('result.noChartData') : 'No chart points';
             ctx.fillStyle = '#64748b';
             ctx.font = '14px sans-serif';
-            ctx.fillText('No frametime data available', width / 2 - 80, height / 2);
+            ctx.fillText(i18n ? i18n.t('result.noChartData') : 'No frametime data available', width / 2 - 80, height / 2);
             return;
         }
 
-        elements.chartPointCount.textContent = points.length + ' points (Downsampled)';
+        const ptsText = i18n ? i18n.t('result.chartPoints') : 'points (Downsampled)';
+        elements.chartPointCount.textContent = points.length + ' ' + ptsText;
 
         const padding = { top: 20, right: 20, bottom: 30, left: 50 };
         const plotW = width - padding.left - padding.right;
@@ -243,6 +365,7 @@
                 if (data.credential) {
                     sessionStorage.setItem(STORAGE_KEY, data.credential);
                     updateAuthUi(true, 'Paired Device');
+                    syncDesktopLanguageOnce();
                     elements.pairingPending.classList.add('hidden');
                     loadTargets();
                     fetchHistory();
@@ -274,7 +397,6 @@
             });
 
             if (response.status === 401 || response.status === 403) {
-                // If unauthenticated on LAN, show pairing prompt
                 updateAuthUi(false, 'Pairing Required');
                 return;
             }
@@ -284,6 +406,9 @@
             const targets = await response.json();
             elements.targetSelect.innerHTML = '';
 
+            const i18n = window.FrameHubI18n;
+            const availText = i18n ? i18n.t('benchmark.targetsAvailable') : 'available';
+
             if (Array.isArray(targets) && targets.length > 0) {
                 targets.forEach(t => {
                     const opt = document.createElement('option');
@@ -292,17 +417,18 @@
                     elements.targetSelect.appendChild(opt);
                 });
                 elements.targetSelect.disabled = false;
-                elements.targetCountBadge.textContent = targets.length + (targets.length === 1 ? ' target' : ' targets') + ' available';
+                elements.targetCountBadge.textContent = targets.length + ' ' + availText;
             } else {
                 const opt = document.createElement('option');
                 opt.value = '';
-                opt.textContent = 'No running games detected';
+                opt.textContent = i18n ? i18n.t('benchmark.noTargets') : 'No running games detected';
                 elements.targetSelect.appendChild(opt);
                 elements.targetSelect.disabled = true;
-                elements.targetCountBadge.textContent = '0 targets available';
+                elements.targetCountBadge.textContent = '0 ' + availText;
             }
         } catch (err) {
-            elements.targetCountBadge.textContent = 'Targets unavailable';
+            const unavailText = window.FrameHubI18n ? window.FrameHubI18n.t('benchmark.targetsUnavailable') : 'Targets unavailable';
+            elements.targetCountBadge.textContent = unavailText;
         }
     }
 
@@ -320,10 +446,13 @@
                 updateAuthUi(false, 'Pairing Required');
                 return;
             } else if (response.ok) {
-                // If loopback or authenticated LAN
                 const credential = sessionStorage.getItem(STORAGE_KEY);
-                if (credential) updateAuthUi(true, 'Paired Device');
-                else updateAuthUi(false, 'Localhost / Unpaired');
+                if (credential) {
+                    updateAuthUi(true, 'Paired Device');
+                    syncDesktopLanguageOnce();
+                } else {
+                    updateAuthUi(false, 'Localhost / Unpaired');
+                }
             }
 
             if (response.ok) {
@@ -332,7 +461,8 @@
                 renderStatus(status);
                 hideGlobalError();
             } else if (response.status === 503) {
-                showGlobalError('Benchmark provider service is unavailable.');
+                const i18n = window.FrameHubI18n;
+                showGlobalError(i18n ? i18n.t('errors.serviceUnavailable') : 'Benchmark provider service is unavailable.');
             }
         } catch (err) {
             // Silently ignore minor intermittent polling network errors
@@ -350,12 +480,15 @@
             hasFetchedResultForCurrentCompletedState = false;
         }
 
+        const i18n = window.FrameHubI18n;
+
         // State Badge
-        elements.stateText.textContent = state;
+        elements.stateText.textContent = i18n ? i18n.translateState(state) : state;
         elements.stateBadge.className = 'state-pill state-' + state.toLowerCase();
 
         // Target Name
-        elements.statusTarget.textContent = status.targetDisplayName || 'None selected';
+        const noneSelectedText = i18n ? i18n.t('benchmark.noneSelected') : 'None selected';
+        elements.statusTarget.textContent = status.targetDisplayName || noneSelectedText;
 
         // Countdown
         if (state === 'Waiting' && typeof status.remainingCountdownSeconds === 'number') {
@@ -385,13 +518,210 @@
 
         // Error message if Failed
         if (state === 'Failed' && status.errorCode) {
-            showGlobalError('Benchmark capture failed: ' + status.errorCode);
+            const failPrefix = i18n ? i18n.t('errors.captureFailed') : 'Benchmark capture failed: ';
+            showGlobalError(failPrefix + status.errorCode);
         }
 
-        // If newly completed, load detailed result once (without repeated 1000ms polling)
+        // If newly completed, load detailed result once
         if (state === 'Completed' && !hasFetchedResultForCurrentCompletedState && !isFetchingCompletedResult) {
             fetchLatestResult();
         }
+
+        if (lastTelemetrySnapshot) {
+            renderTelemetry(lastTelemetrySnapshot);
+        } else {
+            const isBenchmarkActive = status && (status.isActive || ['Waiting', 'Capturing', 'Completing', 'Stopping'].includes(status.state));
+            if (elements.benchmarkActiveNotice) {
+                if (isBenchmarkActive) {
+                    elements.benchmarkActiveNotice.classList.remove('hidden');
+                    resetLivePerformanceMetrics();
+                } else {
+                    elements.benchmarkActiveNotice.classList.add('hidden');
+                }
+            }
+        }
+    }
+
+    // Telemetry Module (M9.2 Companion Live Dashboard)
+    let lastTelemetrySnapshot = null;
+    let wsInstance = null;
+    let telemetryPollInterval = null;
+    let telemetryStaleTimeout = null;
+
+    function formatPercent(val) {
+        if (typeof val === 'number' && isFinite(val)) return Math.round(val) + '%';
+        return '--';
+    }
+
+    function formatTemp(val) {
+        if (typeof val === 'number' && isFinite(val) && val > 0) return Math.round(val) + '°C';
+        return '--';
+    }
+
+    function formatRam(usedBytes, totalBytes) {
+        if (typeof usedBytes === 'number' && isFinite(usedBytes) && usedBytes > 0) {
+            const usedGb = (usedBytes / (1024 * 1024 * 1024)).toFixed(1);
+            if (typeof totalBytes === 'number' && isFinite(totalBytes) && totalBytes > 0) {
+                const totalGb = (totalBytes / (1024 * 1024 * 1024)).toFixed(1);
+                return usedGb + ' / ' + totalGb + ' GB';
+            }
+            return usedGb + ' GB';
+        }
+        return '--';
+    }
+
+    function resetLivePerformanceMetrics() {
+        if (elements.liveFps) elements.liveFps.textContent = '--';
+        if (elements.liveFrametime) elements.liveFrametime.textContent = '--';
+        if (elements.liveOneLow) elements.liveOneLow.textContent = '--';
+        if (elements.livePointOneLow) elements.livePointOneLow.textContent = '--';
+    }
+
+    function resetHardwareMetrics() {
+        if (elements.hwCpuLoad) elements.hwCpuLoad.textContent = '--';
+        if (elements.hwCpuTemp) elements.hwCpuTemp.textContent = '--';
+        if (elements.hwGpuLoad) elements.hwGpuLoad.textContent = '--';
+        if (elements.hwGpuTemp) elements.hwGpuTemp.textContent = '--';
+        if (elements.hwRamUsage) elements.hwRamUsage.textContent = '--';
+        if (elements.hwVramUsage) elements.hwVramUsage.textContent = '--';
+    }
+
+    function renderTelemetry(telemetry) {
+        if (!telemetry) return;
+        lastTelemetrySnapshot = telemetry;
+        resetStaleTimer();
+
+        const i18n = window.FrameHubI18n;
+        const isBenchmarkActive = currentStatus && (currentStatus.isActive || ['Waiting', 'Capturing', 'Completing', 'Stopping'].includes(currentStatus.state));
+
+        // Active Game Presentation
+        const currentGame = telemetry.currentGame;
+        if (currentGame && currentGame.isRunning) {
+            if (elements.liveGameName) elements.liveGameName.textContent = currentGame.displayName || (i18n ? i18n.t('home.gameRunning') : 'Running Game');
+            if (elements.liveGameBadge) {
+                elements.liveGameBadge.textContent = i18n ? i18n.t('home.gameRunning') : 'Running';
+                elements.liveGameBadge.className = 'badge badge-success';
+            }
+            if (elements.liveStatusDot) {
+                elements.liveStatusDot.className = 'live-indicator-dot ' + (isBenchmarkActive ? 'benchmark-active' : 'active');
+            }
+        } else {
+            if (elements.liveGameName) elements.liveGameName.textContent = i18n ? i18n.t('home.noGame') : 'No Game Detected';
+            if (elements.liveGameBadge) {
+                elements.liveGameBadge.textContent = i18n ? i18n.t('home.gameNotRunning') : 'Not Running';
+                elements.liveGameBadge.className = 'badge badge-secondary';
+            }
+            if (elements.liveStatusDot) {
+                elements.liveStatusDot.className = 'live-indicator-dot';
+            }
+        }
+
+        // Benchmark vs Live Mode
+        if (isBenchmarkActive) {
+            if (elements.benchmarkActiveNotice) elements.benchmarkActiveNotice.classList.remove('hidden');
+            resetLivePerformanceMetrics();
+        } else {
+            if (elements.benchmarkActiveNotice) elements.benchmarkActiveNotice.classList.add('hidden');
+
+            const lp = telemetry.livePerformance;
+            if (lp && typeof lp.currentFps === 'number' && isFinite(lp.currentFps)) {
+                if (elements.liveFps) elements.liveFps.textContent = lp.currentFps.toFixed(1);
+                if (elements.liveFrametime) elements.liveFrametime.textContent = typeof lp.currentFrametimeMs === 'number' ? lp.currentFrametimeMs.toFixed(1) + ' ms' : '--';
+                if (elements.liveOneLow) elements.liveOneLow.textContent = typeof lp.onePercentLowFps === 'number' ? lp.onePercentLowFps.toFixed(1) : '--';
+                if (elements.livePointOneLow) elements.livePointOneLow.textContent = typeof lp.pointOnePercentLowFps === 'number' ? lp.pointOnePercentLowFps.toFixed(1) : '--';
+            } else {
+                resetLivePerformanceMetrics();
+            }
+        }
+
+        // Hardware Telemetry
+        const hw = telemetry.hardware;
+        if (hw) {
+            if (elements.hwCpuLoad) elements.hwCpuLoad.textContent = formatPercent(hw.cpuUtilizationPercent);
+            if (elements.hwCpuTemp) elements.hwCpuTemp.textContent = formatTemp(hw.cpuTemperatureCelsius);
+            if (elements.hwGpuLoad) elements.hwGpuLoad.textContent = formatPercent(hw.gpuUtilizationPercent);
+            if (elements.hwGpuTemp) elements.hwGpuTemp.textContent = formatTemp(hw.gpuTemperatureCelsius);
+            if (elements.hwRamUsage) elements.hwRamUsage.textContent = formatRam(hw.ramUsedBytes, hw.ramTotalBytes);
+            if (elements.hwVramUsage) elements.hwVramUsage.textContent = formatRam(hw.vramUsedBytes, hw.vramTotalBytes);
+        } else {
+            resetHardwareMetrics();
+        }
+    }
+
+    function resetStaleTimer() {
+        if (telemetryStaleTimeout) clearTimeout(telemetryStaleTimeout);
+        telemetryStaleTimeout = setTimeout(function () {
+            resetLivePerformanceMetrics();
+        }, 3500);
+    }
+
+    async function initTelemetryConnection() {
+        try {
+            const ticketResp = await fetch('/api/v1/telemetry/ws-ticket', {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+
+            if (ticketResp.ok) {
+                const ticketData = await ticketResp.json();
+                if (ticketData && ticketData.ticket) {
+                    connectWebSocket(ticketData.ticket);
+                    return;
+                }
+            }
+        } catch (_) { }
+
+        startTelemetryPolling();
+    }
+
+    function connectWebSocket(ticket) {
+        if (wsInstance) {
+            try { wsInstance.close(); } catch (_) { }
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = protocol + '//' + window.location.host + '/api/v1/telemetry/ws';
+
+        try {
+            wsInstance = new WebSocket(wsUrl, ['framehub.v1', 'ticket.' + ticket]);
+
+            wsInstance.onmessage = function (evt) {
+                try {
+                    const data = JSON.parse(evt.data);
+                    renderTelemetry(data);
+                } catch (_) { }
+            };
+
+            wsInstance.onclose = function () {
+                wsInstance = null;
+                setTimeout(initTelemetryConnection, 3000);
+            };
+
+            wsInstance.onerror = function () {
+                if (wsInstance) {
+                    try { wsInstance.close(); } catch (_) { }
+                }
+            };
+        } catch (_) {
+            startTelemetryPolling();
+        }
+    }
+
+    function startTelemetryPolling() {
+        if (telemetryPollInterval) return;
+        fetchTelemetryOnce();
+        telemetryPollInterval = setInterval(fetchTelemetryOnce, 1000);
+    }
+
+    async function fetchTelemetryOnce() {
+        if (wsInstance && wsInstance.readyState === WebSocket.OPEN) return;
+        try {
+            const resp = await fetch('/api/v1/telemetry', { headers: getAuthHeaders() });
+            if (resp.ok) {
+                const data = await resp.json();
+                renderTelemetry(data);
+            }
+        } catch (_) { }
     }
 
     // Start Benchmark
@@ -426,7 +756,6 @@
                 try { errData = await response.json(); } catch (_) { }
                 showGlobalError(errData && errData.message ? errData.message : 'Failed to start benchmark.');
             } else {
-                // 202 Accepted: Immediate status refresh
                 fetchStatus();
             }
         } catch (err) {
@@ -450,7 +779,6 @@
                 try { errData = await response.json(); } catch (_) { }
                 showGlobalError(errData && errData.message ? errData.message : 'Failed to stop benchmark.');
             } else {
-                // Immediate status refresh to follow backend Stopping -> Cancelled transition
                 fetchStatus();
             }
         } catch (err) {
@@ -477,7 +805,6 @@
                     return;
                 }
 
-                // Fetch detail
                 const detailResponse = await fetch('/api/v1/benchmarks/history/' + latestSummary.sessionId, {
                     headers: getAuthHeaders()
                 });
@@ -513,7 +840,9 @@
 
     function updateCompareButtonState() {
         const count = selectedSessionIds.size;
-        elements.btnCompareSessions.textContent = 'Compare Selected (' + count + '/2)';
+        const i18n = window.FrameHubI18n;
+        const label = i18n ? i18n.t('history.compareBtn') : 'Compare Selected';
+        elements.btnCompareSessions.textContent = label + ' (' + count + '/2)';
         elements.btnCompareSessions.disabled = count !== 2;
     }
 
@@ -528,8 +857,10 @@
     }
 
     async function fetchComparison(sessionAId, sessionBId) {
+        const i18n = window.FrameHubI18n;
         elements.comparisonSection.classList.remove('hidden');
-        elements.comparisonTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Loading comparison...</td></tr>';
+        const loadingText = i18n ? i18n.t('comparison.loading') : 'Loading comparison...';
+        elements.comparisonTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">' + loadingText + '</td></tr>';
 
         try {
             const response = await fetch('/api/v1/benchmarks/history/compare?sessionA=' + sessionAId + '&sessionB=' + sessionBId, {
@@ -584,13 +915,16 @@
 
                     const tdDir = document.createElement('td');
                     let dirClass = 'dir-neutral';
-                    let dirLabel = 'Neutral';
+                    let dirLabel = i18n ? i18n.t('comparison.neutral') : 'Neutral';
+                    const betterText = i18n ? i18n.t('comparison.better') : '▲ Better';
+                    const worseText = i18n ? i18n.t('comparison.worse') : '▼ Worse';
+
                     if (m.direction === 'HigherIsBetter') {
-                        if (m.delta > 0) { dirClass = 'dir-higher'; dirLabel = '▲ Better'; }
-                        else if (m.delta < 0) { dirClass = 'dir-lower'; dirLabel = '▼ Worse'; }
+                        if (m.delta > 0) { dirClass = 'dir-higher'; dirLabel = betterText; }
+                        else if (m.delta < 0) { dirClass = 'dir-lower'; dirLabel = worseText; }
                     } else if (m.direction === 'LowerIsBetter') {
-                        if (m.delta < 0) { dirClass = 'dir-higher'; dirLabel = '▲ Better'; }
-                        else if (m.delta > 0) { dirClass = 'dir-lower'; dirLabel = '▼ Worse'; }
+                        if (m.delta < 0) { dirClass = 'dir-higher'; dirLabel = betterText; }
+                        else if (m.delta > 0) { dirClass = 'dir-lower'; dirLabel = worseText; }
                     }
                     tdDir.className = dirClass;
                     tdDir.textContent = dirLabel;
@@ -619,6 +953,7 @@
 
             const data = await response.json();
             elements.historyTableBody.innerHTML = '';
+            const i18n = window.FrameHubI18n;
 
             if (data && Array.isArray(data.sessions) && data.sessions.length > 0) {
                 data.sessions.forEach(s => {
@@ -651,7 +986,7 @@
                     const tdStatus = document.createElement('td');
                     const badge = document.createElement('span');
                     badge.className = 'badge ' + (s.status === 'Completed' ? 'badge-success' : 'badge-secondary');
-                    badge.textContent = s.status || 'Done';
+                    badge.textContent = i18n ? i18n.translateState(s.status) : (s.status || 'Done');
                     tdStatus.appendChild(badge);
                     tr.appendChild(tdStatus);
 
@@ -675,7 +1010,7 @@
                     const btnView = document.createElement('button');
                     btnView.type = 'button';
                     btnView.className = 'btn btn-sm btn-secondary';
-                    btnView.textContent = 'View';
+                    btnView.textContent = i18n ? i18n.t('history.loadBtn') : 'View';
                     btnView.addEventListener('click', async function () {
                         try {
                             const resp = await fetch('/api/v1/benchmarks/history/' + s.sessionId, { headers: getAuthHeaders() });
@@ -691,16 +1026,372 @@
                     elements.historyTableBody.appendChild(tr);
                 });
             } else {
-                elements.historyTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No benchmark sessions recorded yet.</td></tr>';
+                const noSessMsg = i18n ? i18n.t('history.noSessions') : 'No benchmark sessions recorded yet.';
+                elements.historyTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">' + noSessMsg + '</td></tr>';
             }
         } catch (_) { }
+    }
+
+    // Library Logic
+    let isLibraryFetching = false;
+    let cachedLibraryItems = null;
+
+    async function fetchLibraryItems() {
+        if (isLibraryFetching) return;
+        isLibraryFetching = true;
+
+        if (elements.libraryLoading) elements.libraryLoading.classList.remove('hidden');
+        if (elements.libraryError) elements.libraryError.classList.add('hidden');
+        if (elements.libraryEmpty) elements.libraryEmpty.classList.add('hidden');
+
+        const i18n = window.FrameHubI18n;
+
+        try {
+            const resp = await fetch('/api/v1/library', { headers: getAuthHeaders() });
+            if (resp.status === 401) {
+                showLibraryError(i18n ? i18n.t('launch.unauthorized') : 'Authentication required.');
+                return;
+            }
+            if (resp.status === 403) {
+                showLibraryError(i18n ? i18n.t('launch.forbidden') : 'Permission required.');
+                return;
+            }
+            if (!resp.ok) {
+                showLibraryError(i18n ? i18n.t('library.loadFailed') : 'Failed to load library items.');
+                return;
+            }
+
+            const items = await resp.json();
+            cachedLibraryItems = items;
+            renderLibraryItems(items);
+        } catch (err) {
+            showLibraryError(i18n ? i18n.t('library.loadFailed') : 'Failed to load library items.');
+        } finally {
+            isLibraryFetching = false;
+            if (elements.libraryLoading) elements.libraryLoading.classList.add('hidden');
+        }
+    }
+
+    function showLibraryError(msg) {
+        if (elements.libraryList) elements.libraryList.innerHTML = '';
+        if (elements.libraryError) {
+            elements.libraryError.textContent = msg;
+            elements.libraryError.classList.remove('hidden');
+        }
+    }
+
+    function renderLibraryItems(items) {
+        if (!elements.libraryList) return;
+        elements.libraryList.innerHTML = '';
+        if (elements.libraryError) elements.libraryError.classList.add('hidden');
+
+        const i18n = window.FrameHubI18n;
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            if (elements.libraryEmpty) elements.libraryEmpty.classList.remove('hidden');
+            return;
+        }
+
+        if (elements.libraryEmpty) elements.libraryEmpty.classList.add('hidden');
+
+        items.forEach(function (item) {
+            const card = document.createElement('div');
+            card.className = 'library-card' + (item.isRunning ? ' is-running' : '');
+
+            const info = document.createElement('div');
+            info.className = 'library-card-info';
+
+            const title = document.createElement('h3');
+            title.className = 'library-card-title';
+            title.textContent = item.displayName || 'Unknown';
+            info.appendChild(title);
+
+            const badges = document.createElement('div');
+            badges.className = 'library-card-badges';
+
+            if (item.source) {
+                const badgeSource = document.createElement('span');
+                badgeSource.className = 'badge badge-source';
+                badgeSource.textContent = item.source;
+                badges.appendChild(badgeSource);
+            }
+
+            if (item.type) {
+                const badgeType = document.createElement('span');
+                badgeType.className = 'badge badge-type';
+                badgeType.textContent = item.type;
+                badges.appendChild(badgeType);
+            }
+
+            if (item.isRunning) {
+                const badgeRunning = document.createElement('span');
+                badgeRunning.className = 'badge badge-running';
+                badgeRunning.textContent = i18n ? i18n.t('library.running') : 'Running';
+                badges.appendChild(badgeRunning);
+            }
+
+            info.appendChild(badges);
+            card.appendChild(info);
+
+            const actions = document.createElement('div');
+            actions.className = 'library-card-actions';
+
+            const feedback = document.createElement('div');
+            feedback.className = 'launch-feedback hidden';
+
+            const btnLaunch = document.createElement('button');
+            btnLaunch.type = 'button';
+            btnLaunch.className = 'btn btn-primary btn-launch';
+            btnLaunch.textContent = item.isRunning
+                ? (i18n ? i18n.t('library.running') : 'Running')
+                : (i18n ? i18n.t('library.launch') : 'Launch');
+
+            if (item.isRunning) {
+                btnLaunch.disabled = true;
+            } else {
+                btnLaunch.addEventListener('click', function () {
+                    handleLaunchItem(item, card, btnLaunch, feedback);
+                });
+            }
+
+            actions.appendChild(btnLaunch);
+            card.appendChild(actions);
+            card.appendChild(feedback);
+
+            elements.libraryList.appendChild(card);
+        });
+    }
+
+    async function handleLaunchItem(item, cardEl, btnLaunch, feedbackEl) {
+        if (!item || !item.id) return;
+        btnLaunch.disabled = true;
+        const i18n = window.FrameHubI18n;
+        const origText = btnLaunch.textContent;
+        btnLaunch.textContent = i18n ? i18n.t('library.launching') : 'Launching...';
+        feedbackEl.className = 'launch-feedback hidden';
+        feedbackEl.textContent = '';
+
+        try {
+            const resp = await fetch('/api/v1/library/' + encodeURIComponent(item.id) + '/launch', {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+
+            let data = null;
+            try {
+                data = await resp.json();
+            } catch (_) { }
+
+            const errorCode = data && data.errorCode ? data.errorCode : (!resp.ok ? 'launch_failed' : 'launched');
+            const isSuccess = data && typeof data.success === 'boolean' ? data.success : resp.ok;
+
+            const i18nKey = 'launch.' + errorCode;
+            const msg = i18n ? i18n.t(i18nKey, errorCode) : errorCode;
+
+            feedbackEl.textContent = msg;
+            feedbackEl.className = 'launch-feedback ' + (isSuccess ? 'success' : 'error');
+
+            if (isSuccess) {
+                // Refresh library list shortly to update running state
+                setTimeout(function () {
+                    fetchLibraryItems();
+                }, 1500);
+            }
+        } catch (err) {
+            feedbackEl.textContent = i18n ? i18n.t('launch.launch_failed') : 'Launch failed.';
+            feedbackEl.className = 'launch-feedback error';
+        } finally {
+            btnLaunch.disabled = false;
+            btnLaunch.textContent = origText;
+        }
+    }
+
+    // Session Optimization Logic (M9.5)
+    let isOptFetching = false;
+    let cachedOptState = null;
+    let optPollIntervalId = null;
+
+    async function fetchOptimizationState() {
+        if (isOptFetching) return;
+        isOptFetching = true;
+
+        try {
+            const resp = await fetch('/api/v1/session-optimization', { headers: getAuthHeaders() });
+            if (resp.status === 401 || resp.status === 403) {
+                return;
+            }
+            if (!resp.ok) return;
+
+            const state = await resp.json();
+            cachedOptState = state;
+            renderOptimizationState(state);
+        } catch (_) {
+        } finally {
+            isOptFetching = false;
+        }
+    }
+
+    function renderOptimizationState(state) {
+        if (!state) return;
+        const i18n = window.FrameHubI18n;
+
+        // State badge
+        if (elements.optStateBadge) {
+            elements.optStateBadge.textContent = state.isSessionActive
+                ? (i18n ? i18n.t('optimization.active') : 'Active')
+                : (i18n ? i18n.t('optimization.inactive') : 'Inactive');
+            elements.optStateBadge.className = 'badge ' + (state.isSessionActive ? 'badge-success' : 'badge-secondary');
+        }
+
+        // Game name
+        if (elements.optGameName) {
+            elements.optGameName.textContent = state.gameDisplayName || '--';
+        }
+
+        // Suspended count
+        if (elements.optSuspendedCount) {
+            elements.optSuspendedCount.textContent = typeof state.suspendedProcessCount === 'number' ? state.suspendedProcessCount : '0';
+        }
+
+        // Taskbar & Recovery badges
+        if (elements.optTaskbarBadge) {
+            elements.optTaskbarBadge.classList.toggle('hidden', !state.taskbarHidden);
+        }
+        if (elements.optRecoveryBadge) {
+            elements.optRecoveryBadge.classList.toggle('hidden', !state.isRecoveryPending);
+        }
+
+        // Action buttons
+        if (elements.btnApplyOpt && elements.btnRestoreOpt) {
+            if (state.isSessionActive) {
+                elements.btnApplyOpt.classList.add('hidden');
+                elements.btnRestoreOpt.classList.remove('hidden');
+            } else {
+                elements.btnApplyOpt.classList.remove('hidden');
+                elements.btnRestoreOpt.classList.add('hidden');
+            }
+        }
+    }
+
+    async function handleApplyOptimization() {
+        if (!elements.btnApplyOpt) return;
+        elements.btnApplyOpt.disabled = true;
+        const i18n = window.FrameHubI18n;
+        const origText = elements.btnApplyOpt.textContent;
+        elements.btnApplyOpt.textContent = i18n ? i18n.t('optimization.applying') : 'Starting...';
+        showOptFeedback('', false);
+
+        try {
+            const resp = await fetch('/api/v1/session-optimization/apply', {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+
+            let data = null;
+            try { data = await resp.json(); } catch (_) { }
+
+            const errorCode = data && data.errorCode ? data.errorCode : (!resp.ok ? 'apply_failed' : 'applied');
+            const isSuccess = data && typeof data.success === 'boolean' ? data.success : resp.ok;
+
+            const i18nKey = 'optimization.' + errorCode;
+            const msg = i18n ? i18n.t(i18nKey, errorCode) : errorCode;
+
+            showOptFeedback(msg, isSuccess);
+
+            if (isSuccess) {
+                setTimeout(fetchOptimizationState, 1000);
+            }
+        } catch (err) {
+            showOptFeedback(i18n ? i18n.t('optimization.apply_failed') : 'Failed to start optimization.', false);
+        } finally {
+            elements.btnApplyOpt.disabled = false;
+            elements.btnApplyOpt.textContent = origText;
+        }
+    }
+
+    async function handleRestoreOptimization() {
+        if (!elements.btnRestoreOpt) return;
+        elements.btnRestoreOpt.disabled = true;
+        const i18n = window.FrameHubI18n;
+        const origText = elements.btnRestoreOpt.textContent;
+        elements.btnRestoreOpt.textContent = i18n ? i18n.t('optimization.restoring') : 'Restoring...';
+        showOptFeedback('', false);
+
+        try {
+            const resp = await fetch('/api/v1/session-optimization/restore', {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+
+            let data = null;
+            try { data = await resp.json(); } catch (_) { }
+
+            const errorCode = data && data.errorCode ? data.errorCode : (!resp.ok ? 'restore_failed' : 'restored');
+            const isSuccess = data && typeof data.success === 'boolean' ? data.success : resp.ok;
+
+            const i18nKey = 'optimization.' + errorCode;
+            const msg = i18n ? i18n.t(i18nKey, errorCode) : errorCode;
+
+            showOptFeedback(msg, isSuccess);
+
+            if (isSuccess) {
+                setTimeout(fetchOptimizationState, 1000);
+            }
+        } catch (err) {
+            showOptFeedback(i18n ? i18n.t('optimization.restore_failed') : 'Failed to restore session.', false);
+        } finally {
+            elements.btnRestoreOpt.disabled = false;
+            elements.btnRestoreOpt.textContent = origText;
+        }
+    }
+
+    function showOptFeedback(msg, isSuccess) {
+        if (!elements.optFeedback) return;
+        if (!msg) {
+            elements.optFeedback.classList.add('hidden');
+            elements.optFeedback.textContent = '';
+            return;
+        }
+        elements.optFeedback.textContent = msg;
+        elements.optFeedback.className = 'optimization-feedback ' + (isSuccess ? 'success' : 'error');
+        elements.optFeedback.classList.remove('hidden');
     }
 
     // Initialization
     function init() {
         checkUrlPairingToken();
 
+        // Setup i18n
+        if (window.FrameHubI18n) {
+            window.FrameHubI18n.applyTranslations(document);
+            if (elements.languageSelect) {
+                elements.languageSelect.value = window.FrameHubI18n.getCurrentLanguage();
+                elements.languageSelect.addEventListener('change', function () {
+                    window.FrameHubI18n.setLanguage(elements.languageSelect.value, true);
+                    if (currentStatus) renderStatus(currentStatus);
+                    if (lastTelemetrySnapshot) renderTelemetry(lastTelemetrySnapshot);
+                    if (cachedLibraryItems) renderLibraryItems(cachedLibraryItems);
+                    if (cachedOptState) renderOptimizationState(cachedOptState);
+                    fetchHistory();
+                });
+            }
+        }
+
+        // Navigation listeners
+        [elements.navTabHome, elements.navTabLibrary, elements.navTabBenchmarks, elements.navTabSettings].forEach(function (btn) {
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    const tab = btn.getAttribute('data-tab');
+                    switchTab(tab);
+                });
+            }
+        });
+
         elements.pairingForm.addEventListener('submit', handlePairingSubmit);
+        if (elements.btnRefreshLibrary) elements.btnRefreshLibrary.addEventListener('click', fetchLibraryItems);
+        if (elements.btnApplyOpt) elements.btnApplyOpt.addEventListener('click', handleApplyOptimization);
+        if (elements.btnRestoreOpt) elements.btnRestoreOpt.addEventListener('click', handleRestoreOptimization);
+        if (elements.btnRefreshOpt) elements.btnRefreshOpt.addEventListener('click', fetchOptimizationState);
         elements.btnRefreshTargets.addEventListener('click', loadTargets);
         elements.btnStart.addEventListener('click', handleStart);
         elements.btnStop.addEventListener('click', handleStop);
@@ -711,16 +1402,35 @@
         loadTargets();
         fetchHistory();
         fetchStatus();
+        fetchOptimizationState();
+        initTelemetryConnection();
 
-        // Polling interval (1000ms)
+        // Polling interval (1000ms for status, 4000ms for optimization)
         pollIntervalId = setInterval(fetchStatus, 1000);
+        optPollIntervalId = setInterval(fetchOptimizationState, 4000);
     }
 
     // Clean up on unload
     window.addEventListener('beforeunload', function () {
+        if (wsInstance) {
+            try { wsInstance.close(); } catch (_) { }
+            wsInstance = null;
+        }
+        if (telemetryPollInterval) {
+            clearInterval(telemetryPollInterval);
+            telemetryPollInterval = null;
+        }
+        if (telemetryStaleTimeout) {
+            clearTimeout(telemetryStaleTimeout);
+            telemetryStaleTimeout = null;
+        }
         if (pollIntervalId) {
             clearInterval(pollIntervalId);
             pollIntervalId = null;
+        }
+        if (optPollIntervalId) {
+            clearInterval(optPollIntervalId);
+            optPollIntervalId = null;
         }
     });
 

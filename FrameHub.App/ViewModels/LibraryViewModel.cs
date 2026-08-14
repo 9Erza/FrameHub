@@ -963,13 +963,16 @@ public sealed class LibraryViewModel : ViewModelBase
 
     private void LaunchSelected()
     {
-        if (SelectedItem?.Item.ExecutablePath == null || !File.Exists(SelectedItem.Item.ExecutablePath)) return;
-        Process.Start(new ProcessStartInfo
+        if (SelectedItem?.Item == null) return;
+        var result = _runtime.LaunchService.Launch(SelectedItem.Item);
+        if (!result.Success)
         {
-            FileName = SelectedItem.Item.ExecutablePath,
-            WorkingDirectory = Path.GetDirectoryName(SelectedItem.Item.ExecutablePath),
-            UseShellExecute = true
-        });
+            StatusMessage = result.ErrorCode switch
+            {
+                "executable_missing" => _localization.T("Library.ExecutableMissing"),
+                _ => _localization.T("Library.LaunchFailed")
+            };
+        }
     }
 
     private void RequestBenchmark()

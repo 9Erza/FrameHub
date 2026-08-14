@@ -3,10 +3,12 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.Sockets;
+using FrameHub.Companion.Authentication;
 using FrameHub.Companion.Models;
 using FrameHub.Companion.Network;
 using FrameHub.Companion.Pairing;
 using FrameHub.Companion.Persistence;
+using FrameHub.Companion.Providers;
 using FrameHub.Core.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -286,6 +288,308 @@ public sealed class LanSecurityIntegrationTests
             var revokedRes = await client.SendAsync(revokedReq);
             Assert.AreEqual(HttpStatusCode.Unauthorized, revokedRes.StatusCode);
         }
+    }
+
+    [TestMethod]
+    public async Task LanConfigEquality_IncludesLanAddress()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+
+        var options1 = new CompanionOptions { Enabled = true, LanEnabled = true, LanAddress = "192.0.2.1", Port = port };
+        bool started1 = await server.StartAsync(options1);
+        Assert.IsTrue(started1);
+        Assert.IsTrue(server.Status.LanFaulted);
+
+        // Calling StartAsync with different LanAddress MUST trigger rebind, not early-return true blindly
+        var options2 = new CompanionOptions { Enabled = true, LanEnabled = true, LanAddress = "192.0.2.2", Port = port };
+        bool started2 = await server.StartAsync(options2);
+        Assert.IsTrue(started2);
+        Assert.IsTrue(server.Status.LanFaulted);
+        Assert.IsTrue(server.Status.LanErrorMessage?.Contains("192.0.2.2") == false); // Error message is set
+    }
+
+    [TestMethod]
+    public async Task InvalidLanAddressFollowedByValidRecovery_Succeeds()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+
+        // 1. Initial attempt with invalid LAN address
+        var optionsInvalid = new CompanionOptions { Enabled = true, LanEnabled = true, LanAddress = "192.0.2.1", Port = port };
+        bool startedInvalid = await server.StartAsync(optionsInvalid);
+        Assert.IsTrue(startedInvalid);
+        Assert.IsTrue(server.Status.LanFaulted);
+
+        // 2. Recovery attempt disabling LAN or supplying valid LAN address
+        var optionsRecover = new CompanionOptions { Enabled = true, LanEnabled = false, Port = port };
+        bool startedRecover = await server.StartAsync(optionsRecover);
+        Assert.IsTrue(startedRecover);
+        Assert.IsFalse(server.Status.LanFaulted);
+        Assert.AreEqual($"http://127.0.0.1:{port}", server.Status.BoundAddress);
+    }
+
+    [TestMethod]
+    public async Task LibraryEndpoints_LoopbackAccessPolicy()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        var libraryProvider = new FakeLibraryProvider();
+        server.ConfigureLibraryProvider(libraryProvider);
+
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+
+        // 1. GET /api/v1/library on loopback is accessible without auth (matching status/telemetry/benchmarks GET)
+        var getResp = await client.GetAsync($"http://127.0.0.1:{port}/api/v1/library");
+        Assert.AreEqual(HttpStatusCode.OK, getResp.StatusCode);
+
+        // 2. POST /api/v1/library/{id}/launch on loopback REQUIRES auth with write:launch scope
+        var postRespUnauth = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/library/test-1/launch", null);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, postRespUnauth.StatusCode, "POST launch must require authentication even on localhost.");
+
+        // 3. POST with only read:library scope fails with 403 Forbidden
+        var (_, readToken) = AddDeviceWithScopes("Read Only Phone", CompanionScopes.ReadLibrary);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", readToken);
+        var postRespForbidden = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/library/test-1/launch", null);
+        Assert.AreEqual(HttpStatusCode.Forbidden, postRespForbidden.StatusCode, "POST launch must reject devices without write:launch scope.");
+
+        // 4. POST with write:launch scope succeeds
+        var (_, writeToken) = AddDeviceWithScopes("Launch Controller", CompanionScopes.ReadLibrary, CompanionScopes.WriteLaunch);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", writeToken);
+        var postRespAllowed = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/library/test-1/launch", null);
+        Assert.AreEqual(HttpStatusCode.OK, postRespAllowed.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task LibraryEndpoints_ScopeIsolation()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        server.ConfigureLibraryProvider(new FakeLibraryProvider());
+        server.ConfigureBenchmarkProvider(new FakeTestBenchmarkProvider());
+
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+
+        // 1. write:benchmarks device cannot launch games
+        var (_, benchmarkDevToken) = AddDeviceWithScopes("Benchmark Only", CompanionScopes.ReadBenchmarks, CompanionScopes.WriteBenchmarks);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", benchmarkDevToken);
+        var launchWithBmToken = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/library/test-1/launch", null);
+        Assert.AreEqual(HttpStatusCode.Forbidden, launchWithBmToken.StatusCode, "write:benchmarks token must NOT authorize POST /api/v1/library/{id}/launch.");
+
+        // 2. write:launch device cannot start benchmarks
+        var (_, launchDevToken) = AddDeviceWithScopes("Launch Only", CompanionScopes.ReadLibrary, CompanionScopes.WriteLaunch);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", launchDevToken);
+        var startBmWithLaunchToken = await client.PostAsJsonAsync($"http://127.0.0.1:{port}/api/v1/benchmarks/start", new CompanionBenchmarkStartRequestDto { TargetId = "t1", DurationSeconds = 10 });
+        Assert.AreEqual(HttpStatusCode.Forbidden, startBmWithLaunchToken.StatusCode, "write:launch token must NOT authorize POST /api/v1/benchmarks/start.");
+    }
+
+    [TestMethod]
+    public void ScopeMigrationPolicy_NoAutoMigrationForExistingDevices()
+    {
+        // Simulate existing paired device created in earlier version with only read:status
+        string token = "legacy_paired_token";
+        string hash = PairingEngine.HashCredential(token);
+        var legacyDevice = new PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Legacy Phone",
+            CredentialHash = hash,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-10),
+            Scopes = new List<string> { CompanionScopes.ReadStatus }
+        };
+        _deviceStore.AddDevice(legacyDevice);
+
+        // Verify device record loaded has exactly read:status and does not automatically gain read:library or write:launch
+        var fetched = _deviceStore.GetDeviceById(legacyDevice.Id);
+        Assert.IsNotNull(fetched);
+        Assert.AreEqual(1, fetched.Scopes.Count);
+        Assert.IsTrue(fetched.Scopes.Contains(CompanionScopes.ReadStatus));
+        Assert.IsFalse(fetched.Scopes.Contains(CompanionScopes.ReadLibrary));
+        Assert.IsFalse(fetched.Scopes.Contains(CompanionScopes.WriteLaunch));
+
+        // Granting new scopes explicitly succeeds
+        bool grantedRead = _deviceStore.GrantScope(legacyDevice.Id, CompanionScopes.ReadLibrary);
+        Assert.IsTrue(grantedRead);
+        var afterGrantRead = _deviceStore.GetDeviceById(legacyDevice.Id);
+        Assert.IsTrue(afterGrantRead!.Scopes.Contains(CompanionScopes.ReadLibrary));
+        Assert.IsFalse(afterGrantRead.Scopes.Contains(CompanionScopes.WriteLaunch));
+
+        bool grantedWrite = _deviceStore.GrantScope(legacyDevice.Id, CompanionScopes.WriteLaunch);
+        Assert.IsTrue(grantedWrite);
+        var afterGrantWrite = _deviceStore.GetDeviceById(legacyDevice.Id);
+        Assert.IsTrue(afterGrantWrite!.Scopes.Contains(CompanionScopes.WriteLaunch));
+    }
+
+    private (PairedDeviceRecord Device, string Token) AddDeviceWithScopes(string name, params string[] scopes)
+    {
+        string token = $"cred_{Guid.NewGuid():N}";
+        string hash = PairingEngine.HashCredential(token);
+        var record = new PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = name,
+            CredentialHash = hash,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            Scopes = scopes.ToList()
+        };
+        _deviceStore.AddDevice(record);
+        return (record, token);
+    }
+
+    private sealed class FakeLibraryProvider : ICompanionLibraryProvider
+    {
+        public Task<IReadOnlyList<CompanionLibraryItemDto>> GetLibraryItemsAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<CompanionLibraryItemDto>>(new[]
+            {
+                new CompanionLibraryItemDto { Id = "test-1", DisplayName = "Test Game", Source = "Steam", Type = "Game", IsRunning = false }
+            });
+        }
+
+        public Task<CompanionLaunchResultDto> LaunchItemAsync(string id, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CompanionLaunchResultDto { Success = true, ErrorCode = "launched" });
+        }
+    }
+
+    [TestMethod]
+    public async Task SessionOptimizationEndpoints_LoopbackAccessPolicy()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        server.ConfigureSessionOptimizationProvider(new FakeSessionOptimizationProvider());
+
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+
+        // 1. GET /api/v1/session-optimization on loopback is accessible without auth
+        var getResp = await client.GetAsync($"http://127.0.0.1:{port}/api/v1/session-optimization");
+        Assert.AreEqual(HttpStatusCode.OK, getResp.StatusCode);
+
+        // 2. POST /api/v1/session-optimization/apply on loopback REQUIRES auth with write:optimization scope
+        var postRespUnauth = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/session-optimization/apply", null);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, postRespUnauth.StatusCode, "POST apply must require authentication even on localhost.");
+
+        // 3. POST with only read:optimization scope fails with 403 Forbidden
+        var (_, readToken) = AddDeviceWithScopes("Read Only Phone", CompanionScopes.ReadOptimization);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", readToken);
+        var postRespForbidden = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/session-optimization/apply", null);
+        Assert.AreEqual(HttpStatusCode.Forbidden, postRespForbidden.StatusCode, "POST apply must reject devices without write:optimization scope.");
+
+        // 4. POST with write:optimization scope succeeds
+        var (_, writeToken) = AddDeviceWithScopes("Optimization Controller", CompanionScopes.ReadOptimization, CompanionScopes.WriteOptimization);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", writeToken);
+        var postRespAllowed = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/session-optimization/apply", null);
+        Assert.AreEqual(HttpStatusCode.OK, postRespAllowed.StatusCode);
+
+        var restoreRespAllowed = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/session-optimization/restore", null);
+        Assert.AreEqual(HttpStatusCode.OK, restoreRespAllowed.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task SessionOptimizationEndpoints_ScopeIsolation()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        server.ConfigureSessionOptimizationProvider(new FakeSessionOptimizationProvider());
+        server.ConfigureLibraryProvider(new FakeLibraryProvider());
+        server.ConfigureBenchmarkProvider(new FakeTestBenchmarkProvider());
+
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+
+        // 1. write:launch device cannot optimize
+        var (_, launchDevToken) = AddDeviceWithScopes("Launch Only", CompanionScopes.ReadLibrary, CompanionScopes.WriteLaunch);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", launchDevToken);
+        var optWithLaunchToken = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/session-optimization/apply", null);
+        Assert.AreEqual(HttpStatusCode.Forbidden, optWithLaunchToken.StatusCode, "write:launch token must NOT authorize POST session-optimization/apply.");
+
+        // 2. write:optimization device cannot launch or start benchmarks
+        var (_, optDevToken) = AddDeviceWithScopes("Opt Only", CompanionScopes.ReadOptimization, CompanionScopes.WriteOptimization);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", optDevToken);
+        var launchWithOptToken = await client.PostAsync($"http://127.0.0.1:{port}/api/v1/library/test-1/launch", null);
+        Assert.AreEqual(HttpStatusCode.Forbidden, launchWithOptToken.StatusCode, "write:optimization token must NOT authorize POST library launch.");
+
+        var startBmWithOptToken = await client.PostAsJsonAsync($"http://127.0.0.1:{port}/api/v1/benchmarks/start", new CompanionBenchmarkStartRequestDto { TargetId = "t1", DurationSeconds = 10 });
+        Assert.AreEqual(HttpStatusCode.Forbidden, startBmWithOptToken.StatusCode, "write:optimization token must NOT authorize POST benchmarks/start.");
+    }
+
+    [TestMethod]
+    public void ScopeMigrationPolicy_NoAutoMigrationForOptimizationScopes()
+    {
+        string token = "legacy_paired_token_opt";
+        string hash = PairingEngine.HashCredential(token);
+        var legacyDevice = new PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Legacy Phone 2",
+            CredentialHash = hash,
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-10),
+            Scopes = new List<string> { CompanionScopes.ReadStatus }
+        };
+        _deviceStore.AddDevice(legacyDevice);
+
+        var fetched = _deviceStore.GetDeviceById(legacyDevice.Id);
+        Assert.IsNotNull(fetched);
+        Assert.AreEqual(1, fetched.Scopes.Count);
+        Assert.IsFalse(fetched.Scopes.Contains(CompanionScopes.ReadOptimization));
+        Assert.IsFalse(fetched.Scopes.Contains(CompanionScopes.WriteOptimization));
+
+        bool grantedRead = _deviceStore.GrantScope(legacyDevice.Id, CompanionScopes.ReadOptimization);
+        Assert.IsTrue(grantedRead);
+        var afterGrantRead = _deviceStore.GetDeviceById(legacyDevice.Id);
+        Assert.IsTrue(afterGrantRead!.Scopes.Contains(CompanionScopes.ReadOptimization));
+        Assert.IsFalse(afterGrantRead.Scopes.Contains(CompanionScopes.WriteOptimization));
+
+        bool grantedWrite = _deviceStore.GrantScope(legacyDevice.Id, CompanionScopes.WriteOptimization);
+        Assert.IsTrue(grantedWrite);
+        var afterGrantWrite = _deviceStore.GetDeviceById(legacyDevice.Id);
+        Assert.IsTrue(afterGrantWrite!.Scopes.Contains(CompanionScopes.WriteOptimization));
+    }
+
+    private sealed class FakeSessionOptimizationProvider : ICompanionSessionOptimizationProvider
+    {
+        public Task<CompanionSessionOptimizationStateDto> GetStateAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CompanionSessionOptimizationStateDto
+            {
+                IsSessionActive = false,
+                GameDisplayName = "Test Game",
+                SuspendedProcessCount = 0
+            });
+        }
+
+        public Task<CompanionOptimizationResultDto> ApplyOptimizationAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CompanionOptimizationResultDto { Success = true, ErrorCode = "applied", SuspendedProcessCount = 2 });
+        }
+
+        public Task<CompanionOptimizationResultDto> RestoreSessionAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CompanionOptimizationResultDto { Success = true, ErrorCode = "restored", SuspendedProcessCount = 0 });
+        }
+    }
+
+    private sealed class FakeTestBenchmarkProvider : ICompanionBenchmarkProvider
+    {
+        public CompanionBenchmarkStatusDto GetStatus() => new() { State = "Idle", IsActive = false };
+        public IReadOnlyList<CompanionBenchmarkTargetDto> GetEligibleTargets() => Array.Empty<CompanionBenchmarkTargetDto>();
+        public Task<CompanionBenchmarkStartResultDto> StartBenchmarkAsync(CompanionBenchmarkStartRequestDto request) => Task.FromResult(new CompanionBenchmarkStartResultDto { Accepted = true });
+        public Task<CompanionBenchmarkStopResultDto> StopBenchmarkAsync() => Task.FromResult(new CompanionBenchmarkStopResultDto { Success = true, WasActive = false });
+        public CompanionBenchmarkHistoryListDto GetHistory(int limit) => new() { Sessions = Array.Empty<CompanionBenchmarkHistorySummaryDto>(), TotalCount = 0 };
+        public CompanionBenchmarkHistoryDetailDto? GetHistoryDetail(Guid sessionId) => null;
+        public CompanionBenchmarkChartDto? GetHistoryChart(Guid sessionId, int buckets) => null;
+        public CompanionBenchmarkComparisonDto CompareHistorySessions(Guid sessionAId, Guid sessionBId) => throw new KeyNotFoundException();
     }
 
     private static int GetFreePort()

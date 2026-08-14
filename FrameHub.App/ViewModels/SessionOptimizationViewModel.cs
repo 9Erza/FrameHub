@@ -18,11 +18,10 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
+    private readonly SessionOptimizationCoordinator _coordinator;
     private readonly LibraryService _libraryService = new();
     private readonly SessionOptimizationSettingsService _settingsService = new();
-    private readonly SessionStateService _stateService = new();
     private readonly ProcessSuspendService _suspendService = new();
-    private readonly TaskbarVisibilityService _taskbarService = new();
     private readonly ILogger _logger = LoggerService.Instance;
     private readonly DispatcherTimer _autoTimer;
 
@@ -292,13 +291,15 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public SessionOptimizationViewModel(LocalizationService localization, AppRuntimeService runtime)
+    public SessionOptimizationViewModel(LocalizationService localization, AppRuntimeService runtime, SessionOptimizationCoordinator? coordinator = null)
     {
         _localization = localization;
         _runtime = runtime;
+        _coordinator = coordinator ?? runtime.SessionOptimizationCoordinator ?? new SessionOptimizationCoordinator();
         _settings = _settingsService.Load();
         MigrateSessionSettingsForSafeSuspend();
-        _activeSession = _stateService.Load();
+        _activeSession = _coordinator.ActiveSession;
+        _coordinator.SessionStateChanged += OnCoordinatorSessionStateChanged;
 
         RefreshCommand = new RelayCommand(_ => RequestProcessRefresh(forceScan: true), _ => !_isBusy && !IsSessionActive);
         RefreshRunningProcessesCommand = new RelayCommand(_ => RequestProcessRefresh(forceScan: true), _ => !_isBusy && !IsSessionActive);
@@ -319,6 +320,14 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         SetStatus(IsSessionActive
             ? (IsPolish ? "Wykryto aktywną sesję. Użyj przywracania, aby wznowić procesy." : "Active session detected. Use restore to resume processes.")
             : (IsPolish ? "Gotowe." : "Ready."));
+    }
+
+    private void OnCoordinatorSessionStateChanged(object? sender, ActiveSessionState? session)
+    {
+        _activeSession = session;
+        RebuildSuspendedList();
+        RefreshRunningProcesses();
+        OnStateChanged();
     }
 
     private void MigrateSessionSettingsForSafeSuspend()
@@ -798,49 +807,29 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             ReplaceCandidatePreview(candidates);
             LogSessionCandidateList(trigger, game, candidates);
 
+            var result = await _coordinator.StartSessionAsync(trigger, game?.Item);
 
-            bool taskbarHidden = false;
-            bool taskbarRequested = HideTaskbarDuringSession;
-
-            if (taskbarRequested)
+            if (result.Success)
             {
-                taskbarHidden = _taskbarService.HideTaskbars();
+                string taskbarPart = result.TaskbarHidden
+                    ? (IsPolish ? " Pasek zadań ukryty." : " Taskbar hidden.")
+                    : string.Empty;
+                string message = IsPolish
+                    ? $"Sesja uruchomiona. Wstrzymano {result.SuspendedCount} procesów. Błędy: {result.FailedCount}.{taskbarPart}"
+                    : $"Session started. Suspended {result.SuspendedCount} processes. Failed: {result.FailedCount}.{taskbarPart}";
+                SetStatus(message, result.FailedCount > 0 ? "Warn" : "Info");
+                _runtime.AddActivity(message, result.FailedCount > 0 ? "Warn" : "Info");
             }
-
-            if (candidates.Count == 0 && !taskbarHidden)
+            else if (result.ErrorCode == "no_candidates")
             {
                 SetStatus(IsPolish
                     ? "Brak aktywnych procesów dla tej konfiguracji."
                     : "No active processes for this configuration.", "Warn");
-                return;
             }
-
-            var result = _suspendService.SuspendProcesses(candidates);
-            _activeSession = new ActiveSessionState
+            else
             {
-                IsActive = true,
-                Trigger = trigger,
-                GameId = game?.Id,
-                GameName = game?.DisplayName,
-                GameProcessName = game?.Item.ProcessName,
-                StartedAtUtc = DateTime.UtcNow,
-                TaskbarHidden = taskbarHidden,
-                SuspendedProcesses = result.Records
-            };
-            _stateService.Save(_activeSession);
-            RebuildSuspendedList();
-            OnStateChanged();
-
-            string taskbarPart = taskbarHidden
-                ? (IsPolish ? " Pasek zadań ukryty." : " Taskbar hidden.")
-                : taskbarRequested
-                    ? (IsPolish ? " Nie udało się ukryć paska zadań." : " Taskbar could not be hidden.")
-                    : string.Empty;
-            string message = IsPolish
-                ? $"Sesja uruchomiona. Wstrzymano {result.SuccessCount} procesów. Błędy: {result.FailedCount}.{taskbarPart}"
-                : $"Session started. Suspended {result.SuccessCount} processes. Failed: {result.FailedCount}.{taskbarPart}";
-            SetStatus(message, result.FailedCount > 0 || (taskbarRequested && !taskbarHidden) ? "Warn" : "Info");
-            _runtime.AddActivity(message, result.FailedCount > 0 ? "Warn" : "Info");
+                SetStatus(result.Message, "Warn");
+            }
         }
         finally
         {
@@ -851,6 +840,11 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private void StopSession()
     {
+        _ = StopSessionAsync();
+    }
+
+    private async Task StopSessionAsync()
+    {
         if (_isBusy || _activeSession?.IsActive != true)
         {
             return;
@@ -859,53 +853,30 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         _isBusy = true;
         try
         {
-            bool taskbarWasHidden = _activeSession.TaskbarHidden;
-            var result = _suspendService.ResumeProcesses(_activeSession.SuspendedProcesses);
-            if (taskbarWasHidden)
-            {
-                _taskbarService.ShowTaskbars();
-            }
+            var result = await _coordinator.StopSessionAsync();
 
-            var resumedProcessIds = result.Records
-                .Select(record => record.ProcessId)
-                .ToHashSet();
-            var remainingProcesses = _activeSession.SuspendedProcesses
-                .Where(record => !resumedProcessIds.Contains(record.ProcessId))
-                .ToList();
-
-            if (remainingProcesses.Count > 0)
+            if (result.Success)
             {
-                _activeSession.SuspendedProcesses = remainingProcesses;
-                _activeSession.TaskbarHidden = false;
-                _activeSession.IsRecoveryPending = true;
-                _stateService.Save(_activeSession);
-                RebuildSuspendedList();
+                string taskbarPart = result.TaskbarRestored
+                    ? (IsPolish ? " Pasek zadań przywrócony." : " Taskbar restored.")
+                    : string.Empty;
+                string message = IsPolish
+                    ? $"Sesja przywrócona. Wznowiono {result.ResumedCount} procesów. Błędy: {result.FailedCount}.{taskbarPart}"
+                    : $"Session restored. Resumed {result.ResumedCount} processes. Failed: {result.FailedCount}.{taskbarPart}";
+                if (result.RemainingCount > 0)
+                {
+                    message = IsPolish
+                        ? $"Przywracanie niepełne. Pozostało do recovery: {result.RemainingCount}."
+                        : $"Restore incomplete. {result.RemainingCount} processes remain for recovery.";
+                }
+
+                SetStatus(message, result.FailedCount > 0 ? "Warn" : "Info");
+                _runtime.AddActivity(message, result.FailedCount > 0 ? "Warn" : "Info");
             }
             else
             {
-                _stateService.Clear();
-                _activeSession = null;
-                SuspendedProcesses.Clear();
+                SetStatus(result.Message, "Warn");
             }
-            RefreshRunningProcesses();
-            // Keep the preview visible as the exact list that was targeted by the last session.
-            OnStateChanged();
-
-            string taskbarPart = taskbarWasHidden
-                ? (IsPolish ? " Pasek zadań przywrócony." : " Taskbar restored.")
-                : string.Empty;
-            string message = IsPolish
-                ? $"Sesja przywrócona. Wznowiono {result.SuccessCount} procesów. Błędy: {result.FailedCount}.{taskbarPart}"
-                : $"Session restored. Resumed {result.SuccessCount} processes. Failed: {result.FailedCount}.{taskbarPart}";
-            if (remainingProcesses.Count > 0)
-            {
-                message = IsPolish
-                    ? $"Przywracanie niepełne. Pozostało do recovery: {remainingProcesses.Count}."
-                    : $"Restore incomplete. {remainingProcesses.Count} processes remain for recovery.";
-            }
-
-            SetStatus(message, result.FailedCount > 0 ? "Warn" : "Info");
-            _runtime.AddActivity(message, result.FailedCount > 0 ? "Warn" : "Info");
         }
         finally
         {
@@ -1100,11 +1071,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _coordinator.SessionStateChanged -= OnCoordinatorSessionStateChanged;
         _processRefreshCancellation?.Cancel();
-        if (IsSessionActive)
-        {
-            StopSession();
-        }
         _autoTimer.Stop();
     }
 }

@@ -25,6 +25,9 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
     private bool _disposed;
     private ITelemetrySnapshotProvider? _snapshotProvider;
     private ICompanionBenchmarkProvider? _benchmarkProvider;
+    private ICompanionPresentationPreferencesProvider? _preferencesProvider;
+    private ICompanionLibraryProvider? _libraryProvider;
+    private ICompanionSessionOptimizationProvider? _sessionOptimizationProvider;
     private Func<IHardwareMonitorLease>? _hardwareLeaser;
 
     public DeviceRecordStore DeviceStore { get; }
@@ -72,6 +75,21 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
         _benchmarkProvider = provider;
     }
 
+    public void ConfigurePresentationPreferencesProvider(ICompanionPresentationPreferencesProvider provider)
+    {
+        _preferencesProvider = provider;
+    }
+
+    public void ConfigureLibraryProvider(ICompanionLibraryProvider provider)
+    {
+        _libraryProvider = provider;
+    }
+
+    public void ConfigureSessionOptimizationProvider(ICompanionSessionOptimizationProvider provider)
+    {
+        _sessionOptimizationProvider = provider;
+    }
+
 
     public async Task<bool> StartAsync(CompanionOptions options, CancellationToken cancellationToken = default)
     {
@@ -88,8 +106,7 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
                 return false;
             }
 
-            if (_status.State == CompanionServiceState.Running && _app != null &&
-                _status.Port == options.Port && _status.LanEnabled == options.LanEnabled)
+            if (IsRunningConfigEquivalent(options))
             {
                 return true;
             }
@@ -124,9 +141,14 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
 
             try
             {
+                string baseDir = AppContext.BaseDirectory;
+                string webRootPath = Path.Combine(baseDir, "wwwroot");
+
                 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
                 {
-                    Args = Array.Empty<string>()
+                    Args = Array.Empty<string>(),
+                    ContentRootPath = baseDir,
+                    WebRootPath = Directory.Exists(webRootPath) ? webRootPath : baseDir
                 });
 
                 builder.Logging.ClearProviders();
@@ -144,6 +166,15 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
                 {
                     builder.Services.AddSingleton(_benchmarkProvider);
                 }
+
+                var preferencesProvider = _preferencesProvider ?? new NullCompanionPresentationPreferencesProvider();
+                builder.Services.AddSingleton<ICompanionPresentationPreferencesProvider>(preferencesProvider);
+
+                var libraryProvider = _libraryProvider ?? new NullCompanionLibraryProvider();
+                builder.Services.AddSingleton<ICompanionLibraryProvider>(libraryProvider);
+
+                var optimizationProvider = _sessionOptimizationProvider ?? new NullCompanionSessionOptimizationProvider();
+                builder.Services.AddSingleton<ICompanionSessionOptimizationProvider>(optimizationProvider);
 
 
                 builder.WebHost.UseKestrel(kestrel =>
@@ -278,9 +309,40 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
             LanEnabled = _status.LanEnabled,
             LanFaulted = false,
             LanErrorMessage = null,
-            Port = _status.Port,
             LastErrorMessage = null
         };
+    }
+
+    private bool IsRunningConfigEquivalent(CompanionOptions options)
+    {
+        if (_status.State != CompanionServiceState.Running || _app == null)
+        {
+            return false;
+        }
+
+        if (_status.Port != options.Port || _status.LanEnabled != options.LanEnabled)
+        {
+            return false;
+        }
+
+        if (options.LanEnabled)
+        {
+            if (_status.LanFaulted)
+            {
+                return false;
+            }
+
+            string? expectedLanUrl = !string.IsNullOrWhiteSpace(options.LanAddress)
+                ? $"http://{options.LanAddress.Trim()}:{options.Port}"
+                : null;
+
+            if (!string.Equals(_status.LanBoundAddress, expectedLanUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public async ValueTask DisposeAsync()

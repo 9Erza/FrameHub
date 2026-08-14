@@ -472,6 +472,10 @@ public sealed class SettingsViewModel : ViewModelBase
         string scopeTelemetryLabel = _localization.T("Settings.CompanionScopeTelemetry");
         string scopeReadBenchmarksLabel = _localization.T("Settings.CompanionScopeReadBenchmarks");
         string scopeWriteBenchmarksLabel = _localization.T("Settings.CompanionScopeWriteBenchmarks");
+        string scopeReadLibraryLabel = _localization.T("Settings.CompanionScopeReadLibrary");
+        string scopeWriteLaunchLabel = _localization.T("Settings.CompanionScopeWriteLaunch");
+        string scopeReadOptimizationLabel = _localization.T("Settings.CompanionScopeReadOptimization");
+        string scopeWriteOptimizationLabel = _localization.T("Settings.CompanionScopeWriteOptimization");
         string revokeLabel = _localization.T("Settings.CompanionRevoke");
         string neverUsedText = _localization.T("Settings.CompanionNeverUsed");
 
@@ -484,6 +488,10 @@ public sealed class SettingsViewModel : ViewModelBase
                 scopeTelemetryLabel,
                 scopeReadBenchmarksLabel,
                 scopeWriteBenchmarksLabel,
+                scopeReadLibraryLabel,
+                scopeWriteLaunchLabel,
+                scopeReadOptimizationLabel,
+                scopeWriteOptimizationLabel,
                 revokeLabel,
                 neverUsedText));
         }
@@ -507,10 +515,42 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private void StartPairing()
     {
-        string host = !string.IsNullOrWhiteSpace(_settings.CompanionLanAddress)
-            ? _settings.CompanionLanAddress
-            : "127.0.0.1";
-        int port = _settings.CompanionPort > 0 ? _settings.CompanionPort : 47821;
+        var status = _runtime.CompanionServer.Status;
+        if (status.State != CompanionServiceState.Running)
+        {
+            return;
+        }
+
+        string host;
+        int port = status.Port > 0 ? status.Port : (_settings.CompanionPort > 0 ? _settings.CompanionPort : 47821);
+
+        if (_settings.CompanionLanEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(status.LanBoundAddress) || status.LanFaulted)
+            {
+                return;
+            }
+
+            if (Uri.TryCreate(status.LanBoundAddress, UriKind.Absolute, out var lanUri))
+            {
+                host = lanUri.Host;
+                port = lanUri.Port;
+            }
+            else
+            {
+                return;
+            }
+        }
+        else
+        {
+            host = "127.0.0.1";
+            if (!string.IsNullOrWhiteSpace(status.BoundAddress) && Uri.TryCreate(status.BoundAddress, UriKind.Absolute, out var localUri))
+            {
+                host = localUri.Host;
+                port = localUri.Port;
+            }
+        }
+
         _runtime.CompanionServer.PairingEngine.StartPairingSession(host, port);
     }
 
@@ -892,12 +932,14 @@ public sealed class SettingsViewModel : ViewModelBase
         UpdateCompanionStatusProperties();
     }
 
-    private static AppSettings Clone(AppSettings source) => new()
+    internal static AppSettings Clone(AppSettings source) => new()
     {
         StartWithWindows = source.StartWithWindows,
         StartupWindowMode = source.StartupWindowMode,
         StartupRunElevated = source.StartupRunElevated,
         StartupSettingsVersion = source.StartupSettingsVersion,
+        LegacyStartMinimized = source.LegacyStartMinimized,
+        LegacyRunAsAdministrator = source.LegacyRunAsAdministrator,
         MinimizeToTray = source.MinimizeToTray,
         CloseToTray = source.CloseToTray,
         Language = source.Language,
@@ -919,7 +961,9 @@ public sealed class SettingsViewModel : ViewModelBase
         BenchmarkHotkeyModifiers = source.BenchmarkHotkeyModifiers,
         BenchmarkHotkeyVirtualKey = source.BenchmarkHotkeyVirtualKey,
         CompanionEnabled = source.CompanionEnabled,
+        CompanionLanEnabled = source.CompanionLanEnabled,
+        CompanionLanAddress = source.CompanionLanAddress,
         CompanionPort = source.CompanionPort,
-        CustomLibraryLocations = source.CustomLibraryLocations.ToList()
+        CustomLibraryLocations = source.CustomLibraryLocations?.ToList() ?? new()
     };
 }

@@ -108,7 +108,7 @@
                         </Grid>
                         <StackPanel Visibility="{Binding IsCompanionRunning, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,8,0,0">
                             <TextBlock Text="{Binding CompanionEndpointLabel}" Style="{StaticResource TinyCapsText}"/>
-                            <TextBox Text="{Binding CompanionEndpointText, Mode=OneWay}" Style="{StaticResource CompactNumberTextBox}" IsReadOnly="True" BorderThickness="0" Background="Transparent" Margin="0,2,0,0"/>
+                            <TextBox Text="{Binding CompanionEndpointText, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent" Foreground="{StaticResource BrushTextSecondary}" FontSize="13" Padding="0,2" Margin="0,2,0,0"/>
                         </StackPanel>
                         <TextBlock Text="{Binding CompanionErrorMessage}" Style="{StaticResource SmallMutedText}" Foreground="#FF6C6C" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding IsCompanionFailed, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
@@ -140,7 +140,7 @@
                                 <StackPanel>
                                     <TextBlock Text="Pairing Window Active (3 min)" Style="{StaticResource DataTitleText}"/>
                                     <TextBlock Text="{Binding CompanionPairingUrl}" Style="{StaticResource TinyCapsText}" Margin="0,4,0,0"/>
-                                    <TextBox Text="{Binding PairingUrl, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource CompactNumberTextBox}" Margin="0,2,0,8"/>
+                                    <TextBox Text="{Binding PairingUrl, Mode=OneWay}" IsReadOnly="True" Background="{StaticResource BrushSurfaceHover}" Foreground="{StaticResource BrushTextPrimary}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Padding="8,5" Margin="0,2,0,8"/>
                                     <StackPanel Orientation="Horizontal">
                                         <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionCopyUrlLabel}" Command="{Binding CopyPairingUrlCommand}"/>
                                         <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionCancelPairButtonLabel}" Command="{Binding CancelPairingCommand}" Margin="8,0,0,0"/>
@@ -190,6 +190,10 @@
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
                                             <CheckBox Content="{Binding ScopeTelemetryLabel}" IsChecked="{Binding ReadTelemetryEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
+                                            <CheckBox Content="{Binding ScopeReadLibraryLabel}" IsChecked="{Binding ReadLibraryEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
+                                            <CheckBox Content="{Binding ScopeWriteLaunchLabel}" IsChecked="{Binding WriteLaunchEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
+                                            <CheckBox Content="{Binding ScopeReadOptimizationLabel}" IsChecked="{Binding ReadOptimizationEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
+                                            <CheckBox Content="{Binding ScopeWriteOptimizationLabel}" IsChecked="{Binding WriteOptimizationEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
                                             <CheckBox Content="{Binding ScopeReadBenchmarksLabel}" IsChecked="{Binding ReadBenchmarksEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
                                             <CheckBox Content="{Binding ScopeWriteBenchmarksLabel}" IsChecked="{Binding WriteBenchmarksEnabled, Mode=TwoWay}"/>
                                         </StackPanel>

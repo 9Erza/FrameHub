@@ -1,9 +1,12 @@
+using FrameHub.Core.Models.Benchmarking;
+
 namespace FrameHub.Companion.Models;
 
 public sealed record CompanionTelemetrySnapshot(
     DateTimeOffset CapturedAtUtc,
     HardwareTelemetrySnapshot? Hardware,
-    CurrentGameSnapshot? CurrentGame
+    CurrentGameSnapshot? CurrentGame,
+    LivePerformanceSnapshot? LivePerformance = null
 );
 
 public sealed record HardwareTelemetrySnapshot(

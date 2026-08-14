@@ -9,18 +9,14 @@ namespace FrameHub.App.Services;
 public sealed class AppTelemetrySnapshotProvider : ITelemetrySnapshotProvider, IDisposable
 {
     private readonly AppRuntimeService _runtime;
-    private readonly BenchmarkGameDetectionService _gameDetector;
-    private readonly SessionStateService _sessionStateService;
-    private readonly LibraryService _libraryService;
+    private readonly IActiveGameMonitor _activeGameMonitor;
+    private readonly ILivePerformanceTelemetryService? _liveTelemetryService;
     private readonly object _lock = new();
 
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
     private bool _disposed;
     private volatile CompanionTelemetrySnapshot _currentSnapshot;
-
-    private CurrentGameSnapshot? _cachedGameSnapshot;
-    private DateTimeOffset _lastGameDetectionTime = DateTimeOffset.MinValue;
 
     public CompanionTelemetrySnapshot CurrentSnapshot => _currentSnapshot;
     public bool IsRunning
@@ -36,19 +32,18 @@ public sealed class AppTelemetrySnapshotProvider : ITelemetrySnapshotProvider, I
 
     public AppTelemetrySnapshotProvider(
         AppRuntimeService runtime,
-        BenchmarkGameDetectionService? gameDetector = null,
-        SessionStateService? sessionStateService = null,
-        LibraryService? libraryService = null)
+        IActiveGameMonitor? activeGameMonitor = null,
+        ILivePerformanceTelemetryService? liveTelemetryService = null)
     {
         _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
-        _gameDetector = gameDetector ?? new BenchmarkGameDetectionService();
-        _sessionStateService = sessionStateService ?? new SessionStateService();
-        _libraryService = libraryService ?? new LibraryService();
+        _activeGameMonitor = activeGameMonitor ?? runtime.ActiveGameMonitor ?? new ActiveGameMonitor();
+        _liveTelemetryService = liveTelemetryService ?? runtime.LiveTelemetryService;
 
         _currentSnapshot = new CompanionTelemetrySnapshot(
             CapturedAtUtc: DateTimeOffset.UtcNow,
             Hardware: null,
-            CurrentGame: null
+            CurrentGame: null,
+            LivePerformance: null
         );
     }
 
@@ -151,53 +146,25 @@ public sealed class AppTelemetrySnapshotProvider : ITelemetrySnapshotProvider, I
             );
         }
 
-        // Resolve game at a slower 2-second cadence to eliminate 2Hz disk/process polling
-        if (now - _lastGameDetectionTime >= TimeSpan.FromSeconds(2))
-        {
-            _cachedGameSnapshot = ResolveCurrentGame();
-            _lastGameDetectionTime = now;
-        }
-
         _currentSnapshot = new CompanionTelemetrySnapshot(
             CapturedAtUtc: now,
             Hardware: hardwareSnapshot,
-            CurrentGame: _cachedGameSnapshot
+            CurrentGame: ResolveCurrentGame(),
+            LivePerformance: _liveTelemetryService?.CurrentSnapshot
         );
     }
 
     private CurrentGameSnapshot? ResolveCurrentGame()
     {
-        var activeSession = _sessionStateService.Load();
-        var libraryItems = _libraryService.LoadItems();
+        var activeGame = _activeGameMonitor.CurrentSnapshot;
+        if (activeGame == null) return null;
 
-        if (activeSession?.IsActive == true && !string.IsNullOrWhiteSpace(activeSession.GameName))
-        {
-            var matchedItem = libraryItems.FirstOrDefault(i =>
-                string.Equals(i.DisplayName, activeSession.GameName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(i.Id, activeSession.GameId, StringComparison.OrdinalIgnoreCase));
-
-            return new CurrentGameSnapshot(
-                LibraryItemId: matchedItem?.Id,
-                DisplayName: activeSession.GameName,
-                IsRunning: true,
-                ProcessStartTimeUtc: activeSession.StartedAtUtc
-            );
-        }
-
-        var detectedGames = _gameDetector.Detect(libraryItems);
-        if (detectedGames.Count == 1)
-        {
-            var running = detectedGames[0];
-            return new CurrentGameSnapshot(
-                LibraryItemId: running.LibraryItem.Id,
-                DisplayName: running.LibraryItem.DisplayName,
-                IsRunning: true,
-                ProcessStartTimeUtc: running.Process.StartTimeUtc
-            );
-        }
-
-        // If 0 games or multiple games detected without an active session: null (unambiguous requirement)
-        return null;
+        return new CurrentGameSnapshot(
+            LibraryItemId: activeGame.LibraryItem.Id,
+            DisplayName: activeGame.LibraryItem.DisplayName,
+            IsRunning: true,
+            ProcessStartTimeUtc: activeGame.Process.StartTimeUtc
+        );
     }
 
     public void Dispose()

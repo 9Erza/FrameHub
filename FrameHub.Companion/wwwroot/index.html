@@ -13,13 +13,13 @@
             <div class="brand">
                 <div class="brand-icon">⚡</div>
                 <div class="brand-text">
-                    <h1>FrameHub Companion</h1>
-                    <span class="sub-title">Benchmark Control</span>
+                    <h1 data-i18n="brand.title">FrameHub Companion</h1>
+                    <span class="sub-title" data-i18n="brand.subtitle">Benchmark Control</span>
                 </div>
             </div>
             <div class="auth-status-badge" id="auth-status-badge">
                 <span class="status-dot disconnected"></span>
-                <span id="auth-status-text">Checking Pairing...</span>
+                <span id="auth-status-text" data-i18n="auth.checking">Checking Pairing...</span>
             </div>
         </header>
 
@@ -28,29 +28,29 @@
             <!-- Pairing / Authentication Card -->
             <section class="card pairing-card" id="pairing-section">
                 <div class="card-header">
-                    <h2>Device Pairing</h2>
-                    <span class="badge badge-info">Required for LAN control</span>
+                    <h2 data-i18n="pairing.title">Device Pairing</h2>
+                    <span class="badge badge-info" data-i18n="pairing.badge">Required for LAN control</span>
                 </div>
                 <div class="card-body">
-                    <p class="pairing-instructions">
+                    <p class="pairing-instructions" data-i18n="pairing.instructions">
                         Enter the pairing token shown on your desktop or scan the QR code to pair this device.
                     </p>
                     <form id="pairing-form" class="pairing-form">
                         <div class="form-group">
-                            <label for="pairing-token">Pairing Token</label>
-                            <input type="text" id="pairing-token" placeholder="Enter 6-character / pairing token..." required autocomplete="off">
+                            <label for="pairing-token" data-i18n="pairing.tokenLabel">Pairing Token</label>
+                            <input type="text" id="pairing-token" placeholder="Enter 6-character pairing token..." required autocomplete="off">
                         </div>
                         <div class="form-group">
-                            <label for="display-name">Device Name</label>
+                            <label for="display-name" data-i18n="pairing.nameLabel">Device Name</label>
                             <input type="text" id="display-name" placeholder="e.g. Mobile Browser" value="Companion Client">
                         </div>
                         <button type="submit" id="btn-pair" class="btn btn-primary">
-                            <span>Pair Device</span>
+                            <span data-i18n="pairing.submitBtn">Pair Device</span>
                         </button>
                     </form>
                     <div id="pairing-pending" class="pairing-pending-box hidden">
                         <div class="spinner"></div>
-                        <p>Pairing request submitted. Please approve on your desktop...</p>
+                        <p data-i18n="pairing.pendingMsg">Pairing request submitted. Please approve on your desktop...</p>
                     </div>
                     <div id="pairing-error" class="error-banner hidden"></div>
                 </div>
@@ -59,208 +59,376 @@
             <!-- Error Notification Banner -->
             <div id="global-error" class="error-banner hidden"></div>
 
-            <!-- Benchmark Setup & Targets Card -->
-            <section class="card" id="benchmark-setup-section">
-                <div class="card-header">
-                    <h2>Capture Setup</h2>
-                    <span class="badge badge-secondary" id="target-count-badge">0 targets available</span>
-                </div>
-                <div class="card-body">
-                    <div class="form-grid">
-                        <div class="form-group col-span-2">
-                            <label for="target-select">Benchmark Target</label>
-                            <div class="select-wrapper">
-                                <select id="target-select" disabled>
-                                    <option value="">Loading targets...</option>
-                                </select>
-                                <button type="button" id="btn-refresh-targets" class="btn btn-icon" title="Refresh Targets">🔄</button>
+            <!-- Home View Container -->
+            <div id="home-view" class="view-wrapper">
+                <!-- Home Live Dashboard (M9.2 Mobile-First View) -->
+                <section class="card live-dashboard-card" id="live-dashboard-section">
+                    <div class="card-header">
+                        <div class="live-game-info">
+                            <span class="live-indicator-dot" id="live-status-dot"></span>
+                            <h2 id="live-game-name" data-i18n="home.noGame">No Game Detected</h2>
+                        </div>
+                        <span class="badge badge-secondary" id="live-game-badge" data-i18n="home.gameNotRunning">Not Running</span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Benchmark Active Notice Banner -->
+                        <div id="benchmark-active-notice" class="notice-banner hidden">
+                            <span class="notice-icon">⏱️</span>
+                            <span data-i18n="home.noticeBanner">Benchmark capture in progress — live monitoring paused</span>
+                        </div>
+
+                        <!-- Live Performance Metrics -->
+                        <div class="dashboard-subtitle" data-i18n="home.liveSubtitle">Live Performance (PresentMon)</div>
+                        <div class="live-metrics-grid">
+                            <div class="metric-card metric-primary">
+                                <span class="metric-label" data-i18n="home.fps">Current FPS</span>
+                                <span class="metric-value" id="live-fps">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label" data-i18n="home.frametime">Frametime</span>
+                                <span class="metric-value" id="live-frametime">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label" data-i18n="home.oneLow">1% Low FPS</span>
+                                <span class="metric-value" id="live-one-low">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label" data-i18n="home.pointOneLow">0.1% Low FPS</span>
+                                <span class="metric-value" id="live-point-one-low">--</span>
                             </div>
                         </div>
+
+                        <!-- Hardware Telemetry -->
+                        <div class="dashboard-subtitle" style="margin-top: 1.25rem;" data-i18n="home.hwSubtitle">Hardware Telemetry</div>
+                        <div class="hardware-grid">
+                            <div class="stat-card">
+                                <span class="stat-label" data-i18n="home.cpuLoad">CPU Load</span>
+                                <span class="stat-value" id="hw-cpu-load">--</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label" data-i18n="home.cpuTemp">CPU Temp</span>
+                                <span class="stat-value" id="hw-cpu-temp">--</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label" data-i18n="home.gpuLoad">GPU Load</span>
+                                <span class="stat-value" id="hw-gpu-load">--</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label" data-i18n="home.gpuTemp">GPU Temp</span>
+                                <span class="stat-value" id="hw-gpu-temp">--</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label" data-i18n="home.ramUsage">RAM Usage</span>
+                                <span class="stat-value" id="hw-ram-usage">--</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label" data-i18n="home.vramUsage">VRAM Usage</span>
+                                <span class="stat-value" id="hw-vram-usage">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Session Optimization Section (M9.5) -->
+                <section class="card" id="session-optimization-section" style="margin-top: 1rem;">
+                    <div class="card-header">
+                        <h2 data-i18n="optimization.title">Session Optimization</h2>
+                        <span class="badge badge-secondary" id="opt-state-badge" data-i18n="optimization.inactive">Inactive</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="opt-info-row">
+                            <span class="opt-label" data-i18n="optimization.game">Active Game:</span>
+                            <span class="opt-value" id="opt-game-name">--</span>
+                        </div>
+                        <div class="opt-info-row">
+                            <span class="opt-label" data-i18n="optimization.suspended">Suspended Apps:</span>
+                            <span class="opt-value" id="opt-suspended-count">0</span>
+                        </div>
+                        <div class="opt-status-flags">
+                            <span class="badge badge-info hidden" id="opt-taskbar-badge" data-i18n="optimization.taskbarHidden">Taskbar Hidden</span>
+                            <span class="badge badge-warning hidden" id="opt-recovery-badge" data-i18n="optimization.recoveryPending">Recovery Pending</span>
+                        </div>
+                        <div class="opt-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-primary" id="btn-apply-optimization" data-i18n="optimization.apply">Start Optimization</button>
+                            <button type="button" class="btn btn-secondary hidden" id="btn-restore-optimization" data-i18n="optimization.restore">Restore Session</button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="btn-refresh-optimization" data-i18n="optimization.refresh">Refresh</button>
+                        </div>
+                        <div class="optimization-feedback hidden" id="opt-feedback" style="margin-top: 0.75rem;"></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Library View Container -->
+            <div id="library-view" class="view-wrapper hidden">
+                <section class="card" id="library-section">
+                    <div class="card-header">
+                        <h2 data-i18n="library.title">Game Library</h2>
+                        <div class="header-actions">
+                            <button type="button" id="btn-refresh-library" class="btn btn-sm btn-secondary" data-i18n="library.refresh">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="library-loading" class="library-loading-box hidden">
+                            <div class="spinner"></div>
+                            <p data-i18n="library.loading">Loading games...</p>
+                        </div>
+                        <div id="library-error" class="error-banner hidden"></div>
+                        <div id="library-empty" class="library-empty-box hidden">
+                            <p data-i18n="library.empty">No games or applications in library.</p>
+                        </div>
+                        <div id="library-list" class="library-cards-grid"></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Benchmarks View Container -->
+            <div id="benchmarks-view" class="view-wrapper hidden">
+                <!-- Benchmark Setup & Targets Card -->
+                <section class="card" id="benchmark-setup-section">
+                    <div class="card-header">
+                        <h2 data-i18n="benchmark.setupTitle">Capture Setup</h2>
+                        <span class="badge badge-secondary" id="target-count-badge">0 targets available</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-grid">
+                            <div class="form-group col-span-2">
+                                <label for="target-select" data-i18n="benchmark.targetLabel">Benchmark Target</label>
+                                <div class="select-wrapper">
+                                    <select id="target-select" disabled>
+                                        <option value="" data-i18n="benchmark.loadingTargets">Loading targets...</option>
+                                    </select>
+                                    <button type="button" id="btn-refresh-targets" class="btn btn-icon" title="Refresh Targets">🔄</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="duration-select" data-i18n="benchmark.durationLabel">Duration (Seconds)</label>
+                                <select id="duration-select">
+                                    <option value="10">10 seconds</option>
+                                    <option value="30">30 seconds</option>
+                                    <option value="60" selected>60 seconds</option>
+                                    <option value="120">120 seconds</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="countdown-select" data-i18n="benchmark.countdownLabel">Countdown (Seconds)</label>
+                                <select id="countdown-select">
+                                    <option value="0" data-i18n="benchmark.instantCountdown">Instant (0s)</option>
+                                    <option value="3" selected>3 seconds</option>
+                                    <option value="5">5 seconds</option>
+                                    <option value="10">10 seconds</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="action-bar">
+                            <button id="btn-start" class="btn btn-success btn-lg" disabled>
+                                <span data-i18n="benchmark.startBtn">▶ Start Benchmark</span>
+                            </button>
+                            <button id="btn-stop" class="btn btn-danger btn-lg" disabled>
+                                <span data-i18n="benchmark.stopBtn">⏹ Stop Benchmark</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Authoritative Status Card -->
+                <section class="card" id="benchmark-status-section">
+                    <div class="card-header">
+                        <h2 data-i18n="benchmark.statusTitle">Live Benchmark Status</h2>
+                        <div class="state-pill state-idle" id="state-badge">
+                            <span class="state-dot"></span>
+                            <span id="state-text" data-i18n="benchmark.state.idle">Idle</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="status-grid">
+                            <div class="stat-card">
+                                <span class="stat-label" data-i18n="benchmark.activeTargetLabel">Active Game Target</span>
+                                <span class="stat-value" id="status-target" data-i18n="benchmark.noneSelected">None selected</span>
+                            </div>
+                            <div class="stat-card" id="countdown-card">
+                                <span class="stat-label" data-i18n="benchmark.countdownStatLabel">Countdown</span>
+                                <span class="stat-value highlight-amber" id="status-countdown">--</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label" data-i18n="benchmark.elapsedStatLabel">Elapsed Time</span>
+                                <span class="stat-value" id="status-elapsed">0.0s</span>
+                            </div>
+                        </div>
+
+                        <div class="progress-container" id="progress-container">
+                            <div class="progress-bar-wrapper">
+                                <div class="progress-bar" id="status-progress-bar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Completed Result Card -->
+                <section class="card hidden" id="result-section">
+                    <div class="card-header">
+                        <h2 data-i18n="result.title">Latest Benchmark Result</h2>
+                        <span class="badge badge-success" data-i18n="result.completedBadge">Completed</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="result-title" id="result-game-name">Cyberpunk 2077</div>
+                        <div class="metrics-grid">
+                            <div class="metric-card metric-primary">
+                                <span class="metric-label" data-i18n="result.avgFps">Average FPS</span>
+                                <span class="metric-value" id="res-avg-fps">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label" data-i18n="result.oneLow">1% Low FPS</span>
+                                <span class="metric-value" id="res-one-low">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label" data-i18n="result.pointOneLow">0.1% Low FPS</span>
+                                <span class="metric-value" id="res-point-one-low">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label" data-i18n="result.p99Frametime">P99 Frame Time</span>
+                                <span class="metric-value" id="res-p99-frametime">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label" data-i18n="result.duration">Duration</span>
+                                <span class="metric-value" id="res-duration">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label" data-i18n="result.quality">Quality Level</span>
+                                <span class="metric-value" id="res-quality">--</span>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <div class="chart-header">
+                                <span class="chart-title" data-i18n="result.chartTitle">Frametime Graph (ms)</span>
+                                <span class="chart-subtitle" id="chart-point-count">--</span>
+                            </div>
+                            <canvas id="frametime-canvas" width="800" height="220"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recent History Section -->
+                <section class="card" id="history-section">
+                    <div class="card-header">
+                        <h2 data-i18n="history.title">Recent Sessions</h2>
+                        <div class="header-actions">
+                            <button type="button" id="btn-compare-sessions" class="btn btn-sm btn-primary" disabled data-i18n="history.compareBtn">Compare Selected (0/2)</button>
+                            <button type="button" id="btn-refresh-history" class="btn btn-sm btn-secondary" data-i18n="history.refreshBtn">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center" style="width: 40px;" data-i18n="history.thSelect">Select</th>
+                                        <th data-i18n="history.thGame">Game</th>
+                                        <th data-i18n="history.thStatus">Status</th>
+                                        <th data-i18n="history.thDuration">Duration</th>
+                                        <th data-i18n="history.thAvgFps">Avg FPS</th>
+                                        <th data-i18n="history.thCapturedAt">Captured At</th>
+                                        <th data-i18n="history.thAction">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-table-body">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted" data-i18n="history.noSessions">No benchmark sessions recorded yet.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Comparison Section -->
+                <section class="card hidden" id="comparison-section">
+                    <div class="card-header">
+                        <h2 data-i18n="comparison.title">Session Comparison</h2>
+                        <button type="button" id="btn-close-comparison" class="btn btn-sm btn-secondary" data-i18n="comparison.closeBtn">Close</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="comparison-header-info">
+                            <div class="comp-session-box session-a">
+                                <span class="comp-label" data-i18n="comparison.sessionA">Session A (Baseline)</span>
+                                <div class="comp-name" id="comp-a-name">--</div>
+                                <div class="comp-date" id="comp-a-date">--</div>
+                            </div>
+                            <div class="comp-vs">VS</div>
+                            <div class="comp-session-box session-b">
+                                <span class="comp-label" data-i18n="comparison.sessionB">Session B (Comparison)</span>
+                                <div class="comp-name" id="comp-b-name">--</div>
+                                <div class="comp-date" id="comp-b-date">--</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table comp-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="comparison.thMetric">Metric</th>
+                                        <th data-i18n="comparison.thSessionA">Session A</th>
+                                        <th data-i18n="comparison.thSessionB">Session B</th>
+                                        <th data-i18n="comparison.thDelta">Delta</th>
+                                        <th data-i18n="comparison.thPctDelta">% Delta</th>
+                                        <th data-i18n="comparison.thEvaluation">Evaluation</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="comparison-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Settings View Container -->
+            <div id="settings-view" class="view-wrapper hidden">
+                <section class="card" id="settings-section">
+                    <div class="card-header">
+                        <h2 data-i18n="settings.title">Companion Settings</h2>
+                    </div>
+                    <div class="card-body">
                         <div class="form-group">
-                            <label for="duration-select">Duration (Seconds)</label>
-                            <select id="duration-select">
-                                <option value="10">10 seconds</option>
-                                <option value="30">30 seconds</option>
-                                <option value="60" selected>60 seconds</option>
-                                <option value="120">120 seconds</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="countdown-select">Countdown (Seconds)</label>
-                            <select id="countdown-select">
-                                <option value="0">Instant (0s)</option>
-                                <option value="3" selected>3 seconds</option>
-                                <option value="5">5 seconds</option>
-                                <option value="10">10 seconds</option>
-                            </select>
+                            <label for="language-select" data-i18n="settings.langLabel">Presentation Language</label>
+                            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem;" data-i18n="settings.langDesc">Select the interface language for FrameHub Companion.</p>
+                            <div class="select-wrapper">
+                                <select id="language-select">
+                                    <option value="en" data-i18n="settings.langEn">English</option>
+                                    <option value="pl" data-i18n="settings.langPl">Polski</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                    <div class="action-bar">
-                        <button id="btn-start" class="btn btn-success btn-lg" disabled>
-                            <span>▶ Start Benchmark</span>
-                        </button>
-                        <button id="btn-stop" class="btn btn-danger btn-lg" disabled>
-                            <span>⏹ Stop Benchmark</span>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Authoritative Status Card -->
-            <section class="card" id="benchmark-status-section">
-                <div class="card-header">
-                    <h2>Live Benchmark Status</h2>
-                    <div class="state-pill state-idle" id="state-badge">
-                        <span class="state-dot"></span>
-                        <span id="state-text">Idle</span>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="status-grid">
-                        <div class="stat-card">
-                            <span class="stat-label">Active Game Target</span>
-                            <span class="stat-value" id="status-target">None selected</span>
-                        </div>
-                        <div class="stat-card" id="countdown-card">
-                            <span class="stat-label">Countdown</span>
-                            <span class="stat-value highlight-amber" id="status-countdown">--</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-label">Elapsed Time</span>
-                            <span class="stat-value" id="status-elapsed">0.0s</span>
-                        </div>
-                    </div>
-
-                    <div class="progress-container" id="progress-container">
-                        <div class="progress-bar-wrapper">
-                            <div class="progress-bar" id="status-progress-bar" style="width: 0%;"></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Completed Result Card -->
-            <section class="card hidden" id="result-section">
-                <div class="card-header">
-                    <h2>Latest Benchmark Result</h2>
-                    <span class="badge badge-success">Completed</span>
-                </div>
-                <div class="card-body">
-                    <div class="result-title" id="result-game-name">Cyberpunk 2077</div>
-                    <div class="metrics-grid">
-                        <div class="metric-card metric-primary">
-                            <span class="metric-label">Average FPS</span>
-                            <span class="metric-value" id="res-avg-fps">--</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">1% Low FPS</span>
-                            <span class="metric-value" id="res-one-low">--</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">0.1% Low FPS</span>
-                            <span class="metric-value" id="res-point-one-low">--</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">P99 Frame Time</span>
-                            <span class="metric-value" id="res-p99-frametime">--</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">Duration</span>
-                            <span class="metric-value" id="res-duration">--</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">Quality Level</span>
-                            <span class="metric-value" id="res-quality">--</span>
-                        </div>
-                    <div class="chart-wrapper">
-                        <div class="chart-header">
-                            <span class="chart-title">Frametime Graph (ms)</span>
-                            <span class="chart-subtitle" id="chart-point-count">--</span>
-                        </div>
-                        <canvas id="frametime-canvas" width="800" height="220"></canvas>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Recent History Section -->
-            <section class="card" id="history-section">
-                <div class="card-header">
-                    <h2>Recent Sessions</h2>
-                    <div class="header-actions">
-                        <button type="button" id="btn-compare-sessions" class="btn btn-sm btn-primary" disabled>Compare Selected (0/2)</button>
-                        <button type="button" id="btn-refresh-history" class="btn btn-sm btn-secondary">Refresh</button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th class="text-center" style="width: 40px;">Select</th>
-                                    <th>Game</th>
-                                    <th>Status</th>
-                                    <th>Duration</th>
-                                    <th>Avg FPS</th>
-                                    <th>Captured At</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="history-table-body">
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted">No benchmark sessions recorded yet.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Comparison Section -->
-            <section class="card hidden" id="comparison-section">
-                <div class="card-header">
-                    <h2>Session Comparison</h2>
-                    <button type="button" id="btn-close-comparison" class="btn btn-sm btn-secondary">Close</button>
-                </div>
-                <div class="card-body">
-                    <div class="comparison-header-info">
-                        <div class="comp-session-box session-a">
-                            <span class="comp-label">Session A (Baseline)</span>
-                            <div class="comp-name" id="comp-a-name">--</div>
-                            <div class="comp-date" id="comp-a-date">--</div>
-                        </div>
-                        <div class="comp-vs">VS</div>
-                        <div class="comp-session-box session-b">
-                            <span class="comp-label">Session B (Comparison)</span>
-                            <div class="comp-name" id="comp-b-name">--</div>
-                            <div class="comp-date" id="comp-b-date">--</div>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="data-table comp-table">
-                            <thead>
-                                <tr>
-                                    <th>Metric</th>
-                                    <th>Session A</th>
-                                    <th>Session B</th>
-                                    <th>Delta</th>
-                                    <th>% Delta</th>
-                                    <th>Evaluation</th>
-                                </tr>
-                            </thead>
-                            <tbody id="comparison-table-body">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
+                </section>
+            </div>
         </main>
 
         <!-- App Footer -->
         <footer class="app-footer">
-            <p>FrameHub Companion &bull; Single Source of Truth: BenchmarkCaptureCoordinator</p>
+            <p data-i18n="footer.text">FrameHub Companion &bull; Single Source of Truth: BenchmarkCaptureCoordinator</p>
         </footer>
+
+        <!-- Mobile Bottom Navigation Shell -->
+        <nav class="bottom-nav hidden" id="app-nav" aria-label="Main Navigation">
+            <button type="button" class="nav-item active" id="nav-tab-home" data-tab="home" aria-selected="true" aria-controls="home-view">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label" data-i18n="nav.home">Home</span>
+            </button>
+            <button type="button" class="nav-item" id="nav-tab-library" data-tab="library" aria-selected="false" aria-controls="library-view">
+                <span class="nav-icon">🎮</span>
+                <span class="nav-label" data-i18n="nav.library">Library</span>
+            </button>
+            <button type="button" class="nav-item" id="nav-tab-benchmarks" data-tab="benchmarks" aria-selected="false" aria-controls="benchmarks-view">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label" data-i18n="nav.benchmarks">Benchmarks</span>
+            </button>
+            <button type="button" class="nav-item" id="nav-tab-settings" data-tab="settings" aria-selected="false" aria-controls="settings-view">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label" data-i18n="nav.settings">Settings</span>
+            </button>
+        </nav>
     </div>
 
+    <script src="/js/i18n.js"></script>
     <script src="/js/app.js"></script>
 </body>
 </html>

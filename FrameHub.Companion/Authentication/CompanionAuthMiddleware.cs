@@ -194,7 +194,113 @@ public sealed class CompanionAuthMiddleware
             }
         }
 
-        // 6. Default for any other endpoint: Require Authentication
+        // 7. Library Endpoints (/api/v1/library, /api/v1/library/{id}/launch)
+        if (path.Equals("/api/v1/library", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/api/v1/library/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (HttpMethods.IsGet(context.Request.Method))
+            {
+                // Unauthenticated ONLY on 127.0.0.1 / loopback
+                if (isLoopbackLocal && isLoopbackRemote)
+                {
+                    await _next(context);
+                    return;
+                }
+
+                // On LAN: Authentication is REQUIRED with read:library scope
+                if (!TryAuthenticateBearer(context, deviceStore, out var device, out var authErrorStatusCode))
+                {
+                    context.Response.StatusCode = authErrorStatusCode;
+                    return;
+                }
+
+                if (!device.Scopes.Contains(CompanionScopes.ReadLibrary, StringComparer.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+
+                deviceStore.UpdateLastUsed(device.Id, DateTimeOffset.UtcNow);
+                context.Items["PairedDevice"] = device;
+                await _next(context);
+                return;
+            }
+
+            if (HttpMethods.IsPost(context.Request.Method))
+            {
+                // ALWAYS authenticated paired DeviceId + write:launch, INCLUDING localhost
+                if (!TryAuthenticateBearer(context, deviceStore, out var device, out var authErrorStatusCode))
+                {
+                    context.Response.StatusCode = authErrorStatusCode;
+                    return;
+                }
+
+                if (!device.Scopes.Contains(CompanionScopes.WriteLaunch, StringComparer.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+
+                deviceStore.UpdateLastUsed(device.Id, DateTimeOffset.UtcNow);
+                context.Items["PairedDevice"] = device;
+                await _next(context);
+                return;
+            }
+        }
+
+        // 8. Session Optimization Endpoints (/api/v1/session-optimization, /api/v1/session-optimization/apply, /api/v1/session-optimization/restore)
+        if (path.Equals("/api/v1/session-optimization", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/api/v1/session-optimization/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (HttpMethods.IsGet(context.Request.Method))
+            {
+                // Unauthenticated ONLY on 127.0.0.1 / loopback
+                if (isLoopbackLocal && isLoopbackRemote)
+                {
+                    await _next(context);
+                    return;
+                }
+
+                // On LAN: Authentication is REQUIRED with read:optimization scope
+                if (!TryAuthenticateBearer(context, deviceStore, out var device, out var authErrorStatusCode))
+                {
+                    context.Response.StatusCode = authErrorStatusCode;
+                    return;
+                }
+
+                if (!device.Scopes.Contains(CompanionScopes.ReadOptimization, StringComparer.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+
+                deviceStore.UpdateLastUsed(device.Id, DateTimeOffset.UtcNow);
+                context.Items["PairedDevice"] = device;
+                await _next(context);
+                return;
+            }
+
+            if (HttpMethods.IsPost(context.Request.Method))
+            {
+                // ALWAYS authenticated paired DeviceId + write:optimization, INCLUDING localhost
+                if (!TryAuthenticateBearer(context, deviceStore, out var device, out var authErrorStatusCode))
+                {
+                    context.Response.StatusCode = authErrorStatusCode;
+                    return;
+                }
+
+                if (!device.Scopes.Contains(CompanionScopes.WriteOptimization, StringComparer.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+
+                deviceStore.UpdateLastUsed(device.Id, DateTimeOffset.UtcNow);
+                context.Items["PairedDevice"] = device;
+                await _next(context);
+                return;
+            }
+        }
+
+        // 9. Default for any other endpoint: Require Authentication
         if (!TryAuthenticateBearer(context, deviceStore, out var authenticatedDevice, out var defaultErrorStatusCode))
         {
             context.Response.StatusCode = defaultErrorStatusCode;

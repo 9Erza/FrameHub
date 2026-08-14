@@ -11,6 +11,10 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     private bool _readTelemetryEnabled;
     private bool _readBenchmarksEnabled;
     private bool _writeBenchmarksEnabled;
+    private bool _readLibraryEnabled;
+    private bool _writeLaunchEnabled;
+    private bool _readOptimizationEnabled;
+    private bool _writeOptimizationEnabled;
 
     public Guid Id { get; }
     public string DisplayName { get; }
@@ -19,6 +23,10 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     public string ScopeTelemetryLabel { get; }
     public string ScopeReadBenchmarksLabel { get; }
     public string ScopeWriteBenchmarksLabel { get; }
+    public string ScopeReadLibraryLabel { get; }
+    public string ScopeWriteLaunchLabel { get; }
+    public string ScopeReadOptimizationLabel { get; }
+    public string ScopeWriteOptimizationLabel { get; }
     public string RevokeLabel { get; }
     public ICommand RevokeCommand { get; }
 
@@ -72,6 +80,82 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         }
     }
 
+    public bool ReadLibraryEnabled
+    {
+        get => _readLibraryEnabled;
+        set
+        {
+            if (SetProperty(ref _readLibraryEnabled, value))
+            {
+                _onToggleScope(Id, CompanionScopes.ReadLibrary, value);
+
+                if (!value && _writeLaunchEnabled)
+                {
+                    _writeLaunchEnabled = false;
+                    OnPropertyChanged(nameof(WriteLaunchEnabled));
+                    _onToggleScope(Id, CompanionScopes.WriteLaunch, false);
+                }
+            }
+        }
+    }
+
+    public bool WriteLaunchEnabled
+    {
+        get => _writeLaunchEnabled;
+        set
+        {
+            if (SetProperty(ref _writeLaunchEnabled, value))
+            {
+                _onToggleScope(Id, CompanionScopes.WriteLaunch, value);
+
+                if (value && !_readLibraryEnabled)
+                {
+                    _readLibraryEnabled = true;
+                    OnPropertyChanged(nameof(ReadLibraryEnabled));
+                    _onToggleScope(Id, CompanionScopes.ReadLibrary, true);
+                }
+            }
+        }
+    }
+
+    public bool ReadOptimizationEnabled
+    {
+        get => _readOptimizationEnabled;
+        set
+        {
+            if (SetProperty(ref _readOptimizationEnabled, value))
+            {
+                _onToggleScope(Id, CompanionScopes.ReadOptimization, value);
+
+                if (!value && _writeOptimizationEnabled)
+                {
+                    _writeOptimizationEnabled = false;
+                    OnPropertyChanged(nameof(WriteOptimizationEnabled));
+                    _onToggleScope(Id, CompanionScopes.WriteOptimization, false);
+                }
+            }
+        }
+    }
+
+    public bool WriteOptimizationEnabled
+    {
+        get => _writeOptimizationEnabled;
+        set
+        {
+            if (SetProperty(ref _writeOptimizationEnabled, value))
+            {
+                _onToggleScope(Id, CompanionScopes.WriteOptimization, value);
+
+                if (value && !_readOptimizationEnabled)
+                {
+                    _readOptimizationEnabled = true;
+                    OnPropertyChanged(nameof(ReadOptimizationEnabled));
+                    _onToggleScope(Id, CompanionScopes.ReadOptimization, true);
+                }
+            }
+        }
+    }
+
     public PairedDeviceItemViewModel(
         PairedDeviceRecord record,
         Action<Guid> onRevoke,
@@ -79,6 +163,10 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         string? scopeTelemetryLabel = null,
         string? scopeReadBenchmarksLabel = null,
         string? scopeWriteBenchmarksLabel = null,
+        string? scopeReadLibraryLabel = null,
+        string? scopeWriteLaunchLabel = null,
+        string? scopeReadOptimizationLabel = null,
+        string? scopeWriteOptimizationLabel = null,
         string? revokeLabel = null,
         string? neverUsedText = null)
     {
@@ -92,12 +180,20 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         ScopeTelemetryLabel = scopeTelemetryLabel ?? "Telemetry";
         ScopeReadBenchmarksLabel = scopeReadBenchmarksLabel ?? "Benchmark Data";
         ScopeWriteBenchmarksLabel = scopeWriteBenchmarksLabel ?? "Benchmark Control";
+        ScopeReadLibraryLabel = scopeReadLibraryLabel ?? "Read Library";
+        ScopeWriteLaunchLabel = scopeWriteLaunchLabel ?? "Launch Control";
+        ScopeReadOptimizationLabel = scopeReadOptimizationLabel ?? "Optimization Data";
+        ScopeWriteOptimizationLabel = scopeWriteOptimizationLabel ?? "Optimization Control";
         RevokeLabel = revokeLabel ?? "Revoke";
 
         _onToggleScope = onToggleScope ?? ((_, _, _) => { });
         _readTelemetryEnabled = record.Scopes.Contains(CompanionScopes.ReadTelemetry, StringComparer.OrdinalIgnoreCase);
         _readBenchmarksEnabled = record.Scopes.Contains(CompanionScopes.ReadBenchmarks, StringComparer.OrdinalIgnoreCase);
         _writeBenchmarksEnabled = record.Scopes.Contains(CompanionScopes.WriteBenchmarks, StringComparer.OrdinalIgnoreCase);
+        _readLibraryEnabled = record.Scopes.Contains(CompanionScopes.ReadLibrary, StringComparer.OrdinalIgnoreCase);
+        _writeLaunchEnabled = record.Scopes.Contains(CompanionScopes.WriteLaunch, StringComparer.OrdinalIgnoreCase);
+        _readOptimizationEnabled = record.Scopes.Contains(CompanionScopes.ReadOptimization, StringComparer.OrdinalIgnoreCase);
+        _writeOptimizationEnabled = record.Scopes.Contains(CompanionScopes.WriteOptimization, StringComparer.OrdinalIgnoreCase);
 
         RevokeCommand = new RelayCommand(_ => onRevoke(Id));
     }

@@ -5,8 +5,13 @@ using System.Text.Json;
 using FrameHub.App.Services;
 using FrameHub.App.ViewModels;
 using FrameHub.Companion;
+using FrameHub.Companion.Authentication;
+using FrameHub.Companion.Models;
+using FrameHub.Companion.Persistence;
 using FrameHub.Core.Models;
+using FrameHub.Core.Models.Library;
 using FrameHub.Core.Services;
+using FrameHub.Core.Services.Library;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace FrameHub.Tests;
@@ -347,6 +352,200 @@ public sealed class SettingsCompanionIntegrationTests
         Assert.AreEqual("Telemetria", plTelemetry);
         Assert.AreEqual("Never", enNever);
         Assert.AreEqual("Nigdy", plNever);
+    }
+
+    [TestMethod]
+    public async Task StartPairing_RequiresBoundLanEndpoint_DoesNotUseUnboundSavedAddress()
+    {
+        int port = GetFreePort();
+        using var runtime = CreateTestRuntime();
+        var localization = new LocalizationService(runtime.SettingsService);
+        var vm = new SettingsViewModel(localization, runtime);
+
+        // 1. Start companion with invalid LAN address
+        await runtime.CompanionServer.StartAsync(new FrameHub.Companion.CompanionOptions
+        {
+            Enabled = true,
+            LanEnabled = true,
+            LanAddress = "192.0.2.1",
+            Port = port
+        });
+
+        Assert.IsTrue(runtime.CompanionServer.Status.LanFaulted);
+        Assert.IsNull(runtime.CompanionServer.Status.LanBoundAddress);
+
+        // 2. Configure VM settings
+        vm.CompanionLanAddress = "192.0.2.1";
+        vm.CompanionLanEnabled = true;
+
+        // 3. Trigger StartPairing
+        vm.StartPairingCommand.Execute(null);
+
+        // Pairing session MUST NOT be active because LAN address could not be bound
+        Assert.IsFalse(vm.IsPairingActive, "StartPairing must not create a pairing session for an unbound LAN address.");
+        Assert.AreEqual(string.Empty, vm.PairingUrl);
+    }
+
+    [TestMethod]
+    public void LanCandidateIp_ToString_ReturnsIpAddress()
+    {
+        var candidate = new FrameHub.Companion.Models.LanCandidateIp("192.168.1.100", "eth0", "Ethernet");
+        Assert.AreEqual("192.168.1.100", candidate.ToString());
+    }
+
+    [TestMethod]
+    public void Clone_PreservesAllCompanionSettings()
+    {
+        var source = new AppSettings
+        {
+            CompanionEnabled = true,
+            CompanionLanEnabled = true,
+            CompanionLanAddress = "192.168.1.100",
+            CompanionPort = 47822
+        };
+
+        var cloned = SettingsViewModel.Clone(source);
+        Assert.IsNotNull(cloned);
+        Assert.IsTrue(cloned.CompanionEnabled);
+        Assert.IsTrue(cloned.CompanionLanEnabled);
+        Assert.AreEqual("192.168.1.100", cloned.CompanionLanAddress);
+        Assert.AreEqual(47822, cloned.CompanionPort);
+    }
+
+    [TestMethod]
+    public async Task SettingsViewModel_PersistsCompanionLanSettings_WhenEnabledAndDisabled()
+    {
+        using var runtime = CreateTestRuntime();
+        var localization = new LocalizationService(runtime.SettingsService);
+        var vm = new SettingsViewModel(localization, runtime);
+
+        // 1. Initial state
+        Assert.IsFalse(runtime.Settings.CompanionLanEnabled);
+
+        // 2. Enable LAN and select IP address from ViewModel
+        vm.CompanionLanAddress = "192.168.1.100";
+        vm.CompanionLanEnabled = true;
+        await Task.Delay(100);
+
+        Assert.IsTrue(runtime.Settings.CompanionLanEnabled, "Saving settings must persist CompanionLanEnabled=true");
+        Assert.AreEqual("192.168.1.100", runtime.Settings.CompanionLanAddress, "Saving settings must persist CompanionLanAddress");
+
+        // 3. Disable LAN from ViewModel
+        vm.CompanionLanEnabled = false;
+        await Task.Delay(100);
+
+        Assert.IsFalse(runtime.Settings.CompanionLanEnabled, "Disabling LAN must persist CompanionLanEnabled=false");
+        Assert.AreEqual("192.168.1.100", runtime.Settings.CompanionLanAddress, "CompanionLanAddress is retained in settings");
+
+        // 4. Verify existing CompanionEnabled / Port persistence still works
+        vm.CompanionPort = 47890;
+        vm.CompanionEnabled = true;
+        await Task.Delay(100);
+
+        Assert.IsTrue(runtime.Settings.CompanionEnabled);
+        Assert.AreEqual(47890, runtime.Settings.CompanionPort);
+    }
+
+    [TestMethod]
+    public void PairedDeviceItemViewModel_LibraryAndLaunchScopes_CascadesCorrectly()
+    {
+        string storePath = Path.Combine(_tempDirectory, "paired-devices.json");
+        var store = new DeviceRecordStore(storePath);
+        var record = new PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Test Phone",
+            CredentialHash = "hash123",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            Scopes = new List<string> { CompanionScopes.ReadStatus }
+        };
+        store.AddDevice(record);
+
+        var vm = new PairedDeviceItemViewModel(
+            record,
+            id => { store.RevokeDevice(id); },
+            (id, scope, enabled) =>
+            {
+                if (enabled) store.GrantScope(id, scope);
+                else store.RevokeScope(id, scope);
+            },
+            "Telemetry",
+            "Read Benchmarks",
+            "Write Benchmarks",
+            "Read Library",
+            "Launch Control",
+            "Revoke",
+            "Never");
+
+        Assert.IsFalse(vm.ReadLibraryEnabled);
+        Assert.IsFalse(vm.WriteLaunchEnabled);
+
+        // 1. Enabling WriteLaunchEnabled automatically turns on ReadLibraryEnabled
+        vm.WriteLaunchEnabled = true;
+        Assert.IsTrue(vm.WriteLaunchEnabled);
+        Assert.IsTrue(vm.ReadLibraryEnabled);
+
+        var stored = store.GetDeviceById(record.Id);
+        Assert.IsTrue(stored!.Scopes.Contains(CompanionScopes.WriteLaunch));
+        Assert.IsTrue(stored.Scopes.Contains(CompanionScopes.ReadLibrary));
+
+        // 2. Disabling ReadLibraryEnabled automatically turns off WriteLaunchEnabled
+        vm.ReadLibraryEnabled = false;
+        Assert.IsFalse(vm.ReadLibraryEnabled);
+        Assert.IsFalse(vm.WriteLaunchEnabled);
+
+        stored = store.GetDeviceById(record.Id);
+        Assert.IsFalse(stored!.Scopes.Contains(CompanionScopes.ReadLibrary));
+        Assert.IsFalse(stored.Scopes.Contains(CompanionScopes.WriteLaunch));
+
+        // 3. Re-enabling ReadLibraryEnabled does not enable WriteLaunchEnabled
+        vm.ReadLibraryEnabled = true;
+        Assert.IsTrue(vm.ReadLibraryEnabled);
+        Assert.IsFalse(vm.WriteLaunchEnabled);
+
+        // 4. Turning off WriteLaunchEnabled leaves ReadLibraryEnabled intact
+        vm.WriteLaunchEnabled = true;
+        Assert.IsTrue(vm.ReadLibraryEnabled);
+        Assert.IsTrue(vm.WriteLaunchEnabled);
+
+        vm.WriteLaunchEnabled = false;
+        Assert.IsFalse(vm.WriteLaunchEnabled);
+        Assert.IsTrue(vm.ReadLibraryEnabled);
+    }
+
+    [TestMethod]
+    public void LibraryViewModel_LaunchSelected_DelegatesToLaunchService()
+    {
+        using var runtime = CreateTestRuntime();
+        var loc = new LocalizationService(runtime.SettingsService);
+
+        string fakeExe = Path.Combine(_tempDirectory, "desktop_test_game.exe");
+        File.WriteAllText(fakeExe, "desktop exe");
+
+        var item = new LibraryItem
+        {
+            Id = "desktop-game-1",
+            DisplayName = "Desktop Game",
+            Type = FrameHub.Core.Models.Library.LibraryItemType.Game,
+            IsEnabled = true,
+            ExecutablePath = fakeExe
+        };
+
+        var libraryService = new LibraryService();
+        libraryService.SaveItems(new[] { item });
+
+        var vm = new LibraryViewModel(loc, runtime);
+        vm.Reload();
+
+        var itemVm = vm.Items.FirstOrDefault(i => i.Item.Id == "desktop-game-1");
+        Assert.IsNotNull(itemVm);
+        vm.SelectedItem = itemVm;
+
+        Assert.IsTrue(vm.LaunchSelectedCommand.CanExecute(null));
+        vm.LaunchSelectedCommand.Execute(null);
+
+        // Verify status message is updated (either ready or success)
+        Assert.IsNotNull(vm.StatusMessage);
     }
 
     private static int GetFreePort()

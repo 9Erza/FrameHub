@@ -1,5 +1,6 @@
 using FrameHub.App.ViewModels;
 using FrameHub.Companion;
+using FrameHub.Companion.Providers;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
@@ -15,6 +16,12 @@ namespace FrameHub.App.Services;
 /// </summary>
 public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 {
+    private sealed class AppPresentationPreferencesProvider : ICompanionPresentationPreferencesProvider
+    {
+        private readonly AppRuntimeService _owner;
+        public AppPresentationPreferencesProvider(AppRuntimeService owner) => _owner = owner;
+        public string DesktopLanguage => _owner.Settings?.Language ?? "en";
+    }
     private readonly DispatcherTimer _profileWatcherTimer;
     private readonly Dictionary<string, DateTime> _failureLogThrottle = new(StringComparer.OrdinalIgnoreCase);
     private bool _watcherBusy;
@@ -44,8 +51,10 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public int OptimizedProcessCount { get; private set; }
 
     public CompanionServer CompanionServer { get; } = new();
-    public AppTelemetrySnapshotProvider TelemetryProvider { get; }
     public BenchmarkCaptureCoordinator BenchmarkCoordinator { get; }
+    public ActiveGameMonitor ActiveGameMonitor { get; }
+    public LivePerformanceTelemetryService LiveTelemetryService { get; }
+    public AppTelemetrySnapshotProvider TelemetryProvider { get; }
     IBenchmarkCaptureCoordinator IBenchmarkRuntimeContext.BenchmarkCoordinator => BenchmarkCoordinator;
 
     public AppRuntimeService(string? customSettingsFilePath = null)
@@ -74,11 +83,20 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         };
         _profileWatcherTimer.Tick += async (_, _) => await RunProfileWatcherOnceAsync();
 
-        TelemetryProvider = new AppTelemetrySnapshotProvider(this);
-        CompanionServer.ConfigureTelemetryProvider(TelemetryProvider, AcquireHardwareLease);
         BenchmarkCoordinator = new BenchmarkCaptureCoordinator();
+        ActiveGameMonitor = new ActiveGameMonitor();
+        LiveTelemetryService = new LivePerformanceTelemetryService(ActiveGameMonitor, BenchmarkCoordinator);
+        TelemetryProvider = new AppTelemetrySnapshotProvider(this, ActiveGameMonitor, LiveTelemetryService);
+        CompanionServer.ConfigureTelemetryProvider(TelemetryProvider, AcquireHardwareLease);
         BenchmarkProvider = new AppBenchmarkProvider(this);
         CompanionServer.ConfigureBenchmarkProvider(BenchmarkProvider);
+        CompanionServer.ConfigurePresentationPreferencesProvider(new AppPresentationPreferencesProvider(this));
+        LaunchService = new AppLibraryLaunchService();
+        LibraryProvider = new AppLibraryProvider(this, LaunchService);
+        CompanionServer.ConfigureLibraryProvider(LibraryProvider);
+        SessionOptimizationCoordinator = new SessionOptimizationCoordinator(ProcessScanner);
+        SessionOptimizationProvider = new AppSessionOptimizationProvider(this, SessionOptimizationCoordinator, ActiveGameMonitor, BenchmarkCoordinator);
+        CompanionServer.ConfigureSessionOptimizationProvider(SessionOptimizationProvider);
 
         AddActivity("Działanie FrameHub uruchomione.");
         AddActivity(GetWatcherStartupText());
@@ -87,6 +105,10 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     }
 
     public AppBenchmarkProvider BenchmarkProvider { get; }
+    public IAppLibraryLaunchService LaunchService { get; }
+    public AppLibraryProvider LibraryProvider { get; }
+    public SessionOptimizationCoordinator SessionOptimizationCoordinator { get; }
+    public AppSessionOptimizationProvider SessionOptimizationProvider { get; }
 
 
 
@@ -133,17 +155,23 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
                 bool started = await CompanionServer.StartAsync(options).ConfigureAwait(false);
                 if (started)
                 {
+                    ActiveGameMonitor.Start();
+                    LiveTelemetryService.Start();
                     TelemetryProvider.Start();
                 }
                 else
                 {
                     await TelemetryProvider.StopAsync().ConfigureAwait(false);
+                    await LiveTelemetryService.StopAsync().ConfigureAwait(false);
+                    await ActiveGameMonitor.StopAsync().ConfigureAwait(false);
                 }
             }
             else
             {
                 await CompanionServer.StopAsync().ConfigureAwait(false);
                 await TelemetryProvider.StopAsync().ConfigureAwait(false);
+                await LiveTelemetryService.StopAsync().ConfigureAwait(false);
+                await ActiveGameMonitor.StopAsync().ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -430,8 +458,11 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         if (_disposed) return;
         _disposed = true;
         BenchmarkCoordinator.Dispose();
+        LiveTelemetryService.Dispose();
+        ActiveGameMonitor.Dispose();
         TelemetryProvider.Dispose();
         CompanionServer.Dispose();
+        SessionOptimizationCoordinator.Dispose();
         _companionSyncGate.Dispose();
         _profileWatcherTimer.Stop();
         lock (_hardwareLock)
