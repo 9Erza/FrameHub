@@ -351,6 +351,11 @@ public sealed class BenchmarkViewModelWorkflowTests
         var startTime = DateTime.UtcNow;
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, startTime)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => controllableBackend, () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+        var completedNotification = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        coordinator.StateChanged += (_, snapshot) =>
+        {
+            if (snapshot.State == CoordinatorState.Completed) completedNotification.TrySetResult();
+        };
 
         await vm.RefreshGamesAsync();
         Assert.IsTrue(vm.CanStart);
@@ -366,12 +371,14 @@ public sealed class BenchmarkViewModelWorkflowTests
 
         var handle = coordinator.TryStartCapture(request);
         Assert.IsTrue(handle.Accepted);
+        Assert.IsTrue(handle.Start());
 
         await controllableBackend.WaitUntilStartedAsync();
         Assert.IsTrue(vm.IsCaptureActive, "VM should observe external capture becoming active.");
 
         controllableBackend.Release();
         await handle.CompletionTask!;
+        await completedNotification.Task.WaitAsync(TimeSpan.FromSeconds(1));
         await vm.RefreshHistoryAsync();
 
         Assert.IsFalse(coordinator.IsActive);
@@ -400,6 +407,11 @@ public sealed class BenchmarkViewModelWorkflowTests
 
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, startTime)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Success), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+        var cancelledNotification = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        coordinator.StateChanged += (_, snapshot) =>
+        {
+            if (snapshot.State == CoordinatorState.Cancelled) cancelledNotification.TrySetResult();
+        };
 
         await vm.RefreshGamesAsync();
 
@@ -414,12 +426,14 @@ public sealed class BenchmarkViewModelWorkflowTests
 
         var handle = coordinator.TryStartCapture(request);
         Assert.IsTrue(handle.Accepted);
+        Assert.IsTrue(handle.Start());
 
         await waitingSignal.Task;
         Assert.AreEqual(BenchmarkUiState.Waiting, vm.State);
 
         await coordinator.StopAsync();
         await handle.CompletionTask!;
+        await cancelledNotification.Task.WaitAsync(TimeSpan.FromSeconds(1));
         await vm.RefreshHistoryAsync();
 
         Assert.IsFalse(coordinator.IsActive);
@@ -436,6 +450,11 @@ public sealed class BenchmarkViewModelWorkflowTests
         var startTime = DateTime.UtcNow;
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, startTime)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Failure), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+        var failedNotification = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        coordinator.StateChanged += (_, snapshot) =>
+        {
+            if (snapshot.State == CoordinatorState.Failed) failedNotification.TrySetResult();
+        };
 
         await vm.RefreshGamesAsync();
 
@@ -449,7 +468,9 @@ public sealed class BenchmarkViewModelWorkflowTests
         };
 
         var handle = coordinator.TryStartCapture(request);
+        Assert.IsTrue(handle.Start());
         await handle.CompletionTask!;
+        await failedNotification.Task.WaitAsync(TimeSpan.FromSeconds(1));
         await vm.RefreshHistoryAsync();
 
         Assert.IsFalse(vm.IsCaptureActive);
@@ -485,6 +506,11 @@ public sealed class BenchmarkViewModelWorkflowTests
         var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Success), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+        var completedNotification = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        coordinator.StateChanged += (_, snapshot) =>
+        {
+            if (snapshot.State == CoordinatorState.Completed) completedNotification.TrySetResult();
+        };
 
         await vm.RefreshGamesAsync();
 
@@ -498,7 +524,9 @@ public sealed class BenchmarkViewModelWorkflowTests
         };
 
         var handle = coordinator.TryStartCapture(request);
+        Assert.IsTrue(handle.Start());
         await handle.CompletionTask!;
+        await completedNotification.Task.WaitAsync(TimeSpan.FromSeconds(1));
 
         Assert.IsTrue(vm.CanStart, "Start command must be available for desktop after external capture finishes.");
 

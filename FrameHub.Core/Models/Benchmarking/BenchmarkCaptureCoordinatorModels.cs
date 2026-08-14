@@ -55,4 +55,12 @@ public sealed record BenchmarkCaptureStartHandle
     public required bool Accepted { get; init; }
     public string? ErrorCode { get; init; }
     public Task<BenchmarkCaptureOutcome>? CompletionTask { get; init; }
+
+    internal Func<bool>? StartReservation { get; init; }
+
+    /// <summary>
+    /// Starts an accepted capture after TryStartCapture has returned its authoritative reservation.
+    /// The operation is idempotent; only the first call can start the reserved worker.
+    /// </summary>
+    public bool Start() => Accepted && (StartReservation?.Invoke() ?? false);
 }

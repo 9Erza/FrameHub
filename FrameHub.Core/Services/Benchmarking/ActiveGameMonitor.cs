@@ -32,6 +32,7 @@ public sealed class ActiveGameMonitor : IActiveGameMonitor
 
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
+    private long _loopGeneration;
     private bool _disposed;
     private volatile ActiveGameSnapshot? _currentSnapshot;
 
@@ -62,9 +63,10 @@ public sealed class ActiveGameMonitor : IActiveGameMonitor
             if (_disposed) return;
             if (_loopTask != null && !_loopTask.IsCompleted) return;
 
+            long generation = ++_loopGeneration;
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
-            _loopTask = Task.Run(() => RunScanLoopAsync(token), token);
+            _loopTask = Task.Run(() => RunScanLoopAsync(generation, token), token);
         }
     }
 
@@ -75,7 +77,12 @@ public sealed class ActiveGameMonitor : IActiveGameMonitor
 
         lock (_lock)
         {
-            if (_loopTask == null) return;
+            _loopGeneration++;
+            _currentSnapshot = null;
+            if (_loopTask == null)
+            {
+                return;
+            }
 
             ctsToDispose = _cts;
             taskToWait = _loopTask;
@@ -101,6 +108,8 @@ public sealed class ActiveGameMonitor : IActiveGameMonitor
         {
             try { ctsToDispose.Dispose(); } catch { }
         }
+
+        _currentSnapshot = null;
     }
 
     public void UpdateSnapshotOnce()
@@ -108,13 +117,21 @@ public sealed class ActiveGameMonitor : IActiveGameMonitor
         _currentSnapshot = ResolveActiveGame();
     }
 
-    private async Task RunScanLoopAsync(CancellationToken cancellationToken)
+    private async Task RunScanLoopAsync(long generation, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                UpdateSnapshotOnce();
+                ActiveGameSnapshot? candidate = ResolveActiveGame();
+                lock (_lock)
+                {
+                    if (generation != _loopGeneration || cancellationToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    _currentSnapshot = candidate;
+                }
                 await _delayProvider(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)

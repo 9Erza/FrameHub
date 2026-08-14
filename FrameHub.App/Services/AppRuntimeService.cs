@@ -86,6 +86,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         BenchmarkCoordinator = new BenchmarkCaptureCoordinator();
         ActiveGameMonitor = new ActiveGameMonitor();
         LiveTelemetryService = new LivePerformanceTelemetryService(ActiveGameMonitor, BenchmarkCoordinator);
+        BenchmarkCoordinator.ConfigureLivePresentMonPreemption(LiveTelemetryService);
         TelemetryProvider = new AppTelemetrySnapshotProvider(this, ActiveGameMonitor, LiveTelemetryService);
         CompanionServer.ConfigureTelemetryProvider(TelemetryProvider, AcquireHardwareLease);
         BenchmarkProvider = new AppBenchmarkProvider(this);
@@ -94,7 +95,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         LaunchService = new AppLibraryLaunchService();
         LibraryProvider = new AppLibraryProvider(this, LaunchService);
         CompanionServer.ConfigureLibraryProvider(LibraryProvider);
-        SessionOptimizationCoordinator = new SessionOptimizationCoordinator(ProcessScanner);
+        SessionOptimizationCoordinator = new SessionOptimizationCoordinator(ProcessScanner, benchmarkArbiter: BenchmarkCoordinator);
         SessionOptimizationProvider = new AppSessionOptimizationProvider(this, SessionOptimizationCoordinator, ActiveGameMonitor, BenchmarkCoordinator);
         CompanionServer.ConfigureSessionOptimizationProvider(SessionOptimizationProvider);
 
@@ -142,6 +143,11 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         await _companionSyncGate.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (_disposed)
+            {
+                return;
+            }
+
             var options = new CompanionOptions
             {
                 Enabled = Settings.CompanionEnabled,
@@ -457,20 +463,36 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         if (_disposed) return;
         _disposed = true;
-        BenchmarkCoordinator.Dispose();
-        LiveTelemetryService.Dispose();
-        ActiveGameMonitor.Dispose();
-        TelemetryProvider.Dispose();
-        CompanionServer.Dispose();
-        SessionOptimizationCoordinator.Dispose();
-        _companionSyncGate.Dispose();
         _profileWatcherTimer.Stop();
-        lock (_hardwareLock)
+
+        _companionSyncGate.Wait();
+        try
         {
-            _hardwareMonitor.Dispose();
+            // Stop external consumers before disposing the providers and state authorities they call.
+            CompanionServer.Dispose();
+            TelemetryProvider.Dispose();
+            LiveTelemetryService.Dispose();
+            ActiveGameMonitor.Dispose();
+            BenchmarkCoordinator.Dispose();
+            bool sessionCoordinatorStopped = Task.Run(
+                async () => await SessionOptimizationCoordinator.ShutdownAsync().ConfigureAwait(false))
+                .GetAwaiter()
+                .GetResult();
+            if (!sessionCoordinatorStopped)
+            {
+                LoggerService.Instance.Warn("Session Optimization shutdown timed out; synchronization resources will be released when the active operation exits.");
+            }
+            lock (_hardwareLock)
+            {
+                _hardwareMonitor.Dispose();
+            }
+            HardwareTopologyService.ReleaseCpuLoadCounters();
+            HardwareTopologyService.Dispose();
+            SettingsService.Dispose();
         }
-        HardwareTopologyService.ReleaseCpuLoadCounters();
-        HardwareTopologyService.Dispose();
-        SettingsService.Dispose();
+        finally
+        {
+            _companionSyncGate.Release();
+        }
     }
 }

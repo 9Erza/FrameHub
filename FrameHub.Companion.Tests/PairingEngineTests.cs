@@ -63,6 +63,20 @@ public sealed class PairingEngineTests
     }
 
     [TestMethod]
+    public void ThrowingStatusSubscriber_DoesNotBreakPairingSessionCreation()
+    {
+        var engine = CreateEngine();
+        int healthySubscriberCalls = 0;
+        engine.SessionStatusChanged += (_, _) => throw new InvalidOperationException("subscriber failure");
+        engine.SessionStatusChanged += (_, _) => healthySubscriberCalls++;
+
+        PairingSessionStatus status = engine.StartPairingSession("127.0.0.1", 47821);
+
+        Assert.IsTrue(status.IsActive);
+        Assert.AreEqual(1, healthySubscriberCalls);
+    }
+
+    [TestMethod]
     public async Task PairingToken_ExpiresAfterTTL()
     {
         var engine = CreateEngine();
@@ -183,6 +197,23 @@ public sealed class PairingEngineTests
     }
 
     [TestMethod]
+    public async Task CompletingPendingRequest_PublishesInactivePairingStatus()
+    {
+        var engine = CreateEngine();
+        var statuses = new List<PairingSessionStatus>();
+        engine.SessionStatusChanged += (_, status) => statuses.Add(status);
+        string token = engine.StartPairingSession("127.0.0.1", 47821).PairingToken!;
+        Task<PairingApprovalResult> submitTask = engine.SubmitPairingRequestAsync(token, "Phone", "192.168.1.100");
+
+        Assert.IsTrue(engine.DenyPendingRequest());
+        await submitTask;
+
+        Assert.IsTrue(statuses.Any(status => status.PendingRequest != null));
+        Assert.IsFalse(statuses[^1].IsActive);
+        Assert.IsNull(statuses[^1].PendingRequest);
+    }
+
+    [TestMethod]
     public async Task FaultedStore_PreventsApprovalCredentialIssuance()
     {
         // Corrupt store
@@ -202,6 +233,27 @@ public sealed class PairingEngineTests
 
         var result = await submitTask;
         Assert.AreEqual(PairingResultStatus.StoreFaulted, result.Status);
+    }
+
+    [TestMethod]
+    public async Task ApprovalPersistenceFailure_IssuesNoCredentialAndFailsClosed()
+    {
+        string unwritableStorePath = Path.Combine(_tempDirectory, "store-as-directory");
+        Directory.CreateDirectory(unwritableStorePath);
+        var store = new DeviceRecordStore(unwritableStorePath);
+        var engine = new PairingEngine(store, () => _currentTime);
+        string token = engine.StartPairingSession("127.0.0.1", 47821).PairingToken!;
+        Task<PairingApprovalResult> submitTask = engine.SubmitPairingRequestAsync(token, "Phone", "192.168.1.100");
+
+        bool allowed = engine.AllowPendingRequest(out string? credential, out var record);
+        PairingApprovalResult result = await submitTask;
+
+        Assert.IsFalse(allowed);
+        Assert.IsNull(credential);
+        Assert.IsNull(record);
+        Assert.AreEqual(PairingResultStatus.StoreFaulted, result.Status);
+        Assert.IsTrue(store.IsFaulted);
+        Assert.AreEqual(0, store.Devices.Count);
     }
 
     [TestMethod]

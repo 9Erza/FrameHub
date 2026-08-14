@@ -112,8 +112,9 @@ public sealed class DeviceRecordStore
 
             var updatedScopes = existing.Scopes.ToList();
             updatedScopes.Add(scope.Trim());
-            _devices[index] = existing with { Scopes = updatedScopes };
-            return SaveInternal();
+            var updatedDevices = _devices.ToList();
+            updatedDevices[index] = existing with { Scopes = updatedScopes };
+            return CommitInternal(updatedDevices);
         }
     }
 
@@ -138,13 +139,16 @@ public sealed class DeviceRecordStore
             }
 
             var updatedScopes = existing.Scopes.Where(s => !s.Equals(scope.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
-            _devices[index] = existing with { Scopes = updatedScopes };
-            return SaveInternal();
+            var updatedDevices = _devices.ToList();
+            updatedDevices[index] = existing with { Scopes = updatedScopes };
+            return CommitInternal(updatedDevices);
         }
     }
 
     public bool AddDevice(PairedDeviceRecord record)
     {
+        ArgumentNullException.ThrowIfNull(record);
+
         lock (_lock)
         {
             if (IsFaulted)
@@ -152,9 +156,9 @@ public sealed class DeviceRecordStore
                 throw new InvalidOperationException("Cannot modify paired device store while in a faulted state.");
             }
 
-            _devices.RemoveAll(d => d.Id == record.Id);
-            _devices.Add(record);
-            return SaveInternal();
+            var updatedDevices = _devices.Where(d => d.Id != record.Id).ToList();
+            updatedDevices.Add(record);
+            return CommitInternal(updatedDevices);
         }
     }
 
@@ -167,10 +171,10 @@ public sealed class DeviceRecordStore
                 throw new InvalidOperationException("Cannot modify paired device store while in a faulted state.");
             }
 
-            int removed = _devices.RemoveAll(d => d.Id == id);
-            if (removed > 0)
+            var updatedDevices = _devices.Where(d => d.Id != id).ToList();
+            if (updatedDevices.Count != _devices.Count)
             {
-                return SaveInternal();
+                return CommitInternal(updatedDevices);
             }
             return false;
         }
@@ -201,7 +205,9 @@ public sealed class DeviceRecordStore
             byte[] inputHash = Encoding.UTF8.GetBytes(credentialHash);
             foreach (var device in _devices)
             {
+                if (string.IsNullOrWhiteSpace(device.CredentialHash)) continue;
                 byte[] storedHash = Encoding.UTF8.GetBytes(device.CredentialHash);
+                if (inputHash.Length != storedHash.Length) continue;
                 if (CryptographicOperations.FixedTimeEquals(inputHash, storedHash))
                 {
                     return device;
@@ -215,7 +221,6 @@ public sealed class DeviceRecordStore
     {
         lock (_lock)
         {
-            _devices.Clear();
             IsFaulted = false;
             FaultMessage = null;
 
@@ -231,11 +236,22 @@ public sealed class DeviceRecordStore
                 LoggerService.Instance.Warn($"Failed to delete paired devices store file during reset: {ex.Message}");
             }
 
-            SaveInternal();
+            CommitInternal(new List<PairedDeviceRecord>());
         }
     }
 
-    private bool SaveInternal()
+    private bool CommitInternal(List<PairedDeviceRecord> updatedDevices)
+    {
+        if (!SaveInternal(updatedDevices))
+        {
+            return false;
+        }
+
+        _devices = updatedDevices;
+        return true;
+    }
+
+    private bool SaveInternal(IReadOnlyList<PairedDeviceRecord> devices)
     {
         if (IsFaulted)
         {
@@ -252,7 +268,7 @@ public sealed class DeviceRecordStore
             }
 
             tempFile = Path.Combine(dir ?? AppContext.BaseDirectory, $"{Path.GetFileName(_filePath)}.{Guid.NewGuid():N}.tmp");
-            string json = JsonSerializer.Serialize(_devices, new JsonSerializerOptions
+            string json = JsonSerializer.Serialize(devices, new JsonSerializerOptions
             {
                 WriteIndented = true
             });
@@ -264,6 +280,8 @@ public sealed class DeviceRecordStore
         }
         catch (Exception ex)
         {
+            IsFaulted = true;
+            FaultMessage = $"Failed to persist paired device changes: {ex.Message}";
             LoggerService.Instance.Error($"Failed to atomically write paired device store to '{_filePath}': {ex.Message}");
             return false;
         }

@@ -227,6 +227,29 @@ public sealed class LanSecurityIntegrationTests
     }
 
     [TestMethod]
+    public async Task MalformedApiPrefixes_DoNotInheritLoopbackReadExemptions()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        Assert.IsTrue(await server.StartAsync(new CompanionOptions { Enabled = true, Port = port }));
+
+        using var client = new HttpClient();
+        string[] malformedPaths =
+        [
+            "/api/v1/libraryevil",
+            "/api/v1/benchmarksevil",
+            "/api/v1/session-optimizationevil",
+            "/api/v1/telemetryevil"
+        ];
+
+        foreach (string path in malformedPaths)
+        {
+            HttpResponseMessage response = await client.GetAsync($"http://127.0.0.1:{port}{path}");
+            Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode, $"Malformed route '{path}' must use the authenticated default policy.");
+        }
+    }
+
+    [TestMethod]
     public async Task FullPairingAndLANAuth_EndToEndFlow()
     {
         var candidates = LanAddressService.GetAvailableLanAddresses();

@@ -64,10 +64,11 @@ public sealed class PresentMonApiFrameSource : IPresentMonFrameSource
             diagnostics.BlobSize = blobSize;
             foreach (PmQueryElement element in elements) diagnostics.RegisteredMetrics.Add(new(element.Metric, available[element.Metric].FrameType));
             Require(api.StartTrackingProcess(session, (uint)processId), "pmStartTrackingProcess"); tracking = true;
+            byte[] blobs = new byte[checked((int)(blobSize * FrameCapacity))];
             DateTime end = DateTime.UtcNow + duration;
-            while (DateTime.UtcNow < end) { Consume(api, query, processId, _application, elements, available, blobSize, frames, diagnostics); await Task.Delay(20, cancellationToken).ConfigureAwait(false); }
+            while (DateTime.UtcNow < end) { Consume(api, query, processId, _application, elements, available, blobSize, blobs, frames, diagnostics); await Task.Delay(20, cancellationToken).ConfigureAwait(false); }
             Require(api.FlushFrames(session, (uint)processId), "pmFlushFrames");
-            for (int i = 0; i < 3; i++) { if (Consume(api, query, processId, _application, elements, available, blobSize, frames, diagnostics) == 0) break; }
+            for (int i = 0; i < 3; i++) { if (Consume(api, query, processId, _application, elements, available, blobSize, blobs, frames, diagnostics) == 0) break; }
             diagnostics.SamplesWithSwapChainAddress = frames.Count(frame => !string.IsNullOrWhiteSpace(frame.SwapChainAddress));
             diagnostics.SamplesWithPositiveBetweenPresents = frames.Count(frame => frame.MsBetweenPresents > 0);
             diagnostics.SamplesWithDisplayedTime = frames.Count(frame => frame.DisplayedTime.HasValue);
@@ -82,9 +83,9 @@ public sealed class PresentMonApiFrameSource : IPresentMonFrameSource
         }
     }
     public static IReadOnlyList<PmMetric> FrameQueryMetrics => RequestedMetrics;
-    private static int Consume(IPresentMonApi api, nint query, int processId, string? application, PmQueryElement[] elements, IReadOnlyDictionary<PmMetric, PmFrameMetricInfo> types, uint blobSize, List<BenchmarkFrameSample> destination, PresentMonApiCaptureDiagnostics diagnostics)
+    private static int Consume(IPresentMonApi api, nint query, int processId, string? application, PmQueryElement[] elements, IReadOnlyDictionary<PmMetric, PmFrameMetricInfo> types, uint blobSize, byte[] blobs, List<BenchmarkFrameSample> destination, PresentMonApiCaptureDiagnostics diagnostics)
     {
-        byte[] blobs = new byte[checked((int)(blobSize * FrameCapacity))]; uint count = FrameCapacity;
+        uint count = FrameCapacity;
         diagnostics.ConsumeCalls++; PmStatus status = api.ConsumeFrames(query, (uint)processId, blobs, ref count);
         if (status != PmStatus.Success) diagnostics.NonSuccessStatuses[status] = diagnostics.NonSuccessStatuses.GetValueOrDefault(status) + 1;
         Require(status, "pmConsumeFrames");

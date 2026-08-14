@@ -8,8 +8,15 @@ namespace FrameHub.Core.Services.SessionOptimization;
 
 public sealed class SessionOptimizationSettingsService
 {
-    private readonly string _filePath = AppPaths.GetUserDataFilePath("session_optimization.json");
+    private readonly string _filePath;
     private readonly ILogger _logger = LoggerService.Instance;
+
+    public SessionOptimizationSettingsService(string? filePath = null)
+    {
+        _filePath = string.IsNullOrWhiteSpace(filePath)
+            ? AppPaths.GetUserDataFilePath("session_optimization.json")
+            : Path.GetFullPath(filePath);
+    }
 
     public SessionOptimizationSettings Load()
     {

@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -50,7 +51,14 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
             {
                 _status = value;
             }
-            StatusChanged?.Invoke(this, _status);
+
+            var handlers = StatusChanged;
+            if (handlers == null) return;
+            foreach (EventHandler<CompanionStatusInfo> handler in handlers.GetInvocationList())
+            {
+                try { handler(this, value); }
+                catch (Exception ex) { LoggerService.Instance.Warn($"Companion status subscriber failed: {ex.Message}"); }
+            }
         }
     }
 
@@ -200,6 +208,13 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
                 {
                     if (context.Request.Path.Equals("/api/v1/telemetry/ws", StringComparison.OrdinalIgnoreCase))
                     {
+                        if (!CompanionAuthMiddleware.IsHostAllowed(context.Request.Host.Value ?? string.Empty, options))
+                        {
+                            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                            await context.Response.WriteAsync("Invalid Host header.");
+                            return;
+                        }
+
                         await TelemetryWebSocketHandler.HandleWebSocketRequestAsync(
                             context,
                             TicketStore,

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using FrameHub.Companion.Models;
 using FrameHub.Companion.Persistence;
+using FrameHub.Core.Logging;
 
 using FrameHub.Companion.Authentication;
 
@@ -65,7 +66,7 @@ public sealed class PairingEngine
             _currentPairingUrl = $"http://{lanIp}:{port}/pair#v=1&t={_activeToken}";
 
             var status = GetCurrentStatus();
-            SessionStatusChanged?.Invoke(this, status);
+            NotifySessionStatusChanged(status);
             return status;
         }
     }
@@ -75,7 +76,7 @@ public sealed class PairingEngine
         lock (_gate)
         {
             CleanupSessionInternal(PairingResultStatus.Cancelled);
-            SessionStatusChanged?.Invoke(this, GetCurrentStatus());
+            NotifySessionStatusChanged(GetCurrentStatus());
         }
     }
 
@@ -98,6 +99,7 @@ public sealed class PairingEngine
             if (_expiresAtUtc.HasValue && _clock() >= _expiresAtUtc.Value)
             {
                 CleanupSessionInternal(PairingResultStatus.Timeout);
+                NotifySessionStatusChanged(GetCurrentStatus());
                 return new PairingApprovalResult(PairingResultStatus.Timeout);
             }
 
@@ -143,11 +145,12 @@ public sealed class PairingEngine
                     if (_pendingTcs == tcs && !tcs.Task.IsCompleted)
                     {
                         CleanupSessionInternal(PairingResultStatus.Timeout);
+                        NotifySessionStatusChanged(GetCurrentStatus());
                     }
                 }
             });
 
-            SessionStatusChanged?.Invoke(this, GetCurrentStatus());
+            NotifySessionStatusChanged(GetCurrentStatus());
         }
 
         using var clientReg = cancellationToken.Register(() =>
@@ -157,6 +160,7 @@ public sealed class PairingEngine
                 if (_pendingTcs == tcs && !tcs.Task.IsCompleted)
                 {
                     CleanupSessionInternal(PairingResultStatus.Disconnected);
+                    NotifySessionStatusChanged(GetCurrentStatus());
                 }
             }
         });
@@ -179,6 +183,7 @@ public sealed class PairingEngine
             if (_clientCancellationToken.IsCancellationRequested)
             {
                 CleanupSessionInternal(PairingResultStatus.Disconnected);
+                NotifySessionStatusChanged(GetCurrentStatus());
                 return false;
             }
 
@@ -187,6 +192,7 @@ public sealed class PairingEngine
                 var faultResult = new PairingApprovalResult(PairingResultStatus.StoreFaulted);
                 _pendingTcs.TrySetResult(faultResult);
                 CleanupSessionInternal(PairingResultStatus.StoreFaulted);
+                NotifySessionStatusChanged(GetCurrentStatus());
                 return false;
             }
 
@@ -204,12 +210,21 @@ public sealed class PairingEngine
                 Scopes = new List<string> { CompanionScopes.ReadStatus }
             };
 
-            _deviceStore.AddDevice(record);
+            if (!_deviceStore.AddDevice(record))
+            {
+                plaintextCredential = null;
+                record = null;
+                _pendingTcs.TrySetResult(new PairingApprovalResult(PairingResultStatus.StoreFaulted));
+                CleanupSessionInternal(PairingResultStatus.StoreFaulted);
+                NotifySessionStatusChanged(GetCurrentStatus());
+                return false;
+            }
 
             var approvedResult = new PairingApprovalResult(PairingResultStatus.Approved, plaintextCredential, record);
             _pendingTcs.TrySetResult(approvedResult);
 
             CleanupSessionInternal(PairingResultStatus.Approved);
+            NotifySessionStatusChanged(GetCurrentStatus());
             return true;
         }
     }
@@ -226,6 +241,7 @@ public sealed class PairingEngine
             var deniedResult = new PairingApprovalResult(PairingResultStatus.Denied);
             _pendingTcs.TrySetResult(deniedResult);
             CleanupSessionInternal(PairingResultStatus.Denied);
+            NotifySessionStatusChanged(GetCurrentStatus());
             return true;
         }
     }
@@ -252,6 +268,17 @@ public sealed class PairingEngine
         }
         _pendingTcs = null;
         _pendingRequest = null;
+    }
+
+    private void NotifySessionStatusChanged(PairingSessionStatus status)
+    {
+        var handlers = SessionStatusChanged;
+        if (handlers == null) return;
+        foreach (EventHandler<PairingSessionStatus> handler in handlers.GetInvocationList())
+        {
+            try { handler(this, status); }
+            catch (Exception ex) { LoggerService.Instance.Warn($"Pairing status subscriber failed: {ex.Message}"); }
+        }
     }
 
     public static string EncodeBase64Url(byte[] data)

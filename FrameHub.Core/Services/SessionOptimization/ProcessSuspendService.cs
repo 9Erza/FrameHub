@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace FrameHub.Core.Services.SessionOptimization;
 
-public sealed class ProcessSuspendService
+public class ProcessSuspendService
 {
     private const uint PROCESS_SUSPEND_RESUME = 0x0800;
     private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
@@ -83,7 +83,7 @@ public sealed class ProcessSuspendService
         public string? ExecutablePath { get; init; }
     }
 
-    public Task<SessionProcessSnapshot> CaptureProcessSnapshotAsync(CancellationToken cancellationToken)
+    public virtual Task<SessionProcessSnapshot> CaptureProcessSnapshotAsync(CancellationToken cancellationToken)
     {
         return Task.Run(() => CaptureProcessSnapshot(cancellationToken), cancellationToken);
     }
@@ -109,7 +109,7 @@ public sealed class ProcessSuspendService
             .ToList();
     }
 
-    public IReadOnlyList<SuspendCandidate> BuildCandidates(
+    public virtual IReadOnlyList<SuspendCandidate> BuildCandidates(
         SessionProcessSnapshot snapshot,
         IEnumerable<BackgroundProcessRule> enabledRules,
         IEnumerable<string> customProcessNames,
@@ -332,7 +332,7 @@ public sealed class ProcessSuspendService
             .ToList();
     }
 
-    public SessionActionResult SuspendProcesses(IEnumerable<SuspendCandidate> candidates)
+    public virtual SessionActionResult SuspendProcesses(IEnumerable<SuspendCandidate> candidates)
     {
         var result = new SessionActionResult();
 
@@ -362,7 +362,7 @@ public sealed class ProcessSuspendService
         return result;
     }
 
-    public SessionActionResult ResumeProcesses(IEnumerable<SuspendedProcessRecord> records)
+    public virtual SessionActionResult ResumeProcesses(IEnumerable<SuspendedProcessRecord> records)
     {
         var result = new SessionActionResult();
 
@@ -416,6 +416,42 @@ public sealed class ProcessSuspendService
             {
                 result.FailedCount++;
                 result.Messages.Add($"{record.ProcessName} PID {record.ProcessId}: {message}");
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Resolves recovery records only when the recorded process no longer exists or the PID now
+    /// belongs to a different process instance. A matching process is deliberately left unresolved:
+    /// identity proves which process it is, but not whether FrameHub still owns a suspension to release.
+    /// </summary>
+    public virtual SessionActionResult ResolveProcessesWithoutResume(IEnumerable<SuspendedProcessRecord> records)
+    {
+        var result = new SessionActionResult();
+        foreach (var record in records.GroupBy(x => x.ProcessId).Select(g => g.First()))
+        {
+            IdentityValidationResult validation = ValidateProcessIdentity(record, ReadProcessIdentity(record.ProcessId));
+            if (validation == IdentityValidationResult.ProcessNotFound)
+            {
+                result.ResolvedCount++;
+                result.Records.Add(record);
+                result.Messages.Add($"{record.ProcessName} PID {record.ProcessId}: process no longer exists; ambiguous recovery record resolved without resume.");
+            }
+            else if (validation == IdentityValidationResult.DifferentProcess)
+            {
+                result.ResolvedCount++;
+                result.StaleProcessCount++;
+                result.Records.Add(record);
+                result.Messages.Add($"{record.ProcessName} PID {record.ProcessId}: PID belongs to a different process instance; no resume attempted.");
+            }
+            else
+            {
+                result.FailedCount++;
+                result.Messages.Add(validation == IdentityValidationResult.CannotVerify
+                    ? $"{record.ProcessName} PID {record.ProcessId}: process identity cannot be verified; no resume attempted."
+                    : $"{record.ProcessName} PID {record.ProcessId}: suspension ownership is ambiguous; manual process recovery is required.");
             }
         }
 

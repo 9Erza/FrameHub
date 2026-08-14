@@ -94,6 +94,42 @@ public sealed class DeviceRecordStoreTests
     }
 
     [TestMethod]
+    public void FailedPersistence_DoesNotAuthorizeUncommittedDeviceAndFaultsClosed()
+    {
+        Directory.CreateDirectory(_tempStorePath);
+        var store = new DeviceRecordStore(_tempStorePath);
+        string credential = "credential-that-must-not-be-authorized";
+        string hash = PairingEngine.HashCredential(credential);
+
+        bool added = store.AddDevice(new PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Uncommitted Device",
+            CredentialHash = hash
+        });
+
+        Assert.IsFalse(added);
+        Assert.IsTrue(store.IsFaulted, "Authorization must fail closed after the durable store cannot be updated.");
+        Assert.AreEqual(0, store.Devices.Count);
+        Assert.IsNull(store.FindByCredentialHash(hash));
+    }
+
+    [TestMethod]
+    public void MalformedStoredCredentialHash_IsIgnoredInsteadOfThrowing()
+    {
+        var store = new DeviceRecordStore(_tempStorePath);
+        Assert.IsTrue(store.AddDevice(new PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Malformed Device",
+            CredentialHash = "x"
+        }));
+
+        string validHash = PairingEngine.HashCredential("valid-looking-credential");
+        Assert.IsNull(store.FindByCredentialHash(validHash));
+    }
+
+    [TestMethod]
     public void ResetStore_ClearsFaultedStateAndRemovesCorruptedFile()
     {
         File.WriteAllText(_tempStorePath, "INVALID_JSON");

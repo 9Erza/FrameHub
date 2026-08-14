@@ -141,7 +141,9 @@ public sealed class AppTelemetrySnapshotProvider : ITelemetrySnapshotProvider, I
                 GpuTemperatureCelsius: metrics.GpuTemp > 0 ? metrics.GpuTemp : null,
                 RamUsedBytes: ramUsedBytes,
                 RamTotalBytes: ramTotalBytes,
-                VramUsedBytes: metrics.VramUsagePct > 0 && ramTotalBytes.HasValue ? (long?)(metrics.VramUsagePct / 100.0 * 4096.0 * 1024.0 * 1024.0) : null,
+                // The hardware backend currently exposes VRAM utilization percentage, not capacity.
+                // Do not fabricate byte values from an assumed GPU size.
+                VramUsedBytes: null,
                 VramTotalBytes: null
             );
         }

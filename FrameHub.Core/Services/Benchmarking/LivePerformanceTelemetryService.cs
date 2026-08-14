@@ -10,7 +10,7 @@ public interface ILivePerformanceTelemetryService : IDisposable
     Task StopAsync();
 }
 
-public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryService
+public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryService, ILivePresentMonPreemption
 {
     private const uint FrameCapacity = 256;
     private static readonly PmMetric[] RequestedMetrics = [PmMetric.SwapChainAddress, PmMetric.BetweenPresents];
@@ -21,6 +21,7 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
     private readonly ILogger _logger;
     private readonly Func<TimeSpan, CancellationToken, Task> _delayProvider;
     private readonly object _lock = new();
+    private readonly object _preemptionLock = new();
 
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
@@ -28,6 +29,12 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
     private volatile LivePerformanceSnapshot? _currentSnapshot;
 
     private volatile bool _preempted;
+    private bool _ownsNativeSession;
+    private bool _preemptionReleaseRequested;
+    private NativeOwnershipState _nativeOwnershipState = NativeOwnershipState.Released;
+    private long _nativeGeneration;
+    private long _activeNativeGeneration;
+    private TaskCompletionSource<bool>? _nativeSessionReleased;
 
     public LivePerformanceSnapshot? CurrentSnapshot => _currentSnapshot;
 
@@ -51,8 +58,54 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
     {
         if (e.IsActive)
         {
-            _preempted = true;
+            lock (_preemptionLock)
+            {
+                _preemptionReleaseRequested = false;
+                _preempted = true;
+            }
             _currentSnapshot = null;
+        }
+        else
+        {
+            ReleasePresentMonPreemption();
+        }
+    }
+
+    public async Task<bool> RequestPresentMonReleaseAsync(CancellationToken cancellationToken)
+    {
+        _currentSnapshot = null;
+
+        Task<bool>? releaseTask;
+        bool releaseConfirmed;
+        lock (_preemptionLock)
+        {
+            _preemptionReleaseRequested = false;
+            _preempted = true;
+            releaseTask = _ownsNativeSession ? _nativeSessionReleased?.Task : null;
+            releaseConfirmed = _nativeOwnershipState == NativeOwnershipState.Released;
+        }
+
+        return releaseTask != null
+            ? await releaseTask.WaitAsync(cancellationToken).ConfigureAwait(false)
+            : releaseConfirmed;
+    }
+
+    public void ReleasePresentMonPreemption()
+    {
+        lock (_preemptionLock)
+        {
+            if (_ownsNativeSession)
+            {
+                _preemptionReleaseRequested = true;
+                return;
+            }
+
+            if (_nativeOwnershipState == NativeOwnershipState.ReleaseFailedRecoverable)
+            {
+                _nativeOwnershipState = NativeOwnershipState.RecoveryPending;
+            }
+            _preemptionReleaseRequested = false;
+            _preempted = false;
         }
     }
 
@@ -114,6 +167,7 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
         DateTime trackingProcessStartTimeUtc = DateTime.MinValue;
         PmQueryElement[] elements = Array.Empty<PmQueryElement>();
         uint blobSize = 0;
+        byte[] blobs = Array.Empty<byte>();
         IReadOnlyDictionary<PmMetric, PmFrameMetricInfo>? availableMetrics = null;
 
         var swapChainBuffers = new Dictionary<string, List<(double FrametimeMs, DateTime ReceivedAt)>>(StringComparer.OrdinalIgnoreCase);
@@ -127,7 +181,7 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
                     _preempted = true;
                     _currentSnapshot = null;
                     swapChainBuffers.Clear();
-                    TeardownSession(ref api, ref session, ref query, ref trackingPid);
+                    TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
 
                     await WaitDelayAsync(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
                     continue;
@@ -140,7 +194,7 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
                 {
                     _currentSnapshot = null;
                     swapChainBuffers.Clear();
-                    TeardownSession(ref api, ref session, ref query, ref trackingPid);
+                    TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
 
                     await WaitDelayAsync(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
                     continue;
@@ -156,12 +210,18 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
                 {
                     _currentSnapshot = null;
                     swapChainBuffers.Clear();
-                    TeardownSession(ref api, ref session, ref query, ref trackingPid);
+                    TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
                 }
 
                 if (session == 0)
                 {
                     if (_benchmarkCoordinator.IsActive || _preempted) continue;
+
+                    if (!TryAcquireNativeSessionOwnership())
+                    {
+                        await WaitDelayAsync(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
 
                     try
                     {
@@ -190,10 +250,11 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
                         {
                             throw new BenchmarkException("presentmon_api_invalid_blob", $"RegisterFrameQuery failed with {regStatus}, blobSize={blobSize}");
                         }
+                        blobs = new byte[checked((int)(blobSize * FrameCapacity))];
 
                         if (_benchmarkCoordinator.IsActive || _preempted)
                         {
-                            TeardownSession(ref api, ref session, ref query, ref trackingPid);
+                            TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
                             continue;
                         }
 
@@ -212,7 +273,7 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
                         _logger.Warn($"LivePerformanceTelemetryService PresentMon session init failed: {ex.Message}");
                         _currentSnapshot = null;
                         swapChainBuffers.Clear();
-                        TeardownSession(ref api, ref session, ref query, ref trackingPid);
+                        TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
 
                         await WaitDelayAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
                         continue;
@@ -223,12 +284,11 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
                 {
                     _currentSnapshot = null;
                     swapChainBuffers.Clear();
-                    TeardownSession(ref api, ref session, ref query, ref trackingPid);
+                    TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
                     continue;
                 }
 
                 DateTime now = DateTime.UtcNow;
-                byte[] blobs = new byte[checked((int)(blobSize * FrameCapacity))];
                 uint count = FrameCapacity;
 
                 PmStatus consumeStatus;
@@ -247,7 +307,7 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
                     _logger.Warn($"Live telemetry consume error: {consumeStatus}");
                     _currentSnapshot = null;
                     swapChainBuffers.Clear();
-                    TeardownSession(ref api, ref session, ref query, ref trackingPid);
+                    TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
 
                     await WaitDelayAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
                     continue;
@@ -268,7 +328,7 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
                 {
                     _currentSnapshot = null;
                     swapChainBuffers.Clear();
-                    TeardownSession(ref api, ref session, ref query, ref trackingPid);
+                    TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
                 }
                 else
                 {
@@ -281,7 +341,7 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
         finally
         {
             _currentSnapshot = null;
-            TeardownSession(ref api, ref session, ref query, ref trackingPid);
+            TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
         }
     }
 
@@ -389,29 +449,113 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
         );
     }
 
-    private static void TeardownSession(ref IPresentMonApi? api, ref nint session, ref nint query, ref uint trackingPid)
+    private bool TryAcquireNativeSessionOwnership()
     {
+        lock (_preemptionLock)
+        {
+            if (_preempted || _ownsNativeSession || _nativeOwnershipState is not (NativeOwnershipState.Released or NativeOwnershipState.RecoveryPending))
+            {
+                return false;
+            }
+
+            _ownsNativeSession = true;
+            _nativeOwnershipState = NativeOwnershipState.Owned;
+            _activeNativeGeneration = ++_nativeGeneration;
+            _nativeSessionReleased = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            return true;
+        }
+    }
+
+    private void TeardownOwnedSession(ref IPresentMonApi? api, ref nint session, ref nint query, ref uint trackingPid)
+    {
+        long generation;
+        lock (_preemptionLock)
+        {
+            generation = _activeNativeGeneration;
+        }
+
+        NativeTeardownResult teardown = TeardownSession(ref api, ref session, ref query, ref trackingPid);
+        lock (_preemptionLock)
+        {
+            if (!_ownsNativeSession || generation != _activeNativeGeneration)
+            {
+                return;
+            }
+
+            _ownsNativeSession = false;
+            _nativeOwnershipState = teardown.ReleaseConfirmed
+                ? NativeOwnershipState.Released
+                : teardown.FreshOwnershipSafe
+                    ? NativeOwnershipState.ReleaseFailedRecoverable
+                    : NativeOwnershipState.ReleaseFailedUncertain;
+            _nativeSessionReleased?.TrySetResult(teardown.ReleaseConfirmed);
+            _nativeSessionReleased = null;
+            if (_preemptionReleaseRequested)
+            {
+                if (_nativeOwnershipState == NativeOwnershipState.ReleaseFailedRecoverable)
+                {
+                    _nativeOwnershipState = NativeOwnershipState.RecoveryPending;
+                }
+                _preemptionReleaseRequested = false;
+                _preempted = false;
+            }
+        }
+    }
+
+    private static NativeTeardownResult TeardownSession(ref IPresentMonApi? api, ref nint session, ref nint query, ref uint trackingPid)
+    {
+        bool succeeded = true;
+        bool disposeSucceeded = true;
+        bool closeConfirmed = session == 0;
         if (api != null)
         {
             if (trackingPid != 0 && session != 0)
             {
-                try { api.StopTrackingProcess(session, trackingPid); } catch { }
+                try { succeeded &= api.StopTrackingProcess(session, trackingPid) == PmStatus.Success; } catch { succeeded = false; }
                 trackingPid = 0;
             }
             if (query != 0)
             {
-                try { api.FreeFrameQuery(query); } catch { }
+                try { succeeded &= api.FreeFrameQuery(query) == PmStatus.Success; } catch { succeeded = false; }
                 query = 0;
             }
             if (session != 0)
             {
-                try { api.CloseSession(session); } catch { }
+                try
+                {
+                    closeConfirmed = api.CloseSession(session) == PmStatus.Success;
+                    succeeded &= closeConfirmed;
+                }
+                catch
+                {
+                    succeeded = false;
+                    closeConfirmed = false;
+                }
                 session = 0;
             }
-            try { api.Dispose(); } catch { }
+            try { api.Dispose(); }
+            catch
+            {
+                succeeded = false;
+                disposeSucceeded = false;
+            }
             api = null;
         }
+        // Unloading the API DLL does not close or prove closure of a native PresentMon session.
+        // Fresh ownership is safe only when the native close was confirmed and wrapper disposal succeeded.
+        return new NativeTeardownResult(succeeded, closeConfirmed && disposeSucceeded);
     }
+
+    private enum NativeOwnershipState
+    {
+        Released,
+        Owned,
+        ReleaseFailedRecoverable,
+        RecoveryPending,
+        ReleaseFailedUncertain
+    }
+
+    private readonly record struct NativeTeardownResult(bool ReleaseConfirmed, bool FreshOwnershipSafe);
 
     private static bool TryFindMetric(PmQueryElement[] elements, PmMetric metric, out PmQueryElement result)
     {

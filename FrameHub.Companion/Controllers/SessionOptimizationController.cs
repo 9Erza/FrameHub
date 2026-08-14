@@ -54,7 +54,7 @@ public sealed class SessionOptimizationController : ControllerBase
         {
             "no_game" or "not_running" => StatusCode(StatusCodes.Status422UnprocessableEntity, result),
             "already_active" or "benchmark_active" or "operation_in_progress" => StatusCode(StatusCodes.Status409Conflict, result),
-            "apply_failed" => StatusCode(StatusCodes.Status500InternalServerError, result),
+            "apply_failed" or "state_persist_failed" => StatusCode(StatusCodes.Status500InternalServerError, result),
             _ => StatusCode(StatusCodes.Status400BadRequest, result)
         };
     }
@@ -79,8 +79,8 @@ public sealed class SessionOptimizationController : ControllerBase
 
         return result.ErrorCode switch
         {
-            "not_active" or "benchmark_active" or "operation_in_progress" => StatusCode(StatusCodes.Status409Conflict, result),
-            "restore_failed" => StatusCode(StatusCodes.Status500InternalServerError, result),
+            "not_active" or "benchmark_active" or "operation_in_progress" or "restore_partial" or "restore_manual_required" => StatusCode(StatusCodes.Status409Conflict, result),
+            "restore_failed" or "state_persist_failed" or "state_clear_failed" => StatusCode(StatusCodes.Status500InternalServerError, result),
             _ => StatusCode(StatusCodes.Status400BadRequest, result)
         };
     }

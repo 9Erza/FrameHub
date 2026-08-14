@@ -162,6 +162,10 @@
             'optimization.operation_in_progress': 'Another optimization operation is in progress.',
             'optimization.apply_failed': 'Failed to start session optimization.',
             'optimization.restore_failed': 'Failed to restore session optimization.',
+            'optimization.restore_partial': 'Restore is incomplete. Recovery remains pending.',
+            'optimization.restore_manual_required': 'Automatic recovery stopped because prior OS-change ownership is ambiguous. End listed processes or restore taskbar state manually, then retry.',
+            'optimization.state_persist_failed': 'Recovery state could not be saved. Recovery may remain pending.',
+            'optimization.state_clear_failed': 'System state was restored, but recovery metadata could not be cleared.',
             'optimization.unauthorized': 'Authentication required for optimization.',
             'optimization.forbidden': 'Device does not have session optimization permission.',
 
@@ -327,6 +331,10 @@
             'optimization.operation_in_progress': 'Inna operacja optymalizacji jest w toku.',
             'optimization.apply_failed': 'Nie udało się uruchomić optymalizacji sesji.',
             'optimization.restore_failed': 'Nie udało się przywrócić sesji optymalizacji.',
+            'optimization.restore_partial': 'Przywracanie jest niepełne. Odzyskiwanie pozostaje aktywne.',
+            'optimization.restore_manual_required': 'Automatyczne odzyskiwanie zatrzymano, ponieważ własność wcześniejszej zmiany systemowej jest niejednoznaczna. Zakończ wskazane procesy lub ręcznie przywróć stan paska zadań, a następnie spróbuj ponownie.',
+            'optimization.state_persist_failed': 'Nie udało się zapisać stanu odzyskiwania. Odzyskiwanie może nadal być wymagane.',
+            'optimization.state_clear_failed': 'Stan systemu przywrócono, ale nie udało się usunąć metadanych odzyskiwania.',
             'optimization.unauthorized': 'Wymagana autoryzacja do sterowania optymalizacją.',
             'optimization.forbidden': 'Urządzenie nie posiada uprawnienia do optymalizacji sesji.',
 

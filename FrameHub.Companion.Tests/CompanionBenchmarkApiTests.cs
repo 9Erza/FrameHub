@@ -152,6 +152,33 @@ public sealed class CompanionBenchmarkApiTests
     }
 
     [TestMethod]
+    public async Task Start_RejectsUnboundedDurationAndCountdownBeforeProviderInvocation()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        var provider = new TestFakeBenchmarkProvider();
+        server.ConfigureBenchmarkProvider(provider);
+        Assert.IsTrue(await server.StartAsync(new CompanionOptions { Enabled = true, Port = port }));
+
+        var (_, token) = AddTestDevice(CompanionScopes.WriteBenchmarks);
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var durationResponse = await client.PostAsJsonAsync(
+            $"http://127.0.0.1:{port}/api/v1/benchmarks/start",
+            new CompanionBenchmarkStartRequestDto { TargetId = "game-1", DurationSeconds = 601 });
+        var countdownResponse = await client.PostAsJsonAsync(
+            $"http://127.0.0.1:{port}/api/v1/benchmarks/start",
+            new CompanionBenchmarkStartRequestDto { TargetId = "game-1", DurationSeconds = 10, CountdownSeconds = 31 });
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, durationResponse.StatusCode);
+        Assert.AreEqual("invalid_duration", (await durationResponse.Content.ReadFromJsonAsync<CompanionBenchmarkErrorDto>())?.ErrorCode);
+        Assert.AreEqual(HttpStatusCode.BadRequest, countdownResponse.StatusCode);
+        Assert.AreEqual("invalid_countdown", (await countdownResponse.Content.ReadFromJsonAsync<CompanionBenchmarkErrorDto>())?.ErrorCode);
+        Assert.IsFalse(provider.ActiveState, "Rejected requests must not reach the benchmark provider.");
+    }
+
+    [TestMethod]
     public async Task Stop_ActiveAndIdle_Returns200OK()
     {
         int port = GetFreePort();

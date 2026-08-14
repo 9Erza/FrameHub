@@ -127,6 +127,23 @@ public sealed class CompanionServerTests
     }
 
     [TestMethod]
+    public async Task ThrowingStatusSubscriber_DoesNotBreakServerLifecycle()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer();
+        int healthySubscriberCalls = 0;
+        server.StatusChanged += (_, _) => throw new InvalidOperationException("subscriber failure");
+        server.StatusChanged += (_, _) => healthySubscriberCalls++;
+
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        await server.StopAsync();
+
+        Assert.IsTrue(started);
+        Assert.AreEqual(CompanionServiceState.Stopped, server.Status.State);
+        Assert.IsTrue(healthySubscriberCalls >= 3);
+    }
+
+    [TestMethod]
     public async Task RestartAfterFailedBind_SucceedsWhenPortFreed()
     {
         int port = GetFreePort();

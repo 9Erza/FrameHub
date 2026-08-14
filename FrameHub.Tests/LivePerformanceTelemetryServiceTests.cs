@@ -9,6 +9,24 @@ namespace FrameHub.Tests;
 [TestClass]
 public sealed class LivePerformanceTelemetryServiceTests
 {
+    private string _tempDirectory = null!;
+
+    [TestInitialize]
+    public void Setup()
+    {
+        _tempDirectory = Path.Combine(Path.GetTempPath(), "FrameHub.LiveTelemetryTests", Guid.NewGuid().ToString("N"));
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        try
+        {
+            if (Directory.Exists(_tempDirectory)) Directory.Delete(_tempDirectory, recursive: true);
+        }
+        catch { }
+    }
+
     [TestMethod]
     public async Task LiveService_TracksCorrectPid_AndCalculatesRollingMetrics()
     {
@@ -59,11 +77,205 @@ public sealed class LivePerformanceTelemetryServiceTests
         Assert.IsNotNull(service.CurrentSnapshot);
 
         // Trigger coordinator capture
-        coordinator.TryStartCapture(CreateSampleRequest(30));
+        coordinator.TryStartCapture(CreateSampleRequest(30)).Start();
 
         await Task.Delay(100);
         Assert.IsNull(service.CurrentSnapshot);
 
+        await service.StopAsync();
+    }
+
+    [TestMethod]
+    public async Task LiveService_ResumesAfterCoordinatorBecomesInactive()
+    {
+        var game = CreateActiveGame(8877, "g-resume", "Resume Game");
+        var activeGameMonitor = new FakeActiveGameMonitor(game);
+        var coordinator = CreateTestCoordinator();
+        var fakeApis = new List<TestFakeApi>();
+
+        using var service = new LivePerformanceTelemetryService(
+            activeGameMonitor,
+            coordinator,
+            apiFactory: () =>
+            {
+                var api = new TestFakeApi();
+                fakeApis.Add(api);
+                return api;
+            },
+            delayProvider: InstantDelayProvider);
+
+        service.Start();
+        await WaitUntilAsync(() => service.CurrentSnapshot != null);
+
+        coordinator.TryStartCapture(CreateSampleRequest(30)).Start();
+        await WaitUntilAsync(() => service.CurrentSnapshot == null);
+
+        await coordinator.StopAsync();
+        Assert.IsFalse(coordinator.IsActive);
+
+        await WaitUntilAsync(() => service.CurrentSnapshot != null);
+        Assert.AreEqual(8877, service.CurrentSnapshot?.ProcessId);
+        Assert.IsTrue(fakeApis.Count >= 2, "Live telemetry must establish a fresh private PresentMon session after benchmark preemption.");
+
+        await service.StopAsync();
+    }
+
+    [TestMethod]
+    public async Task BenchmarkBackendAcquisition_WaitsForActualLivePresentMonTeardown_ThenLiveResumes()
+    {
+        var game = CreateActiveGame(7788, "g-order", "Ordering Game");
+        var activeGameMonitor = new FakeActiveGameMonitor(game);
+        var storage = new BenchmarkStorageService(_tempDirectory);
+        TestFakeApi? firstApi = null;
+        int apiCount = 0;
+        var backendAcquired = new TaskCompletionSource<IReadOnlyList<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var coordinator = new BenchmarkCaptureCoordinator(
+            storage,
+            backendFactory: () =>
+            {
+                backendAcquired.TrySetResult(firstApi?.Calls.ToList() ?? []);
+                return new BlockingBackend();
+            });
+
+        using var service = new LivePerformanceTelemetryService(
+            activeGameMonitor,
+            coordinator,
+            apiFactory: () =>
+            {
+                var api = new TestFakeApi();
+                if (Interlocked.Increment(ref apiCount) == 1) firstApi = api;
+                return api;
+            },
+            delayProvider: InstantDelayProvider);
+        coordinator.ConfigureLivePresentMonPreemption(service, TimeSpan.FromSeconds(1));
+
+        service.Start();
+        await WaitUntilAsync(() => service.CurrentSnapshot != null);
+
+        Task<BenchmarkCaptureOutcome> capture = coordinator.StartCaptureAsync(CreateSampleRequest(30));
+        IReadOnlyList<string> callsAtBackendAcquisition = await backendAcquired.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var orderedCalls = callsAtBackendAcquisition.ToList();
+
+        CollectionAssert.IsSubsetOf(new[] { "stop:7788", "free", "close", "dispose" }, orderedCalls);
+        Assert.IsTrue(orderedCalls.IndexOf("stop:7788") < orderedCalls.IndexOf("free"));
+        Assert.IsTrue(orderedCalls.IndexOf("free") < orderedCalls.IndexOf("close"));
+        Assert.IsTrue(orderedCalls.IndexOf("close") < orderedCalls.IndexOf("dispose"));
+
+        await coordinator.StopAsync();
+        Assert.AreEqual(CoordinatorStatus.Cancelled, (await capture).Status);
+        await WaitUntilAsync(() => service.CurrentSnapshot != null && Volatile.Read(ref apiCount) >= 2);
+        await service.StopAsync();
+    }
+
+    [TestMethod]
+    public async Task BenchmarkPreemption_NoLiveSession_CompletesImmediately()
+    {
+        var activeGameMonitor = new FakeActiveGameMonitor(null);
+        var storage = new BenchmarkStorageService(_tempDirectory);
+        var backendAcquired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var coordinator = new BenchmarkCaptureCoordinator(
+            storage,
+            backendFactory: () =>
+            {
+                backendAcquired.TrySetResult();
+                return new BlockingBackend();
+            });
+        using var service = new LivePerformanceTelemetryService(activeGameMonitor, coordinator);
+        coordinator.ConfigureLivePresentMonPreemption(service, TimeSpan.FromMilliseconds(200));
+
+        Task<BenchmarkCaptureOutcome> capture = coordinator.StartCaptureAsync(CreateSampleRequest(30));
+        await backendAcquired.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        await coordinator.StopAsync();
+        Assert.AreEqual(CoordinatorStatus.Cancelled, (await capture).Status);
+    }
+
+    [TestMethod]
+    public async Task BenchmarkPreemption_CloseFailure_FailsClosedAndBlocksAllFutureNativeOwnership()
+    {
+        var game = CreateActiveGame(6677, "g-failure", "Failure Game");
+        var activeGameMonitor = new FakeActiveGameMonitor(game);
+        var storage = new BenchmarkStorageService(_tempDirectory);
+        int backendCalls = 0;
+        int apiCount = 0;
+        var coordinator = new BenchmarkCaptureCoordinator(
+            storage,
+            backendFactory: () =>
+            {
+                Interlocked.Increment(ref backendCalls);
+                return new BlockingBackend();
+            });
+        using var service = new LivePerformanceTelemetryService(
+            activeGameMonitor,
+            coordinator,
+            apiFactory: () =>
+            {
+                Interlocked.Increment(ref apiCount);
+                return new TestFakeApi { CloseStatus = PmStatus.Failure };
+            },
+            delayProvider: InstantDelayProvider);
+        coordinator.ConfigureLivePresentMonPreemption(service, TimeSpan.FromSeconds(1));
+
+        service.Start();
+        await WaitUntilAsync(() => service.CurrentSnapshot != null);
+
+        BenchmarkCaptureOutcome outcome = await coordinator.StartCaptureAsync(CreateSampleRequest(30));
+
+        Assert.AreEqual(CoordinatorStatus.Failed, outcome.Status);
+        Assert.AreEqual("live_telemetry_preemption_failed", outcome.ErrorCode);
+        Assert.AreEqual(0, backendCalls);
+
+        BenchmarkCaptureOutcome secondOutcome = await coordinator.StartCaptureAsync(CreateSampleRequest(30));
+
+        Assert.AreEqual(CoordinatorStatus.Failed, secondOutcome.Status);
+        Assert.AreEqual("live_telemetry_preemption_failed", secondOutcome.ErrorCode);
+        Assert.AreEqual(0, backendCalls);
+        Assert.AreEqual(1, apiCount, "An uncertain CloseSession result must block fresh live acquisition for the process lifetime.");
+        Assert.IsFalse(coordinator.IsActive);
+        await service.StopAsync();
+    }
+
+    [TestMethod]
+    public async Task BenchmarkPreemption_StopTrackingWarning_RecoversWithoutRestartAfterCloseSucceeds()
+    {
+        var game = CreateActiveGame(6678, "g-recoverable", "Recoverable Game");
+        var activeGameMonitor = new FakeActiveGameMonitor(game);
+        var storage = new BenchmarkStorageService(_tempDirectory);
+        int backendCalls = 0;
+        int apiCount = 0;
+        var coordinator = new BenchmarkCaptureCoordinator(
+            storage,
+            backendFactory: () =>
+            {
+                Interlocked.Increment(ref backendCalls);
+                return new BlockingBackend();
+            });
+        using var service = new LivePerformanceTelemetryService(
+            activeGameMonitor,
+            coordinator,
+            apiFactory: () => new TestFakeApi
+            {
+                StopStatus = Interlocked.Increment(ref apiCount) == 1 ? PmStatus.Failure : PmStatus.Success,
+                CloseStatus = PmStatus.Success
+            },
+            delayProvider: InstantDelayProvider);
+        coordinator.ConfigureLivePresentMonPreemption(service, TimeSpan.FromSeconds(1));
+
+        service.Start();
+        await WaitUntilAsync(() => service.CurrentSnapshot != null);
+
+        BenchmarkCaptureOutcome firstOutcome = await coordinator.StartCaptureAsync(CreateSampleRequest(30));
+        Assert.AreEqual(CoordinatorStatus.Failed, firstOutcome.Status);
+        Assert.AreEqual("live_telemetry_preemption_failed", firstOutcome.ErrorCode);
+        Assert.AreEqual(0, backendCalls);
+
+        await WaitUntilAsync(() => apiCount >= 2 && service.CurrentSnapshot != null);
+        Task<BenchmarkCaptureOutcome> secondCapture = coordinator.StartCaptureAsync(CreateSampleRequest(30));
+        await WaitUntilAsync(() => Volatile.Read(ref backendCalls) == 1);
+        await coordinator.StopAsync();
+
+        Assert.AreEqual(CoordinatorStatus.Cancelled, (await secondCapture).Status);
+        Assert.IsFalse(coordinator.IsActive);
         await service.StopAsync();
     }
 
@@ -76,7 +288,7 @@ public sealed class LivePerformanceTelemetryServiceTests
         var fakeApi = new TestFakeApi();
 
         // Start coordinator first
-        coordinator.TryStartCapture(CreateSampleRequest(30));
+        coordinator.TryStartCapture(CreateSampleRequest(30)).Start();
 
         for (int i = 0; i < 50 && !coordinator.IsActive; i++)
         {
@@ -158,7 +370,8 @@ public sealed class LivePerformanceTelemetryServiceTests
         await service.StopAsync();
     }
 
-    private static BenchmarkCaptureCoordinator CreateTestCoordinator() => new(
+    private BenchmarkCaptureCoordinator CreateTestCoordinator() => new(
+        storage: new BenchmarkStorageService(_tempDirectory),
         backendFactory: () => new BlockingBackend(),
         delayProvider: InstantDelayProvider
     );
@@ -186,6 +399,16 @@ public sealed class LivePerformanceTelemetryServiceTests
         return Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
     }
 
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        for (int i = 0; i < 100 && !condition(); i++)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.IsTrue(condition(), "Expected asynchronous condition was not reached within the test timeout.");
+    }
+
     private static ActiveGameSnapshot CreateActiveGame(int pid, string id, string name) => new(
         new LibraryItem { Id = id, DisplayName = name, ExecutablePath = $"{name}.exe", Type = LibraryItemType.Game, IsEnabled = true },
         new BenchmarkProcessIdentity { ProcessId = pid, ProcessName = name, ExecutablePath = $"C:\\{name}.exe", StartTimeUtc = DateTime.UtcNow }
@@ -204,13 +427,15 @@ public sealed class LivePerformanceTelemetryServiceTests
     private sealed class TestFakeApi : IPresentMonApi
     {
         public List<string> Calls { get; } = new();
+        public PmStatus CloseStatus { get; init; } = PmStatus.Success;
+        public PmStatus StopStatus { get; init; } = PmStatus.Success;
         private PmQueryElement[] _elements = Array.Empty<PmQueryElement>();
         private bool _consumedOnce;
 
         public PmStatus OpenSession(out nint session) { Calls.Add("open"); session = 10; return PmStatus.Success; }
-        public PmStatus CloseSession(nint session) { Calls.Add("close"); return PmStatus.Success; }
+        public PmStatus CloseSession(nint session) { Calls.Add("close"); return CloseStatus; }
         public PmStatus StartTrackingProcess(nint session, uint processId) { Calls.Add($"start:{processId}"); return PmStatus.Success; }
-        public PmStatus StopTrackingProcess(nint session, uint processId) { Calls.Add($"stop:{processId}"); return PmStatus.Success; }
+        public PmStatus StopTrackingProcess(nint session, uint processId) { Calls.Add($"stop:{processId}"); return StopStatus; }
         public PmStatus FlushFrames(nint session, uint processId) { Calls.Add($"flush:{processId}"); return PmStatus.Success; }
         public PmStatus RegisterFrameQuery(nint session, PmQueryElement[] elements, out nint query, out uint blobSize)
         {

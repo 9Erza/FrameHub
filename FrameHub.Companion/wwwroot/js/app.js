@@ -10,6 +10,7 @@
     let isFetchingCompletedResult = false;
     let activeTab = 'home';
     let desktopLanguageSynced = false;
+    let lastAuthUiPaired = null;
 
     // DOM Elements
     const elements = {
@@ -196,10 +197,17 @@
         }
         elements.authText.textContent = text;
 
+        const authStateChanged = lastAuthUiPaired !== isPaired;
+        lastAuthUiPaired = isPaired;
+
+        if (authStateChanged && !isPaired) {
+            teardownTelemetryConnection(true);
+        }
+
         if (isPaired) {
             elements.pairingSection.classList.add('hidden');
             if (elements.appNav) elements.appNav.classList.remove('hidden');
-            switchTab(activeTab);
+            if (authStateChanged) switchTab(activeTab);
         } else {
             elements.pairingSection.classList.remove('hidden');
             if (elements.appNav) elements.appNav.classList.add('hidden');
@@ -370,6 +378,8 @@
                     loadTargets();
                     fetchHistory();
                     fetchStatus();
+                    resetTelemetryTransportForNewCredential();
+                    initTelemetryConnection();
                 } else {
                     throw new Error('Server response contained no credential.');
                 }
@@ -396,8 +406,12 @@
                 headers: getAuthHeaders()
             });
 
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 401) {
                 updateAuthUi(false, 'Pairing Required');
+                return;
+            }
+            if (response.status === 403) {
+                elements.targetCountBadge.textContent = window.FrameHubI18n ? window.FrameHubI18n.t('benchmark.targetsUnavailable') : 'Targets unavailable';
                 return;
             }
 
@@ -442,8 +456,11 @@
                 headers: getAuthHeaders()
             });
 
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 401) {
                 updateAuthUi(false, 'Pairing Required');
+                return;
+            } else if (response.status === 403) {
+                if (sessionStorage.getItem(STORAGE_KEY)) updateAuthUi(true, 'Paired Device');
                 return;
             } else if (response.ok) {
                 const credential = sessionStorage.getItem(STORAGE_KEY);
@@ -547,6 +564,12 @@
     let wsInstance = null;
     let telemetryPollInterval = null;
     let telemetryStaleTimeout = null;
+    let telemetryReconnectTimeout = null;
+    let telemetryConnectingGeneration = null;
+    let telemetryConnectionGeneration = 0;
+    let telemetryHttpRequestId = 0;
+    let isUnloading = false;
+    let telemetryTicketRetryAfter = 0;
 
     function formatPercent(val) {
         if (typeof val === 'number' && isFinite(val)) return Math.round(val) + '%';
@@ -584,6 +607,19 @@
         if (elements.hwGpuTemp) elements.hwGpuTemp.textContent = '--';
         if (elements.hwRamUsage) elements.hwRamUsage.textContent = '--';
         if (elements.hwVramUsage) elements.hwVramUsage.textContent = '--';
+    }
+
+    function resetTelemetryPresentation() {
+        const i18n = window.FrameHubI18n;
+        lastTelemetrySnapshot = null;
+        resetLivePerformanceMetrics();
+        resetHardwareMetrics();
+        if (elements.liveGameName) elements.liveGameName.textContent = i18n ? i18n.t('home.noGame') : 'No Game Detected';
+        if (elements.liveGameBadge) {
+            elements.liveGameBadge.textContent = i18n ? i18n.t('home.gameNotRunning') : 'Not Running';
+            elements.liveGameBadge.className = 'badge badge-secondary';
+        }
+        if (elements.liveStatusDot) elements.liveStatusDot.className = 'live-indicator-dot';
     }
 
     function renderTelemetry(telemetry) {
@@ -651,31 +687,60 @@
     function resetStaleTimer() {
         if (telemetryStaleTimeout) clearTimeout(telemetryStaleTimeout);
         telemetryStaleTimeout = setTimeout(function () {
-            resetLivePerformanceMetrics();
+            resetTelemetryPresentation();
         }, 3500);
     }
 
     async function initTelemetryConnection() {
+        const generation = telemetryConnectionGeneration;
+        if (isUnloading || lastAuthUiPaired === false || telemetryConnectingGeneration === generation) return;
+        if (telemetryReconnectTimeout) return;
+        if (Date.now() < telemetryTicketRetryAfter) {
+            scheduleTelemetryReconnect(Math.max(1, telemetryTicketRetryAfter - Date.now()), generation);
+            return;
+        }
+        if (wsInstance && (wsInstance.readyState === WebSocket.OPEN || wsInstance.readyState === WebSocket.CONNECTING)) return;
+        telemetryConnectingGeneration = generation;
         try {
             const ticketResp = await fetch('/api/v1/telemetry/ws-ticket', {
                 method: 'POST',
                 headers: getAuthHeaders()
             });
 
+            if (generation !== telemetryConnectionGeneration || isUnloading || lastAuthUiPaired === false) return;
+
             if (ticketResp.ok) {
                 const ticketData = await ticketResp.json();
                 if (ticketData && ticketData.ticket) {
-                    connectWebSocket(ticketData.ticket);
+                    telemetryTicketRetryAfter = 0;
+                    connectWebSocket(ticketData.ticket, generation);
                     return;
                 }
+            } else if (ticketResp.status === 401) {
+                updateAuthUi(false, 'Pairing Required');
+                return;
+            } else if (ticketResp.status === 403) {
+                telemetryTicketRetryAfter = Date.now() + 30000;
+                scheduleTelemetryReconnect(30000, generation);
+            } else {
+                telemetryTicketRetryAfter = Date.now() + 3000;
+                scheduleTelemetryReconnect(3000, generation);
             }
-        } catch (_) { }
+        } catch (_) {
+            telemetryTicketRetryAfter = Date.now() + 3000;
+            scheduleTelemetryReconnect(3000, generation);
+        }
+        finally {
+            if (telemetryConnectingGeneration === generation) telemetryConnectingGeneration = null;
+        }
 
-        startTelemetryPolling();
+        if (generation === telemetryConnectionGeneration && lastAuthUiPaired !== false) startTelemetryPolling();
     }
 
-    function connectWebSocket(ticket) {
+    function connectWebSocket(ticket, generation) {
+        if (generation !== telemetryConnectionGeneration || isUnloading || lastAuthUiPaired === false) return;
         if (wsInstance) {
+            wsInstance.onclose = null;
             try { wsInstance.close(); } catch (_) { }
         }
 
@@ -683,43 +748,134 @@
         const wsUrl = protocol + '//' + window.location.host + '/api/v1/telemetry/ws';
 
         try {
-            wsInstance = new WebSocket(wsUrl, ['framehub.v1', 'ticket.' + ticket]);
+            const socket = new WebSocket(wsUrl, ['framehub.v1', 'ticket.' + ticket]);
+            wsInstance = socket;
 
-            wsInstance.onmessage = function (evt) {
+            socket.onopen = function () {
+                if (wsInstance !== socket || generation !== telemetryConnectionGeneration || lastAuthUiPaired === false) return;
+                telemetryTicketRetryAfter = 0;
+                cancelTelemetryReconnect();
+                stopTelemetryPolling();
+            };
+
+            socket.onmessage = function (evt) {
+                if (wsInstance !== socket || generation !== telemetryConnectionGeneration || lastAuthUiPaired === false) return;
                 try {
                     const data = JSON.parse(evt.data);
                     renderTelemetry(data);
                 } catch (_) { }
             };
 
-            wsInstance.onclose = function () {
+            socket.onclose = function () {
+                if (wsInstance !== socket || generation !== telemetryConnectionGeneration) return;
                 wsInstance = null;
-                setTimeout(initTelemetryConnection, 3000);
+                if (isUnloading || lastAuthUiPaired === false) return;
+                startTelemetryPolling();
+                scheduleTelemetryReconnect(3000, generation);
             };
 
-            wsInstance.onerror = function () {
-                if (wsInstance) {
-                    try { wsInstance.close(); } catch (_) { }
-                }
+            socket.onerror = function () {
+                try { socket.close(); } catch (_) { }
             };
         } catch (_) {
             startTelemetryPolling();
+            scheduleTelemetryReconnect(3000, generation);
         }
     }
 
+    function scheduleTelemetryReconnect(delayMs, generation) {
+        if (isUnloading || lastAuthUiPaired === false || generation !== telemetryConnectionGeneration || telemetryReconnectTimeout) return;
+        telemetryReconnectTimeout = setTimeout(function () {
+            telemetryReconnectTimeout = null;
+            if (generation === telemetryConnectionGeneration && lastAuthUiPaired !== false) {
+                initTelemetryConnection();
+            }
+        }, delayMs);
+    }
+
+    function cancelTelemetryReconnect() {
+        if (!telemetryReconnectTimeout) return;
+        clearTimeout(telemetryReconnectTimeout);
+        telemetryReconnectTimeout = null;
+    }
+
+    function resetTelemetryTransportForNewCredential() {
+        telemetryConnectionGeneration++;
+        telemetryConnectingGeneration = null;
+        telemetryTicketRetryAfter = 0;
+        cancelTelemetryReconnect();
+    }
+
+    function teardownTelemetryConnection(resetPresentation) {
+        telemetryConnectionGeneration++;
+        telemetryConnectingGeneration = null;
+        telemetryTicketRetryAfter = 0;
+        cancelTelemetryReconnect();
+
+        const socket = wsInstance;
+        wsInstance = null;
+        if (socket) {
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onerror = null;
+            socket.onclose = null;
+            try { socket.close(); } catch (_) { }
+        }
+
+        stopTelemetryPolling();
+        if (telemetryStaleTimeout) {
+            clearTimeout(telemetryStaleTimeout);
+            telemetryStaleTimeout = null;
+        }
+        if (resetPresentation) resetTelemetryPresentation();
+    }
+
     function startTelemetryPolling() {
-        if (telemetryPollInterval) return;
+        if (telemetryPollInterval || isUnloading || lastAuthUiPaired === false) return;
         fetchTelemetryOnce();
         telemetryPollInterval = setInterval(fetchTelemetryOnce, 1000);
     }
 
+    function stopTelemetryPolling() {
+        if (!telemetryPollInterval) return;
+        clearInterval(telemetryPollInterval);
+        telemetryPollInterval = null;
+    }
+
     async function fetchTelemetryOnce() {
         if (wsInstance && wsInstance.readyState === WebSocket.OPEN) return;
+        const generation = telemetryConnectionGeneration;
+        const expectedPairedState = lastAuthUiPaired;
+        const expectedCredential = sessionStorage.getItem(STORAGE_KEY);
+        const requestId = ++telemetryHttpRequestId;
+        if (isUnloading || expectedPairedState === false) return;
+
+        const ownsRequest = function () {
+            return requestId === telemetryHttpRequestId
+                && generation === telemetryConnectionGeneration
+                && !isUnloading
+                && lastAuthUiPaired === expectedPairedState
+                && lastAuthUiPaired !== false
+                && sessionStorage.getItem(STORAGE_KEY) === expectedCredential
+                && !(wsInstance && wsInstance.readyState === WebSocket.OPEN);
+        };
+
         try {
             const resp = await fetch('/api/v1/telemetry', { headers: getAuthHeaders() });
+            if (!ownsRequest()) return;
+
+            if (resp.status === 401) {
+                updateAuthUi(false, 'Pairing Required');
+                return;
+            }
+
             if (resp.ok) {
                 const data = await resp.json();
+                if (!ownsRequest()) return;
                 renderTelemetry(data);
+                if (sessionStorage.getItem(STORAGE_KEY) && !wsInstance) {
+                    initTelemetryConnection();
+                }
             }
         } catch (_) { }
     }
@@ -1298,9 +1454,7 @@
 
             showOptFeedback(msg, isSuccess);
 
-            if (isSuccess) {
-                setTimeout(fetchOptimizationState, 1000);
-            }
+            setTimeout(fetchOptimizationState, 1000);
         } catch (err) {
             showOptFeedback(i18n ? i18n.t('optimization.apply_failed') : 'Failed to start optimization.', false);
         } finally {
@@ -1334,9 +1488,7 @@
 
             showOptFeedback(msg, isSuccess);
 
-            if (isSuccess) {
-                setTimeout(fetchOptimizationState, 1000);
-            }
+            setTimeout(fetchOptimizationState, 1000);
         } catch (err) {
             showOptFeedback(i18n ? i18n.t('optimization.restore_failed') : 'Failed to restore session.', false);
         } finally {
@@ -1412,18 +1564,8 @@
 
     // Clean up on unload
     window.addEventListener('beforeunload', function () {
-        if (wsInstance) {
-            try { wsInstance.close(); } catch (_) { }
-            wsInstance = null;
-        }
-        if (telemetryPollInterval) {
-            clearInterval(telemetryPollInterval);
-            telemetryPollInterval = null;
-        }
-        if (telemetryStaleTimeout) {
-            clearTimeout(telemetryStaleTimeout);
-            telemetryStaleTimeout = null;
-        }
+        isUnloading = true;
+        teardownTelemetryConnection(false);
         if (pollIntervalId) {
             clearInterval(pollIntervalId);
             pollIntervalId = null;

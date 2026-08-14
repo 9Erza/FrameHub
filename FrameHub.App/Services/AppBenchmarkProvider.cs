@@ -2,6 +2,7 @@ using FrameHub.Companion.Models;
 using FrameHub.Companion.Providers;
 using FrameHub.Core.Models.Benchmarking;
 using FrameHub.Core.Models.Library;
+using FrameHub.Core.Services;
 using FrameHub.Core.Services.Benchmarking;
 using FrameHub.Core.Services.Library;
 using System.Reflection;
@@ -96,9 +97,13 @@ public sealed class AppBenchmarkProvider : ICompanionBenchmarkProvider
         }
 
         BenchmarkRunningGame game = matches[0];
-        var profile = _runtime.Profiles.FirstOrDefault(p => string.Equals(p.Id, game.LibraryItem.LinkedProfileId, StringComparison.OrdinalIgnoreCase));
-        bool optActive = !string.IsNullOrEmpty(_runtime.LastAppliedProfile) &&
-                          string.Equals(_runtime.LastAppliedProfile, profile?.Id, StringComparison.OrdinalIgnoreCase);
+        var profile = _runtime.Profiles.FirstOrDefault(p => p.IsEnabled
+            && string.Equals(p.Id, game.LibraryItem.LinkedProfileId, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(
+                ProfileService.NormalizeProcessName(p.ProcessName),
+                ProfileService.NormalizeProcessName(_runtime.LastAppliedProfile),
+                StringComparison.OrdinalIgnoreCase));
+        bool optActive = _runtime.SessionOptimizationCoordinator.IsSessionActive;
 
         string appVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.7.0";
 
@@ -115,6 +120,10 @@ public sealed class AppBenchmarkProvider : ICompanionBenchmarkProvider
         };
 
         BenchmarkCaptureStartHandle handle = _runtime.BenchmarkCoordinator.TryStartCapture(captureRequest);
+        if (handle.Accepted)
+        {
+            handle.Start();
+        }
 
         return Task.FromResult(new CompanionBenchmarkStartResultDto
         {

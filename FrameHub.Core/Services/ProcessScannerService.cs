@@ -17,6 +17,7 @@ namespace FrameHub.Core.Services
     {
         private readonly ProcessService _processService;
         private readonly ILogger _logger;
+        private readonly object _cpuSamplingLock = new();
         private readonly Dictionary<ProcessInstanceKey, TimeSpan> _lastCpuTimes = new();
         private DateTime _lastSampleUtc = DateTime.UtcNow;
 
@@ -43,26 +44,30 @@ namespace FrameHub.Core.Services
 
         private ProcessScanResult ScanUserProcesses()
         {
-            Process[] processes = Array.Empty<Process>();
-            try
+            lock (_cpuSamplingLock)
             {
-                processes = Process.GetProcesses();
-                double elapsedSeconds = Math.Max((DateTime.UtcNow - _lastSampleUtc).TotalSeconds, 0.1);
-                _lastSampleUtc = DateTime.UtcNow;
-
-                var userProcesses = processes
-                    .Where(p => _processService.IsUserProcess(p))
-                    .ToList();
-
-                var result = BuildGroupedSnapshot(userProcesses, elapsedSeconds, includeResources: true);
-                CleanupCpuCache(result.ActiveInstances);
-                return result;
-            }
-            finally
-            {
-                foreach (var process in processes)
+                Process[] processes = Array.Empty<Process>();
+                try
                 {
-                    process.Dispose();
+                    processes = Process.GetProcesses();
+                    DateTime sampleUtc = DateTime.UtcNow;
+                    double elapsedSeconds = Math.Max((sampleUtc - _lastSampleUtc).TotalSeconds, 0.1);
+                    _lastSampleUtc = sampleUtc;
+
+                    var userProcesses = processes
+                        .Where(p => _processService.IsUserProcess(p))
+                        .ToList();
+
+                    var result = BuildGroupedSnapshot(userProcesses, elapsedSeconds, includeResources: true);
+                    CleanupCpuCache(result.ActiveInstances);
+                    return result;
+                }
+                finally
+                {
+                    foreach (var process in processes)
+                    {
+                        process.Dispose();
+                    }
                 }
             }
         }
@@ -90,9 +95,7 @@ namespace FrameHub.Core.Services
                     }
                 }
 
-                var result = BuildGroupedSnapshot(collected, elapsedSeconds: 1, includeResources: false);
-                CleanupCpuCache(result.ActiveInstances);
-                return result;
+                return BuildGroupedSnapshot(collected, elapsedSeconds: 1, includeResources: false);
             }
             finally
             {

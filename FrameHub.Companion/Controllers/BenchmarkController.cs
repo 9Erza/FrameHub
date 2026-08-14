@@ -9,6 +9,8 @@ namespace FrameHub.Companion.Controllers;
 [Route("api/v1/benchmarks")]
 public sealed class BenchmarkController : ControllerBase
 {
+    private const int MaximumDurationSeconds = 600;
+    private const int MaximumCountdownSeconds = 30;
     private readonly ICompanionBenchmarkProvider? _benchmarkProvider;
 
     public BenchmarkController(IServiceProvider serviceProvider)
@@ -224,21 +226,21 @@ public sealed class BenchmarkController : ControllerBase
             });
         }
 
-        if (request.DurationSeconds <= 0)
+        if (request.DurationSeconds <= 0 || request.DurationSeconds > MaximumDurationSeconds)
         {
             return BadRequest(new CompanionBenchmarkErrorDto
             {
                 ErrorCode = "invalid_duration",
-                Message = "DurationSeconds must be greater than zero."
+                Message = $"DurationSeconds must be between 1 and {MaximumDurationSeconds}."
             });
         }
 
-        if (request.CountdownSeconds < 0)
+        if (request.CountdownSeconds < 0 || request.CountdownSeconds > MaximumCountdownSeconds)
         {
             return BadRequest(new CompanionBenchmarkErrorDto
             {
                 ErrorCode = "invalid_countdown",
-                Message = "CountdownSeconds cannot be negative."
+                Message = $"CountdownSeconds must be between 0 and {MaximumCountdownSeconds}."
             });
         }
 

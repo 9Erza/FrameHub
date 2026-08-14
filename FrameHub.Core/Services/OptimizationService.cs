@@ -102,7 +102,7 @@ namespace FrameHub.Core.Services
 
         private OptimizationResult ApplyProfileToPid(ProcessInstanceKey key, string processName, ProcessProfile profile, bool allowRealtimePriority, bool force)
         {
-            if (!MatchesRunningProcessIdentity(key.ProcessId, processName, profile))
+            if (!MatchesRunningProcessIdentity(key, processName, profile))
             {
                 return new OptimizationResult { Success = false, ProcessId = key.ProcessId, ProcessName = processName, Message = "SKIPPED_IDENTITY_MISMATCH" };
             }
@@ -190,12 +190,21 @@ namespace FrameHub.Core.Services
             }
         }
 
-        private static bool MatchesRunningProcessIdentity(int processId, string processName, ProcessProfile profile)
+        private static bool MatchesRunningProcessIdentity(ProcessInstanceKey key, string processName, ProcessProfile profile)
         {
-            if (string.IsNullOrWhiteSpace(profile.ExecutablePath)) return ProfileService.MatchesIdentity(profile, processName, null);
+            if (key.ProcessId <= 0 || key.StartTimeUtc == default)
+            {
+                return false;
+            }
+
             try
             {
-                using var process = Process.GetProcessById(processId);
+                using var process = Process.GetProcessById(key.ProcessId);
+                if (process.HasExited || process.StartTime.ToUniversalTime() != key.StartTimeUtc)
+                {
+                    return false;
+                }
+
                 string? path;
                 try { path = process.MainModule?.FileName; } catch { path = null; }
                 return ProfileService.MatchesIdentity(profile, process.ProcessName, path);

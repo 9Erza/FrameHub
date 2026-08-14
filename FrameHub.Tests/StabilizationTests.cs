@@ -2,10 +2,13 @@ using FrameHub.App.Services;
 using FrameHub.Core.Models;
 using FrameHub.Core.Models.Library;
 using FrameHub.Core.Models.GameOptimization;
+using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services;
 using FrameHub.Core.Services.GameOptimization;
 using FrameHub.Core.Services.Library;
+using FrameHub.Core.Services.SessionOptimization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Diagnostics;
 
 namespace FrameHub.Tests;
 
@@ -19,6 +22,32 @@ public sealed class LibraryStabilizationTests
     [TestMethod]
     public void OtherSteamItems_AreNotHiddenByTheConservativeFilter() =>
         Assert.IsTrue(LibraryItemFilter.IsSupportedLibraryItem(new LibraryItem { Source = LibrarySource.Steam, AppId = "730", DisplayName = "Counter-Strike 2" }));
+
+    [TestMethod]
+    public void MalformedExecutablePath_DoesNotDiscardOtherPersistedLibraryItems()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "FrameHub.LibraryPathTests", Guid.NewGuid().ToString("N"));
+        string path = Path.Combine(root, "library.json");
+        try
+        {
+            Directory.CreateDirectory(root);
+            string json = System.Text.Json.JsonSerializer.Serialize(new[]
+            {
+                new LibraryItem { Id = "valid", DisplayName = "Valid", ExecutablePath = @"C:\Games\valid.exe" },
+                new LibraryItem { Id = "malformed", DisplayName = "Malformed", ExecutablePath = "\0broken.exe" }
+            });
+            File.WriteAllText(path, json);
+
+            List<LibraryItem> items = new LibraryService(path).LoadItems();
+
+            Assert.IsTrue(items.Any(item => item.Id == "valid"));
+            Assert.IsTrue(items.Any(item => item.Id == "malformed"));
+        }
+        finally
+        {
+            try { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); } catch { }
+        }
+    }
 }
 
 [TestClass]
@@ -35,7 +64,123 @@ public sealed class ProfileIdentityTests
         Assert.AreEqual(Path.GetFullPath(@"C:\Games\One\game.exe"), sanitized.ExecutablePath, true);
     }
 
+    [TestMethod]
+    public void OptimizationIdentity_RejectsReusedPidWithDifferentStartTime()
+    {
+        using var process = Process.GetCurrentProcess();
+        var profile = new ProcessProfile
+        {
+            ProcessName = process.ProcessName,
+            AffinityMask = 1,
+            ApplyCoreOptimization = true
+        };
+        var staleKey = new ProcessInstanceKey(process.Id, process.StartTime.ToUniversalTime().AddSeconds(-1));
+        var method = typeof(OptimizationService).GetMethod(
+            "MatchesRunningProcessIdentity",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.IsNotNull(method);
+        bool matches = (bool)method.Invoke(null, new object[] { staleKey, process.ProcessName, profile })!;
+        Assert.IsFalse(matches, "A reused PID must not authorize mutation of a different process instance.");
+    }
+
     private static ProcessProfile Profile(string? path) => new() { ProcessName = "game", ExecutablePath = path, AffinityMask = 1, ApplyCoreOptimization = true };
+}
+
+[TestClass]
+public sealed class ProcessSuspensionRecoveryIdentityTests
+{
+    [TestMethod]
+    public void AmbiguousMatchingProcess_RemainsUnresolvedWithoutResume()
+    {
+        using Process process = Process.GetCurrentProcess();
+        var record = CurrentProcessRecord(process);
+
+        SessionActionResult result = new ProcessSuspendService().ResolveProcessesWithoutResume([record]);
+
+        Assert.AreEqual(0, result.ResolvedCount);
+        Assert.AreEqual(1, result.FailedCount);
+        Assert.AreEqual(0, result.Records.Count);
+    }
+
+    [TestMethod]
+    public void AmbiguousRecovery_ResolvesReusedPidOnlyAfterIdentityMismatch()
+    {
+        using Process process = Process.GetCurrentProcess();
+        SuspendedProcessRecord current = CurrentProcessRecord(process);
+        var stale = new SuspendedProcessRecord
+        {
+            ProcessId = current.ProcessId,
+            ProcessName = current.ProcessName,
+            ProcessStartTimeUtc = current.ProcessStartTimeUtc.AddMinutes(-1),
+            ExecutablePath = current.ExecutablePath
+        };
+
+        SessionActionResult result = new ProcessSuspendService().ResolveProcessesWithoutResume([stale]);
+
+        Assert.AreEqual(1, result.ResolvedCount);
+        Assert.AreEqual(1, result.StaleProcessCount);
+        Assert.AreEqual(stale.ProcessId, result.Records.Single().ProcessId);
+    }
+
+    [TestMethod]
+    public void AmbiguousRecovery_NameOrPathMismatch_IsStaleAndNeverMutated()
+    {
+        using Process process = Process.GetCurrentProcess();
+        SuspendedProcessRecord current = CurrentProcessRecord(process);
+        var wrongName = new SuspendedProcessRecord
+        {
+            ProcessId = current.ProcessId,
+            ProcessName = current.ProcessName + "-other",
+            ProcessStartTimeUtc = current.ProcessStartTimeUtc,
+            ExecutablePath = current.ExecutablePath
+        };
+        var wrongPath = new SuspendedProcessRecord
+        {
+            ProcessId = current.ProcessId,
+            ProcessName = current.ProcessName,
+            ProcessStartTimeUtc = current.ProcessStartTimeUtc,
+            ExecutablePath = Path.Combine(Path.GetTempPath(), "different.exe")
+        };
+
+        SessionActionResult nameResult = new ProcessSuspendService().ResolveProcessesWithoutResume([wrongName]);
+        SessionActionResult pathResult = new ProcessSuspendService().ResolveProcessesWithoutResume([wrongPath]);
+
+        Assert.AreEqual(1, nameResult.StaleProcessCount);
+        Assert.AreEqual(1, pathResult.StaleProcessCount);
+        Assert.AreEqual(1, nameResult.ResolvedCount);
+        Assert.AreEqual(1, pathResult.ResolvedCount);
+    }
+
+    private static SuspendedProcessRecord CurrentProcessRecord(Process process) => new()
+    {
+        ProcessId = process.Id,
+        ProcessName = process.ProcessName,
+        ProcessStartTimeUtc = process.StartTime.ToUniversalTime(),
+        ExecutablePath = Environment.ProcessPath
+    };
+}
+
+[TestClass]
+public sealed class ProcessScannerIsolationTests
+{
+    [TestMethod]
+    public async Task ProfileScan_DoesNotEraseUiCpuSamplingHistory()
+    {
+        var scanner = new ProcessScannerService(new ProcessService());
+        var field = typeof(ProcessScannerService).GetField(
+            "_lastCpuTimes",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.IsNotNull(field);
+
+        var samples = (Dictionary<ProcessInstanceKey, TimeSpan>)field.GetValue(scanner)!;
+        var key = new ProcessInstanceKey(12345, DateTime.UtcNow);
+        samples[key] = TimeSpan.FromSeconds(1);
+
+        await scanner.ScanProfileProcessesAsync(Array.Empty<ProcessProfile>());
+
+        Assert.IsTrue(samples.ContainsKey(key), "The lightweight profile scan must not reset the independent UI CPU sampler.");
+    }
 }
 
 [TestClass]

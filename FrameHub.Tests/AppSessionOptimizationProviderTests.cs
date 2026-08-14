@@ -13,7 +13,7 @@ public sealed class AppSessionOptimizationProviderTests
     [TestMethod]
     public async Task GetStateAsync_ReturnsSanitizedDtoWithoutPidsOrPaths()
     {
-        using var coordinator = new SessionOptimizationCoordinator();
+        using var coordinator = CreateCoordinator();
         var fakeMonitor = new FakeActiveGameMonitor(null);
         var fakeBenchmarkCoordinator = new FakeBenchmarkCaptureCoordinator(isActive: false);
 
@@ -39,7 +39,7 @@ public sealed class AppSessionOptimizationProviderTests
     [TestMethod]
     public async Task ApplyOptimizationAsync_WhenBenchmarkActive_ReturnsBenchmarkActive()
     {
-        using var coordinator = new SessionOptimizationCoordinator();
+        using var coordinator = CreateCoordinator();
         var fakeMonitor = new FakeActiveGameMonitor(CreateSnapshot("g1", "Game 1"));
         var fakeBenchmarkCoordinator = new FakeBenchmarkCaptureCoordinator(isActive: true);
 
@@ -53,7 +53,7 @@ public sealed class AppSessionOptimizationProviderTests
     [TestMethod]
     public async Task ApplyOptimizationAsync_WhenNoActiveGame_ReturnsNoGame()
     {
-        using var coordinator = new SessionOptimizationCoordinator();
+        using var coordinator = CreateCoordinator();
         var fakeMonitor = new FakeActiveGameMonitor(null);
         var fakeBenchmarkCoordinator = new FakeBenchmarkCaptureCoordinator(isActive: false);
 
@@ -67,7 +67,7 @@ public sealed class AppSessionOptimizationProviderTests
     [TestMethod]
     public async Task RestoreSessionAsync_WhenBenchmarkActive_ReturnsBenchmarkActive()
     {
-        using var coordinator = new SessionOptimizationCoordinator();
+        using var coordinator = CreateCoordinator();
         var fakeMonitor = new FakeActiveGameMonitor(null);
         var fakeBenchmarkCoordinator = new FakeBenchmarkCaptureCoordinator(isActive: true);
 
@@ -81,7 +81,7 @@ public sealed class AppSessionOptimizationProviderTests
     [TestMethod]
     public async Task RestoreSessionAsync_WhenNoActiveSession_ReturnsNotActive()
     {
-        using var coordinator = new SessionOptimizationCoordinator();
+        using var coordinator = CreateCoordinator();
         var fakeMonitor = new FakeActiveGameMonitor(null);
         var fakeBenchmarkCoordinator = new FakeBenchmarkCaptureCoordinator(isActive: false);
 
@@ -109,6 +109,15 @@ public sealed class AppSessionOptimizationProviderTests
             StartTimeUtc = DateTime.UtcNow
         };
         return new ActiveGameSnapshot(item, proc);
+    }
+
+    private static SessionOptimizationCoordinator CreateCoordinator()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "FrameHub.AppOptimizationProviderTests", Guid.NewGuid().ToString("N"));
+        return new SessionOptimizationCoordinator(
+            stateService: new FrameHub.Core.Services.SessionOptimization.SessionStateService(Path.Combine(root, "active_session.json")),
+            settingsService: new FrameHub.Core.Services.SessionOptimization.SessionOptimizationSettingsService(Path.Combine(root, "settings.json")),
+            libraryService: new FrameHub.Core.Services.Library.LibraryService(Path.Combine(root, "library.json")));
     }
 
     private sealed class FakeActiveGameMonitor : IActiveGameMonitor

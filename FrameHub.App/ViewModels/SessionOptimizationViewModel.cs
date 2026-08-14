@@ -286,8 +286,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
                 : string.Empty;
 
             return IsPolish
-                ? $"Aktywna ({source}) dla: {game}. Wstrzymane procesy: {_activeSession.SuspendedProcesses.Count}.{taskbar}"
-                : $"Active ({source}) for: {game}. Suspended processes: {_activeSession.SuspendedProcesses.Count}.{taskbar}";
+                ? $"Aktywna ({source}) dla: {game}. Procesy do odzyskania: {GetRecoveryProcessCount(_activeSession)}.{taskbar}"
+                : $"Active ({source}) for: {game}. Processes requiring recovery: {GetRecoveryProcessCount(_activeSession)}.{taskbar}";
         }
     }
 
@@ -295,7 +295,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     {
         _localization = localization;
         _runtime = runtime;
-        _coordinator = coordinator ?? runtime.SessionOptimizationCoordinator ?? new SessionOptimizationCoordinator();
+        _coordinator = coordinator ?? runtime.SessionOptimizationCoordinator;
         _settings = _settingsService.Load();
         MigrateSessionSettingsForSafeSuspend();
         _activeSession = _coordinator.ActiveSession;
@@ -828,7 +828,16 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             }
             else
             {
-                SetStatus(result.Message, "Warn");
+                string message = result.ErrorCode switch
+                {
+                    "restore_partial" => _localization.T("Session.Restore.Partial"),
+                    "restore_manual_required" => _localization.T("Session.Restore.ManualRequired"),
+                    "state_persist_failed" => _localization.T("Session.Restore.StatePersistFailed"),
+                    "state_clear_failed" => _localization.T("Session.Restore.StateClearFailed"),
+                    _ => result.Message
+                };
+                SetStatus(message, "Warn");
+                _runtime.AddActivity(message, "Warn");
             }
         }
         finally
@@ -875,7 +884,16 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             }
             else
             {
-                SetStatus(result.Message, "Warn");
+                string message = result.ErrorCode switch
+                {
+                    "restore_partial" => _localization.T("Session.Restore.Partial"),
+                    "restore_manual_required" => _localization.T("Session.Restore.ManualRequired"),
+                    "state_persist_failed" => _localization.T("Session.Restore.StatePersistFailed"),
+                    "state_clear_failed" => _localization.T("Session.Restore.StateClearFailed"),
+                    _ => result.Message
+                };
+                SetStatus(message, "Warn");
+                _runtime.AddActivity(message, "Warn");
             }
         }
         finally
@@ -1018,11 +1036,29 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             {
                 SuspendedProcesses.Add(new SuspendedProcessViewModel(record, _localization));
             }
+            foreach (var record in _activeSession.AmbiguousProcesses)
+            {
+                SuspendedProcesses.Add(new SuspendedProcessViewModel(record, _localization));
+            }
+            if (_activeSession.PendingSuspension != null)
+            {
+                SuspendedProcesses.Add(new SuspendedProcessViewModel(_activeSession.PendingSuspension, _localization));
+            }
+            if (_activeSession.PendingResume != null)
+            {
+                SuspendedProcesses.Add(new SuspendedProcessViewModel(_activeSession.PendingResume, _localization));
+            }
         }
 
         OnPropertyChanged(nameof(HasSuspendedProcesses));
         OnPropertyChanged(nameof(NoSuspendedProcessesVisible));
     }
+
+    private static int GetRecoveryProcessCount(ActiveSessionState state) =>
+        state.SuspendedProcesses.Count
+        + state.AmbiguousProcesses.Count
+        + (state.PendingSuspension == null ? 0 : 1)
+        + (state.PendingResume == null ? 0 : 1);
 
     private void UpdateAutoTimerState()
     {

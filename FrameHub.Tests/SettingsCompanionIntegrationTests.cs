@@ -531,10 +531,10 @@ public sealed class SettingsCompanionIntegrationTests
             ExecutablePath = fakeExe
         };
 
-        var libraryService = new LibraryService();
+        var libraryService = new LibraryService(Path.Combine(_tempDirectory, "desktop-library.json"));
         libraryService.SaveItems(new[] { item });
 
-        var vm = new LibraryViewModel(loc, runtime);
+        var vm = new LibraryViewModel(loc, runtime, libraryService);
         vm.Reload();
 
         var itemVm = vm.Items.FirstOrDefault(i => i.Item.Id == "desktop-game-1");

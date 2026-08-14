@@ -10,8 +10,15 @@ namespace FrameHub.Core.Services.Library;
 
 public sealed class LibraryService
 {
-    private readonly string _filePath = AppPaths.GetUserDataFilePath("library.json");
+    private readonly string _filePath;
     private readonly ILogger _logger = LoggerService.Instance;
+
+    public LibraryService(string? filePath = null)
+    {
+        _filePath = string.IsNullOrWhiteSpace(filePath)
+            ? AppPaths.GetUserDataFilePath("library.json")
+            : Path.GetFullPath(filePath);
+    }
 
     public List<LibraryItem> LoadItems()
     {
@@ -79,7 +86,12 @@ public sealed class LibraryService
 
         if (!string.IsNullOrWhiteSpace(a.ExecutablePath) && !string.IsNullOrWhiteSpace(b.ExecutablePath))
         {
-            return Path.GetFullPath(a.ExecutablePath).Equals(Path.GetFullPath(b.ExecutablePath), StringComparison.OrdinalIgnoreCase);
+            string? aPath = TryNormalizePath(a.ExecutablePath);
+            string? bPath = TryNormalizePath(b.ExecutablePath);
+            if (aPath != null && bPath != null)
+            {
+                return aPath.Equals(bPath, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         return a.DisplayName.Equals(b.DisplayName, StringComparison.OrdinalIgnoreCase) && a.Source == b.Source;
@@ -109,9 +121,24 @@ public sealed class LibraryService
         }
 
         return result
-            .GroupBy(x => !string.IsNullOrWhiteSpace(x.ExecutablePath) ? $"exe:{Path.GetFullPath(x.ExecutablePath)}" : $"{x.Source}:{x.AppId}:{x.DisplayName}", StringComparer.OrdinalIgnoreCase)
+            .GroupBy(BuildIdentityKey, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First())
             .OrderBy(x => x.DisplayName)
             .ToList();
+    }
+
+    private static string BuildIdentityKey(LibraryItem item)
+    {
+        string? executablePath = TryNormalizePath(item.ExecutablePath);
+        return executablePath != null
+            ? $"exe:{executablePath}"
+            : $"item:{item.Id}:{item.Source}:{item.AppId}:{item.DisplayName}";
+    }
+
+    private static string? TryNormalizePath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        try { return Path.GetFullPath(path.Trim()); }
+        catch { return null; }
     }
 }

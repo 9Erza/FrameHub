@@ -469,6 +469,9 @@ public sealed class CompanionFrontendStaticFilesTests
         Assert.IsTrue(content.Contains("optimization.title"), "i18n.js must include optimization.title.");
         Assert.IsTrue(content.Contains("optimization.applied"), "i18n.js must include optimization.applied.");
         Assert.IsTrue(content.Contains("optimization.restored"), "i18n.js must include optimization.restored.");
+        Assert.IsTrue(content.Contains("optimization.restore_manual_required"), "i18n.js must expose truthful manual recovery state.");
+        Assert.IsTrue(content.Contains("Recovery state could not be saved. Recovery may remain pending."), "Persistence failure wording must remain neutral about whether OS mutation occurred.");
+        Assert.IsFalse(content.Contains("No unsafe changes were started"), "Persistence failure wording must not claim that no OS change occurred.");
         Assert.IsTrue(content.Contains("Optymalizacja Sesji"), "i18n.js must include Polish translation Optymalizacja Sesji.");
     }
 
@@ -488,6 +491,16 @@ public sealed class CompanionFrontendStaticFilesTests
         Assert.IsTrue(content.Contains("fetchOptimizationState"), "app.js must include fetchOptimizationState.");
         Assert.IsTrue(content.Contains("handleApplyOptimization"), "app.js must include handleApplyOptimization.");
         Assert.IsTrue(content.Contains("handleRestoreOptimization"), "app.js must include handleRestoreOptimization.");
+        Assert.IsTrue(content.Contains("authStateChanged"), "Repeated status polls must not retrigger active-tab network loads.");
+        Assert.IsTrue(content.Contains("stopTelemetryPolling"), "A successful WebSocket connection must stop fallback HTTP polling.");
+        Assert.IsTrue(content.Contains("telemetryReconnectTimeout"), "WebSocket reconnect scheduling must be deduplicated and cancellable.");
+        Assert.IsTrue(content.Contains("scheduleTelemetryReconnect(30000, generation)"), "A telemetry-scope 403 must schedule a throttled retry independently of fallback success.");
+        Assert.IsTrue(content.Contains("teardownTelemetryConnection(true)"), "Transitioning to unpaired must tear down telemetry ownership.");
+        Assert.IsTrue(content.Contains("generation !== telemetryConnectionGeneration"), "Stale asynchronous telemetry callbacks must be generation-gated.");
+        Assert.IsTrue(content.Contains("const generation = telemetryConnectionGeneration;"), "HTTP telemetry requests must capture their transport generation.");
+        Assert.IsTrue(content.Contains("requestId === telemetryHttpRequestId"), "Only the currently owned HTTP telemetry request may update presentation.");
+        Assert.IsTrue(content.Contains("if (!ownsRequest()) return;"), "HTTP telemetry results must be discarded after asynchronous boundaries when ownership changed.");
+        Assert.IsTrue(content.Contains("resetTelemetryTransportForNewCredential"), "A new credential must bypass a prior ticket denial throttle.");
     }
 
     private sealed class TestFakeBenchmarkProvider : ICompanionBenchmarkProvider

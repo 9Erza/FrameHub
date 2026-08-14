@@ -142,7 +142,8 @@ public sealed class CompanionAuthMiddleware
         }
 
         // 6. Benchmark Endpoints (/api/v1/benchmarks/*)
-        if (path.StartsWith("/api/v1/benchmarks", StringComparison.OrdinalIgnoreCase))
+        if (path.Equals("/api/v1/benchmarks", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/v1/benchmarks/", StringComparison.OrdinalIgnoreCase))
         {
             if (HttpMethods.IsGet(context.Request.Method))
             {
@@ -312,7 +313,7 @@ public sealed class CompanionAuthMiddleware
         await _next(context);
     }
 
-    private static bool IsHostAllowed(string hostHeader, CompanionOptions options)
+    internal static bool IsHostAllowed(string hostHeader, CompanionOptions options)
     {
         if (string.IsNullOrWhiteSpace(hostHeader)) return false;
 

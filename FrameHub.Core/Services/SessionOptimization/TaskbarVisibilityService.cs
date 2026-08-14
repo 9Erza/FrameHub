@@ -1,10 +1,11 @@
 using FrameHub.Core.Logging;
+using FrameHub.Core.Models.SessionOptimization;
 using System;
 using System.Runtime.InteropServices;
 
 namespace FrameHub.Core.Services.SessionOptimization;
 
-public sealed class TaskbarVisibilityService
+public class TaskbarVisibilityService
 {
     private const int SW_HIDE = 0;
     private const int SW_SHOW = 5;
@@ -20,9 +21,85 @@ public sealed class TaskbarVisibilityService
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-    public bool HideTaskbars() => SetTaskbarVisibility(visible: false);
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
 
-    public bool ShowTaskbars() => SetTaskbarVisibility(visible: true);
+    public virtual bool HideTaskbars() => SetTaskbarVisibility(visible: false);
+
+    public virtual bool ShowTaskbars() => SetTaskbarVisibility(visible: true);
+
+    public virtual TaskbarVisibilityState? CaptureVisibilityState()
+    {
+        try
+        {
+            IntPtr primaryTaskbar = FindWindow("Shell_TrayWnd", null);
+            var secondaryVisibility = new List<bool>();
+            IntPtr secondaryTaskbar = IntPtr.Zero;
+            while (true)
+            {
+                secondaryTaskbar = FindWindowEx(IntPtr.Zero, secondaryTaskbar, "Shell_SecondaryTrayWnd", null);
+                if (secondaryTaskbar == IntPtr.Zero) break;
+                secondaryVisibility.Add(IsWindowVisible(secondaryTaskbar));
+            }
+
+            if (primaryTaskbar == IntPtr.Zero && secondaryVisibility.Count == 0) return null;
+            return new TaskbarVisibilityState
+            {
+                PrimaryTaskbarFound = primaryTaskbar != IntPtr.Zero,
+                PrimaryTaskbarVisible = primaryTaskbar != IntPtr.Zero && IsWindowVisible(primaryTaskbar),
+                SecondaryTaskbarsVisible = secondaryVisibility
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Taskbar visibility inspection failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    public virtual bool RestoreVisibilityState(TaskbarVisibilityState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        try
+        {
+            bool restored = true;
+            IntPtr primaryTaskbar = FindWindow("Shell_TrayWnd", null);
+            if (state.PrimaryTaskbarFound)
+            {
+                if (primaryTaskbar == IntPtr.Zero)
+                {
+                    restored = false;
+                }
+                else
+                {
+                    ShowWindow(primaryTaskbar, state.PrimaryTaskbarVisible ? SW_SHOW : SW_HIDE);
+                    restored &= IsWindowVisible(primaryTaskbar) == state.PrimaryTaskbarVisible;
+                }
+            }
+
+            IntPtr secondaryTaskbar = IntPtr.Zero;
+            for (int index = 0; index < state.SecondaryTaskbarsVisible.Count; index++)
+            {
+                secondaryTaskbar = FindWindowEx(IntPtr.Zero, secondaryTaskbar, "Shell_SecondaryTrayWnd", null);
+                if (secondaryTaskbar == IntPtr.Zero)
+                {
+                    restored = false;
+                    break;
+                }
+
+                bool visible = state.SecondaryTaskbarsVisible[index];
+                ShowWindow(secondaryTaskbar, visible ? SW_SHOW : SW_HIDE);
+                restored &= IsWindowVisible(secondaryTaskbar) == visible;
+            }
+
+            return restored;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Taskbar visibility restore failed: {ex.Message}");
+            return false;
+        }
+    }
 
     private bool SetTaskbarVisibility(bool visible)
     {

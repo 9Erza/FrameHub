@@ -50,7 +50,12 @@ public sealed class AppSessionOptimizationProvider : ICompanionSessionOptimizati
             GameId = session?.GameId ?? activeGame?.LibraryItem.Id,
             GameDisplayName = session?.GameName ?? activeGame?.LibraryItem.DisplayName,
             StartedAtUtc = session?.StartedAtUtc,
-            SuspendedProcessCount = session?.SuspendedProcesses?.Count ?? 0,
+            SuspendedProcessCount = session == null
+                ? 0
+                : session.SuspendedProcesses.Count
+                    + session.AmbiguousProcesses.Count
+                    + (session.PendingSuspension == null ? 0 : 1)
+                    + (session.PendingResume == null ? 0 : 1),
             TaskbarHidden = session?.TaskbarHidden == true,
             IsRecoveryPending = session?.IsRecoveryPending == true,
             Trigger = session?.Trigger ?? "Manual"

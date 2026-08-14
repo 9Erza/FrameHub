@@ -33,7 +33,7 @@ public sealed class AppLibraryProviderTests
         File.WriteAllText(_fakeGameExe, "game binary");
         File.WriteAllText(_fakeAppExe, "app binary");
 
-        _libraryService = new LibraryService();
+        _libraryService = new LibraryService(_tempLibraryFilePath);
         _processService = new ProcessService();
         _processScanner = new ProcessScannerService(_processService);
     }

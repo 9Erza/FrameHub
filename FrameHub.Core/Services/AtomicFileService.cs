@@ -11,51 +11,78 @@ namespace FrameHub.Core.Services
     public static class AtomicFileService
     {
         private static readonly ILogger Logger = LoggerService.Instance;
+        private static readonly object[] PathLocks = Enumerable.Range(0, 64).Select(_ => new object()).ToArray();
 
         public static void WriteAllTextAtomic(string filePath, string content)
         {
-            string? directory = Path.GetDirectoryName(filePath);
-            if (!string.IsNullOrWhiteSpace(directory))
+            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+            ArgumentNullException.ThrowIfNull(content);
+
+            string fullPath = Path.GetFullPath(filePath);
+            lock (GetPathLock(fullPath))
             {
+                string directory = Path.GetDirectoryName(fullPath)!;
                 Directory.CreateDirectory(directory);
+
+                string tempPath = Path.Combine(directory, $".{Path.GetFileName(fullPath)}.{Guid.NewGuid():N}.tmp");
+                string backupPath = fullPath + ".bak";
+
+                try
+                {
+                    File.WriteAllText(tempPath, content, Encoding.UTF8);
+
+                    if (File.Exists(fullPath))
+                    {
+                        File.Replace(tempPath, fullPath, backupPath, ignoreMetadataErrors: true);
+                    }
+                    else
+                    {
+                        File.Move(tempPath, fullPath);
+                    }
+                }
+                finally
+                {
+                    if (File.Exists(tempPath))
+                    {
+                        try { File.Delete(tempPath); } catch { }
+                    }
+                }
             }
-
-            string tempPath = filePath + ".tmp";
-            string backupPath = filePath + ".bak";
-
-            File.WriteAllText(tempPath, content, Encoding.UTF8);
-
-            if (File.Exists(filePath))
-            {
-                File.Copy(filePath, backupPath, overwrite: true);
-            }
-
-            File.Copy(tempPath, filePath, overwrite: true);
-            File.Delete(tempPath);
         }
 
         public static string? ReadAllTextWithBackup(string filePath)
         {
-            string backupPath = filePath + ".bak";
+            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+            string fullPath = Path.GetFullPath(filePath);
+            string backupPath = fullPath + ".bak";
 
-            try
+            lock (GetPathLock(fullPath))
             {
-                return File.Exists(filePath) ? File.ReadAllText(filePath, Encoding.UTF8) : null;
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn($"Failed to read '{filePath}'. Trying backup. {ex.Message}");
-            }
+                try
+                {
+                    return File.Exists(fullPath) ? File.ReadAllText(fullPath, Encoding.UTF8) : null;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn($"Failed to read '{fullPath}'. Trying backup. {ex.Message}");
+                }
 
-            try
-            {
-                return File.Exists(backupPath) ? File.ReadAllText(backupPath, Encoding.UTF8) : null;
+                try
+                {
+                    return File.Exists(backupPath) ? File.ReadAllText(backupPath, Encoding.UTF8) : null;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to read backup '{backupPath}'", ex);
+                    return null;
+                }
             }
-            catch (Exception ex)
-            {
-                Logger.Error($"Failed to read backup '{backupPath}'", ex);
-                return null;
-            }
+        }
+
+        private static object GetPathLock(string fullPath)
+        {
+            int hash = StringComparer.OrdinalIgnoreCase.GetHashCode(fullPath) & int.MaxValue;
+            return PathLocks[hash % PathLocks.Length];
         }
     }
 }

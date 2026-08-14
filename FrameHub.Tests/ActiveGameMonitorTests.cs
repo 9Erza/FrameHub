@@ -45,6 +45,56 @@ public sealed class ActiveGameMonitorTests
     }
 
     [TestMethod]
+    public async Task StopAsync_ClearsPreviouslyPublishedGameSnapshot()
+    {
+        var snapshotProvider = new FakeProcessSnapshotProvider([
+            new BenchmarkProcessSnapshot(4321, "game1", "C:\\Games\\game1.exe", DateTime.UtcNow)
+        ]);
+        var monitor = new ActiveGameMonitor(
+            new BenchmarkGameDetectionService(snapshotProvider),
+            libraryLoader: () => [CreateGameItem("g1", "Game One", "C:\\Games\\game1.exe")]);
+        monitor.UpdateSnapshotOnce();
+        Assert.IsNotNull(monitor.CurrentSnapshot);
+
+        await monitor.StopAsync();
+
+        Assert.IsNull(monitor.CurrentSnapshot);
+    }
+
+    [TestMethod]
+    public async Task StopAsync_InvalidatesBlockedLoopSoLateScanCannotRepublish()
+    {
+        var scanEntered = new ManualResetEventSlim();
+        var releaseScan = new ManualResetEventSlim();
+        var snapshotProvider = new FakeProcessSnapshotProvider([
+            new BenchmarkProcessSnapshot(4321, "game1", "C:\\Games\\game1.exe", DateTime.UtcNow)
+        ]);
+        using var monitor = new ActiveGameMonitor(
+            new BenchmarkGameDetectionService(snapshotProvider),
+            libraryLoader: () =>
+            {
+                scanEntered.Set();
+                releaseScan.Wait();
+                return [CreateGameItem("g1", "Game One", "C:\\Games\\game1.exe")];
+            });
+
+        monitor.Start();
+        Assert.IsTrue(scanEntered.Wait(TimeSpan.FromSeconds(2)));
+
+        await monitor.StopAsync();
+        Assert.IsNull(monitor.CurrentSnapshot);
+
+        releaseScan.Set();
+        await Task.Delay(100);
+        Assert.IsNull(monitor.CurrentSnapshot, "A scan owned by a stopped generation must never publish after StopAsync returns.");
+
+        monitor.Start();
+        for (int i = 0; i < 50 && monitor.CurrentSnapshot == null; i++) await Task.Delay(10);
+        Assert.IsNotNull(monitor.CurrentSnapshot, "A fresh generation must be able to publish after restart.");
+        await monitor.StopAsync();
+    }
+
+    [TestMethod]
     public void ResolveActiveGame_MultipleDetectedGames_WithoutDisambiguation_ReturnsNull()
     {
         var startTime = DateTime.UtcNow;

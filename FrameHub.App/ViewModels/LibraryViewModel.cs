@@ -26,7 +26,7 @@ public sealed class LibraryViewModel : ViewModelBase
 
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
-    private readonly LibraryService _libraryService = new();
+    private readonly LibraryService _libraryService;
     private readonly SteamLibraryScanner _steamScanner = new();
     private readonly EpicLibraryScanner _epicScanner = new();
     private readonly CustomFolderScanner _customScanner = new();
@@ -472,10 +472,11 @@ public sealed class LibraryViewModel : ViewModelBase
         ? _localization.T("CS2.NotScannedShort")
         : string.Format(_localization.T("CS2.BaselineMatch"), _cs2Analysis.BaselineMatchedSettings, _cs2Analysis.BaselineTotalSettings);
 
-    public LibraryViewModel(LocalizationService localization, AppRuntimeService runtime)
+    public LibraryViewModel(LocalizationService localization, AppRuntimeService runtime, LibraryService? libraryService = null)
     {
         _localization = localization;
         _runtime = runtime;
+        _libraryService = libraryService ?? new LibraryService();
 
         foreach (var core in _runtime.Cores) Cores.Add(core);
         OnPropertyChanged(nameof(PhysicalCores));
