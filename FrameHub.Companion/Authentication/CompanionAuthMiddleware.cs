@@ -248,7 +248,58 @@ public sealed class CompanionAuthMiddleware
             }
         }
 
-        // 8. Session Optimization Endpoints (/api/v1/session-optimization, /api/v1/session-optimization/apply, /api/v1/session-optimization/restore)
+        // 8. Background App Endpoints: loopback GET is safe; every mutation requires an explicit write scope.
+        if (path.Equals("/api/v1/background-apps", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/api/v1/background-apps/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (HttpMethods.IsGet(context.Request.Method))
+            {
+                if (isLoopbackLocal && isLoopbackRemote)
+                {
+                    await _next(context);
+                    return;
+                }
+
+                if (!TryAuthenticateBearer(context, deviceStore, out var device, out var authErrorStatusCode))
+                {
+                    context.Response.StatusCode = authErrorStatusCode;
+                    return;
+                }
+
+                if (!device.Scopes.Contains(CompanionScopes.ReadBackgroundApps, StringComparer.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+
+                deviceStore.UpdateLastUsed(device.Id, DateTimeOffset.UtcNow);
+                context.Items["PairedDevice"] = device;
+                await _next(context);
+                return;
+            }
+
+            if (HttpMethods.IsPost(context.Request.Method))
+            {
+                if (!TryAuthenticateBearer(context, deviceStore, out var device, out var authErrorStatusCode))
+                {
+                    context.Response.StatusCode = authErrorStatusCode;
+                    return;
+                }
+
+                if (!device.Scopes.Contains(CompanionScopes.WriteBackgroundApps, StringComparer.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+
+                deviceStore.UpdateLastUsed(device.Id, DateTimeOffset.UtcNow);
+                context.Items["PairedDevice"] = device;
+                await _next(context);
+                return;
+            }
+        }
+
+        // 9. Session Optimization Endpoints (/api/v1/session-optimization, /api/v1/session-optimization/apply, /api/v1/session-optimization/restore)
         if (path.Equals("/api/v1/session-optimization", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/api/v1/session-optimization/", StringComparison.OrdinalIgnoreCase))
         {
             if (HttpMethods.IsGet(context.Request.Method))
@@ -301,7 +352,7 @@ public sealed class CompanionAuthMiddleware
             }
         }
 
-        // 9. Default for any other endpoint: Require Authentication
+        // 10. Default for any other endpoint: Require Authentication
         if (!TryAuthenticateBearer(context, deviceStore, out var authenticatedDevice, out var defaultErrorStatusCode))
         {
             context.Response.StatusCode = defaultErrorStatusCode;

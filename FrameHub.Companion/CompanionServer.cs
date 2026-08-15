@@ -28,6 +28,7 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
     private ICompanionBenchmarkProvider? _benchmarkProvider;
     private ICompanionPresentationPreferencesProvider? _preferencesProvider;
     private ICompanionLibraryProvider? _libraryProvider;
+    private ICompanionBackgroundAppsProvider? _backgroundAppsProvider;
     private ICompanionSessionOptimizationProvider? _sessionOptimizationProvider;
     private Func<IHardwareMonitorLease>? _hardwareLeaser;
 
@@ -91,6 +92,11 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
     public void ConfigureLibraryProvider(ICompanionLibraryProvider provider)
     {
         _libraryProvider = provider;
+    }
+
+    public void ConfigureBackgroundAppsProvider(ICompanionBackgroundAppsProvider provider)
+    {
+        _backgroundAppsProvider = provider;
     }
 
     public void ConfigureSessionOptimizationProvider(ICompanionSessionOptimizationProvider provider)
@@ -180,6 +186,9 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
 
                 var libraryProvider = _libraryProvider ?? new NullCompanionLibraryProvider();
                 builder.Services.AddSingleton<ICompanionLibraryProvider>(libraryProvider);
+
+                var backgroundAppsProvider = _backgroundAppsProvider ?? new NullCompanionBackgroundAppsProvider();
+                builder.Services.AddSingleton<ICompanionBackgroundAppsProvider>(backgroundAppsProvider);
 
                 var optimizationProvider = _sessionOptimizationProvider ?? new NullCompanionSessionOptimizationProvider();
                 builder.Services.AddSingleton<ICompanionSessionOptimizationProvider>(optimizationProvider);

@@ -14,6 +14,7 @@ public sealed class LibraryItemViewModel : ViewModelBase
 {
     private readonly LocalizationService _localization;
     private readonly Func<IReadOnlyList<ProcessProfile>> _profilesProvider;
+    private readonly Action? _saveItem;
     private bool _isRunning;
     private bool _isOptimized;
 
@@ -32,6 +33,18 @@ public sealed class LibraryItemViewModel : ViewModelBase
     public string SetupText => IsReady ? _localization.T("Library.Status.Ready") : _localization.T("Library.Status.NeedsSetup");
 
     public bool IsReady => !string.IsNullOrWhiteSpace(Item.ProcessName) || !string.IsNullOrWhiteSpace(Item.ExecutablePath);
+    public bool IsBackgroundApp => Item.Type == LibraryItemType.BackgroundApp;
+    public bool AllowRemoteControl
+    {
+        get => Item.AllowRemoteControl;
+        set
+        {
+            if (Item.AllowRemoteControl == value) return;
+            Item.AllowRemoteControl = value;
+            OnPropertyChanged();
+            _saveItem?.Invoke();
+        }
+    }
     public bool HasLinkedProfile
     {
         get
@@ -87,11 +100,16 @@ public sealed class LibraryItemViewModel : ViewModelBase
         }
     }
 
-    public LibraryItemViewModel(LibraryItem item, LocalizationService localization, Func<IReadOnlyList<ProcessProfile>> profilesProvider)
+    public LibraryItemViewModel(
+        LibraryItem item,
+        LocalizationService localization,
+        Func<IReadOnlyList<ProcessProfile>> profilesProvider,
+        Action? saveItem = null)
     {
         Item = item;
         _localization = localization;
         _profilesProvider = profilesProvider;
+        _saveItem = saveItem;
         RefreshRuntimeState();
     }
 

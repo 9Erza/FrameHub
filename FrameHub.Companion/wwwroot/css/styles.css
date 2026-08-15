@@ -776,3 +776,11 @@ input:focus, select:focus {
     color: var(--danger);
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
+
+.background-app-card {
+    min-height: 128px;
+}
+
+.background-app-card .badge {
+    align-self: flex-start;
+}

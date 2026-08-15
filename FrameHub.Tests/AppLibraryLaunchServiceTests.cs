@@ -140,6 +140,24 @@ public sealed class AppLibraryLaunchServiceTests
     }
 
     [TestMethod]
+    public void Launch_ExplicitlyEligibleBackgroundApp_UsesTrustedExecutable()
+    {
+        ProcessStartInfo? captured = null;
+        var service = new AppLibraryLaunchService(info => { captured = info; return true; });
+        var item = new LibraryItem
+        {
+            Id = "background-1", DisplayName = "Background", Type = LibraryItemType.BackgroundApp,
+            IsEnabled = true, AllowRemoteControl = true, ExecutablePath = _fakeExecutablePath,
+            ProcessName = Path.GetFileNameWithoutExtension(_fakeExecutablePath)
+        };
+
+        LibraryLaunchResult result = service.Launch(item);
+
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual(Path.GetFullPath(_fakeExecutablePath), captured!.FileName);
+    }
+
+    [TestMethod]
     public void Launch_MissingExecutablePath_ReturnsNotLaunchable()
     {
         bool invoked = false;

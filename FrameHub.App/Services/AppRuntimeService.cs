@@ -95,6 +95,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         LaunchService = new AppLibraryLaunchService();
         LibraryProvider = new AppLibraryProvider(this, LaunchService);
         CompanionServer.ConfigureLibraryProvider(LibraryProvider);
+        CompanionServer.ConfigureBackgroundAppsProvider(LibraryProvider);
         SessionOptimizationCoordinator = new SessionOptimizationCoordinator(ProcessScanner, benchmarkArbiter: BenchmarkCoordinator);
         SessionOptimizationProvider = new AppSessionOptimizationProvider(this, SessionOptimizationCoordinator, ActiveGameMonitor, BenchmarkCoordinator);
         CompanionServer.ConfigureSessionOptimizationProvider(SessionOptimizationProvider);

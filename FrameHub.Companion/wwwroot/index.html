@@ -179,6 +179,26 @@
                         <div id="library-list" class="library-cards-grid"></div>
                     </div>
                 </section>
+                <section class="card" id="background-apps-section" style="margin-top: 1rem;">
+                    <div class="card-header">
+                        <h2 data-i18n="backgroundApps.title">Background Apps</h2>
+                        <div class="header-actions">
+                            <button type="button" id="btn-refresh-background-apps" class="btn btn-sm btn-secondary" data-i18n="backgroundApps.refresh">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted" data-i18n="backgroundApps.description">Trusted apps explicitly enabled in the desktop Library.</p>
+                        <div id="background-apps-loading" class="library-loading-box hidden">
+                            <div class="spinner"></div>
+                            <p data-i18n="backgroundApps.loading">Loading background apps...</p>
+                        </div>
+                        <div id="background-apps-error" class="error-banner hidden"></div>
+                        <div id="background-apps-empty" class="library-empty-box hidden">
+                            <p data-i18n="backgroundApps.empty">No background apps are enabled for remote control.</p>
+                        </div>
+                        <div id="background-apps-list" class="library-cards-grid"></div>
+                    </div>
+                </section>
             </div>
 
             <!-- Benchmarks View Container -->

@@ -474,6 +474,8 @@ public sealed class SettingsViewModel : ViewModelBase
         string scopeWriteBenchmarksLabel = _localization.T("Settings.CompanionScopeWriteBenchmarks");
         string scopeReadLibraryLabel = _localization.T("Settings.CompanionScopeReadLibrary");
         string scopeWriteLaunchLabel = _localization.T("Settings.CompanionScopeWriteLaunch");
+        string scopeReadBackgroundAppsLabel = _localization.T("Settings.CompanionScopeReadBackgroundApps");
+        string scopeWriteBackgroundAppsLabel = _localization.T("Settings.CompanionScopeWriteBackgroundApps");
         string scopeReadOptimizationLabel = _localization.T("Settings.CompanionScopeReadOptimization");
         string scopeWriteOptimizationLabel = _localization.T("Settings.CompanionScopeWriteOptimization");
         string revokeLabel = _localization.T("Settings.CompanionRevoke");
@@ -493,7 +495,9 @@ public sealed class SettingsViewModel : ViewModelBase
                 scopeReadOptimizationLabel,
                 scopeWriteOptimizationLabel,
                 revokeLabel,
-                neverUsedText));
+                neverUsedText,
+                scopeReadBackgroundAppsLabel,
+                scopeWriteBackgroundAppsLabel));
         }
         OnPropertyChanged(nameof(HasPairedDevices));
         OnPropertyChanged(nameof(IsDeviceStoreFaulted));

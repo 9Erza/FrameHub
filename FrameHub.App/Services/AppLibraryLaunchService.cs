@@ -49,7 +49,9 @@ public sealed class AppLibraryLaunchService : IAppLibraryLaunchService
             return LibraryLaunchResult.Fail("not_launchable");
         }
 
-        if (item.Type != LibraryItemType.Game && item.Type != LibraryItemType.App)
+        bool isExistingLaunchType = item.Type == LibraryItemType.Game || item.Type == LibraryItemType.App;
+        bool isOptedInBackgroundApp = item.Type == LibraryItemType.BackgroundApp && item.AllowRemoteControl;
+        if (!isExistingLaunchType && !isOptedInBackgroundApp)
         {
             return LibraryLaunchResult.Fail("not_launchable");
         }

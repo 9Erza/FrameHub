@@ -41,6 +41,11 @@
         libraryEmpty: document.getElementById('library-empty'),
         libraryError: document.getElementById('library-error'),
         libraryList: document.getElementById('library-list'),
+        btnRefreshBackgroundApps: document.getElementById('btn-refresh-background-apps'),
+        backgroundAppsLoading: document.getElementById('background-apps-loading'),
+        backgroundAppsEmpty: document.getElementById('background-apps-empty'),
+        backgroundAppsError: document.getElementById('background-apps-error'),
+        backgroundAppsList: document.getElementById('background-apps-list'),
 
         targetSelect: document.getElementById('target-select'),
         targetCountBadge: document.getElementById('target-count-badge'),
@@ -132,6 +137,7 @@
 
         if (activeTab === 'library') {
             fetchLibraryItems();
+            fetchBackgroundApps();
         } else if (activeTab === 'home') {
             fetchOptimizationState();
         }
@@ -1362,6 +1368,155 @@
         }
     }
 
+    // Trusted Background App Control (M10.1)
+    let backgroundAppsFetchPromise = null;
+    const backgroundAppOperations = new Set();
+
+    function fetchBackgroundApps() {
+        if (backgroundAppsFetchPromise) return backgroundAppsFetchPromise;
+        backgroundAppsFetchPromise = fetchBackgroundAppsCore();
+        return backgroundAppsFetchPromise;
+    }
+
+    async function fetchBackgroundAppsCore() {
+        if (elements.backgroundAppsLoading) elements.backgroundAppsLoading.classList.remove('hidden');
+        if (elements.backgroundAppsError) elements.backgroundAppsError.classList.add('hidden');
+        if (elements.backgroundAppsEmpty) elements.backgroundAppsEmpty.classList.add('hidden');
+
+        const i18n = window.FrameHubI18n;
+        try {
+            const resp = await fetch('/api/v1/background-apps', { headers: getAuthHeaders() });
+            if (resp.status === 401) {
+                updateAuthUi(false, i18n ? i18n.t('auth.required') : 'Pairing Required');
+                showBackgroundAppsError(i18n ? i18n.t('backgroundApps.unauthorized') : 'Authentication required.');
+                return;
+            }
+            if (resp.status === 403) {
+                showBackgroundAppsError(i18n ? i18n.t('backgroundApps.permissionUnavailable') : 'Background app permission is unavailable.');
+                return;
+            }
+            if (!resp.ok) {
+                showBackgroundAppsError(i18n ? i18n.t('backgroundApps.loadFailed') : 'Failed to load background apps.');
+                return;
+            }
+            renderBackgroundApps(await resp.json());
+        } catch (_) {
+            showBackgroundAppsError(i18n ? i18n.t('backgroundApps.loadFailed') : 'Failed to load background apps.');
+        } finally {
+            backgroundAppsFetchPromise = null;
+            if (elements.backgroundAppsLoading) elements.backgroundAppsLoading.classList.add('hidden');
+        }
+    }
+
+    function showBackgroundAppsError(message) {
+        if (elements.backgroundAppsList) elements.backgroundAppsList.textContent = '';
+        if (elements.backgroundAppsError) {
+            elements.backgroundAppsError.textContent = message;
+            elements.backgroundAppsError.classList.remove('hidden');
+        }
+    }
+
+    function renderBackgroundApps(items) {
+        if (!elements.backgroundAppsList) return;
+        elements.backgroundAppsList.textContent = '';
+        if (elements.backgroundAppsError) elements.backgroundAppsError.classList.add('hidden');
+        if (!Array.isArray(items) || items.length === 0) {
+            if (elements.backgroundAppsEmpty) elements.backgroundAppsEmpty.classList.remove('hidden');
+            return;
+        }
+        if (elements.backgroundAppsEmpty) elements.backgroundAppsEmpty.classList.add('hidden');
+
+        const i18n = window.FrameHubI18n;
+        items.forEach(function (item) {
+            const card = document.createElement('div');
+            card.className = 'library-card background-app-card' + (item.isRunning ? ' is-running' : '');
+
+            const info = document.createElement('div');
+            info.className = 'library-card-info';
+            const title = document.createElement('h3');
+            title.className = 'library-card-title';
+            title.textContent = item.displayName || '';
+            const state = document.createElement('span');
+            state.className = 'badge ' + (item.isRunning ? 'badge-running' : 'badge-secondary');
+            state.textContent = item.isRunning
+                ? (i18n ? i18n.t('backgroundApps.running') : 'Running')
+                : (i18n ? i18n.t('backgroundApps.stopped') : 'Stopped');
+            info.appendChild(title);
+            info.appendChild(state);
+            card.appendChild(info);
+
+            const feedback = document.createElement('div');
+            feedback.className = 'launch-feedback hidden';
+            const actions = document.createElement('div');
+            actions.className = 'library-card-actions';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = item.isRunning ? 'btn btn-secondary' : 'btn btn-primary';
+            const action = item.isRunning ? 'stop' : 'start';
+            button.textContent = i18n ? i18n.t('backgroundApps.' + action) : (item.isRunning ? 'Stop' : 'Start');
+            button.disabled = item.isRunning ? !item.canStop : !item.canStart;
+            button.addEventListener('click', function () {
+                controlBackgroundApp(item, action, button, feedback);
+            });
+            actions.appendChild(button);
+            card.appendChild(actions);
+            card.appendChild(feedback);
+            elements.backgroundAppsList.appendChild(card);
+        });
+    }
+
+    async function controlBackgroundApp(item, action, button, feedback) {
+        if (!item || !item.id || backgroundAppOperations.has(item.id)) return;
+        backgroundAppOperations.add(item.id);
+        const i18n = window.FrameHubI18n;
+        button.disabled = true;
+        const originalText = button.textContent;
+        button.textContent = i18n ? i18n.t('backgroundApps.busy') : 'Busy...';
+        feedback.textContent = '';
+        feedback.className = 'launch-feedback hidden';
+        let operationSucceeded = false;
+
+        try {
+            const resp = await fetch('/api/v1/background-apps/' + encodeURIComponent(item.id) + '/' + action, {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+            if (resp.status === 401) {
+                updateAuthUi(false, i18n ? i18n.t('auth.required') : 'Pairing Required');
+                feedback.textContent = i18n ? i18n.t('backgroundApps.unauthorized') : 'Authentication required.';
+                feedback.className = 'launch-feedback error';
+                return;
+            }
+            if (resp.status === 403) {
+                feedback.textContent = i18n ? i18n.t('backgroundApps.permissionUnavailable') : 'Background app permission is unavailable.';
+                feedback.className = 'launch-feedback error';
+                return;
+            }
+            let data = null;
+            try { data = await resp.json(); } catch (_) { }
+            const code = data && data.errorCode ? data.errorCode : (resp.ok ? (action === 'start' ? 'started' : 'stop_succeeded') : (action === 'start' ? 'launch_failed' : 'stop_failed'));
+            const success = data && typeof data.success === 'boolean' ? data.success : resp.ok;
+            feedback.textContent = i18n ? i18n.t('backgroundApps.' + code, code) : code;
+            feedback.className = 'launch-feedback ' + (success ? 'success' : 'error');
+            if (success) {
+                operationSucceeded = true;
+                await new Promise(function (resolve) {
+                    setTimeout(resolve, action === 'start' ? 1500 : 500);
+                });
+                await fetchBackgroundApps();
+            }
+        } catch (_) {
+            feedback.textContent = i18n ? i18n.t('backgroundApps.operationFailed') : 'Operation failed.';
+            feedback.className = 'launch-feedback error';
+        } finally {
+            backgroundAppOperations.delete(item.id);
+            if (!operationSucceeded) {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+        }
+    }
+
     // Session Optimization Logic (M9.5)
     let isOptFetching = false;
     let cachedOptState = null;
@@ -1540,7 +1695,11 @@
         });
 
         elements.pairingForm.addEventListener('submit', handlePairingSubmit);
-        if (elements.btnRefreshLibrary) elements.btnRefreshLibrary.addEventListener('click', fetchLibraryItems);
+        if (elements.btnRefreshLibrary) elements.btnRefreshLibrary.addEventListener('click', function () {
+            fetchLibraryItems();
+            fetchBackgroundApps();
+        });
+        if (elements.btnRefreshBackgroundApps) elements.btnRefreshBackgroundApps.addEventListener('click', fetchBackgroundApps);
         if (elements.btnApplyOpt) elements.btnApplyOpt.addEventListener('click', handleApplyOptimization);
         if (elements.btnRestoreOpt) elements.btnRestoreOpt.addEventListener('click', handleRestoreOptimization);
         if (elements.btnRefreshOpt) elements.btnRefreshOpt.addEventListener('click', fetchOptimizationState);

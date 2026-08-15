@@ -192,6 +192,8 @@
                                             <CheckBox Content="{Binding ScopeTelemetryLabel}" IsChecked="{Binding ReadTelemetryEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
                                             <CheckBox Content="{Binding ScopeReadLibraryLabel}" IsChecked="{Binding ReadLibraryEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
                                             <CheckBox Content="{Binding ScopeWriteLaunchLabel}" IsChecked="{Binding WriteLaunchEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
+                                            <CheckBox Content="{Binding ScopeReadBackgroundAppsLabel}" IsChecked="{Binding ReadBackgroundAppsEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
+                                            <CheckBox Content="{Binding ScopeWriteBackgroundAppsLabel}" IsChecked="{Binding WriteBackgroundAppsEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
                                             <CheckBox Content="{Binding ScopeReadOptimizationLabel}" IsChecked="{Binding ReadOptimizationEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
                                             <CheckBox Content="{Binding ScopeWriteOptimizationLabel}" IsChecked="{Binding WriteOptimizationEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>
                                             <CheckBox Content="{Binding ScopeReadBenchmarksLabel}" IsChecked="{Binding ReadBenchmarksEnabled, Mode=TwoWay}" Margin="0,0,10,0"/>

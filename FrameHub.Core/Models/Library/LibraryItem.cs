@@ -17,6 +17,7 @@ public sealed class LibraryItem
 
     public bool IsEnabled { get; set; } = true;
     public bool WatchProcess { get; set; } = true;
+    public bool AllowRemoteControl { get; set; }
     public string? LinkedProfileId { get; set; }
 
     public DateTime DetectedAt { get; set; } = DateTime.UtcNow;

@@ -42,6 +42,14 @@ namespace FrameHub.Core.Services
             return Task.Run(() => FindRunningLibraryItemIds(items));
         }
 
+        public Task<IReadOnlyList<LibraryProcessIdentity>> FindRunningLibraryItemProcessesAsync(
+            LibraryItem item,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(item);
+            return Task.Run(() => FindRunningLibraryItemProcesses(item, cancellationToken), cancellationToken);
+        }
+
         private ProcessScanResult ScanUserProcesses()
         {
             lock (_cpuSamplingLock)
@@ -148,6 +156,63 @@ namespace FrameHub.Core.Services
             }
 
             return runningItemIds;
+        }
+
+        private static IReadOnlyList<LibraryProcessIdentity> FindRunningLibraryItemProcesses(
+            LibraryItem item,
+            CancellationToken cancellationToken)
+        {
+            string trustedName = ProfileService.NormalizeProcessName(item.ProcessName);
+            string? trustedPath = NormalizeExecutablePath(item.ExecutablePath);
+            if (string.IsNullOrWhiteSpace(item.Id) || (string.IsNullOrWhiteSpace(trustedName) && trustedPath == null))
+            {
+                return Array.Empty<LibraryProcessIdentity>();
+            }
+
+            var matches = new List<LibraryProcessIdentity>();
+            foreach (var process in Process.GetProcesses())
+            {
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (process.HasExited) continue;
+
+                    string processName = ProfileService.NormalizeProcessName(process.ProcessName);
+                    string? processPath = TryGetProcessPath(process);
+                    string? normalizedPath = NormalizeExecutablePath(processPath);
+                    bool nameMatches = string.IsNullOrWhiteSpace(trustedName)
+                        || trustedName.Equals(processName, StringComparison.OrdinalIgnoreCase);
+                    bool matchesTrustedItem = trustedPath != null
+                        ? nameMatches && normalizedPath != null && trustedPath.Equals(normalizedPath, StringComparison.OrdinalIgnoreCase)
+                        : nameMatches;
+                    if (!matchesTrustedItem) continue;
+
+                    ProcessInstanceKey key = CreateInstanceKey(process);
+                    if (key.StartTimeUtc == DateTime.MinValue) continue;
+
+                    matches.Add(new LibraryProcessIdentity
+                    {
+                        ProcessId = key.ProcessId,
+                        StartTimeUtc = key.StartTimeUtc,
+                        ProcessName = processName,
+                        ExecutablePath = normalizedPath
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // Inaccessible processes cannot establish sufficient trusted identity.
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            return matches;
         }
 
         private static string? TryGetProcessPath(Process process)

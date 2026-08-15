@@ -8,6 +8,8 @@ public static class CompanionScopes
     public const string WriteBenchmarks = "write:benchmarks";
     public const string ReadLibrary = "read:library";
     public const string WriteLaunch = "write:launch";
+    public const string ReadBackgroundApps = "read:background-apps";
+    public const string WriteBackgroundApps = "write:background-apps";
     public const string ReadOptimization = "read:optimization";
     public const string WriteOptimization = "write:optimization";
 
@@ -19,6 +21,8 @@ public static class CompanionScopes
         WriteBenchmarks,
         ReadLibrary,
         WriteLaunch,
+        ReadBackgroundApps,
+        WriteBackgroundApps,
         ReadOptimization,
         WriteOptimization
     };

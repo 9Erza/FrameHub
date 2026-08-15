@@ -13,6 +13,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     private bool _writeBenchmarksEnabled;
     private bool _readLibraryEnabled;
     private bool _writeLaunchEnabled;
+    private bool _readBackgroundAppsEnabled;
+    private bool _writeBackgroundAppsEnabled;
     private bool _readOptimizationEnabled;
     private bool _writeOptimizationEnabled;
 
@@ -25,6 +27,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     public string ScopeWriteBenchmarksLabel { get; }
     public string ScopeReadLibraryLabel { get; }
     public string ScopeWriteLaunchLabel { get; }
+    public string ScopeReadBackgroundAppsLabel { get; }
+    public string ScopeWriteBackgroundAppsLabel { get; }
     public string ScopeReadOptimizationLabel { get; }
     public string ScopeWriteOptimizationLabel { get; }
     public string RevokeLabel { get; }
@@ -118,6 +122,42 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         }
     }
 
+    public bool ReadBackgroundAppsEnabled
+    {
+        get => _readBackgroundAppsEnabled;
+        set
+        {
+            if (SetProperty(ref _readBackgroundAppsEnabled, value))
+            {
+                _onToggleScope(Id, CompanionScopes.ReadBackgroundApps, value);
+                if (!value && _writeBackgroundAppsEnabled)
+                {
+                    _writeBackgroundAppsEnabled = false;
+                    OnPropertyChanged(nameof(WriteBackgroundAppsEnabled));
+                    _onToggleScope(Id, CompanionScopes.WriteBackgroundApps, false);
+                }
+            }
+        }
+    }
+
+    public bool WriteBackgroundAppsEnabled
+    {
+        get => _writeBackgroundAppsEnabled;
+        set
+        {
+            if (SetProperty(ref _writeBackgroundAppsEnabled, value))
+            {
+                _onToggleScope(Id, CompanionScopes.WriteBackgroundApps, value);
+                if (value && !_readBackgroundAppsEnabled)
+                {
+                    _readBackgroundAppsEnabled = true;
+                    OnPropertyChanged(nameof(ReadBackgroundAppsEnabled));
+                    _onToggleScope(Id, CompanionScopes.ReadBackgroundApps, true);
+                }
+            }
+        }
+    }
+
     public bool ReadOptimizationEnabled
     {
         get => _readOptimizationEnabled;
@@ -168,7 +208,9 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         string? scopeReadOptimizationLabel = null,
         string? scopeWriteOptimizationLabel = null,
         string? revokeLabel = null,
-        string? neverUsedText = null)
+        string? neverUsedText = null,
+        string? scopeReadBackgroundAppsLabel = null,
+        string? scopeWriteBackgroundAppsLabel = null)
     {
         Id = record.Id;
         DisplayName = record.DisplayName;
@@ -182,6 +224,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         ScopeWriteBenchmarksLabel = scopeWriteBenchmarksLabel ?? "Benchmark Control";
         ScopeReadLibraryLabel = scopeReadLibraryLabel ?? "Read Library";
         ScopeWriteLaunchLabel = scopeWriteLaunchLabel ?? "Launch Control";
+        ScopeReadBackgroundAppsLabel = scopeReadBackgroundAppsLabel ?? "Background Apps";
+        ScopeWriteBackgroundAppsLabel = scopeWriteBackgroundAppsLabel ?? "Background App Control";
         ScopeReadOptimizationLabel = scopeReadOptimizationLabel ?? "Optimization Data";
         ScopeWriteOptimizationLabel = scopeWriteOptimizationLabel ?? "Optimization Control";
         RevokeLabel = revokeLabel ?? "Revoke";
@@ -192,6 +236,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         _writeBenchmarksEnabled = record.Scopes.Contains(CompanionScopes.WriteBenchmarks, StringComparer.OrdinalIgnoreCase);
         _readLibraryEnabled = record.Scopes.Contains(CompanionScopes.ReadLibrary, StringComparer.OrdinalIgnoreCase);
         _writeLaunchEnabled = record.Scopes.Contains(CompanionScopes.WriteLaunch, StringComparer.OrdinalIgnoreCase);
+        _readBackgroundAppsEnabled = record.Scopes.Contains(CompanionScopes.ReadBackgroundApps, StringComparer.OrdinalIgnoreCase);
+        _writeBackgroundAppsEnabled = record.Scopes.Contains(CompanionScopes.WriteBackgroundApps, StringComparer.OrdinalIgnoreCase);
         _readOptimizationEnabled = record.Scopes.Contains(CompanionScopes.ReadOptimization, StringComparer.OrdinalIgnoreCase);
         _writeOptimizationEnabled = record.Scopes.Contains(CompanionScopes.WriteOptimization, StringComparer.OrdinalIgnoreCase);
 

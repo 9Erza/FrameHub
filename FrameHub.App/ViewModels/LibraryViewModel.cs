@@ -87,6 +87,8 @@ public sealed class LibraryViewModel : ViewModelBase
     public string DetailsTitle => _localization.T("Library.DetailsTitle");
     public string NoSelectionText => _localization.T("Library.NoSelection");
     public string LaunchText => _localization.T("Library.Launch");
+    public string RemoteControlOptInText => _localization.T("Library.RemoteControlOptIn");
+    public string RemoteControlOptInHint => _localization.T("Library.RemoteControlOptInHint");
     public string OpenFolderText => _localization.T("Library.OpenFolder");
     public string BenchmarkText => _localization.T("Library.Benchmark");
     public string ProfileEditorTitle => _localization.T("Library.ProfileEditorTitle");
@@ -684,7 +686,8 @@ public sealed class LibraryViewModel : ViewModelBase
         if (list.Count > 0) StatusMessage += " " + string.Join(" ", list);
     }
 
-    private LibraryItemViewModel CreateItemViewModel(LibraryItem item) => new(item, _localization, () => _runtime.Profiles);
+    private LibraryItemViewModel CreateItemViewModel(LibraryItem item) =>
+        new(item, _localization, () => _runtime.Profiles, () => _libraryService.SaveItems(Items.Select(x => x.Item)));
 
     private void RefreshOptimizationModes()
     {
