@@ -22,6 +22,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     public string DisplayName { get; }
     public string CreatedAtText { get; }
     public string LastUsedText { get; }
+    public string PairedOnText { get; }
+    public string LastUsedDisplay { get; }
     public string ScopeTelemetryLabel { get; }
     public string ScopeReadBenchmarksLabel { get; }
     public string ScopeWriteBenchmarksLabel { get; }
@@ -210,7 +212,9 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         string? revokeLabel = null,
         string? neverUsedText = null,
         string? scopeReadBackgroundAppsLabel = null,
-        string? scopeWriteBackgroundAppsLabel = null)
+        string? scopeWriteBackgroundAppsLabel = null,
+        string? pairedLabel = null,
+        string? lastUsedLabel = null)
     {
         Id = record.Id;
         DisplayName = record.DisplayName;
@@ -218,6 +222,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         LastUsedText = record.LastUsedAtUtc.HasValue
             ? record.LastUsedAtUtc.Value.ToLocalTime().ToString("g")
             : (neverUsedText ?? "Never");
+        PairedOnText = string.IsNullOrWhiteSpace(pairedLabel) ? CreatedAtText : $"{pairedLabel}: {CreatedAtText}";
+        LastUsedDisplay = string.IsNullOrWhiteSpace(lastUsedLabel) ? LastUsedText : $"{lastUsedLabel}: {LastUsedText}";
 
         ScopeTelemetryLabel = scopeTelemetryLabel ?? "Telemetry";
         ScopeReadBenchmarksLabel = scopeReadBenchmarksLabel ?? "Benchmark Data";

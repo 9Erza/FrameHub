@@ -511,6 +511,8 @@ public sealed class SettingsViewModel : ViewModelBase
         string scopeWriteOptimizationLabel = _localization.T("Settings.CompanionScopeWriteOptimization");
         string revokeLabel = _localization.T("Settings.CompanionRevoke");
         string neverUsedText = _localization.T("Settings.CompanionNeverUsed");
+        string pairedLabel = _localization.T("Settings.CompanionPaired");
+        string lastUsedLabel = _localization.T("Settings.CompanionLastUsed");
 
         foreach (var dev in devices)
         {
@@ -528,7 +530,9 @@ public sealed class SettingsViewModel : ViewModelBase
                 revokeLabel,
                 neverUsedText,
                 scopeReadBackgroundAppsLabel,
-                scopeWriteBackgroundAppsLabel));
+                scopeWriteBackgroundAppsLabel,
+                pairedLabel,
+                lastUsedLabel));
         }
         OnPropertyChanged(nameof(HasPairedDevices));
         OnPropertyChanged(nameof(IsDeviceStoreFaulted));
@@ -621,8 +625,41 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private void RevokeDevice(Guid id)
     {
-        _runtime.CompanionServer.DeviceStore.RevokeDevice(id);
+        RevokeDeviceWithConfirmation(_runtime.CompanionServer.DeviceStore, id, ConfirmRevokeDevice);
         RefreshPairedDevices();
+    }
+
+    /// <summary>Test seam substituting the WPF confirmation dialog; when null the real MessageBox is used.</summary>
+    public Func<string, bool>? RevokeConfirmationPrompt { get; set; }
+
+    private bool ConfirmRevokeDevice(string deviceName)
+    {
+        Func<string, bool>? prompt = RevokeConfirmationPrompt;
+        if (prompt != null)
+        {
+            return prompt(deviceName);
+        }
+
+        return WpfMessageBox.Show(
+            string.Format(_localization.T("Settings.CompanionRevokeConfirmMessage"), deviceName),
+            _localization.T("Settings.CompanionRevokeConfirmTitle"),
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) == MessageBoxResult.Yes;
+    }
+
+    /// <summary>
+    /// Revokes exactly one paired device after an explicit confirmation naming that device.
+    /// Cancel (or a missing record) performs no mutation.
+    /// </summary>
+    public static bool RevokeDeviceWithConfirmation(DeviceRecordStore store, Guid id, Func<string, bool> confirmRemoval)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(confirmRemoval);
+
+        PairedDeviceRecord? device = store.GetDeviceById(id);
+        if (device == null) return false;
+        if (!confirmRemoval(device.DisplayName)) return false;
+        return store.RevokeDevice(id);
     }
 
     private void ResetDeviceStore()

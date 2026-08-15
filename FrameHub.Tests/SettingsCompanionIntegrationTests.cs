@@ -587,6 +587,163 @@ public sealed class SettingsCompanionIntegrationTests
     }
 
     [TestMethod]
+    public void PairedDeviceItemViewModel_TwoRecordsWithDistinctNames_ProjectAsDistinctDevices()
+    {
+        string storePath = Path.Combine(_tempDirectory, "paired-devices-distinct.json");
+        var store = new DeviceRecordStore(storePath);
+        var recordA = new PairedDeviceRecord { Id = Guid.NewGuid(), DisplayName = "Erza-PC", CredentialHash = "hash-a" };
+        var recordB = new PairedDeviceRecord { Id = Guid.NewGuid(), DisplayName = "Erza-iPhone", CredentialHash = "hash-b" };
+        store.AddDevice(recordA);
+        store.AddDevice(recordB);
+
+        var vmA = new PairedDeviceItemViewModel(recordA, _ => { }, (_, _, _) => { }, pairedLabel: "Paired", lastUsedLabel: "Last used");
+        var vmB = new PairedDeviceItemViewModel(recordB, _ => { }, (_, _, _) => { }, pairedLabel: "Paired", lastUsedLabel: "Last used");
+
+        Assert.AreEqual("Erza-PC", vmA.DisplayName);
+        Assert.AreEqual(recordA.Id, vmA.Id);
+        Assert.AreEqual("Erza-iPhone", vmB.DisplayName);
+        Assert.AreEqual(recordB.Id, vmB.Id);
+        Assert.AreNotEqual(vmA.Id, vmB.Id);
+        StringAssert.StartsWith(vmA.PairedOnText, "Paired: ");
+        StringAssert.StartsWith(vmA.LastUsedDisplay, "Last used: ");
+    }
+
+    [TestMethod]
+    public void PairedDeviceItemViewModel_ScopeEdit_TargetsOnlyThatDeviceId()
+    {
+        string storePath = Path.Combine(_tempDirectory, "paired-devices-targeting.json");
+        var store = new DeviceRecordStore(storePath);
+        var recordA = new PairedDeviceRecord { Id = Guid.NewGuid(), DisplayName = "Device A", Scopes = new List<string> { CompanionScopes.ReadStatus } };
+        var recordB = new PairedDeviceRecord { Id = Guid.NewGuid(), DisplayName = "Device B", Scopes = new List<string> { CompanionScopes.ReadStatus } };
+        store.AddDevice(recordA);
+        store.AddDevice(recordB);
+
+        var vmA = new PairedDeviceItemViewModel(
+            recordA,
+            _ => { },
+            (id, scope, enabled) => { if (enabled) store.GrantScope(id, scope); else store.RevokeScope(id, scope); });
+
+        var scopesBBefore = store.GetDeviceById(recordB.Id)!.Scopes.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+
+        vmA.WriteLaunchEnabled = true;
+
+        var storedA = store.GetDeviceById(recordA.Id)!;
+        Assert.IsTrue(storedA.Scopes.Contains(CompanionScopes.WriteLaunch), "Device A must receive the granted scope.");
+        Assert.IsTrue(storedA.Scopes.Contains(CompanionScopes.ReadLibrary), "WriteLaunch cascade must grant ReadLibrary on device A.");
+
+        var storedB = store.GetDeviceById(recordB.Id)!;
+        var scopesBAfter = storedB.Scopes.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+        CollectionAssert.AreEqual(scopesBBefore, scopesBAfter, "Device B scopes must be untouched by a device A edit.");
+        Assert.IsFalse(storedB.Scopes.Contains(CompanionScopes.WriteLaunch));
+    }
+
+    [TestMethod]
+    public void PairedDeviceItemViewModel_ScopeEdit_PreservesUnrelatedExistingScopes()
+    {
+        string storePath = Path.Combine(_tempDirectory, "paired-devices-preserve.json");
+        var store = new DeviceRecordStore(storePath);
+        var record = new PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Preserved Device",
+            Scopes = new List<string> { CompanionScopes.ReadStatus, CompanionScopes.ReadTelemetry, CompanionScopes.ReadOptimization }
+        };
+        store.AddDevice(record);
+
+        var vm = new PairedDeviceItemViewModel(
+            record,
+            _ => { },
+            (id, scope, enabled) => { if (enabled) store.GrantScope(id, scope); else store.RevokeScope(id, scope); });
+
+        vm.ReadLibraryEnabled = true;
+        vm.ReadTelemetryEnabled = false;
+
+        var stored = store.GetDeviceById(record.Id)!;
+        Assert.IsTrue(stored.Scopes.Contains(CompanionScopes.ReadStatus), "Unrelated ReadStatus scope must survive.");
+        Assert.IsTrue(stored.Scopes.Contains(CompanionScopes.ReadOptimization), "Unrelated ReadOptimization scope must survive.");
+        Assert.IsTrue(stored.Scopes.Contains(CompanionScopes.ReadLibrary));
+        Assert.IsFalse(stored.Scopes.Contains(CompanionScopes.ReadTelemetry), "Explicitly revoked scope must be removed.");
+    }
+
+    [TestMethod]
+    public void RevokeDeviceWithConfirmation_Confirmed_RemovesOnlyTargetDevice()
+    {
+        string storePath = Path.Combine(_tempDirectory, "paired-devices-revoke-yes.json");
+        var store = new DeviceRecordStore(storePath);
+        var recordA = new PairedDeviceRecord { Id = Guid.NewGuid(), DisplayName = "Device A", Scopes = new List<string> { CompanionScopes.ReadStatus, CompanionScopes.ReadLibrary } };
+        var recordB = new PairedDeviceRecord { Id = Guid.NewGuid(), DisplayName = "Device B", Scopes = new List<string> { CompanionScopes.ReadStatus, CompanionScopes.ReadTelemetry } };
+        store.AddDevice(recordA);
+        store.AddDevice(recordB);
+
+        string? confirmedName = null;
+        bool removed = SettingsViewModel.RevokeDeviceWithConfirmation(store, recordA.Id, name => { confirmedName = name; return true; });
+
+        Assert.IsTrue(removed);
+        Assert.AreEqual("Device A", confirmedName, "Confirmation must name the device being removed.");
+        Assert.IsNull(store.GetDeviceById(recordA.Id), "Only device A may be removed.");
+        var storedB = store.GetDeviceById(recordB.Id);
+        Assert.IsNotNull(storedB, "Device B must remain paired.");
+        CollectionAssert.AreEquivalent(new[] { CompanionScopes.ReadStatus, CompanionScopes.ReadTelemetry }, storedB.Scopes.ToList(), "Device B scopes must be intact.");
+    }
+
+    [TestMethod]
+    public void RevokeDeviceWithConfirmation_Cancelled_PerformsNoMutation()
+    {
+        string storePath = Path.Combine(_tempDirectory, "paired-devices-revoke-cancel.json");
+        var store = new DeviceRecordStore(storePath);
+        var recordA = new PairedDeviceRecord { Id = Guid.NewGuid(), DisplayName = "Device A", Scopes = new List<string> { CompanionScopes.ReadStatus } };
+        var recordB = new PairedDeviceRecord { Id = Guid.NewGuid(), DisplayName = "Device B", Scopes = new List<string> { CompanionScopes.ReadTelemetry } };
+        store.AddDevice(recordA);
+        store.AddDevice(recordB);
+
+        bool removed = SettingsViewModel.RevokeDeviceWithConfirmation(store, recordA.Id, _ => false);
+
+        Assert.IsFalse(removed);
+        Assert.IsNotNull(store.GetDeviceById(recordA.Id), "Cancel must not remove any device.");
+        Assert.IsNotNull(store.GetDeviceById(recordB.Id), "Cancel must not remove any device.");
+        CollectionAssert.AreEquivalent(new[] { CompanionScopes.ReadStatus }, store.GetDeviceById(recordA.Id)!.Scopes.ToList(), "Cancel must not change scopes.");
+        CollectionAssert.AreEquivalent(new[] { CompanionScopes.ReadTelemetry }, store.GetDeviceById(recordB.Id)!.Scopes.ToList(), "Cancel must not change scopes.");
+
+        Assert.IsFalse(SettingsViewModel.RevokeDeviceWithConfirmation(store, Guid.NewGuid(), _ => true), "Revoking an unknown id must fail closed without mutation.");
+        Assert.AreEqual(2, store.Devices.Count);
+    }
+
+    [TestMethod]
+    public void PairedDeviceItemViewModel_ExposesNoCredentialOrTokenMaterial()
+    {
+        string[] forbiddenFragments = { "Credential", "Hash", "Token", "Secret", "PairingKey", "Auth" };
+        foreach (var property in typeof(PairedDeviceItemViewModel).GetProperties())
+        {
+            foreach (string fragment in forbiddenFragments)
+            {
+                Assert.IsFalse(property.Name.Contains(fragment, StringComparison.OrdinalIgnoreCase),
+                    $"PairedDeviceItemViewModel must not expose '{property.Name}' via the Settings projection.");
+            }
+        }
+    }
+
+    [TestMethod]
+    public void CompanionPairedDeviceUi_NewLocalizationKeys_HaveEnPlParity()
+    {
+        foreach (string key in new[]
+        {
+            "Settings.CompanionPaired",
+            "Settings.CompanionLastUsed",
+            "Settings.CompanionRevokeConfirmTitle",
+            "Settings.CompanionRevokeConfirmMessage"
+        })
+        {
+            Assert.IsTrue(LocalizationService.EnglishKeys.Contains(key), $"Missing English key {key}");
+            Assert.IsTrue(LocalizationService.PolishKeys.Contains(key), $"Missing Polish key {key}");
+        }
+
+        string enMessage = LocalizationService.Translate("Settings.CompanionRevokeConfirmMessage", "en");
+        string plMessage = LocalizationService.Translate("Settings.CompanionRevokeConfirmMessage", "pl");
+        StringAssert.Contains(enMessage, "{0}", "EN confirmation message must keep the device-name placeholder.");
+        StringAssert.Contains(plMessage, "{0}", "PL confirmation message must keep the device-name placeholder.");
+    }
+
+    [TestMethod]
     public void LibraryViewModel_LaunchSelected_DelegatesToLaunchService()
     {
         using var runtime = CreateTestRuntime();
