@@ -384,6 +384,79 @@ public sealed class SettingsCompanionIntegrationTests
         // Pairing session MUST NOT be active because LAN address could not be bound
         Assert.IsFalse(vm.IsPairingActive, "StartPairing must not create a pairing session for an unbound LAN address.");
         Assert.AreEqual(string.Empty, vm.PairingUrl);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(vm.PairingStatusMessage), "Failed StartPairing must surface a user-facing message instead of silently doing nothing.");
+    }
+
+    [TestMethod]
+    public void StartPairing_WithCompanionStopped_ReportsStateAndCreatesNoSession()
+    {
+        using var runtime = CreateTestRuntime();
+        var localization = new LocalizationService(runtime.SettingsService);
+        var vm = new SettingsViewModel(localization, runtime);
+
+        Assert.IsFalse(vm.IsPairingSectionVisible, "Pairing UI must not be presented while the Companion service is not running.");
+
+        vm.StartPairingCommand.Execute(null);
+
+        Assert.IsFalse(vm.IsPairingActive);
+        Assert.AreEqual(string.Empty, vm.PairingUrl);
+        Assert.AreEqual(string.Empty, vm.PairingToken);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(vm.PairingStatusMessage), "StartPairing without a running server must explain the required state.");
+    }
+
+    [TestMethod]
+    public async Task StartPairing_LoopbackOnly_WhileRunning_ExposesTokenAndRootFragmentUrl()
+    {
+        int port = GetFreePort();
+        using var runtime = CreateTestRuntime();
+        var localization = new LocalizationService(runtime.SettingsService);
+        var vm = new SettingsViewModel(localization, runtime);
+
+        vm.CompanionPort = port;
+        vm.CompanionEnabled = true;
+        await Task.Delay(150);
+
+        Assert.IsTrue(vm.IsCompanionRunning);
+        Assert.IsTrue(vm.IsPairingSectionVisible, "Pairing UI must be presented whenever the Companion service is running, including localhost-only mode.");
+
+        vm.StartPairingCommand.Execute(null);
+
+        Assert.IsTrue(vm.IsPairingActive);
+        Assert.AreEqual(string.Empty, vm.PairingStatusMessage);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(vm.PairingToken), "The pairing token must be surfaced for manual entry.");
+        StringAssert.StartsWith(vm.PairingUrl, $"http://127.0.0.1:{port}/#v=1&t=", "Pairing URL must target the served root page with a fragment token.");
+        Assert.IsFalse(vm.PairingUrl.Contains("/pair"), "Pairing URL must not reference the nonexistent /pair page.");
+        Assert.IsFalse(vm.PairingUrl.Contains('?'), "Pairing token must never be carried in a query string.");
+        Assert.IsTrue(vm.PairingUrl.EndsWith(vm.PairingToken, StringComparison.Ordinal));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(vm.CompanionPairingActiveText), "Localized pairing window title must be available.");
+        Assert.IsFalse(string.IsNullOrWhiteSpace(vm.CompanionPairingLanHintText), "LAN pairing hint must be available while LAN access is disabled.");
+
+        vm.CancelPairingCommand.Execute(null);
+        Assert.IsFalse(vm.IsPairingActive);
+    }
+
+    [TestMethod]
+    public void Localization_PairingKeys_ExistInBothLanguages_WithoutStaleClaims()
+    {
+        foreach (string key in new[]
+        {
+            "Settings.CompanionDescription",
+            "Settings.CompanionPairingToken",
+            "Settings.CompanionPairingLanHint",
+            "Settings.CompanionPairingWaitRunning",
+            "Settings.CompanionPairingLanUnavailable",
+            "Settings.CompanionPairingActive"
+        })
+        {
+            Assert.IsTrue(LocalizationService.EnglishKeys.Contains(key), $"Missing English key {key}");
+            Assert.IsTrue(LocalizationService.PolishKeys.Contains(key), $"Missing Polish key {key}");
+        }
+
+        string enDescription = LocalizationService.Translate("Settings.CompanionDescription", "en");
+        string plDescription = LocalizationService.Translate("Settings.CompanionDescription", "pl");
+        Assert.IsFalse(enDescription.Contains("future update", StringComparison.OrdinalIgnoreCase), "EN description must not claim LAN pairing is only planned.");
+        Assert.IsFalse(plDescription.Contains("planowane", StringComparison.OrdinalIgnoreCase), "PL description must not claim LAN pairing is only planned.");
+        Assert.IsFalse(plDescription.Contains("localhost", StringComparison.OrdinalIgnoreCase), "PL description must not claim localhost-only mode.");
     }
 
     [TestMethod]

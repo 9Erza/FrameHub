@@ -344,6 +344,8 @@ public sealed class SettingsViewModel : ViewModelBase
     public string CompanionLanStatusLabel => _localization.T("Settings.CompanionLanStatus");
     public string CompanionPairButtonLabel => _localization.T("Settings.CompanionPairButton");
     public string CompanionCancelPairButtonLabel => _localization.T("Settings.CompanionCancelPairButton");
+    public string CompanionPairingUrlLabel => _localization.T("Settings.CompanionPairingUrl");
+    public string CompanionPairingTokenLabel => _localization.T("Settings.CompanionPairingToken");
     public string CompanionCopyUrlLabel => _localization.T("Settings.CompanionCopyUrl");
     public string CompanionPendingTitle => _localization.T("Settings.CompanionPendingTitle");
     public string CompanionAllowLabel => _localization.T("Settings.CompanionAllow");
@@ -405,6 +407,35 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool IsPairingActive => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().IsActive;
     public string PairingUrl => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PairingUrl ?? string.Empty;
     public string PairingToken => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PairingToken ?? string.Empty;
+
+    public bool IsPairingSectionVisible => IsCompanionRunning;
+
+    public string CompanionPairingActiveText
+    {
+        get
+        {
+            var status = _runtime.CompanionServer.PairingEngine.GetCurrentStatus();
+            if (!status.IsActive || status.ExpiresAtUtc is not { } expiresAtUtc)
+            {
+                return string.Empty;
+            }
+
+            int remainingMinutes = (int)Math.Ceiling(Math.Max((expiresAtUtc - DateTimeOffset.Now).TotalMinutes, 1));
+            return string.Format(_localization.T("Settings.CompanionPairingActive"), remainingMinutes);
+        }
+    }
+
+    public string CompanionPairingLanHintText => _localization.T("Settings.CompanionPairingLanHint");
+
+    public string PairingStatusMessage => _pairingStatusMessageKey == null ? string.Empty : _localization.T(_pairingStatusMessageKey);
+
+    private string? _pairingStatusMessageKey;
+
+    private void SetPairingStatusMessage(string? key)
+    {
+        _pairingStatusMessageKey = key;
+        OnPropertyChanged(nameof(PairingStatusMessage));
+    }
 
     public bool HasPendingPairingRequest => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PendingRequest != null;
     public string PendingDeviceName => _runtime.CompanionServer.PairingEngine.GetCurrentStatus().PendingRequest?.DisplayName ?? string.Empty;
@@ -522,6 +553,7 @@ public sealed class SettingsViewModel : ViewModelBase
         var status = _runtime.CompanionServer.Status;
         if (status.State != CompanionServiceState.Running)
         {
+            SetPairingStatusMessage("Settings.CompanionPairingWaitRunning");
             return;
         }
 
@@ -532,6 +564,7 @@ public sealed class SettingsViewModel : ViewModelBase
         {
             if (string.IsNullOrWhiteSpace(status.LanBoundAddress) || status.LanFaulted)
             {
+                SetPairingStatusMessage("Settings.CompanionPairingLanUnavailable");
                 return;
             }
 
@@ -542,6 +575,7 @@ public sealed class SettingsViewModel : ViewModelBase
             }
             else
             {
+                SetPairingStatusMessage("Settings.CompanionPairingLanUnavailable");
                 return;
             }
         }
@@ -556,6 +590,7 @@ public sealed class SettingsViewModel : ViewModelBase
         }
 
         _runtime.CompanionServer.PairingEngine.StartPairingSession(host, port);
+        SetPairingStatusMessage(null);
     }
 
     private void CancelPairing()
@@ -606,6 +641,7 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsPairingActive));
         OnPropertyChanged(nameof(PairingUrl));
         OnPropertyChanged(nameof(PairingToken));
+        OnPropertyChanged(nameof(CompanionPairingActiveText));
         OnPropertyChanged(nameof(HasPendingPairingRequest));
         OnPropertyChanged(nameof(PendingDeviceName));
         OnPropertyChanged(nameof(PendingSourceIp));
@@ -651,6 +687,7 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(LanStatusText));
         OnPropertyChanged(nameof(CompanionLanEnabled));
         OnPropertyChanged(nameof(CompanionLanAddress));
+        OnPropertyChanged(nameof(IsPairingSectionVisible));
     }
 
     public void RefreshTexts()
@@ -721,6 +758,14 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(CompanionPortLabel));
         OnPropertyChanged(nameof(CompanionStatusLabel));
         OnPropertyChanged(nameof(CompanionEndpointLabel));
+        OnPropertyChanged(nameof(CompanionPairButtonLabel));
+        OnPropertyChanged(nameof(CompanionCancelPairButtonLabel));
+        OnPropertyChanged(nameof(CompanionPairingUrlLabel));
+        OnPropertyChanged(nameof(CompanionPairingTokenLabel));
+        OnPropertyChanged(nameof(CompanionCopyUrlLabel));
+        OnPropertyChanged(nameof(CompanionPairingActiveText));
+        OnPropertyChanged(nameof(CompanionPairingLanHintText));
+        OnPropertyChanged(nameof(PairingStatusMessage));
         UpdateCompanionStatusProperties();
     }
 

@@ -63,7 +63,7 @@ public sealed class PairingEngine
             _activeToken = EncodeBase64Url(tokenBytes);
             _isClaimed = false;
             _expiresAtUtc = _clock().AddMinutes(3);
-            _currentPairingUrl = $"http://{lanIp}:{port}/pair#v=1&t={_activeToken}";
+            _currentPairingUrl = $"http://{lanIp}:{port}/#v=1&t={_activeToken}";
 
             var status = GetCurrentStatus();
             NotifySessionStatusChanged(status);

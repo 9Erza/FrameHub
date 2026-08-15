@@ -19,9 +19,9 @@
 
             'pairing.title': 'Device Pairing',
             'pairing.badge': 'Required for LAN control',
-            'pairing.instructions': 'Enter the pairing token shown on your desktop or scan the QR code to pair this device.',
+            'pairing.instructions': 'Enter the pairing token shown on your desktop to pair this device.',
             'pairing.tokenLabel': 'Pairing Token',
-            'pairing.tokenPlaceholder': 'Enter 6-character pairing token...',
+            'pairing.tokenPlaceholder': 'Enter pairing token...',
             'pairing.nameLabel': 'Device Name',
             'pairing.namePlaceholder': 'e.g. Mobile Browser',
             'pairing.submitBtn': 'Pair Device',
@@ -215,9 +215,9 @@
 
             'pairing.title': 'Parowanie Urządzenia',
             'pairing.badge': 'Wymagane do sterowania przez LAN',
-            'pairing.instructions': 'Wprowadź kod parowania widoczny na komputerze stacjonarnym lub zeskanuj kod QR.',
+            'pairing.instructions': 'Wprowadź kod parowania widoczny na komputerze stacjonarnym, aby sparować to urządzenie.',
             'pairing.tokenLabel': 'Kod Parowania',
-            'pairing.tokenPlaceholder': 'Wprowadź 6-cyfrowy kod parowania...',
+            'pairing.tokenPlaceholder': 'Wprowadź kod parowania...',
             'pairing.nameLabel': 'Nazwa Urządzenia',
             'pairing.namePlaceholder': 'np. Przeglądarka Mobilna',
             'pairing.submitBtn': 'Sparuj Urządzenie',

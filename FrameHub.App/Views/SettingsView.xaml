@@ -131,16 +131,24 @@
                                 <TextBlock Text="{Binding CompanionLanStatusLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="{Binding LanStatusText}" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center"/>
                             </Grid>
+                        </StackPanel>
 
+                        <!-- Device Pairing (available whenever the Companion service is running) -->
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,12,0,12" />
+                        <StackPanel Visibility="{Binding IsPairingSectionVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                             <!-- Pair New Device Button -->
                             <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionPairButtonLabel}" Command="{Binding StartPairingCommand}" Margin="0,6,0,0" HorizontalAlignment="Left"/>
+                            <TextBlock Text="{Binding PairingStatusMessage}" Style="{StaticResource SmallMutedText}" Foreground="#FF6C6C" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding PairingStatusMessage, Converter={StaticResource NonEmptyToVisibilityConverter}}"/>
+                            <TextBlock Text="{Binding CompanionPairingLanHintText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding CompanionLanEnabled, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
 
                             <!-- Active Pairing Window Panel -->
                             <Border Visibility="{Binding IsPairingActive, Converter={StaticResource BoolToVisibilityConverter}}" Background="{StaticResource BrushSurfaceInteractive}" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,10,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Pairing Window Active (3 min)" Style="{StaticResource DataTitleText}"/>
-                                    <TextBlock Text="{Binding CompanionPairingUrl}" Style="{StaticResource TinyCapsText}" Margin="0,4,0,0"/>
+                                    <TextBlock Text="{Binding CompanionPairingActiveText}" Style="{StaticResource DataTitleText}"/>
+                                    <TextBlock Text="{Binding CompanionPairingUrlLabel}" Style="{StaticResource TinyCapsText}" Margin="0,4,0,0"/>
                                     <TextBox Text="{Binding PairingUrl, Mode=OneWay}" IsReadOnly="True" Background="{StaticResource BrushSurfaceHover}" Foreground="{StaticResource BrushTextPrimary}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Padding="8,5" Margin="0,2,0,8"/>
+                                    <TextBlock Text="{Binding CompanionPairingTokenLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,0"/>
+                                    <TextBox Text="{Binding PairingToken, Mode=OneWay}" IsReadOnly="True" Background="{StaticResource BrushSurfaceHover}" Foreground="{StaticResource BrushTextPrimary}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Padding="8,5" Margin="0,2,0,8"/>
                                     <StackPanel Orientation="Horizontal">
                                         <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionCopyUrlLabel}" Command="{Binding CopyPairingUrlCommand}"/>
                                         <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionCancelPairButtonLabel}" Command="{Binding CancelPairingCommand}" Margin="8,0,0,0"/>

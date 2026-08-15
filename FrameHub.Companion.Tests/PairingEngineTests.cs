@@ -48,7 +48,7 @@ public sealed class PairingEngineTests
         Assert.IsTrue(status.IsActive);
         Assert.IsFalse(string.IsNullOrWhiteSpace(status.PairingToken));
         Assert.IsNotNull(status.PairingUrl);
-        Assert.IsTrue(status.PairingUrl.Contains("http://192.168.1.50:47821/pair#v=1&t="));
+        Assert.IsTrue(status.PairingUrl.Contains("http://192.168.1.50:47821/#v=1&t="), "Pairing URL must target the root frontend page with a fragment token.");
 
         // Base64Url decoded token must be 32 bytes (256 bits)
         string token = status.PairingToken!;
@@ -60,6 +60,19 @@ public sealed class PairingEngineTests
         }
         byte[] decoded = Convert.FromBase64String(base64);
         Assert.AreEqual(32, decoded.Length);
+    }
+
+    [TestMethod]
+    public void StartPairingSession_UrlUsesRootFragment_NotPairRouteOrQuery()
+    {
+        var engine = CreateEngine();
+        var status = engine.StartPairingSession("192.168.1.50", 47821);
+
+        string url = status.PairingUrl!;
+        Assert.IsTrue(url.StartsWith("http://192.168.1.50:47821/#", StringComparison.Ordinal), "URL must address the served root frontend page.");
+        Assert.IsFalse(url.Contains("/pair"), "No /pair page or route exists; the URL must not reference it.");
+        Assert.IsFalse(url.Contains('?'), "The pairing token must stay in the URL fragment and never become a query parameter.");
+        Assert.IsTrue(url.EndsWith($"#v=1&t={status.PairingToken}", StringComparison.Ordinal), "Fragment must carry the version flag and the full token.");
     }
 
     [TestMethod]

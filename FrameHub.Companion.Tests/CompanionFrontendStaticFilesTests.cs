@@ -347,6 +347,28 @@ public sealed class CompanionFrontendStaticFilesTests
     }
 
     [TestMethod]
+    public async Task GetPairRoute_FailsClosedWhileRootFrontendIsPublic()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+
+        // Root pairing frontend stays reachable pre-auth (token arrives via URL fragment, never sent to the server)
+        var rootResponse = await client.GetAsync($"http://127.0.0.1:{port}/");
+        Assert.AreEqual(HttpStatusCode.OK, rootResponse.StatusCode);
+
+        // No /pair page or route exists; unknown paths must fail closed with 401, with or without query/fragment-style parameters
+        var pairResponse = await client.GetAsync($"http://127.0.0.1:{port}/pair");
+        Assert.AreEqual(HttpStatusCode.Unauthorized, pairResponse.StatusCode, "Unknown /pair path must remain protected by default authentication.");
+
+        var pairQueryResponse = await client.GetAsync($"http://127.0.0.1:{port}/pair?v=1&t=abc123");
+        Assert.AreEqual(HttpStatusCode.Unauthorized, pairQueryResponse.StatusCode, "A token in a query string must not make an unknown path public (and must never appear in URLs anyway).");
+    }
+
+    [TestMethod]
     public async Task StaticFiles_DoesNotBypassApiAuth()
     {
         int port = GetFreePort();
