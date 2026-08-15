@@ -21,6 +21,7 @@
 | Change hardware telemetry | `HardwareMonitorService`, App runtime leases, `AppTelemetrySnapshotProvider` |
 | Scan or persist Library items | scanner services and `LibraryService` |
 | Launch a Desktop Library item | `AppLibraryLaunchService` and `LibraryViewModel` |
+| Start a Desktop Gaming Mode quick action | `GamingQuickActionService` via `AppRuntimeService.GamingQuickActions`; Dashboard presents, coordinator owns lifecycle |
 | List/launch remote regular Library items | `AppLibraryProvider` |
 | List/control remote Background Apps | `AppBackgroundAppProvider`, `AppLibraryControlService`, shared launch reservations |
 | Add a Companion route | controller + provider contract; backend rules stay in Core/App |

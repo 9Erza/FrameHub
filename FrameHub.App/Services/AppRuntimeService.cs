@@ -108,6 +108,12 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         SessionOptimizationCoordinator = new SessionOptimizationCoordinator(ProcessScanner, benchmarkArbiter: BenchmarkCoordinator);
         SessionOptimizationProvider = new AppSessionOptimizationProvider(this, SessionOptimizationCoordinator, ActiveGameMonitor, BenchmarkCoordinator);
         CompanionServer.ConfigureSessionOptimizationProvider(SessionOptimizationProvider);
+        GamingQuickActions = new GamingQuickActionService(
+            ProcessScanner,
+            BenchmarkCoordinator,
+            LaunchService,
+            LaunchReservations,
+            SessionOptimizationCoordinator);
 
         AddActivity("Działanie FrameHub uruchomione.");
         AddActivity(GetWatcherStartupText());
@@ -122,6 +128,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public AppBackgroundAppProvider BackgroundAppProvider { get; }
     public SessionOptimizationCoordinator SessionOptimizationCoordinator { get; }
     public AppSessionOptimizationProvider SessionOptimizationProvider { get; }
+    public IGamingQuickActionService GamingQuickActions { get; }
 
 
 

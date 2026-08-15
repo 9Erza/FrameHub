@@ -38,6 +38,42 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
+            <!-- Gaming Mode quick action: compact game selector + composed launch/optimize flow. -->
+            <Border Style="{StaticResource SectionSurface}" Margin="0,4,0,16">
+                <StackPanel>
+                    <TextBlock Text="{Binding GamingTitle}" Style="{StaticResource SectionTitleText}" />
+                    <TextBlock Text="{Binding GamingDescription}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,12" />
+                    <TextBlock Text="{Binding GamingEmptyText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Visibility="{Binding HasNoGamingGames, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,4" />
+
+                    <StackPanel Visibility="{Binding ShowGamingSelector, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <ComboBox ItemsSource="{Binding GamingGames}" SelectedItem="{Binding SelectedGamingGame, Mode=TwoWay}" DisplayMemberPath="DisplayName" MinWidth="320" MaxWidth="480" HorizontalAlignment="Left" />
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding IsSelectedGamingGameRunning, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Ellipse Width="8" Height="8" Fill="{StaticResource BrushSuccess}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding GamingRunningText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                            <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="{Binding StartGamingModeText}" Command="{Binding StartGamingModeCommand}" VerticalAlignment="Top" Margin="16,0,0,0" />
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding IsGamingModeActive, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding GamingActiveText}" Style="{StaticResource DataTitleText}" />
+                                <TextBlock Text="{Binding GamingModeDetail}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Style="{StaticResource SuccessButton}" Content="{Binding GamingRestoreText}" Command="{Binding RestoreGamingModeCommand}" VerticalAlignment="Center" Margin="16,0,0,0" />
+                        </Grid>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding GamingStatusMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,10,0,0" />
+                </StackPanel>
+            </Border>
+
             <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding LatestBenchmarkTitle}" Style="{StaticResource SectionTitleText}"/><TextBlock Text="{Binding LatestBenchmarkGame}" Style="{StaticResource DataTitleText}" Margin="0,6,0,0"/><TextBlock Text="{Binding LatestBenchmarkResult}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0"/></StackPanel><Button Grid.Column="1" Style="{StaticResource SubtleButton}" Content="{Binding OpenBenchmarksText}" Command="{Binding OpenBenchmarksCommand}" VerticalAlignment="Center" Margin="16,0,0,0"/></Grid>
             </Border>

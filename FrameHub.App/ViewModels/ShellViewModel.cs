@@ -237,6 +237,11 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             _processesViewModel.Stop();
         }
 
+        if (key.Equals("Dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            _dashboardViewModel.ActivateGamingSection();
+        }
+
         _currentKey = key;
 
         foreach (var item in NavigationItems)

@@ -127,6 +127,15 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 
 ## Library and remote control
 
+### GamingQuickActionService
+
+- **NAME:** `GamingQuickActionService`
+- **PATH / PROJECT:** `FrameHub.App/Services/GamingQuickActionService.cs` / App
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** Desktop Gaming Mode quick-action orchestration policy only (gate order, launch→session sequencing, result projection).
+- **LIFETIME / MAJOR CONSUMERS:** App runtime lifetime; Dashboard Gaming Mode section via `AppRuntimeService.GamingQuickActions`.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** one non-queuing action gate; no cache/timer; delegates launch, cooldown, and Session lifecycle to existing owners.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** stateless compose boundary — never a second Session/benchmark authority; already-running discovery is display-level only and never authorizes mutation.
+
 ### LibraryService
 
 - **NAME:** `LibraryService`

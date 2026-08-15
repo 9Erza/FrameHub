@@ -26,7 +26,7 @@ The Work/I/O and Cost/overlap columns identify process enumeration, native/hardw
 
 ## Full-process recurring observation count
 
-Four feature-activated recurring loops may request a full process view: Processes page refresh, Session auto detection, Active Game monitor, and Benchmark target detection. The consolidation pass added zero timers. Three discovery consumers can reuse short-lived observation where they share the runtime provider; the Processes page keeps the one CPU-sampling enumeration. Background App and Library refreshes are on-demand batch requests, not loops.
+Four feature-activated recurring loops may request a full process view: Processes page refresh, Session auto detection, Active Game monitor, and Benchmark target detection. The consolidation pass added zero timers. Three discovery consumers can reuse short-lived observation where they share the runtime provider; the Processes page keeps the one CPU-sampling enumeration. Background App and Library refreshes are on-demand batch requests, not loops. Dashboard Gaming Mode (M10.2) performs on-demand batch observation only when the Dashboard is activated or a game is selected; it owns no timer and added no recurring work.
 
 ## Runtime scenarios
 
