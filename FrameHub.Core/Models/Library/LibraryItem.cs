@@ -12,12 +12,17 @@ public sealed class LibraryItem
     public string? AppId { get; set; }
     public string? InstallPath { get; set; }
     public string? ExecutablePath { get; set; }
+
+    /// <summary>Trusted shell launch entry (e.g. an official Start Menu shortcut). When set it is launched instead of ExecutablePath.</summary>
+    public string? LaunchPath { get; set; }
+
     public string? ProcessName { get; set; }
     public string? IconPath { get; set; }
 
     public bool IsEnabled { get; set; } = true;
     public bool WatchProcess { get; set; } = true;
     public bool AllowRemoteControl { get; set; }
+    public bool AllowBenchmark { get; set; } = true;
     public string? LinkedProfileId { get; set; }
 
     public DateTime DetectedAt { get; set; } = DateTime.UtcNow;

@@ -5,5 +5,6 @@ public enum LibrarySource
     Manual,
     Steam,
     Epic,
+    Riot,
     CustomFolder
 }

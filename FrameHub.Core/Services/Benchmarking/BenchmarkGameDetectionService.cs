@@ -55,7 +55,8 @@ public sealed class BenchmarkGameDetectionService
     {
         ArgumentNullException.ThrowIfNull(libraryItems);
         List<LibraryItem> games = libraryItems
-            .Where(item => item.IsEnabled && item.Type == LibraryItemType.Game && !string.IsNullOrWhiteSpace(item.Id))
+            .Where(item => item.IsEnabled && item.Type == LibraryItemType.Game && !string.IsNullOrWhiteSpace(item.Id)
+                && item.AllowBenchmark)
             .ToList();
         IReadOnlyList<BenchmarkProcessSnapshot> processes = _processProvider.GetProcesses();
         var detected = new List<BenchmarkRunningGame>();

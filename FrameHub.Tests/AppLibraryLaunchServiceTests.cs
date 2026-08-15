@@ -200,6 +200,85 @@ public sealed class AppLibraryLaunchServiceTests
     }
 
     [TestMethod]
+    public void Launch_TrustedShortcutItem_LaunchesShortcutInsteadOfExecutable()
+    {
+        string shortcutPath = Path.Combine(_tempDirectory, "official-game.lnk");
+        File.WriteAllText(shortcutPath, "shortcut content");
+        string gameExe = Path.Combine(_tempDirectory, "actual-game.exe");
+        File.WriteAllText(gameExe, "game binary");
+
+        ProcessStartInfo? capturedPsi = null;
+        var launchService = new AppLibraryLaunchService(psi => { capturedPsi = psi; return true; });
+
+        var item = new LibraryItem
+        {
+            Id = "riot-1",
+            DisplayName = "Shortcut Game",
+            Type = LibraryItemType.Game,
+            IsEnabled = true,
+            ExecutablePath = gameExe,
+            LaunchPath = shortcutPath
+        };
+
+        var result = launchService.Launch(item);
+
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual("launched", result.ErrorCode);
+        Assert.IsNotNull(capturedPsi);
+        Assert.AreEqual(shortcutPath, capturedPsi.FileName, "The trusted shortcut itself must be executed via the shell.");
+        Assert.IsTrue(capturedPsi.UseShellExecute);
+        Assert.IsTrue(string.IsNullOrEmpty(capturedPsi.Arguments), "FrameHub must never add launch arguments.");
+    }
+
+    [TestMethod]
+    public void Launch_ShortcutPathWithWrongExtension_IsRejected()
+    {
+        string fakeShortcut = Path.Combine(_tempDirectory, "not-a-shortcut.exe");
+        File.WriteAllText(fakeShortcut, "exe content");
+        bool invoked = false;
+        var launchService = new AppLibraryLaunchService(_ => { invoked = true; return true; });
+
+        var item = new LibraryItem
+        {
+            Id = "bad-launch",
+            DisplayName = "Bad Launch Target",
+            Type = LibraryItemType.Game,
+            IsEnabled = true,
+            ExecutablePath = fakeShortcut,
+            LaunchPath = fakeShortcut
+        };
+
+        var result = launchService.Launch(item);
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual("not_launchable", result.ErrorCode, "LaunchPath must accept trusted .lnk shell shortcuts only.");
+        Assert.IsFalse(invoked);
+    }
+
+    [TestMethod]
+    public void Launch_MissingShortcutFile_ReturnsLaunchTargetMissing()
+    {
+        bool invoked = false;
+        var launchService = new AppLibraryLaunchService(_ => { invoked = true; return true; });
+
+        var item = new LibraryItem
+        {
+            Id = "missing-shortcut",
+            DisplayName = "Missing Shortcut",
+            Type = LibraryItemType.Game,
+            IsEnabled = true,
+            ExecutablePath = _fakeExecutablePath,
+            LaunchPath = Path.Combine(_tempDirectory, "missing.lnk")
+        };
+
+        var result = launchService.Launch(item);
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual("launch_target_missing", result.ErrorCode);
+        Assert.IsFalse(invoked);
+    }
+
+    [TestMethod]
     public void Launch_StarterThrowsException_ReturnsLaunchFailed()
     {
         var launchService = new AppLibraryLaunchService(_ => throw new System.ComponentModel.Win32Exception(5, "Access Denied"));

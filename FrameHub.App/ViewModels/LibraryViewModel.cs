@@ -30,6 +30,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private readonly LibraryService _libraryService;
     private readonly SteamLibraryScanner _steamScanner = new();
     private readonly EpicLibraryScanner _epicScanner = new();
+    private readonly RiotLibraryScanner _riotScanner = new();
     private readonly CustomFolderScanner _customScanner = new();
     private readonly Cs2OptimizationService _cs2Service = new();
     private string _newDisplayName = string.Empty;
@@ -78,6 +79,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public string AddManualText => _localization.T("Library.AddManual");
     public string ScanSteamText => _localization.T("Library.ScanSteam");
     public string ScanEpicText => _localization.T("Library.ScanEpic");
+    public string ScanRiotText => _localization.T("Library.ScanRiot");
     public string ScanAllText => _localization.T("Library.ScanAll");
     public string AddFolderText => _localization.T("Library.AddFolder");
     public string ScanCustomText => _localization.T("Library.ScanCustom");
@@ -241,6 +243,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
 
     public ICommand ScanSteamCommand { get; }
     public ICommand ScanEpicCommand { get; }
+    public ICommand ScanRiotCommand { get; }
     public ICommand ScanAllCommand { get; }
     public ICommand BrowseExecutableCommand { get; }
     public ICommand AddManualCommand { get; }
@@ -499,6 +502,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
 
         ScanSteamCommand = new RelayCommand(_ => ScanSteam(), _ => !IsBusy);
         ScanEpicCommand = new RelayCommand(_ => ScanEpic(), _ => !IsBusy);
+        ScanRiotCommand = new RelayCommand(_ => ScanRiot(), _ => !IsBusy);
         ScanAllCommand = new RelayCommand(_ => ScanAll(), _ => !IsBusy);
         BrowseExecutableCommand = new RelayCommand(_ => BrowseExecutable());
         AddManualCommand = new RelayCommand(_ => AddManual(), _ => File.Exists(NewExecutablePath));
@@ -507,7 +511,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         RefreshStatusCommand = new RelayCommand(_ => RefreshRuntimeState());
         RemoveItemCommand = new RelayCommand(parameter => RemoveItem(parameter as LibraryItemViewModel));
         SelectItemCommand = new RelayCommand(parameter => SelectedItem = parameter as LibraryItemViewModel);
-        LaunchSelectedCommand = new RelayCommand(_ => LaunchSelected(), _ => SelectedItem != null && File.Exists(SelectedItem.Item.ExecutablePath));
+        LaunchSelectedCommand = new RelayCommand(_ => LaunchSelected(), _ => SelectedItem != null && IsSelectedItemLaunchable());
         OpenSelectedFolderCommand = new RelayCommand(_ => OpenSelectedFolder(), _ => SelectedItem != null);
         BenchmarkSelectedCommand = new RelayCommand(_ => RequestBenchmark(), _ => SelectedItem != null && SelectedItem.Item.Type == LibraryItemType.Game);
         CreateUpdateProfileCommand = new RelayCommand(_ => CreateOrUpdateProfileForSelected(), _ => SelectedItem != null && !string.IsNullOrWhiteSpace(SelectedItem.Item.ProcessName));
@@ -602,6 +606,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
 
     private void ScanSteam() => ScanWith(() => _steamScanner.Scan(), "Steam");
     private void ScanEpic() => ScanWith(() => _epicScanner.Scan(), "Epic");
+    private void ScanRiot() => ScanWith(() => _riotScanner.Scan(), "Riot");
 
     private void ScanAll()
     {
@@ -612,10 +617,13 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
             var warnings = new List<string>();
             var steam = _steamScanner.Scan();
             var epic = _epicScanner.Scan();
+            var riot = _riotScanner.Scan();
             items.AddRange(steam.Items);
             items.AddRange(epic.Items);
+            items.AddRange(riot.Items);
             warnings.AddRange(steam.Warnings);
             warnings.AddRange(epic.Warnings);
+            warnings.AddRange(riot.Warnings);
             MergeAndSave(items, string.Format(_localization.T("Library.ScanResult"), items.Count));
             AppendWarnings(warnings);
         }
@@ -988,6 +996,14 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         return result.Success;
     }
 
+    private bool IsSelectedItemLaunchable()
+    {
+        var item = SelectedItem?.Item;
+        if (item == null) return false;
+        if (!string.IsNullOrWhiteSpace(item.LaunchPath)) return File.Exists(item.LaunchPath);
+        return File.Exists(item.ExecutablePath);
+    }
+
     private void LaunchSelected()
     {
         if (SelectedItem?.Item == null) return;
@@ -997,6 +1013,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
             StatusMessage = result.ErrorCode switch
             {
                 "executable_missing" => _localization.T("Library.ExecutableMissing"),
+                "launch_target_missing" => _localization.T("Library.ExecutableMissing"),
                 _ => _localization.T("Library.LaunchFailed")
             };
         }

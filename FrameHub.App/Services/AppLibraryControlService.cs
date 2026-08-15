@@ -75,7 +75,11 @@ internal sealed class SystemTrustedProcessTerminator : ITrustedProcessTerminator
         "svchost", "fontdrvhost", "dwm", "audiodg", "spoolsv", "wudfhost", "wmiprvse", "taskhostw",
         "sihost", "searchhost", "startmenuexperiencehost", "runtimebroker", "applicationframehost",
         "securityhealthservice", "taskmgr", "conhost", "dllhost", "ctfmon", "shellexperiencehost",
-        "explorer", "framehub", "framehub.app", "framehub.companion"
+        "explorer", "framehub", "framehub.app", "framehub.companion",
+        // Riot games, client, launcher, and Vanguard are never stopped by FrameHub (Riot compliance).
+        "league of legends", "leagueclient", "leagueclientux", "leagueclientuxrender", "leaguecrashhandler64",
+        "valorant", "valorant-win64-shipping", "riotclientservices", "riotclientcrashhandler",
+        "vgc", "vgtray", "vgk"
     };
 
     public async Task<bool> StopAsync(

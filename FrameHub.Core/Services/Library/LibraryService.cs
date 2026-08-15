@@ -69,8 +69,10 @@ public sealed class LibraryService
             existing.AppId ??= item.AppId;
             existing.InstallPath ??= item.InstallPath;
             existing.ExecutablePath ??= item.ExecutablePath;
+            existing.LaunchPath ??= item.LaunchPath;
             existing.ProcessName = string.IsNullOrWhiteSpace(existing.ProcessName) ? item.ProcessName : existing.ProcessName;
             existing.IconPath ??= item.IconPath;
+            existing.AllowBenchmark = existing.AllowBenchmark && item.AllowBenchmark;
             existing.UpdatedAt = DateTime.UtcNow;
         }
 
@@ -113,6 +115,7 @@ public sealed class LibraryService
                 ? ExecutableResolver.ProcessNameFromExecutable(item.ExecutablePath)
                 : item.ProcessName);
             item.ExecutablePath = string.IsNullOrWhiteSpace(item.ExecutablePath) ? null : item.ExecutablePath.Trim();
+            item.LaunchPath = string.IsNullOrWhiteSpace(item.LaunchPath) ? null : item.LaunchPath.Trim();
             item.InstallPath = string.IsNullOrWhiteSpace(item.InstallPath) ? null : item.InstallPath.Trim();
             item.IconPath = string.IsNullOrWhiteSpace(item.IconPath) ? item.ExecutablePath : item.IconPath.Trim();
             item.UpdatedAt = item.UpdatedAt == default ? DateTime.UtcNow : item.UpdatedAt;

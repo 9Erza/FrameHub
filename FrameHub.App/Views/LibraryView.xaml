@@ -17,6 +17,7 @@
                         <Button Style="{StaticResource PrimaryButton}" Content="{Binding ScanAllText}" Command="{Binding ScanAllCommand}" Margin="0,0,8,0" />
                         <Button Style="{StaticResource ToolbarButton}" Content="{Binding ScanSteamText}" Command="{Binding ScanSteamCommand}" Margin="0,0,4,0" />
                         <Button Style="{StaticResource ToolbarButton}" Content="{Binding ScanEpicText}" Command="{Binding ScanEpicCommand}" Margin="0,0,4,0" />
+                        <Button Style="{StaticResource ToolbarButton}" Content="{Binding ScanRiotText}" Command="{Binding ScanRiotCommand}" Margin="0,0,4,0" />
                         <Button Style="{StaticResource ToolbarButton}" Content="{Binding ScanCustomText}" Command="{Binding ScanCustomCommand}" Margin="0,0,4,0" />
                         <Button Style="{StaticResource ToolbarButton}" Content="{Binding RefreshStatusText}" Command="{Binding RefreshStatusCommand}" />
                     </WrapPanel>

@@ -19,6 +19,7 @@
 - Background App Stop freshly targets by process name, captures PID/start/name/path, then the terminator reacquires by PID and checks all identity fields before close/kill.
 - `OptimizationService` reacquires each PID and matches PID/start/name/path before scheduling mutation.
 - `ProcessSuspendService` reads live identity before suspend/resume and fails closed on ambiguity.
+- Riot games, client, launcher, and Vanguard processes are never suspended, resumed, killed, reprioritized, pinned, or benchmarked by FrameHub; Riot items launch only through their official Riot-created shortcuts, and observation is passive name/path based only.
 
 ## Benchmark environment
 

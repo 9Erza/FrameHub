@@ -19,7 +19,7 @@
 | Change benchmark PresentMon capture | `PresentMonApiCaptureBackend` and existing preemption protocol |
 | Change live PresentMon | `LivePerformanceTelemetryService`; do not add another owner |
 | Change hardware telemetry | `HardwareMonitorService`, App runtime leases, `AppTelemetrySnapshotProvider` |
-| Scan or persist Library items | scanner services and `LibraryService` |
+| Scan or persist Library items | scanner services (Steam, Epic, Riot shortcuts, custom folders) and `LibraryService` |
 | Launch a Desktop Library item | `AppLibraryLaunchService` and `LibraryViewModel` |
 | Start a Desktop Gaming Mode quick action | `GamingQuickActionService` via `AppRuntimeService.GamingQuickActions`; Dashboard presents, coordinator owns lifecycle |
 | List/launch remote regular Library items | `AppLibraryProvider` |

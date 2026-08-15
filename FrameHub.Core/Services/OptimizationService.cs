@@ -1,5 +1,6 @@
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
+using FrameHub.Core.Services.Library;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -100,9 +101,15 @@ namespace FrameHub.Core.Services
             return ApplyProfileToPid(ProcessScannerService.CreateInstanceKey(process), process.ProcessName, profile, allowRealtimePriority, force);
         }
 
-        private OptimizationResult ApplyProfileToPid(ProcessInstanceKey key, string processName, ProcessProfile profile, bool allowRealtimePriority, bool force)
+    private OptimizationResult ApplyProfileToPid(ProcessInstanceKey key, string processName, ProcessProfile profile, bool allowRealtimePriority, bool force)
+    {
+        // Riot games, client, launcher, and anti-cheat processes are never mutated by FrameHub (Riot compliance).
+        if (RiotGameProcesses.IsProtectedProcessName(processName))
         {
-            if (!MatchesRunningProcessIdentity(key, processName, profile))
+            return new OptimizationResult { Success = false, ProcessId = key.ProcessId, ProcessName = processName, Message = "SKIPPED_PROTECTED_RIOT" };
+        }
+
+        if (!MatchesRunningProcessIdentity(key, processName, profile))
             {
                 return new OptimizationResult { Success = false, ProcessId = key.ProcessId, ProcessName = processName, Message = "SKIPPED_IDENTITY_MISMATCH" };
             }

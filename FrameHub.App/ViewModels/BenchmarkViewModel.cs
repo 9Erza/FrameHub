@@ -397,7 +397,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
             });
             string? selectedId = _preselectedLibraryItemId ?? SelectedGame?.Item.Id;
             Games.Clear();
-            foreach (LibraryItem item in items.Where(item => item.Type == LibraryItemType.Game && item.IsEnabled).OrderBy(item => item.DisplayName))
+            foreach (LibraryItem item in items.Where(item => item.Type == LibraryItemType.Game && item.IsEnabled && item.AllowBenchmark).OrderBy(item => item.DisplayName))
             {
                 List<BenchmarkRunningGame> matches = running.Where(match => match.LibraryItem.Id.Equals(item.Id, StringComparison.OrdinalIgnoreCase)).ToList();
                 Games.Add(new BenchmarkGameOptionViewModel

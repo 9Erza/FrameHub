@@ -37,6 +37,9 @@ public class ProcessSuspendService
     {
         "faceit", "faceitclient", "faceitservice", "faceitclientservice", "faceitoverlay", "faceitservice64",
         "vgc", "vgtray", "vgk", "riotclientcrashhandler", "riotclientservices",
+        // Riot games, League client, and crash handler are never mutated by FrameHub (Riot compliance).
+        "league of legends", "leagueclient", "leagueclientux", "leagueclientuxrender", "leaguecrashhandler64",
+        "valorant", "valorant-win64-shipping",
         "easyanticheat", "easyanticheat_eos", "eaclauncher", "eosoverlayrenderer",
         "beservice", "beservice_x64", "battleye", "belauncher",
         "punkbuster", "pnkbstra", "pnkbstrb",

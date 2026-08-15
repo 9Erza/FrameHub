@@ -56,15 +56,65 @@ public sealed class AppLibraryLaunchService : IAppLibraryLaunchService
             return LibraryLaunchResult.Fail("not_launchable");
         }
 
-        if (string.IsNullOrWhiteSpace(item.ExecutablePath))
+        if (string.IsNullOrWhiteSpace(item.ExecutablePath) && string.IsNullOrWhiteSpace(item.LaunchPath))
         {
             return LibraryLaunchResult.Fail("not_launchable");
+        }
+
+        // Trusted shell launch entry (e.g. an official Riot-created Start Menu shortcut). The shortcut
+        // itself is executed via the shell with no FrameHub-supplied arguments, equivalent to the user
+        // double-clicking it; the stored target identity (e.g. ExecutablePath) stays observation-only.
+        if (!string.IsNullOrWhiteSpace(item.LaunchPath))
+        {
+            string shortcutPath;
+            try
+            {
+                shortcutPath = Path.GetFullPath(item.LaunchPath.Trim());
+            }
+            catch
+            {
+                return LibraryLaunchResult.Fail("not_launchable");
+            }
+
+            if (!string.Equals(Path.GetExtension(shortcutPath), ".lnk", StringComparison.OrdinalIgnoreCase))
+            {
+                return LibraryLaunchResult.Fail("not_launchable");
+            }
+
+            if (!File.Exists(shortcutPath))
+            {
+                return LibraryLaunchResult.Fail("launch_target_missing");
+            }
+
+            var shortcutStartInfo = new ProcessStartInfo
+            {
+                FileName = shortcutPath,
+                UseShellExecute = true
+            };
+
+            try
+            {
+                bool shortcutStarted = _processStarter(shortcutStartInfo);
+                if (!shortcutStarted)
+                {
+                    _logger.Warn($"Process launcher returned false for shortcut item '{item.DisplayName}' ({shortcutPath}).");
+                    return LibraryLaunchResult.Fail("launch_failed");
+                }
+
+                _logger.Info($"Successfully launched library item '{item.DisplayName}' through trusted shortcut '{shortcutPath}'.");
+                return LibraryLaunchResult.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to launch library item '{item.DisplayName}' through shortcut '{shortcutPath}': {ex.Message}", ex);
+                return LibraryLaunchResult.Fail("launch_failed");
+            }
         }
 
         string fullPath;
         try
         {
-            fullPath = Path.GetFullPath(item.ExecutablePath.Trim());
+            fullPath = Path.GetFullPath(item.ExecutablePath!.Trim());
         }
         catch
         {

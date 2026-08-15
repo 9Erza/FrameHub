@@ -136,6 +136,15 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 - **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** one non-queuing action gate; no cache/timer; delegates launch, cooldown, and Session lifecycle to existing owners.
 - **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** stateless compose boundary — never a second Session/benchmark authority; already-running discovery is display-level only and never authorizes mutation.
 
+### RiotLibraryScanner and RiotGameProcesses
+
+- **NAME:** `RiotLibraryScanner`, `RiotGameProcesses`
+- **PATH / PROJECT:** `FrameHub.Core/Services/Library/RiotLibraryScanner.cs`, `FrameHub.Core/Services/Library/RiotGameProcesses.cs` / Core
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** passive Riot Games discovery through official Riot-created Start Menu shortcuts and the curated Riot process/protection knowledge.
+- **LIFETIME / MAJOR CONSUMERS:** Library presentation scan commands; `ProcessSuspendService` and `OptimizationService` consume the protected-name set.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** none; reads Start Menu `.lnk` targets/arguments through the Windows shell on demand; no timer, no memory access, no Riot internals.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** launch uses the trusted shortcut itself via ShellExecute with no FrameHub arguments; Riot game/client/Vanguard processes are never mutated and never benchmark targets; do not add Riot metadata, LCU, or network discovery here.
+
 ### LibraryService
 
 - **NAME:** `LibraryService`

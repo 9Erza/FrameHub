@@ -147,8 +147,12 @@ namespace FrameHub.Core.Services
                 string? processPath = NormalizeExecutablePath(process.ExecutablePath);
                 foreach (var target in targets)
                 {
+                    // Path identity is authoritative when both are known. A name-only fallback is allowed
+                    // solely when the observed path is unavailable (e.g. protected processes); it is used
+                    // for non-destructive presentation/detection only and never authorizes mutation.
                     bool isMatch = target.ExecutablePath != null
-                        ? processPath != null && target.ExecutablePath.Equals(processPath, StringComparison.OrdinalIgnoreCase)
+                        ? (processPath != null && target.ExecutablePath.Equals(processPath, StringComparison.OrdinalIgnoreCase))
+                          || (processPath == null && target.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase))
                         : target.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase);
 
                     if (isMatch) runningItemIds.Add(target.Id);
