@@ -223,7 +223,8 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         _localization = localization;
         _runtime = runtime;
         _storage = storage ?? new BenchmarkStorageService();
-        _detector = detector ?? new BenchmarkGameDetectionService();
+        _detector = detector ?? new BenchmarkGameDetectionService(
+            new SystemBenchmarkProcessSnapshotProvider(runtime.ProcessObservationProvider));
         _libraryProvider = libraryProvider ?? (() => new LibraryService().LoadItems());
         _backendFactory = backendFactory ?? (() => new PresentMonApiCaptureBackend(storage: _storage));
         _sessionOptimizationProvider = sessionOptimizationProvider ?? (() => new SessionStateService().Load()?.IsActive);

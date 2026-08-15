@@ -16,16 +16,22 @@ namespace FrameHub.Core.Services
     public sealed class ProcessScannerService
     {
         private readonly ProcessService _processService;
+        private readonly IProcessObservationSnapshotProvider _observationProvider;
         private readonly ILogger _logger;
         private readonly object _cpuSamplingLock = new();
         private readonly Dictionary<ProcessInstanceKey, TimeSpan> _lastCpuTimes = new();
         private DateTime _lastSampleUtc = DateTime.UtcNow;
 
-        public ProcessScannerService(ProcessService processService)
+        public ProcessScannerService(
+            ProcessService processService,
+            IProcessObservationSnapshotProvider? observationProvider = null)
         {
             _processService = processService;
+            _observationProvider = observationProvider ?? new ProcessObservationSnapshotProvider();
             _logger = LoggerService.Instance;
         }
+
+        public IProcessObservationSnapshotProvider ObservationProvider => _observationProvider;
 
         public Task<ProcessScanResult> ScanUserProcessesAsync()
         {
@@ -37,9 +43,14 @@ namespace FrameHub.Core.Services
             return Task.Run(() => ScanProfileProcesses(profiles));
         }
 
-        public Task<IReadOnlySet<string>> FindRunningLibraryItemIdsAsync(IEnumerable<LibraryItem> items)
+        public async Task<IReadOnlySet<string>> FindRunningLibraryItemIdsAsync(
+            IEnumerable<LibraryItem> items,
+            CancellationToken cancellationToken = default)
         {
-            return Task.Run(() => FindRunningLibraryItemIds(items));
+            ProcessObservationSnapshot snapshot = await _observationProvider
+                .GetSnapshotAsync(cancellationToken)
+                .ConfigureAwait(false);
+            return FindRunningLibraryItemIds(items, snapshot.Processes);
         }
 
         public Task<IReadOnlyList<LibraryProcessIdentity>> FindRunningLibraryItemProcessesAsync(
@@ -114,7 +125,9 @@ namespace FrameHub.Core.Services
             }
         }
 
-        private static IReadOnlySet<string> FindRunningLibraryItemIds(IEnumerable<LibraryItem> items)
+        private static IReadOnlySet<string> FindRunningLibraryItemIds(
+            IEnumerable<LibraryItem> items,
+            IReadOnlyList<ProcessObservation> processes)
         {
             var targets = items
                 .Where(item => !string.IsNullOrWhiteSpace(item.Id)
@@ -128,30 +141,17 @@ namespace FrameHub.Core.Services
                 .ToList();
 
             var runningItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var process in Process.GetProcesses())
+            foreach (ProcessObservation process in processes)
             {
-                try
+                string processName = ProfileService.NormalizeProcessName(process.ProcessName);
+                string? processPath = NormalizeExecutablePath(process.ExecutablePath);
+                foreach (var target in targets)
                 {
-                    if (process.HasExited) continue;
+                    bool isMatch = target.ExecutablePath != null
+                        ? processPath != null && target.ExecutablePath.Equals(processPath, StringComparison.OrdinalIgnoreCase)
+                        : target.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase);
 
-                    string processName = ProfileService.NormalizeProcessName(process.ProcessName);
-                    string? processPath = TryGetProcessPath(process);
-                    foreach (var target in targets)
-                    {
-                        bool isMatch = target.ExecutablePath != null
-                            ? processPath != null && target.ExecutablePath.Equals(NormalizeExecutablePath(processPath), StringComparison.OrdinalIgnoreCase)
-                            : target.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase);
-
-                        if (isMatch) runningItemIds.Add(target.Id);
-                    }
-                }
-                catch
-                {
-                    // Access to another process can be denied; it simply cannot match on this scan.
-                }
-                finally
-                {
-                    process.Dispose();
+                    if (isMatch) runningItemIds.Add(target.Id);
                 }
             }
 
@@ -170,46 +170,49 @@ namespace FrameHub.Core.Services
             }
 
             var matches = new List<LibraryProcessIdentity>();
-            foreach (var process in Process.GetProcesses())
+            Process[] processes = Array.Empty<Process>();
+            try
             {
-                try
+                processes = Process.GetProcessesByName(trustedName);
+                foreach (var process in processes)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (process.HasExited) continue;
-
-                    string processName = ProfileService.NormalizeProcessName(process.ProcessName);
-                    string? processPath = TryGetProcessPath(process);
-                    string? normalizedPath = NormalizeExecutablePath(processPath);
-                    bool nameMatches = string.IsNullOrWhiteSpace(trustedName)
-                        || trustedName.Equals(processName, StringComparison.OrdinalIgnoreCase);
-                    bool matchesTrustedItem = trustedPath != null
-                        ? nameMatches && normalizedPath != null && trustedPath.Equals(normalizedPath, StringComparison.OrdinalIgnoreCase)
-                        : nameMatches;
-                    if (!matchesTrustedItem) continue;
-
-                    ProcessInstanceKey key = CreateInstanceKey(process);
-                    if (key.StartTimeUtc == DateTime.MinValue) continue;
-
-                    matches.Add(new LibraryProcessIdentity
+                    try
                     {
-                        ProcessId = key.ProcessId,
-                        StartTimeUtc = key.StartTimeUtc,
-                        ProcessName = processName,
-                        ExecutablePath = normalizedPath
-                    });
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (process.HasExited) continue;
+
+                        string processName = ProfileService.NormalizeProcessName(process.ProcessName);
+                        string? normalizedPath = NormalizeExecutablePath(TryGetProcessPath(process));
+                        bool nameMatches = trustedName.Equals(processName, StringComparison.OrdinalIgnoreCase);
+                        bool matchesTrustedItem = trustedPath != null
+                            ? nameMatches && normalizedPath != null && trustedPath.Equals(normalizedPath, StringComparison.OrdinalIgnoreCase)
+                            : nameMatches;
+                        if (!matchesTrustedItem) continue;
+
+                        ProcessInstanceKey key = CreateInstanceKey(process);
+                        if (key.StartTimeUtc == DateTime.MinValue) continue;
+
+                        matches.Add(new LibraryProcessIdentity
+                        {
+                            ProcessId = key.ProcessId,
+                            StartTimeUtc = key.StartTimeUtc,
+                            ProcessName = processName,
+                            ExecutablePath = normalizedPath
+                        });
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                        // Inaccessible processes cannot establish sufficient trusted identity.
+                    }
                 }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch
-                {
-                    // Inaccessible processes cannot establish sufficient trusted identity.
-                }
-                finally
-                {
-                    process.Dispose();
-                }
+            }
+            finally
+            {
+                foreach (Process process in processes) process.Dispose();
             }
 
             return matches;

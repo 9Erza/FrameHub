@@ -43,7 +43,6 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
     private readonly SessionOptimizationSettingsService _settingsService;
     private readonly ProcessSuspendService _suspendService;
     private readonly TaskbarVisibilityService _taskbarService;
-    private readonly ProcessScannerService _processScanner;
     private readonly LibraryService _libraryService;
     private readonly IBenchmarkOperationArbiter? _benchmarkArbiter;
     private readonly ILogger _logger;
@@ -94,10 +93,10 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         ILogger? logger = null,
         IBenchmarkOperationArbiter? benchmarkArbiter = null)
     {
-        _processScanner = processScanner ?? new ProcessScannerService(new ProcessService());
+        processScanner ??= new ProcessScannerService(new ProcessService());
         _stateService = stateService ?? new SessionStateService();
         _settingsService = settingsService ?? new SessionOptimizationSettingsService();
-        _suspendService = suspendService ?? new ProcessSuspendService();
+        _suspendService = suspendService ?? new ProcessSuspendService(processScanner.ObservationProvider);
         _taskbarService = taskbarService ?? new TaskbarVisibilityService();
         _libraryService = libraryService ?? new LibraryService();
         _benchmarkArbiter = benchmarkArbiter;
@@ -115,6 +114,28 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
     public void SaveSettings(SessionOptimizationSettings settings)
     {
         _settingsService.Save(settings);
+    }
+
+    public IReadOnlyList<LibraryItem> LoadLibraryGames()
+    {
+        return _libraryService.LoadItems()
+            .Where(item => item.Type == LibraryItemType.Game)
+            .OrderBy(item => item.DisplayName)
+            .ToList();
+    }
+
+    public IReadOnlyList<BackgroundProcessRule> BuildRules(
+        SessionOptimizationSettings settings,
+        LibraryItem? game)
+    {
+        return BackgroundProcessRuleFactory.CreateDefaultRules(settings, GetGameSettings(game?.Id, settings));
+    }
+
+    public IReadOnlySet<string> GetRuleCoveredProcessNames(
+        SessionOptimizationSettings settings,
+        LibraryItem? game)
+    {
+        return GetRuleCoveredProcessNames(BuildRules(settings, game));
     }
 
     public async Task<SessionProcessSnapshot> CaptureProcessSnapshotAsync(CancellationToken cancellationToken = default)
@@ -164,7 +185,7 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         IEnumerable<LibraryItem>? allGames = null)
     {
         var gameSettings = GetGameSettings(game?.Id, settings);
-        var allRules = BackgroundProcessRuleFactory.CreateDefaultRules(settings, gameSettings);
+        var allRules = BuildRules(settings, game);
         var enabledRules = allRules.Where(x => x.IsEnabled);
         var ruleCoveredProcessNames = GetRuleCoveredProcessNames(allRules);
 

@@ -557,6 +557,26 @@ public sealed class BenchmarkCaptureCoordinatorTests
     }
 
     [TestMethod]
+    public async Task AcceptedReservation_RejectsExternalMutationUntilBenchmarkEnds()
+    {
+        var storage = new BenchmarkStorageService(_tempDir);
+        var coordinator = new BenchmarkCaptureCoordinator(
+            storage,
+            () => new TestFakeBackend(storage, BackendMode.Success),
+            new TestFakeIdentityProvider());
+
+        BenchmarkCaptureStartHandle handle = coordinator.TryStartCapture(CreateSampleRequest());
+        Assert.IsTrue(handle.Accepted);
+        Assert.IsFalse(coordinator.TryAcquireExternalMutation(out IDisposable? blockedLease));
+        Assert.IsNull(blockedLease);
+
+        Assert.IsTrue(handle.Start());
+        Assert.AreEqual(CoordinatorStatus.Completed, (await handle.CompletionTask!).Status);
+        Assert.IsTrue(coordinator.TryAcquireExternalMutation(out IDisposable? leaseAfter));
+        leaseAfter!.Dispose();
+    }
+
+    [TestMethod]
     public async Task AcceptanceCannotLoseAuthoritativeReservationBeforePublicHandoff()
     {
         var storage = new BenchmarkStorageService(_tempDir);

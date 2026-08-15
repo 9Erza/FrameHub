@@ -3,7 +3,6 @@ using FrameHub.App.Services;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models.Library;
 using FrameHub.Core.Models.SessionOptimization;
-using FrameHub.Core.Services.Library;
 using FrameHub.Core.Services.SessionOptimization;
 using System.Collections.ObjectModel;
 using System.Threading;
@@ -19,9 +18,6 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
     private readonly SessionOptimizationCoordinator _coordinator;
-    private readonly LibraryService _libraryService = new();
-    private readonly SessionOptimizationSettingsService _settingsService = new();
-    private readonly ProcessSuspendService _suspendService = new();
     private readonly ILogger _logger = LoggerService.Instance;
     private readonly DispatcherTimer _autoTimer;
 
@@ -296,7 +292,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         _localization = localization;
         _runtime = runtime;
         _coordinator = coordinator ?? runtime.SessionOptimizationCoordinator;
-        _settings = _settingsService.Load();
+        _settings = _coordinator.LoadSettings();
         MigrateSessionSettingsForSafeSuspend();
         _activeSession = _coordinator.ActiveSession;
         _coordinator.SessionStateChanged += OnCoordinatorSessionStateChanged;
@@ -461,10 +457,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         string? previousSelectedId = SelectedGame?.Id ?? _settings.SelectedGameId;
         Games.Clear();
 
-        var libraryGames = _libraryService.LoadItems()
-            .Where(x => x.Type == LibraryItemType.Game)
-            .OrderBy(x => x.DisplayName)
-            .ToList();
+        var libraryGames = _coordinator.LoadLibraryGames();
 
         foreach (var game in libraryGames)
         {
@@ -490,8 +483,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         try
         {
             Rules.Clear();
-            var gameSettings = GetSelectedGameSettings();
-            foreach (var rule in BackgroundProcessRuleFactory.CreateDefaultRules(_settings, gameSettings)
+            foreach (var rule in _coordinator.BuildRules(_settings, SelectedGame?.Item)
                 .Where(rule => !rule.Id.Equals(ExplorerRuleId, StringComparison.OrdinalIgnoreCase)))
             {
                 Rules.Add(new SessionRuleViewModel(rule, _localization, OnRuleChanged));
@@ -634,9 +626,11 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             _cachedProcessSnapshot = snapshot;
             _cachedProcessSnapshotUtc = snapshot.CapturedAtUtc;
 
-            var protectedNames = GetProtectedProcessNamesForGame(SelectedGame).ToArray();
             var game = SelectedGame;
-            var groups = await Task.Run(() => _suspendService.GetRunningProcessGroups(snapshot, protectedNames), cancellation.Token);
+            var allGames = Games.Select(option => option.Item).ToList();
+            var groups = await Task.Run(
+                () => _coordinator.GetRunningProcessGroups(snapshot, game?.Item, allGames),
+                cancellation.Token);
             var candidates = BuildCandidatesForGame(game, snapshot);
             if (cancellation.IsCancellationRequested || !ReferenceEquals(_processRefreshCancellation, cancellation)) return;
 
@@ -651,7 +645,6 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private void ApplyRunningProcesses(IReadOnlyList<RunningProcessGroup> groups)
     {
-        var protectedNames = GetProtectedProcessNamesForGame(SelectedGame);
         var gameSettings = GetSelectedGameSettings();
         var selectedCustomStates = gameSettings.CustomProcessEnabledStates;
         foreach (var key in selectedCustomStates.Keys.Where(IsSteamRelatedSettingKey).ToList())
@@ -659,7 +652,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             selectedCustomStates.Remove(key);
         }
 
-        var ruleCoveredProcessNames = GetRuleCoveredProcessNames(gameSettings);
+        var ruleCoveredProcessNames = GetRuleCoveredProcessNames();
         groups = groups.Where(group => !ruleCoveredProcessNames.Contains(group.NormalizedProcessName)).ToList();
 
         bool removedStaleCustomState = false;
@@ -687,70 +680,19 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         CommandManager.InvalidateRequerySuggested();
     }
 
-    private IReadOnlyList<SuspendCandidate> BuildCandidatesForGame(SessionGameOptionViewModel? game)
-    {
-        var gameSettings = GetGameSettings(game?.Id);
-        var allRules = BuildRulesForGame(gameSettings);
-        var enabledRules = allRules.Where(x => x.IsEnabled);
-        var ruleCoveredProcessNames = GetRuleCoveredProcessNames(allRules);
-        IEnumerable<string> customProcesses = Enumerable.Empty<string>();
-        if (gameSettings.ManualProcessRulesEnabled)
-        {
-            customProcesses = gameSettings.CustomProcessEnabledStates
-                .Where(x => x.Value)
-                .Select(x => x.Key)
-                .Where(x => !ruleCoveredProcessNames.Contains(ProcessSuspendService.NormalizeProcessName(x)));
-        }
-        var protectedNames = GetProtectedProcessNamesForGame(game);
-        return _suspendService.BuildCandidates(enabledRules, customProcesses, protectedNames);
-    }
-
     private IReadOnlyList<SuspendCandidate> BuildCandidatesForGame(SessionGameOptionViewModel? game, SessionProcessSnapshot snapshot)
     {
-        var gameSettings = GetGameSettings(game?.Id);
-        var allRules = BuildRulesForGame(gameSettings);
-        var enabledRules = allRules.Where(x => x.IsEnabled);
-        var ruleCoveredProcessNames = GetRuleCoveredProcessNames(allRules);
-        IEnumerable<string> customProcesses = gameSettings.ManualProcessRulesEnabled
-            ? gameSettings.CustomProcessEnabledStates.Where(x => x.Value).Select(x => x.Key)
-                .Where(x => !ruleCoveredProcessNames.Contains(ProcessSuspendService.NormalizeProcessName(x)))
-            : Enumerable.Empty<string>();
-        return _suspendService.BuildCandidates(snapshot, enabledRules, customProcesses, GetProtectedProcessNamesForGame(game));
+        return _coordinator.BuildCandidates(
+            snapshot,
+            game?.Item,
+            _settings,
+            Games.Select(option => option.Item));
     }
 
-    private List<BackgroundProcessRule> BuildRulesForGame(SessionGameSuspendSettings gameSettings)
+    private HashSet<string> GetRuleCoveredProcessNames()
     {
-        return BackgroundProcessRuleFactory.CreateDefaultRules(_settings, gameSettings);
-    }
-
-    private HashSet<string> GetRuleCoveredProcessNames(SessionGameSuspendSettings gameSettings)
-    {
-        return GetRuleCoveredProcessNames(BuildRulesForGame(gameSettings));
-    }
-
-    private static HashSet<string> GetRuleCoveredProcessNames(IEnumerable<BackgroundProcessRule> rules)
-    {
-        return rules
-            .SelectMany(rule => rule.ProcessNames)
-            .Select(ProcessSuspendService.NormalizeProcessName)
-            .Where(name => !string.IsNullOrWhiteSpace(name))
+        return _coordinator.GetRuleCoveredProcessNames(_settings, SelectedGame?.Item)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-    }
-
-    private IEnumerable<string> GetProtectedProcessNamesForGame(SessionGameOptionViewModel? game)
-    {
-        var names = new List<string>();
-
-        if (!string.IsNullOrWhiteSpace(game?.Item.ProcessName))
-        {
-            names.Add(game.Item.ProcessName!);
-        }
-
-        names.AddRange(Games
-            .Where(x => !string.IsNullOrWhiteSpace(x.Item.ProcessName))
-            .Select(x => x.Item.ProcessName!));
-
-        return names;
     }
 
     private void ReplaceCandidatePreview(IEnumerable<SuspendCandidate> candidates)
@@ -993,7 +935,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         await _processScanGate.WaitAsync(cancellationToken);
         try
         {
-            return await _suspendService.CaptureProcessSnapshotAsync(cancellationToken);
+            return await _coordinator.CaptureProcessSnapshotAsync(cancellationToken);
         }
         finally
         {
@@ -1079,7 +1021,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private void SaveSettings()
     {
-        _settingsService.Save(_settings);
+        _coordinator.SaveSettings(_settings);
     }
 
     private void SetStatus(string message, string level = "Info")

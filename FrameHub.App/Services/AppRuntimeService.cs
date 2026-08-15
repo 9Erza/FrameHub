@@ -56,6 +56,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public LivePerformanceTelemetryService LiveTelemetryService { get; }
     public AppTelemetrySnapshotProvider TelemetryProvider { get; }
     IBenchmarkCaptureCoordinator IBenchmarkRuntimeContext.BenchmarkCoordinator => BenchmarkCoordinator;
+    IProcessObservationSnapshotProvider IBenchmarkRuntimeContext.ProcessObservationProvider => ProcessScanner.ObservationProvider;
 
     public AppRuntimeService(string? customSettingsFilePath = null)
         : this(new SettingsService(customSettingsFilePath))
@@ -84,7 +85,9 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         _profileWatcherTimer.Tick += async (_, _) => await RunProfileWatcherOnceAsync();
 
         BenchmarkCoordinator = new BenchmarkCaptureCoordinator();
-        ActiveGameMonitor = new ActiveGameMonitor();
+        var gameDetector = new BenchmarkGameDetectionService(
+            new SystemBenchmarkProcessSnapshotProvider(ProcessScanner.ObservationProvider));
+        ActiveGameMonitor = new ActiveGameMonitor(gameDetector);
         LiveTelemetryService = new LivePerformanceTelemetryService(ActiveGameMonitor, BenchmarkCoordinator);
         BenchmarkCoordinator.ConfigureLivePresentMonPreemption(LiveTelemetryService);
         TelemetryProvider = new AppTelemetrySnapshotProvider(this, ActiveGameMonitor, LiveTelemetryService);
@@ -93,9 +96,15 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         CompanionServer.ConfigureBenchmarkProvider(BenchmarkProvider);
         CompanionServer.ConfigurePresentationPreferencesProvider(new AppPresentationPreferencesProvider(this));
         LaunchService = new AppLibraryLaunchService();
-        LibraryProvider = new AppLibraryProvider(this, LaunchService);
+        LaunchReservations = new LibraryLaunchReservationService();
+        LibraryProvider = new AppLibraryProvider(this, LaunchService, LaunchReservations);
+        BackgroundAppProvider = new AppBackgroundAppProvider(
+            ProcessScanner,
+            BenchmarkCoordinator,
+            LaunchService,
+            launchReservations: LaunchReservations);
         CompanionServer.ConfigureLibraryProvider(LibraryProvider);
-        CompanionServer.ConfigureBackgroundAppsProvider(LibraryProvider);
+        CompanionServer.ConfigureBackgroundAppsProvider(BackgroundAppProvider);
         SessionOptimizationCoordinator = new SessionOptimizationCoordinator(ProcessScanner, benchmarkArbiter: BenchmarkCoordinator);
         SessionOptimizationProvider = new AppSessionOptimizationProvider(this, SessionOptimizationCoordinator, ActiveGameMonitor, BenchmarkCoordinator);
         CompanionServer.ConfigureSessionOptimizationProvider(SessionOptimizationProvider);
@@ -108,7 +117,9 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
     public AppBenchmarkProvider BenchmarkProvider { get; }
     public IAppLibraryLaunchService LaunchService { get; }
+    public LibraryLaunchReservationService LaunchReservations { get; }
     public AppLibraryProvider LibraryProvider { get; }
+    public AppBackgroundAppProvider BackgroundAppProvider { get; }
     public SessionOptimizationCoordinator SessionOptimizationCoordinator { get; }
     public AppSessionOptimizationProvider SessionOptimizationProvider { get; }
 
@@ -249,9 +260,18 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
     public OptimizationBatchResult ApplyProfileNow(ProcessProfile profile, bool force = true)
     {
+        if (!TryAcquireProfileMutation(out IDisposable? benchmarkLease))
+        {
+            AddActivity("Profile mutation blocked while benchmark capture is active or reserved.", "Warn");
+            return CreateBenchmarkBlockedResult(profile.ProcessName);
+        }
+
+        using (benchmarkLease)
+        {
         var result = Optimization.ApplyProfileToRunningProcesses(profile, Settings.AllowRealtimePriority, force);
         LogBatchResult(profile.ProcessName, result, "zastosowanie ręczne");
         return result;
+        }
     }
 
     public void AddActivity(string message, string level = "Info")
@@ -291,8 +311,18 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
             var scan = await ProcessScanner.ScanProfileProcessesAsync(enabledProfiles);
             ProfileWatcherSnapshot?.Invoke(this, new ProfileWatcherSnapshotEventArgs(scan.Groups.Select(g => g.Name)));
-            var batch = Optimization.ApplyProfilesForSnapshots(enabledProfiles, scan.Groups, Settings.AllowRealtimePriority, force: false);
-            Optimization.CleanupStaleCache(scan.ActiveInstances);
+            if (!TryAcquireProfileMutation(out IDisposable? benchmarkLease))
+            {
+                LogBenchmarkWatcherSkip();
+                return;
+            }
+
+            OptimizationBatchResult batch;
+            using (benchmarkLease)
+            {
+                batch = Optimization.ApplyProfilesForSnapshots(enabledProfiles, scan.Groups, Settings.AllowRealtimePriority, force: false);
+                Optimization.CleanupStaleCache(scan.ActiveInstances);
+            }
 
             if (batch.Results.Count == 0)
             {
@@ -359,6 +389,37 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         AddActivity($"Nie udało się zastosować profilu '{result.ProcessName}': PID={result.ProcessId}, powód={result.Message}.{adminHint}", "Warn");
     }
 
+    private void LogBenchmarkWatcherSkip()
+    {
+        const string key = "profile-watcher|benchmark-active";
+        if (_failureLogThrottle.TryGetValue(key, out DateTime last)
+            && DateTime.UtcNow - last < TimeSpan.FromSeconds(60))
+        {
+            return;
+        }
+
+        _failureLogThrottle[key] = DateTime.UtcNow;
+        AddActivity("Automatic profile mutation skipped while benchmark capture is active or reserved.", "Warn");
+    }
+
+    private static OptimizationBatchResult CreateBenchmarkBlockedResult(string processName) => new()
+    {
+        Total = 1,
+        Failed = 1,
+        Results =
+        [
+            new OptimizationResult
+            {
+                Success = false,
+                ProcessName = processName,
+                Message = "SKIPPED_BENCHMARK_ACTIVE"
+            }
+        ]
+    };
+
+    internal bool TryAcquireProfileMutation(out IDisposable? lease) =>
+        BenchmarkCoordinator.TryAcquireExternalMutation(out lease);
+
     private string GetWatcherStartupText()
     {
         var enabled = Profiles.Where(p => p.IsEnabled).Select(p => p.ProcessName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -378,8 +439,11 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     }
 
     private readonly HardwareMonitorService _hardwareMonitor = new();
+    private static readonly TimeSpan HardwareSnapshotTimeToLive = TimeSpan.FromMilliseconds(200);
     private int _hardwareConsumerCount;
     private readonly object _hardwareLock = new();
+    private HardwareMetrics? _hardwareSnapshot;
+    private DateTimeOffset _hardwareSnapshotAt;
 
     public bool IsHardwareMonitoringActive
     {
@@ -399,6 +463,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             _hardwareConsumerCount++;
             if (_hardwareConsumerCount == 1)
             {
+                _hardwareSnapshot = null;
                 _hardwareMonitor.Configure(Settings.EnableStorageSensors);
                 _hardwareMonitor.Start();
             }
@@ -415,6 +480,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
                 _hardwareConsumerCount--;
                 if (_hardwareConsumerCount == 0)
                 {
+                    _hardwareSnapshot = null;
                     _hardwareMonitor.Stop(closeSensors: false);
                 }
             }
@@ -429,7 +495,16 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             {
                 return new HardwareMetrics();
             }
-            return _hardwareMonitor.GetAllMetrics();
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (_hardwareSnapshot != null && now - _hardwareSnapshotAt <= HardwareSnapshotTimeToLive)
+            {
+                return _hardwareSnapshot;
+            }
+
+            _hardwareSnapshot = _hardwareMonitor.GetAllMetrics();
+            _hardwareSnapshotAt = now;
+            return _hardwareSnapshot;
         }
     }
 
@@ -437,6 +512,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         lock (_hardwareLock)
         {
+            _hardwareSnapshot = null;
             _hardwareMonitor.Configure(enableStorageSensors);
         }
     }
@@ -485,6 +561,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             }
             lock (_hardwareLock)
             {
+                _hardwareConsumerCount = 0;
+                _hardwareSnapshot = null;
                 _hardwareMonitor.Dispose();
             }
             HardwareTopologyService.ReleaseCpuLoadCounters();

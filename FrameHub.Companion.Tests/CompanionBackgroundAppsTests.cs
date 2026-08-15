@@ -115,7 +115,7 @@ public sealed class CompanionBackgroundAppsTests
         using var client = new HttpClient();
 
         string html = await client.GetStringAsync($"http://127.0.0.1:{port}/index.html");
-        string app = await client.GetStringAsync($"http://127.0.0.1:{port}/js/app.js");
+        string app = await client.GetStringAsync($"http://127.0.0.1:{port}/js/library.js");
         string i18n = await client.GetStringAsync($"http://127.0.0.1:{port}/js/i18n.js");
 
         StringAssert.Contains(html, "background-apps-section");

@@ -3,7 +3,6 @@ using FrameHub.App.Services;
 using FrameHub.Core.Models;
 using FrameHub.Core.Models.Library;
 using FrameHub.Core.Services;
-using System.Diagnostics;
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -110,26 +109,10 @@ public sealed class LibraryItemViewModel : ViewModelBase
         _localization = localization;
         _profilesProvider = profilesProvider;
         _saveItem = saveItem;
-        RefreshRuntimeState();
     }
 
-    public void RefreshRuntimeState()
+    public void UpdateRuntimeState(bool running)
     {
-        bool running = false;
-        if (!string.IsNullOrWhiteSpace(Item.ProcessName))
-        {
-            try
-            {
-                var processes = Process.GetProcessesByName(ProfileService.NormalizeProcessName(Item.ProcessName));
-                running = processes.Length > 0;
-                foreach (var process in processes) process.Dispose();
-            }
-            catch
-            {
-                running = false;
-            }
-        }
-
         IsRunning = running;
         IsOptimized = running && HasLinkedProfile;
         if (running) Item.LastSeenRunningAt = DateTime.UtcNow;

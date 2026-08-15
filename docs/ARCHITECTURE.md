@@ -1,19 +1,13 @@
-# Architecture
+# FrameHub architecture
 
-## Visual system
+This is the landing page for the canonical architecture documentation. Read these files before planning changes:
 
-The WPF shell uses the standard Windows Segoe UI sans-serif family across interface text and performance metrics. Fonts, colors, spacing, radii and control templates are centralized in the application theme dictionaries. The v0.6.0 package retains the Sora and Space Grotesk font assets and their SIL Open Font License 1.1 notices; exact notices are listed in `docs/THIRD-PARTY-NOTICES.md` and installed with the application.
+- [Overview](architecture/OVERVIEW.md) — layers, composition, major flows, and persistence.
+- [Service catalog](architecture/SERVICE-CATALOG.md) — ownership, lifetimes, state, native work, and extension notes.
+- [Feature map](architecture/FEATURE-MAP.md) — practical “I want to…” routing.
+- [Background work](architecture/BACKGROUND-WORK.md) — recurring loops, intervals, lifecycle, and overlap.
+- [Invariants](architecture/INVARIANTS.md) — safety and authority rules enforced by code.
+- [Refactor candidates](architecture/REFACTOR-CANDIDATES.md) — remaining evidence-backed work only.
+- [Benchmarking](BENCHMARKING.md) — detailed capture, identity, storage, and PresentMon behavior.
 
-FrameHub is a WPF application split into `FrameHub.App` (views, view models, localization, runtime coordination), `FrameHub.Core` (models and Windows-facing services), and `FrameHub.Tests` (MSTest regression coverage).
-
-Library scanners produce `LibraryItem` objects, which `LibraryService` sanitizes and persists in AppData. `ProcessScannerService` builds process snapshots; `OptimizationService` applies CPU Sets/Affinity and priority, honoring path-bound profile identity. `AppRuntimeService` owns the profile watcher and routes results to the UI.
-
-Session Optimization detects configured candidates, records suspended processes through `SessionStateService`, then resumes them during recovery. Startup uses the existing desired-state/planner/executor/coordinator flow with registry, Task Scheduler reading, verification, and UAC helper support.
-
-`HardwareViewModel` creates `HardwareMonitorService` only after explicit enablement and reads sensors off the UI thread. Localization is dictionary-based in `LocalizationService`, with test-enforced EN/PL key parity. Settings, profiles, library data, recovery state, logs, and CS2 backups live under `%APPDATA%\FrameHub`.
-
-Current debt: some UI text is still supplied directly by view models rather than localization keys; new user-facing text should use the localization service.
-
-CS2 userdata resolution works only with local folders containing a valid CS2 video config. A sole candidate is automatic; several candidates require the persisted numeric userdata ID and normalized path identity before config paths are exposed. New backups are partitioned by that account identity; legacy unscoped backups are offered only when exactly one valid account exists.
-
-The v0.6.0 benchmarking domain is isolated in `FrameHub.Core.Models.Benchmarking` and `FrameHub.Core.Services.Benchmarking`: identity/detection, Service/API capture, analysis, comparison math, chart-data preparation and JSON-directory storage. `FrameHub.App` owns `BenchmarkViewModel`, async workflow/navigation/localization, dialogs and the custom WPF `FrametimeChart`. Pathless processes retain PID/name/start-time reuse protection without native process probing. Production capture uses the matching `PresentMonAPI2.dll` installed with `PresentMonSharedService`, consumes an exact-PID frame query, and writes schema-v1 sessions under `%LOCALAPPDATA%\FrameHub\Benchmarks`. FrameHub does not own a named PresentMon ETW session or use a standalone console backend. Presented metrics, current-frame `DisplayedTime`, and previous-frame `MsBetweenDisplayChange` remain distinct. `FrameHub.BenchmarkHarness` is developer-only, uses its own log, and is not part of the WPF app or installer. See `docs/BENCHMARKING.md`.
+Operational rules for coding agents are in repository-root [AGENTS.md](../AGENTS.md).

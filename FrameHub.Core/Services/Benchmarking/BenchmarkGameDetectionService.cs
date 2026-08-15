@@ -20,30 +20,23 @@ public interface IBenchmarkProcessSnapshotProvider
 
 public sealed class SystemBenchmarkProcessSnapshotProvider : IBenchmarkProcessSnapshotProvider
 {
-    private readonly ProcessExecutablePathResolver _pathResolver = new();
+    private readonly IProcessObservationSnapshotProvider _observationProvider;
+
+    public SystemBenchmarkProcessSnapshotProvider(IProcessObservationSnapshotProvider? observationProvider = null)
+    {
+        _observationProvider = observationProvider ?? new ProcessObservationSnapshotProvider();
+    }
 
     public IReadOnlyList<BenchmarkProcessSnapshot> GetProcesses()
     {
-        var snapshots = new List<BenchmarkProcessSnapshot>();
-        foreach (Process process in Process.GetProcesses())
-        {
-            try
-            {
-                if (process.HasExited) continue;
-                ProcessExecutablePathResult path = _pathResolver.Resolve(process);
-                snapshots.Add(new BenchmarkProcessSnapshot(process.Id, process.ProcessName, path.ExecutablePath, process.StartTime.ToUniversalTime()));
-            }
-            catch
-            {
-                // Protected or exiting processes are simply unavailable for this lightweight scan.
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        }
-
-        return snapshots;
+        ProcessObservationSnapshot snapshot = _observationProvider.GetSnapshotAsync().GetAwaiter().GetResult();
+        return snapshot.Processes
+            .Select(process => new BenchmarkProcessSnapshot(
+                process.ProcessId,
+                process.ProcessName,
+                process.ExecutablePath,
+                process.StartTimeUtc))
+            .ToList();
     }
 }
 

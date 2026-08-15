@@ -281,6 +281,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _benchmarkViewModel.Dispose();
         _processesViewModel.Dispose();
         _hardwareViewModel.Dispose();
+        _libraryViewModel.Dispose();
         _runtime.Dispose();
     }
 

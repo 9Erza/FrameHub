@@ -256,7 +256,7 @@ public sealed class AppBackgroundAppControlTests
         AllowRemoteControl = allow, ExecutablePath = _executablePath, ProcessName = "trusted"
     };
 
-    private AppLibraryProvider Provider(FakeBenchmarkCoordinator? benchmark = null, IAppLibraryControlService? controlService = null) =>
+    private AppBackgroundAppProvider Provider(FakeBenchmarkCoordinator? benchmark = null, IAppLibraryControlService? controlService = null) =>
         new(_scanner, benchmark ?? new FakeBenchmarkCoordinator(), new FakeLaunchService(), _library, controlService: controlService);
 
     private sealed class FakeLaunchService : IAppLibraryLaunchService

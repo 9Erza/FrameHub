@@ -1,5 +1,6 @@
 using FrameHub.App.Helpers;
 using FrameHub.App.Services;
+using FrameHub.Core.Logging;
 using FrameHub.App.ViewModels.GameOptimization;
 using FrameHub.App.ViewModels.Library;
 using FrameHub.Core.Models;
@@ -19,7 +20,7 @@ using WinFormsOpenFileDialog = System.Windows.Forms.OpenFileDialog;
 
 namespace FrameHub.App.ViewModels;
 
-public sealed class LibraryViewModel : ViewModelBase
+public sealed class LibraryViewModel : ViewModelBase, IDisposable
 {
     public event Action<string, string>? InfoDialogRequested;
     public event Action<LibraryItem>? BenchmarkRequested;
@@ -49,6 +50,7 @@ public sealed class LibraryViewModel : ViewModelBase
     private string _cs2AutoexecStatusMessage = string.Empty;
     private bool _isCs2Running;
     private readonly DispatcherTimer _cs2ProcessTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private bool _disposed;
     private string _selectedCs2FpsMax = string.Empty;
     private string _cs2MouseSensitivity = string.Empty;
     private string _cs2Volume = string.Empty;
@@ -326,6 +328,14 @@ public sealed class LibraryViewModel : ViewModelBase
             AnalyzeCs2IfSelected();
             OnPropertyChanged(nameof(HasSelectedItem));
             OnPropertyChanged(nameof(IsCs2Selected));
+            if (IsCs2Selected)
+            {
+                _cs2ProcessTimer.Start();
+            }
+            else
+            {
+                _cs2ProcessTimer.Stop();
+            }
             RefreshCs2ProcessState();
             OnPropertyChanged(nameof(SelectedItemTitle));
             OnPropertyChanged(nameof(ShowLibraryHome));
@@ -529,8 +539,7 @@ public sealed class LibraryViewModel : ViewModelBase
         InsertCs2JumpBindCommand = new RelayCommand(_ => InsertCs2JumpBind(), _ => IsCs2Selected && CanEditCs2Config);
         InsertCs2CustomBindCommand = new RelayCommand(_ => InsertCs2CustomBind(), _ => IsCs2Selected && CanEditCs2Config);
 
-        _cs2ProcessTimer.Tick += (_, _) => RefreshCs2ProcessState();
-        _cs2ProcessTimer.Start();
+        _cs2ProcessTimer.Tick += OnCs2ProcessTimerTick;
 
         Reload();
     }
@@ -674,10 +683,24 @@ public sealed class LibraryViewModel : ViewModelBase
         OnPropertyChanged(nameof(ReadyCountText));
     }
 
-    private void RefreshRuntimeState()
+    private async void RefreshRuntimeState()
     {
-        foreach (var item in Items) item.RefreshRuntimeState();
-        OnPropertyChanged(nameof(ReadyCountText));
+        try
+        {
+            IReadOnlySet<string> runningIds = await _runtime.ProcessScanner
+                .FindRunningLibraryItemIdsAsync(Items.Select(item => item.Item));
+
+            foreach (var item in Items)
+            {
+                item.UpdateRuntimeState(runningIds.Contains(item.Id));
+            }
+
+            OnPropertyChanged(nameof(ReadyCountText));
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Debug($"Library runtime-state refresh failed: {ex.Message}");
+        }
     }
 
     private void AppendWarnings(IEnumerable<string> warnings)
@@ -838,7 +861,7 @@ public sealed class LibraryViewModel : ViewModelBase
             SelectedOptimizationProfile = profile;
         }
         _libraryService.SaveItems(Items.Select(x => x.Item));
-        SelectedItem.RefreshRuntimeState();
+        RefreshRuntimeState();
         _runtime.ApplyProfileNow(saved ?? profile, force: true);
         StatusMessage = string.Format(_localization.T("Library.ProfileSaved"), SelectedItem.Item.DisplayName);
         _runtime.AddActivity(StatusMessage);
@@ -1693,5 +1716,15 @@ public sealed class LibraryViewModel : ViewModelBase
             ? _localization.T("CS2.Operation.RestoreSuccess")
             : _localization.T("CS2.Operation.RestoreFailed");
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
+    }
+
+    private void OnCs2ProcessTimerTick(object? sender, EventArgs e) => RefreshCs2ProcessState();
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _cs2ProcessTimer.Stop();
+        _cs2ProcessTimer.Tick -= OnCs2ProcessTimerTick;
     }
 }

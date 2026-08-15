@@ -116,10 +116,11 @@ public sealed class CompanionFrontendStaticFilesTests
         Assert.IsTrue(started);
 
         using var client = new HttpClient();
-        var response = await client.GetAsync($"http://127.0.0.1:{port}/js/app.js");
-
-        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
-        string content = await response.Content.ReadAsStringAsync();
+        string[] moduleNames = ["app.js", "auth-transport.js", "telemetry.js", "benchmarks.js", "library.js", "session-optimization.js"];
+        HttpResponseMessage[] responses = await Task.WhenAll(moduleNames.Select(name =>
+            client.GetAsync($"http://127.0.0.1:{port}/js/{name}")));
+        Assert.IsTrue(responses.All(response => response.StatusCode == HttpStatusCode.OK), "Every Companion frontend module must be served.");
+        string content = string.Join("\n", await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync())));
         Assert.IsTrue(content.Contains("companion_credential"), "JS file must contain Companion frontend logic.");
         Assert.IsTrue(content.Contains("hasFetchedResultForCurrentCompletedState"), "JS file must contain completion polling deduplication state.");
         Assert.IsTrue(content.Contains("replaceState"), "JS file must contain URL token fragment cleanup logic.");
@@ -289,7 +290,7 @@ public sealed class CompanionFrontendStaticFilesTests
         Assert.IsTrue(started);
 
         using var client = new HttpClient();
-        var response = await client.GetAsync($"http://127.0.0.1:{port}/js/app.js");
+        var response = await client.GetAsync($"http://127.0.0.1:{port}/js/library.js");
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         string content = await response.Content.ReadAsStringAsync();
@@ -484,10 +485,11 @@ public sealed class CompanionFrontendStaticFilesTests
         Assert.IsTrue(started);
 
         using var client = new HttpClient();
-        var response = await client.GetAsync($"http://127.0.0.1:{port}/js/app.js");
-        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
-
-        string content = await response.Content.ReadAsStringAsync();
+        string[] moduleNames = ["session-optimization.js", "benchmarks.js", "auth-transport.js"];
+        HttpResponseMessage[] responses = await Task.WhenAll(moduleNames.Select(name =>
+            client.GetAsync($"http://127.0.0.1:{port}/js/{name}")));
+        Assert.IsTrue(responses.All(response => response.StatusCode == HttpStatusCode.OK));
+        string content = string.Join("\n", await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync())));
         Assert.IsTrue(content.Contains("fetchOptimizationState"), "app.js must include fetchOptimizationState.");
         Assert.IsTrue(content.Contains("handleApplyOptimization"), "app.js must include handleApplyOptimization.");
         Assert.IsTrue(content.Contains("handleRestoreOptimization"), "app.js must include handleRestoreOptimization.");
