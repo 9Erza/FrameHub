@@ -46,8 +46,19 @@ public sealed class BenchmarkController : ControllerBase
             });
         }
 
-        var targets = _benchmarkProvider.GetEligibleTargets();
-        return Ok(targets);
+        try
+        {
+            var targets = _benchmarkProvider.GetEligibleTargets();
+            return Ok(targets);
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new CompanionBenchmarkErrorDto
+            {
+                ErrorCode = "benchmark_targets_failed",
+                Message = "Failed to load benchmark targets."
+            });
+        }
     }
 
     [HttpGet("history")]

@@ -137,6 +137,10 @@
         if (activeTab === 'library') {
             fetchLibraryItems();
             fetchBackgroundApps();
+        } else if (activeTab === 'benchmarks') {
+            // One-shot per tab activation: picks up scopes granted in Desktop Settings
+            // without re-pairing. No polling; repeated only on each new activation.
+            loadTargets();
         } else if (activeTab === 'home') {
             fetchOptimizationState();
         }

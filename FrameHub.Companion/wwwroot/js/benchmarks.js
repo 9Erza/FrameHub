@@ -117,7 +117,16 @@
                 return;
             }
             if (response.status === 403) {
-                elements.targetCountBadge.textContent = window.FrameHubI18n ? window.FrameHubI18n.t('benchmark.targetsUnavailable') : 'Targets unavailable';
+                // Authenticated but missing read:benchmarks. Never claim a server error or
+                // "no games": clear stale options and present an explicit permission state.
+                const i18n403 = window.FrameHubI18n;
+                elements.targetSelect.innerHTML = '';
+                const opt403 = document.createElement('option');
+                opt403.value = '';
+                opt403.textContent = i18n403 ? i18n403.t('benchmark.targetsPermissionRequired') : 'Benchmark target permission required';
+                elements.targetSelect.appendChild(opt403);
+                elements.targetSelect.disabled = true;
+                elements.targetCountBadge.textContent = i18n403 ? i18n403.t('benchmark.permissionRequired') : 'Permission required';
                 return;
             }
 

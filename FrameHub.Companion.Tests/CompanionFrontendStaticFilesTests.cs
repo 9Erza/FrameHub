@@ -134,6 +134,56 @@ public sealed class CompanionFrontendStaticFilesTests
     }
 
     [TestMethod]
+    public async Task BenchmarkTargets_ForbiddenHandling_ClearsSelectWithPermissionState()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+        string benchmarksJs = await (await client.GetAsync($"http://127.0.0.1:{port}/js/benchmarks.js")).Content.ReadAsStringAsync();
+
+        // 403 branch must clear stale options and render a permission-specific disabled state,
+        // not a generic "unavailable" badge over untouched select contents.
+        int forbiddenBranch = benchmarksJs.IndexOf("response.status === 403", StringComparison.Ordinal);
+        Assert.IsTrue(forbiddenBranch >= 0, "benchmarks.js must handle 403 when loading targets.");
+        string branchBody = benchmarksJs.Substring(forbiddenBranch, Math.Min(900, benchmarksJs.Length - forbiddenBranch));
+        Assert.IsTrue(branchBody.Contains("targetSelect.innerHTML = ''"), "403 must clear existing target options.");
+        Assert.IsTrue(branchBody.Contains("targetSelect.disabled = true"), "403 must disable the target select.");
+        Assert.IsTrue(branchBody.Contains("benchmark.targetsPermissionRequired"), "403 must render the permission-specific option text.");
+        Assert.IsTrue(branchBody.Contains("benchmark.permissionRequired"), "403 badge must state missing permission, not a server error.");
+        Assert.IsFalse(branchBody.Contains("updateAuthUi(false", StringComparison.Ordinal), "403 (authenticated, insufficient scope) must not trigger pairing UI.");
+
+        // 200-empty remains distinct from 403: dedicated no-targets wording and "0 available" badge.
+        Assert.IsTrue(benchmarksJs.Contains("benchmark.noTargets"), "200-empty must keep its dedicated no-running-games option.");
+        Assert.IsTrue(benchmarksJs.Contains("benchmark.targetsAvailable"), "200-empty must keep the availability count badge.");
+    }
+
+    [TestMethod]
+    public async Task BenchmarkTabActivation_ReloadsTargetsWithoutPolling()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+        string appJs = await (await client.GetAsync($"http://127.0.0.1:{port}/js/app.js")).Content.ReadAsStringAsync();
+
+        // Benchmarks tab activation must trigger a one-shot loadTargets call.
+        int benchmarksBranch = appJs.IndexOf("activeTab === 'benchmarks'", StringComparison.Ordinal);
+        Assert.IsTrue(benchmarksBranch >= 0, "app.js switchTab must special-case the benchmarks tab.");
+        string branchBody = appJs.Substring(benchmarksBranch, Math.Min(400, appJs.Length - benchmarksBranch));
+        Assert.IsTrue(branchBody.Contains("loadTargets()"), "Activating the Benchmarks tab must reload targets.");
+
+        // No polling may be introduced for targets.
+        Assert.IsFalse(appJs.Contains("loadTargets", StringComparison.Ordinal) && appJs.Contains("setInterval(loadTargets", StringComparison.Ordinal),
+            "Target loading must remain one-shot per tab activation, never interval-based.");
+        Assert.IsFalse(appJs.Contains("setInterval(fetchStatus", StringComparison.Ordinal) && appJs.Contains("setInterval", StringComparison.Ordinal) && appJs.Contains("setInterval(loadTargets", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task GetIndexHtml_ContainsM92LiveDashboardElements()
     {
         int port = GetFreePort();

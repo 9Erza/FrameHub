@@ -254,6 +254,78 @@ public sealed class CompanionBenchmarkApiTests
         Assert.AreEqual(HttpStatusCode.BadRequest, resp5.StatusCode);
     }
 
+    [TestMethod]
+    public async Task LanGetTargets_RequiresReadBenchmarksScope()
+    {
+        var candidates = FrameHub.Companion.Network.LanAddressService.GetAvailableLanAddresses();
+        if (candidates.Count == 0)
+        {
+            Assert.Inconclusive("No RFC1918 LAN interface is available on this machine.");
+        }
+        string lanIp = candidates[0].IpAddress;
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        var provider = new TestFakeBenchmarkProvider();
+        server.ConfigureBenchmarkProvider(provider);
+        Assert.IsTrue(await server.StartAsync(new CompanionOptions { Enabled = true, LanEnabled = true, LanAddress = lanIp, Port = port }));
+
+        using var client = new HttpClient();
+
+        // 1. Paired device with read:status only (no read:benchmarks) -> 403 before the controller
+        var (_, statusOnlyToken) = AddTestDevice(CompanionScopes.ReadStatus);
+        using var req1 = new HttpRequestMessage(HttpMethod.Get, $"http://{lanIp}:{port}/api/v1/benchmarks/targets");
+        req1.Headers.Authorization = new AuthenticationHeaderValue("Bearer", statusOnlyToken);
+        var res1 = await client.SendAsync(req1);
+        Assert.AreEqual(HttpStatusCode.Forbidden, res1.StatusCode, "GET /targets over LAN requires read:benchmarks.");
+
+        // 2. Same request with read:benchmarks -> reaches the provider and returns 200
+        var (_, readBenchmarksToken) = AddTestDevice(CompanionScopes.ReadStatus, CompanionScopes.ReadBenchmarks);
+        using var req2 = new HttpRequestMessage(HttpMethod.Get, $"http://{lanIp}:{port}/api/v1/benchmarks/targets");
+        req2.Headers.Authorization = new AuthenticationHeaderValue("Bearer", readBenchmarksToken);
+        var res2 = await client.SendAsync(req2);
+        Assert.AreEqual(HttpStatusCode.OK, res2.StatusCode);
+        var targets = await res2.Content.ReadFromJsonAsync<List<CompanionBenchmarkTargetDto>>();
+        Assert.IsNotNull(targets);
+        Assert.AreEqual(1, targets.Count);
+        Assert.AreEqual("cp2077", targets[0].TargetId);
+    }
+
+    [TestMethod]
+    public async Task GetTargets_ProviderThrows_ReturnsStructured500WithoutExceptionDetails()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        server.ConfigureBenchmarkProvider(new ThrowingTargetsProvider());
+        Assert.IsTrue(await server.StartAsync(new CompanionOptions { Enabled = true, Port = port }));
+
+        using var client = new HttpClient();
+        var response = await client.GetAsync($"http://127.0.0.1:{port}/api/v1/benchmarks/targets");
+
+        Assert.AreEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+        string json = await response.Content.ReadAsStringAsync();
+        StringAssert.Contains(json, "benchmark_targets_failed", "Provider failure must return the structured error code.");
+        Assert.IsFalse(json.Contains("C:\\", StringComparison.Ordinal), "No local paths may leak in the error response.");
+        Assert.IsFalse(json.Contains(" at FrameHub", StringComparison.Ordinal), "No stack frames may leak in the error response.");
+        Assert.IsFalse(json.Contains("SecretPath", StringComparison.Ordinal), "No exception internals may leak in the error response.");
+    }
+
+    private sealed class ThrowingTargetsProvider : ICompanionBenchmarkProvider
+    {
+        private readonly TestFakeBenchmarkProvider _inner = new();
+
+        public CompanionBenchmarkStatusDto GetStatus() => _inner.GetStatus();
+        public IReadOnlyList<CompanionBenchmarkTargetDto> GetEligibleTargets()
+        {
+            throw new InvalidOperationException("SecretPath: C:\\internal\\failure detail");
+        }
+        public Task<CompanionBenchmarkStartResultDto> StartBenchmarkAsync(CompanionBenchmarkStartRequestDto request) => _inner.StartBenchmarkAsync(request);
+        public Task<CompanionBenchmarkStopResultDto> StopBenchmarkAsync() => _inner.StopBenchmarkAsync();
+        public CompanionBenchmarkHistoryListDto GetHistory(int limit) => _inner.GetHistory(limit);
+        public CompanionBenchmarkHistoryDetailDto? GetHistoryDetail(Guid sessionId) => _inner.GetHistoryDetail(sessionId);
+        public CompanionBenchmarkChartDto? GetHistoryChart(Guid sessionId, int buckets) => _inner.GetHistoryChart(sessionId, buckets);
+        public CompanionBenchmarkComparisonDto CompareHistorySessions(Guid sessionAId, Guid sessionBId) => _inner.CompareHistorySessions(sessionAId, sessionBId);
+    }
+
     private sealed class TestFakeBenchmarkProvider : ICompanionBenchmarkProvider
     {
         public bool ActiveState { get; set; }
