@@ -36,6 +36,16 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     public string RevokeLabel { get; }
     public ICommand RevokeCommand { get; }
 
+    public string PermissionsHeader { get; }
+    public string AreaHeader { get; }
+    public string ReadHeader { get; }
+    public string ControlHeader { get; }
+    public string AreaTelemetryLabel { get; }
+    public string AreaLibraryLabel { get; }
+    public string AreaBackgroundAppsLabel { get; }
+    public string AreaOptimizationLabel { get; }
+    public string AreaBenchmarksLabel { get; }
+
     public bool ReadTelemetryEnabled
     {
         get => _readTelemetryEnabled;
@@ -214,7 +224,16 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         string? scopeReadBackgroundAppsLabel = null,
         string? scopeWriteBackgroundAppsLabel = null,
         string? pairedLabel = null,
-        string? lastUsedLabel = null)
+        string? lastUsedLabel = null,
+        string? permissionsHeader = null,
+        string? areaHeader = null,
+        string? readHeader = null,
+        string? controlHeader = null,
+        string? areaTelemetryLabel = null,
+        string? areaLibraryLabel = null,
+        string? areaBackgroundAppsLabel = null,
+        string? areaOptimizationLabel = null,
+        string? areaBenchmarksLabel = null)
     {
         Id = record.Id;
         DisplayName = record.DisplayName;
@@ -235,6 +254,16 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         ScopeReadOptimizationLabel = scopeReadOptimizationLabel ?? "Optimization Data";
         ScopeWriteOptimizationLabel = scopeWriteOptimizationLabel ?? "Optimization Control";
         RevokeLabel = revokeLabel ?? "Revoke";
+
+        PermissionsHeader = permissionsHeader ?? "Permissions";
+        AreaHeader = areaHeader ?? "Area";
+        ReadHeader = readHeader ?? "Read";
+        ControlHeader = controlHeader ?? "Control";
+        AreaTelemetryLabel = areaTelemetryLabel ?? "Telemetry";
+        AreaLibraryLabel = areaLibraryLabel ?? "Game library";
+        AreaBackgroundAppsLabel = areaBackgroundAppsLabel ?? "Background apps";
+        AreaOptimizationLabel = areaOptimizationLabel ?? "Optimization";
+        AreaBenchmarksLabel = areaBenchmarksLabel ?? "Benchmarks";
 
         _onToggleScope = onToggleScope ?? ((_, _, _) => { });
         _readTelemetryEnabled = record.Scopes.Contains(CompanionScopes.ReadTelemetry, StringComparer.OrdinalIgnoreCase);

@@ -730,7 +730,16 @@ public sealed class SettingsCompanionIntegrationTests
             "Settings.CompanionPaired",
             "Settings.CompanionLastUsed",
             "Settings.CompanionRevokeConfirmTitle",
-            "Settings.CompanionRevokeConfirmMessage"
+            "Settings.CompanionRevokeConfirmMessage",
+            "Settings.CompanionPermissions",
+            "Settings.CompanionPermissionArea",
+            "Settings.CompanionPermissionRead",
+            "Settings.CompanionPermissionControl",
+            "Settings.CompanionAreaTelemetry",
+            "Settings.CompanionAreaLibrary",
+            "Settings.CompanionAreaBackgroundApps",
+            "Settings.CompanionAreaOptimization",
+            "Settings.CompanionAreaBenchmarks"
         })
         {
             Assert.IsTrue(LocalizationService.EnglishKeys.Contains(key), $"Missing English key {key}");
@@ -741,6 +750,119 @@ public sealed class SettingsCompanionIntegrationTests
         string plMessage = LocalizationService.Translate("Settings.CompanionRevokeConfirmMessage", "pl");
         StringAssert.Contains(enMessage, "{0}", "EN confirmation message must keep the device-name placeholder.");
         StringAssert.Contains(plMessage, "{0}", "PL confirmation message must keep the device-name placeholder.");
+    }
+
+    [TestMethod]
+    public void PairedDeviceItemViewModel_MatrixHeadersAndLabels_ExposeExpectedDefaultsAndOverrides()
+    {
+        var record = new PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Test Phone",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            Scopes = new List<string> { CompanionScopes.ReadTelemetry, CompanionScopes.ReadLibrary }
+        };
+
+        // Defaults
+        var defaultVm = new PairedDeviceItemViewModel(record, _ => { }, (_, _, _) => { });
+        Assert.AreEqual("Permissions", defaultVm.PermissionsHeader);
+        Assert.AreEqual("Area", defaultVm.AreaHeader);
+        Assert.AreEqual("Read", defaultVm.ReadHeader);
+        Assert.AreEqual("Control", defaultVm.ControlHeader);
+        Assert.AreEqual("Telemetry", defaultVm.AreaTelemetryLabel);
+        Assert.AreEqual("Game library", defaultVm.AreaLibraryLabel);
+        Assert.AreEqual("Background apps", defaultVm.AreaBackgroundAppsLabel);
+        Assert.AreEqual("Optimization", defaultVm.AreaOptimizationLabel);
+        Assert.AreEqual("Benchmarks", defaultVm.AreaBenchmarksLabel);
+
+        // Custom localized injection
+        var customVm = new PairedDeviceItemViewModel(
+            record,
+            _ => { },
+            (_, _, _) => { },
+            permissionsHeader: "Uprawnienia",
+            areaHeader: "Obszar",
+            readHeader: "Odczyt",
+            controlHeader: "Sterowanie",
+            areaTelemetryLabel: "Telemetria",
+            areaLibraryLabel: "Biblioteka gier",
+            areaBackgroundAppsLabel: "Aplikacje w tle",
+            areaOptimizationLabel: "Optymalizacja",
+            areaBenchmarksLabel: "Benchmarki");
+
+        Assert.AreEqual("Uprawnienia", customVm.PermissionsHeader);
+        Assert.AreEqual("Obszar", customVm.AreaHeader);
+        Assert.AreEqual("Odczyt", customVm.ReadHeader);
+        Assert.AreEqual("Sterowanie", customVm.ControlHeader);
+        Assert.AreEqual("Telemetria", customVm.AreaTelemetryLabel);
+        Assert.AreEqual("Biblioteka gier", customVm.AreaLibraryLabel);
+        Assert.AreEqual("Aplikacje w tle", customVm.AreaBackgroundAppsLabel);
+        Assert.AreEqual("Optymalizacja", customVm.AreaOptimizationLabel);
+        Assert.AreEqual("Benchmarki", customVm.AreaBenchmarksLabel);
+    }
+
+    [TestMethod]
+    public void CompanionPairedDeviceUi_SettingsViewXaml_ContainsStructuredPermissionMatrix()
+    {
+        string? repoRoot = FindRepoRoot();
+        if (repoRoot == null)
+        {
+            Assert.Inconclusive("Repository source root was not discoverable from the test assembly location.");
+        }
+
+        string xaml = File.ReadAllText(Path.Combine(repoRoot!, "FrameHub.App", "Views", "SettingsView.xaml"));
+
+        // 1. Verify PairedDevices ItemsControl section exists
+        int listStart = xaml.IndexOf("ItemsSource=\"{Binding PairedDevices}\"", StringComparison.Ordinal);
+        Assert.IsTrue(listStart >= 0, "SettingsView must contain the PairedDevices ItemsControl.");
+        int listEnd = xaml.IndexOf("</ItemsControl>", listStart, StringComparison.Ordinal);
+        Assert.IsTrue(listEnd > listStart, "PairedDevices ItemsControl closing tag must exist.");
+        string templateXaml = xaml.Substring(listStart, listEnd - listStart);
+
+        // 2. Old free-flowing WrapPanel must NOT exist in the template
+        Assert.IsFalse(templateXaml.Contains("<WrapPanel", StringComparison.OrdinalIgnoreCase),
+            "Paired devices template must not use a free-flowing WrapPanel for scope permissions.");
+
+        // 3. Header & Metadata elements
+        StringAssert.Contains(templateXaml, "Text=\"{Binding DisplayName}\"");
+        StringAssert.Contains(templateXaml, "Command=\"{Binding RevokeCommand}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding PairedOnText}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding LastUsedDisplay}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding PermissionsHeader}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding AreaHeader}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding ReadHeader}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding ControlHeader}\"");
+
+        // 4. Area labels
+        StringAssert.Contains(templateXaml, "Text=\"{Binding AreaTelemetryLabel}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding AreaLibraryLabel}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding AreaBackgroundAppsLabel}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding AreaOptimizationLabel}\"");
+        StringAssert.Contains(templateXaml, "Text=\"{Binding AreaBenchmarksLabel}\"");
+
+        // 5. All 9 scope bindings in matrix
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding ReadTelemetryEnabled, Mode=TwoWay}\"");
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding ReadLibraryEnabled, Mode=TwoWay}\"");
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding WriteLaunchEnabled, Mode=TwoWay}\"");
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding ReadBackgroundAppsEnabled, Mode=TwoWay}\"");
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding WriteBackgroundAppsEnabled, Mode=TwoWay}\"");
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding ReadOptimizationEnabled, Mode=TwoWay}\"");
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding WriteOptimizationEnabled, Mode=TwoWay}\"");
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding ReadBenchmarksEnabled, Mode=TwoWay}\"");
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding WriteBenchmarksEnabled, Mode=TwoWay}\"");
+
+        // 6. Telemetry control unavailable placeholder
+        StringAssert.Contains(templateXaml, "Text=\"—\"");
+    }
+
+    private static string? FindRepoRoot()
+    {
+        string? directory = Path.GetDirectoryName(typeof(SettingsCompanionIntegrationTests).Assembly.Location);
+        while (directory != null && !Directory.Exists(Path.Combine(directory, "FrameHub.App")))
+        {
+            directory = Path.GetDirectoryName(directory);
+        }
+        return directory;
     }
 
     [TestMethod]

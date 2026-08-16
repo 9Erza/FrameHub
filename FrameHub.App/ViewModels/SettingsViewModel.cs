@@ -513,6 +513,15 @@ public sealed class SettingsViewModel : ViewModelBase
         string neverUsedText = _localization.T("Settings.CompanionNeverUsed");
         string pairedLabel = _localization.T("Settings.CompanionPaired");
         string lastUsedLabel = _localization.T("Settings.CompanionLastUsed");
+        string permissionsHeader = _localization.T("Settings.CompanionPermissions");
+        string areaHeader = _localization.T("Settings.CompanionPermissionArea");
+        string readHeader = _localization.T("Settings.CompanionPermissionRead");
+        string controlHeader = _localization.T("Settings.CompanionPermissionControl");
+        string areaTelemetryLabel = _localization.T("Settings.CompanionAreaTelemetry");
+        string areaLibraryLabel = _localization.T("Settings.CompanionAreaLibrary");
+        string areaBackgroundAppsLabel = _localization.T("Settings.CompanionAreaBackgroundApps");
+        string areaOptimizationLabel = _localization.T("Settings.CompanionAreaOptimization");
+        string areaBenchmarksLabel = _localization.T("Settings.CompanionAreaBenchmarks");
 
         foreach (var dev in devices)
         {
@@ -532,7 +541,16 @@ public sealed class SettingsViewModel : ViewModelBase
                 scopeReadBackgroundAppsLabel,
                 scopeWriteBackgroundAppsLabel,
                 pairedLabel,
-                lastUsedLabel));
+                lastUsedLabel,
+                permissionsHeader,
+                areaHeader,
+                readHeader,
+                controlHeader,
+                areaTelemetryLabel,
+                areaLibraryLabel,
+                areaBackgroundAppsLabel,
+                areaOptimizationLabel,
+                areaBenchmarksLabel));
         }
         OnPropertyChanged(nameof(HasPairedDevices));
         OnPropertyChanged(nameof(IsDeviceStoreFaulted));
