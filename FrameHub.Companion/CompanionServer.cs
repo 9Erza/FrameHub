@@ -104,7 +104,6 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
         _sessionOptimizationProvider = provider;
     }
 
-
     public async Task<bool> StartAsync(CompanionOptions options, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -193,7 +192,6 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
                 var optimizationProvider = _sessionOptimizationProvider ?? new NullCompanionSessionOptimizationProvider();
                 builder.Services.AddSingleton<ICompanionSessionOptimizationProvider>(optimizationProvider);
 
-
                 builder.WebHost.UseKestrel(kestrel =>
                 {
                     // Strict localhost loopback binding (127.0.0.1) - NEVER 0.0.0.0 or ListenAnyIP
@@ -236,7 +234,15 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
                 });
 
                 app.UseDefaultFiles();
-                app.UseStaticFiles();
+                app.UseStaticFiles(new StaticFileOptions
+                {
+                    OnPrepareResponse = ctx =>
+                    {
+                        ctx.Context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+                        ctx.Context.Response.Headers["Pragma"] = "no-cache";
+                        ctx.Context.Response.Headers["Expires"] = "0";
+                    }
+                });
 
                 app.UseMiddleware<CompanionAuthMiddleware>();
                 app.MapControllers();

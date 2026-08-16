@@ -669,6 +669,97 @@ public sealed class CompanionFrontendStaticFilesTests
             "WebSocket must pass ephemeral ticket via subprotocol.");
     }
 
+    [TestMethod]
+    public async Task StaticAssets_HaveNoCacheHeaders_PreventingStaleClientCache()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+        string[] staticPaths =
+        [
+            "/",
+            "/index.html",
+            "/js/auth-transport.js",
+            "/js/app.js",
+            "/js/benchmarks.js",
+            "/css/styles.css"
+        ];
+
+        foreach (string path in staticPaths)
+        {
+            var response = await client.GetAsync($"http://127.0.0.1:{port}{path}");
+            Assert.AreEqual(HttpStatusCode.OK, response.StatusCode, $"Static asset {path} must return 200 OK.");
+
+            // Cache-Control must prevent caching
+            var cacheControl = response.Headers.CacheControl?.ToString()
+                               ?? (response.Headers.TryGetValues("Cache-Control", out var ccVals) ? string.Join(", ", ccVals) : string.Empty);
+            Assert.IsTrue(cacheControl.Contains("no-store", StringComparison.OrdinalIgnoreCase), $"{path} Cache-Control must contain no-store.");
+            Assert.IsTrue(cacheControl.Contains("no-cache", StringComparison.OrdinalIgnoreCase), $"{path} Cache-Control must contain no-cache.");
+            Assert.IsTrue(cacheControl.Contains("must-revalidate", StringComparison.OrdinalIgnoreCase), $"{path} Cache-Control must contain must-revalidate.");
+
+            // Pragma must be no-cache
+            Assert.IsTrue(response.Headers.TryGetValues("Pragma", out var pragmaVals) && pragmaVals.Any(v => v.Contains("no-cache", StringComparison.OrdinalIgnoreCase)),
+                $"{path} must include Pragma: no-cache header.");
+
+            // Expires must be 0 or in the past
+            bool hasExpires = (response.Headers.TryGetValues("Expires", out var exp1) && exp1.Any(v => v.Contains("0")))
+                              || (response.Content.Headers.TryGetValues("Expires", out var exp2) && exp2.Any(v => v.Contains("0")))
+                              || response.Content.Headers.Expires != null;
+            Assert.IsTrue(hasExpires, $"{path} must include Expires: 0 header.");
+        }
+    }
+
+    [TestMethod]
+    public async Task IndexHtml_LoadsAuthTransportBeforeDependentModules()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+        string indexHtml = await (await client.GetAsync($"http://127.0.0.1:{port}/index.html")).Content.ReadAsStringAsync();
+
+        int authTransportIdx = indexHtml.IndexOf("/js/auth-transport.js", StringComparison.Ordinal);
+        int telemetryIdx = indexHtml.IndexOf("/js/telemetry.js", StringComparison.Ordinal);
+        int benchmarksIdx = indexHtml.IndexOf("/js/benchmarks.js", StringComparison.Ordinal);
+        int libraryIdx = indexHtml.IndexOf("/js/library.js", StringComparison.Ordinal);
+        int optIdx = indexHtml.IndexOf("/js/session-optimization.js", StringComparison.Ordinal);
+        int appIdx = indexHtml.IndexOf("/js/app.js", StringComparison.Ordinal);
+
+        Assert.IsTrue(authTransportIdx >= 0, "index.html must include auth-transport.js");
+        Assert.IsTrue(telemetryIdx >= 0, "index.html must include telemetry.js");
+        Assert.IsTrue(benchmarksIdx >= 0, "index.html must include benchmarks.js");
+        Assert.IsTrue(libraryIdx >= 0, "index.html must include library.js");
+        Assert.IsTrue(optIdx >= 0, "index.html must include session-optimization.js");
+        Assert.IsTrue(appIdx >= 0, "index.html must include app.js");
+
+        Assert.IsTrue(authTransportIdx < telemetryIdx, "auth-transport.js must load before telemetry.js");
+        Assert.IsTrue(authTransportIdx < benchmarksIdx, "auth-transport.js must load before benchmarks.js");
+        Assert.IsTrue(authTransportIdx < libraryIdx, "auth-transport.js must load before library.js");
+        Assert.IsTrue(authTransportIdx < optIdx, "auth-transport.js must load before session-optimization.js");
+        Assert.IsTrue(authTransportIdx < appIdx, "auth-transport.js must load before app.js");
+    }
+
+    [TestMethod]
+    public async Task ApiEndpoints_DoNotInheritStaticFileNoCacheHeadersAutomatically()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        server.ConfigureBenchmarkProvider(new TestFakeBenchmarkProvider());
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+        // Anonymous status endpoint returns API response
+        var response = await client.GetAsync($"http://127.0.0.1:{port}/api/v1/benchmarks/status");
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        Assert.AreEqual("application/json", response.Content.Headers.ContentType?.MediaType);
+    }
+
     private sealed class TestFakeBenchmarkProvider : ICompanionBenchmarkProvider
     {
         public CompanionBenchmarkStatusDto GetStatus()
