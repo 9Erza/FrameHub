@@ -28,6 +28,8 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
     private readonly LibraryService _libraryService;
+    private readonly ProcessScannerService _processScanner;
+    private readonly IAppLibraryLaunchService _launchService;
     private readonly SteamLibraryScanner _steamScanner = new();
     private readonly EpicLibraryScanner _epicScanner = new();
     private readonly RiotLibraryScanner _riotScanner = new();
@@ -52,6 +54,13 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private bool _isCs2Running;
     private readonly DispatcherTimer _cs2ProcessTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private bool _disposed;
+    private int _runtimeRefreshSequence;
+    private CancellationTokenSource? _postLaunchRefreshCts;
+
+    /// <summary>One-shot delay before the post-launch runtime-status refresh. Test seam.</summary>
+    internal Func<TimeSpan, CancellationToken, Task>? PostLaunchRefreshDelayProvider { get; set; }
+
+    private static readonly TimeSpan PostLaunchRefreshDelay = TimeSpan.FromSeconds(2);
     private string _selectedCs2FpsMax = string.Empty;
     private string _cs2MouseSensitivity = string.Empty;
     private string _cs2Volume = string.Empty;
@@ -487,11 +496,13 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         ? _localization.T("CS2.NotScannedShort")
         : string.Format(_localization.T("CS2.BaselineMatch"), _cs2Analysis.BaselineMatchedSettings, _cs2Analysis.BaselineTotalSettings);
 
-    public LibraryViewModel(LocalizationService localization, AppRuntimeService runtime, LibraryService? libraryService = null)
+    public LibraryViewModel(LocalizationService localization, AppRuntimeService runtime, LibraryService? libraryService = null, ProcessScannerService? processScanner = null, IAppLibraryLaunchService? launchService = null)
     {
         _localization = localization;
         _runtime = runtime;
         _libraryService = libraryService ?? new LibraryService();
+        _processScanner = processScanner ?? runtime.ProcessScanner;
+        _launchService = launchService ?? runtime.LaunchService;
 
         foreach (var core in _runtime.Cores) Cores.Add(core);
         OnPropertyChanged(nameof(PhysicalCores));
@@ -691,12 +702,22 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ReadyCountText));
     }
 
+    /// <summary>
+    /// Bounded runtime-status refresh for Library view activation: one fresh running-state
+    /// check only. No game-source rescan, no persistence change, no timer.
+    /// </summary>
+    public void Activate() => RefreshRuntimeState();
+
     private async void RefreshRuntimeState()
     {
+        int sequence = ++_runtimeRefreshSequence;
         try
         {
-            IReadOnlySet<string> runningIds = await _runtime.ProcessScanner
+            IReadOnlySet<string> runningIds = await _processScanner
                 .FindRunningLibraryItemIdsAsync(Items.Select(item => item.Item));
+
+            // A newer refresh (manual, activation or post-launch pulse) superseded this one.
+            if (sequence != _runtimeRefreshSequence) return;
 
             foreach (var item in Items)
             {
@@ -708,6 +729,37 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             LoggerService.Instance.Debug($"Library runtime-state refresh failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Schedules exactly one delayed runtime-state refresh after a successful launch. This is a
+    /// single bounded pulse (never a polling loop): if the game process has not appeared yet the
+    /// row legitimately stays "Not running" until the next activation or manual refresh.
+    /// </summary>
+    private void SchedulePostLaunchRuntimeRefresh()
+    {
+        _postLaunchRefreshCts?.Cancel();
+        _postLaunchRefreshCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _postLaunchRefreshCts = cts;
+        _ = RunPostLaunchRuntimeRefreshAsync(cts.Token);
+    }
+
+    private async Task RunPostLaunchRuntimeRefreshAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            Func<TimeSpan, CancellationToken, Task> delay = PostLaunchRefreshDelayProvider ?? Task.Delay;
+            await delay(PostLaunchRefreshDelay, cancellationToken);
+            RefreshRuntimeState();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Debug($"Library post-launch runtime-state refresh failed: {ex.Message}");
         }
     }
 
@@ -1007,7 +1059,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private void LaunchSelected()
     {
         if (SelectedItem?.Item == null) return;
-        var result = _runtime.LaunchService.Launch(SelectedItem.Item);
+        var result = _launchService.Launch(SelectedItem.Item);
         if (!result.Success)
         {
             StatusMessage = result.ErrorCode switch
@@ -1016,7 +1068,10 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
                 "launch_target_missing" => _localization.T("Library.ExecutableMissing"),
                 _ => _localization.T("Library.LaunchFailed")
             };
+            return;
         }
+
+        SchedulePostLaunchRuntimeRefresh();
     }
 
     private void RequestBenchmark()
@@ -1743,5 +1798,8 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         _disposed = true;
         _cs2ProcessTimer.Stop();
         _cs2ProcessTimer.Tick -= OnCs2ProcessTimerTick;
+        _postLaunchRefreshCts?.Cancel();
+        _postLaunchRefreshCts?.Dispose();
+        _postLaunchRefreshCts = null;
     }
 }

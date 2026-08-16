@@ -217,6 +217,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         if (!_currentKey.Equals("Library", StringComparison.OrdinalIgnoreCase) && key.Equals("Library", StringComparison.OrdinalIgnoreCase))
         {
             _libraryViewModel.SelectedItem = null;
+            // One bounded runtime-status refresh per Library activation; no rescan, no timer.
+            _libraryViewModel.Activate();
         }
 
         if (!_currentKey.Equals("Processes", StringComparison.OrdinalIgnoreCase) && key.Equals("Processes", StringComparison.OrdinalIgnoreCase))
