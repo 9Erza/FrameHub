@@ -481,15 +481,11 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
     }
 
     /// <summary>
-    /// Live PresentMon eligibility. Benchmark capture must be enabled for the library item and
-    /// the observed process must not be a protected Riot identity (defense-in-depth for
-    /// manual/custom/legacy items that kept AllowBenchmark == true).
+    /// Live PresentMon eligibility. Delegated to the shared RiotGameProcesses.IsPassivePerformanceEligible authority.
     /// </summary>
     private static bool IsLiveTelemetryEligible(ActiveGameSnapshot activeGame)
     {
-        if (!activeGame.LibraryItem.AllowBenchmark) return false;
-        if (RiotGameProcesses.IsProtectedProcessName(activeGame.Process.ProcessName)) return false;
-        return true;
+        return RiotGameProcesses.IsPassivePerformanceEligible(activeGame.LibraryItem, activeGame.Process.ProcessName);
     }
 
     private void TeardownOwnedSession(ref IPresentMonApi? api, ref nint session, ref nint query, ref uint trackingPid)

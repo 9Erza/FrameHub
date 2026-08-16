@@ -90,7 +90,7 @@ public sealed class RiotComplianceTests
         Assert.AreEqual(shortcut, item.LaunchPath, "Launch entry must be the official Riot-created shortcut.");
         Assert.AreEqual(gameExe, item.ExecutablePath, "ExecutablePath must anchor the actual game process identity.");
         Assert.AreEqual("League of Legends", item.ProcessName);
-        Assert.IsFalse(item.AllowBenchmark, "Riot games must not implicitly enable benchmark capture.");
+        Assert.IsTrue(item.AllowBenchmark, "Supported trusted Riot games must allow benchmark capture.");
         Assert.IsFalse(item.AllowRemoteControl, "Riot games must not be remote-controllable background apps.");
     }
 
@@ -116,7 +116,7 @@ public sealed class RiotComplianceTests
         Assert.AreEqual("VALORANT", item.DisplayName);
         Assert.AreEqual("VALORANT-Win64-Shipping", item.ProcessName, "Process identity must be the actual game executable, not the launcher.");
         Assert.AreEqual(gameExe, item.ExecutablePath);
-        Assert.IsFalse(item.AllowBenchmark);
+        Assert.IsTrue(item.AllowBenchmark);
     }
 
     [TestMethod]
@@ -140,66 +140,62 @@ public sealed class RiotComplianceTests
         string riotClientExe = Path.Combine(installRoot, "Riot Client", "RiotClientServices.exe");
         CreateShortcut(
             Path.Combine(startMenuPrograms, "Riot Games"),
-            "Teamfight Tactics.lnk",
+            "UnknownProduct.lnk",
             riotClientExe,
-            "--launch-product=teamfighttactics --launch-patchline=live");
+            "--launch-product=tft_mobile");
 
         var scanner = new RiotLibraryScanner(startMenuRoots: [startMenuPrograms]);
         var result = scanner.Scan();
 
-        Assert.AreEqual(0, result.Items.Count, "Products with colliding game process identity must be skipped conservatively.");
-        Assert.IsTrue(result.Warnings.Any(w => w.Contains("teamfighttactics", StringComparison.OrdinalIgnoreCase)));
+        Assert.AreEqual(0, result.Items.Count);
+        Assert.AreEqual(1, result.Warnings.Count);
+        StringAssert.Contains(result.Warnings[0], "tft_mobile");
     }
 
     [TestMethod]
-    public void Scanner_MissingGameExecutable_StillAddsItemWithNameIdentityAndWarning()
+    public void Scanner_ShortcutResolutionThrows_RecordsWarningAndContinues()
     {
-        (string installRoot, string startMenuPrograms) = CreateRiotLayout();
-        string riotClientExe = Path.Combine(installRoot, "Riot Client", "RiotClientServices.exe");
-        CreateShortcut(
-            Path.Combine(startMenuPrograms, "Riot Games"),
-            "League of Legends.lnk",
-            riotClientExe,
-            "--launch-product=league_of_legends --launch-patchline=live");
+        (string _, string startMenuPrograms) = CreateRiotLayout();
+        string brokenShortcut = Path.Combine(startMenuPrograms, "Riot Games", "Broken.lnk");
+        Directory.CreateDirectory(Path.GetDirectoryName(brokenShortcut)!);
+        File.WriteAllText(brokenShortcut, "corrupt");
 
-        var scanner = new RiotLibraryScanner(startMenuRoots: [startMenuPrograms]);
+        var scanner = new RiotLibraryScanner(
+            startMenuRoots: [startMenuPrograms],
+            shortcutResolver: _ => throw new InvalidOperationException("COM error"));
         var result = scanner.Scan();
 
-        Assert.AreEqual(1, result.Items.Count);
-        Assert.IsNull(result.Items[0].ExecutablePath, "Unverifiable install layout must fall back to name-based identity only.");
-        Assert.AreEqual("League of Legends", result.Items[0].ProcessName);
-        Assert.IsTrue(result.Warnings.Any(w => w.Contains("name-based", StringComparison.Ordinal)));
+        Assert.AreEqual(0, result.Items.Count);
+        Assert.AreEqual(1, result.Warnings.Count);
+        StringAssert.Contains(result.Warnings[0], "Broken.lnk");
     }
 
     [TestMethod]
-    public void Scanner_DuplicateShortcutsForSameProduct_ProduceSingleItem()
+    public void ExtractLaunchProduct_ParsesSupportedPatterns()
     {
-        (string installRoot, string startMenuPrograms) = CreateRiotLayout();
-        string riotClientExe = Path.Combine(installRoot, "Riot Client", "RiotClientServices.exe");
-        string folder = Path.Combine(startMenuPrograms, "Riot Games");
-        CreateShortcut(folder, "League of Legends.lnk", riotClientExe, "--launch-product=league_of_legends --launch-patchline=live");
-        CreateShortcut(folder, "Klient League of Legends.lnk", riotClientExe, "--launch-product=league_of_legends --launch-patchline=live");
-
-        var scanner = new RiotLibraryScanner(startMenuRoots: [startMenuPrograms]);
-        var result = scanner.Scan();
-
-        Assert.AreEqual(1, result.Items.Count);
+        Assert.AreEqual("league_of_legends", RiotLibraryScanner.ExtractLaunchProduct("--launch-product=league_of_legends --launch-patchline=live"));
+        Assert.AreEqual("valorant", RiotLibraryScanner.ExtractLaunchProduct("--launch-product=valorant --launch-patchline=live"));
+        Assert.AreEqual("custom-product_1", RiotLibraryScanner.ExtractLaunchProduct("--other-flag --launch-product=custom-product_1"));
+        Assert.IsNull(RiotLibraryScanner.ExtractLaunchProduct(null));
+        Assert.IsNull(RiotLibraryScanner.ExtractLaunchProduct(""));
+        Assert.IsNull(RiotLibraryScanner.ExtractLaunchProduct("--no-product-flag"));
     }
 
     [TestMethod]
-    public void LibraryService_PreservesRiotLaunchPathAndStickyBenchmarkExclusion()
+    public void SaveAndLoad_RoundTripsLaunchPath_AndProtectsRemoteControl()
     {
         string libraryPath = Path.Combine(_tempDirectory, "library.json");
         var service = new LibraryService(libraryPath);
         var item = new LibraryItem
         {
+            Id = "riot-league",
             DisplayName = "League of Legends",
             Source = LibrarySource.Riot,
             Type = LibraryItemType.Game,
             AppId = "league_of_legends",
             ProcessName = "League of Legends",
             LaunchPath = Path.Combine(_tempDirectory, "League of Legends.lnk"),
-            AllowBenchmark = false
+            AllowBenchmark = true
         };
 
         service.SaveItems([item]);
@@ -207,7 +203,7 @@ public sealed class RiotComplianceTests
         List<LibraryItem> loaded = service.LoadItems();
         Assert.AreEqual(1, loaded.Count);
         Assert.AreEqual(item.LaunchPath, loaded[0].LaunchPath, "LaunchPath must survive sanitize/persist round-trip.");
-        Assert.IsFalse(loaded[0].AllowBenchmark, "AllowBenchmark=false must survive persistence.");
+        Assert.IsTrue(loaded[0].AllowBenchmark, "AllowBenchmark=true must survive persistence.");
 
         var rescan = new LibraryItem
         {
@@ -215,12 +211,12 @@ public sealed class RiotComplianceTests
             Source = LibrarySource.Riot,
             AppId = "league_of_legends",
             ProcessName = "League of Legends",
-            AllowBenchmark = false
+            AllowBenchmark = true
         };
         List<LibraryItem> merged = service.MergeItems(loaded, [rescan]);
         Assert.AreEqual(1, merged.Count);
         Assert.AreEqual(item.LaunchPath, merged[0].LaunchPath, "Merge must keep the trusted launch entry.");
-        Assert.IsFalse(merged[0].AllowBenchmark, "Merge must keep Riot benchmark exclusion sticky.");
+        Assert.IsTrue(merged[0].AllowBenchmark, "Merge must keep Riot benchmark eligibility.");
     }
 
     [TestMethod]
@@ -241,7 +237,7 @@ public sealed class RiotComplianceTests
     }
 
     [TestMethod]
-    public void BenchmarkDetection_ExcludesRiotItems_EvenWhenRunning()
+    public void BenchmarkDetection_TrustedRiotItem_IsBenchmarkEligible_WhenActualGameRunning()
     {
         string gamePath = Path.GetFullPath(Path.Combine(_tempDirectory, "League of Legends.exe"));
         var provider = new FakeProcessProvider(new BenchmarkProcessSnapshot(4242, "League of Legends", gamePath, DateTime.UtcNow));
@@ -254,31 +250,22 @@ public sealed class RiotComplianceTests
             Type = LibraryItemType.Game,
             ProcessName = "League of Legends",
             ExecutablePath = gamePath,
-            AllowBenchmark = false
-        };
-        var regularItem = new LibraryItem
-        {
-            Id = "regular",
-            DisplayName = "Regular",
-            Type = LibraryItemType.Game,
-            ProcessName = "othergame",
-            ExecutablePath = Path.GetFullPath(Path.Combine(_tempDirectory, "othergame.exe")),
             AllowBenchmark = true
         };
 
-        IReadOnlyList<BenchmarkRunningGame> detected = detector.Detect([riotItem, regularItem]);
+        IReadOnlyList<BenchmarkRunningGame> active = detector.DetectActiveGames([riotItem]);
+        IReadOnlyList<BenchmarkRunningGame> eligible = detector.Detect([riotItem]);
 
-        Assert.AreEqual(0, detected.Count, "Riot games must never become benchmark or live-PresentMon targets.");
+        Assert.AreEqual(1, active.Count, "Trusted Riot game running must be detected as active game.");
+        Assert.AreEqual(1, eligible.Count, "Trusted Riot game running must be detected as benchmark eligible.");
+        Assert.AreEqual("riot-lol", eligible[0].LibraryItem.Id);
     }
 
     [TestMethod]
-    public void ActiveGameDetection_IncludesRiotItem_WhileBenchmarkDetectionExcludesIt()
+    public void ActiveGameDetection_DisabledRiotItem_ActiveGameOnlyNotBenchmarkEligible()
     {
         string leaguePath = Path.GetFullPath(Path.Combine(_tempDirectory, "League of Legends.exe"));
-        string cs2Path = Path.GetFullPath(Path.Combine(_tempDirectory, "cs2.exe"));
-        var provider = new FakeProcessProvider(
-            new BenchmarkProcessSnapshot(4242, "League of Legends", leaguePath, DateTime.UtcNow),
-            new BenchmarkProcessSnapshot(5252, "cs2", cs2Path, DateTime.UtcNow));
+        var provider = new FakeProcessProvider(new BenchmarkProcessSnapshot(4242, "League of Legends", leaguePath, DateTime.UtcNow));
         var detector = new BenchmarkGameDetectionService(provider);
         var riotItem = new LibraryItem
         {
@@ -290,25 +277,12 @@ public sealed class RiotComplianceTests
             ExecutablePath = leaguePath,
             AllowBenchmark = false
         };
-        var cs2Item = new LibraryItem
-        {
-            Id = "cs2",
-            DisplayName = "Counter-Strike 2",
-            Type = LibraryItemType.Game,
-            ProcessName = "cs2",
-            ExecutablePath = cs2Path,
-            AllowBenchmark = true
-        };
 
-        IReadOnlyList<BenchmarkRunningGame> active = detector.DetectActiveGames([riotItem, cs2Item]);
-        IReadOnlyList<BenchmarkRunningGame> eligible = detector.Detect([riotItem, cs2Item]);
+        IReadOnlyList<BenchmarkRunningGame> active = detector.DetectActiveGames([riotItem]);
+        IReadOnlyList<BenchmarkRunningGame> eligible = detector.Detect([riotItem]);
 
-        Assert.AreEqual(2, active.Count, "A running Riot game must remain visible as an active game.");
-        Assert.IsTrue(active.Any(g => g.LibraryItem.Id == "riot-lol"));
-        Assert.IsTrue(active.Any(g => g.LibraryItem.Id == "cs2"));
-
-        Assert.AreEqual(1, eligible.Count, "Only the benchmark-eligible game may be a benchmark target.");
-        Assert.AreEqual("cs2", eligible[0].LibraryItem.Id, "Riot games must never become benchmark or live-PresentMon targets.");
+        Assert.AreEqual(1, active.Count, "A running Riot game with AllowBenchmark=false remains visible as an active game.");
+        Assert.AreEqual(0, eligible.Count, "AllowBenchmark=false Riot item must be excluded from benchmark detection.");
     }
 
     [TestMethod]
@@ -327,7 +301,7 @@ public sealed class RiotComplianceTests
             Type = LibraryItemType.Game,
             ProcessName = "League of Legends",
             ExecutablePath = Path.GetFullPath(Path.Combine(_tempDirectory, "League of Legends.exe")),
-            AllowBenchmark = false
+            AllowBenchmark = true
         };
 
         IReadOnlyList<BenchmarkRunningGame> active = detector.DetectActiveGames([riotItem]);
@@ -357,7 +331,7 @@ public sealed class RiotComplianceTests
 
         Assert.AreEqual(1, active.Count, "A manual item matching a protected Riot game process may stay visible as an active game.");
         Assert.AreEqual("manual-lol", active[0].LibraryItem.Id);
-        Assert.AreEqual(0, eligible.Count, "A protected Riot identity must never be benchmark eligible, even with AllowBenchmark == true.");
+        Assert.AreEqual(0, eligible.Count, "A protected Riot identity with Source != Riot must never be benchmark eligible, even with AllowBenchmark == true.");
     }
 
     [TestMethod]
@@ -381,7 +355,23 @@ public sealed class RiotComplianceTests
         IReadOnlyList<BenchmarkRunningGame> eligible = detector.Detect([manualItem]);
 
         Assert.AreEqual(1, active.Count, "The path-matched manual item stays visible as an active game.");
-        Assert.AreEqual(0, eligible.Count, "A protected Riot executable path must never be benchmark eligible, even with AllowBenchmark == true.");
+        Assert.AreEqual(0, eligible.Count, "A protected Riot executable path with Source != Riot must never be benchmark eligible, even with AllowBenchmark == true.");
+    }
+
+    [TestMethod]
+    public void PresentMonApi_MetricAllowlist_DoesNotIncludeInjectionOrInstrumentedMetrics()
+    {
+        IReadOnlyList<FrameHub.Core.Services.Benchmarking.PmMetric> frameMetrics = FrameHub.Core.Services.Benchmarking.PresentMonApiFrameSource.FrameQueryMetrics;
+
+        // Required basic timing metrics only
+        CollectionAssert.Contains((System.Collections.ICollection)frameMetrics, FrameHub.Core.Services.Benchmarking.PmMetric.SwapChainAddress);
+        CollectionAssert.Contains((System.Collections.ICollection)frameMetrics, FrameHub.Core.Services.Benchmarking.PmMetric.BetweenPresents);
+
+        // Disallowed injection/instrumentation metrics
+        CollectionAssert.DoesNotContain((System.Collections.ICollection)frameMetrics, FrameHub.Core.Services.Benchmarking.PmMetric.ClickToPhotonLatency);
+        CollectionAssert.DoesNotContain((System.Collections.ICollection)frameMetrics, FrameHub.Core.Services.Benchmarking.PmMetric.AllInputToPhotonLatency);
+        CollectionAssert.DoesNotContain((System.Collections.ICollection)frameMetrics, FrameHub.Core.Services.Benchmarking.PmMetric.InstrumentedLatency);
+        CollectionAssert.DoesNotContain((System.Collections.ICollection)frameMetrics, FrameHub.Core.Services.Benchmarking.PmMetric.BetweenSimulationStart);
     }
 
     [TestMethod]

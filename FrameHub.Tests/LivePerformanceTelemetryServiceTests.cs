@@ -371,7 +371,7 @@ public sealed class LivePerformanceTelemetryServiceTests
     }
 
     [TestMethod]
-    public async Task LiveService_RiotActiveGame_NeverCreatesPresentMonSession()
+    public async Task LiveService_RiotActiveGame_DisabledBenchmark_NeverCreatesPresentMonSession()
     {
         var league = CreateRiotActiveGame(4242, "riot-lol", "League of Legends", allowBenchmark: false);
         var activeGameMonitor = new FakeActiveGameMonitor(league);
@@ -388,13 +388,13 @@ public sealed class LivePerformanceTelemetryServiceTests
         await Task.Delay(150);
 
         Assert.AreEqual(0, factoryCalls, "A benchmark-ineligible Riot active game must never create a PresentMon session.");
-        Assert.IsNull(service.CurrentSnapshot, "No live FPS data may be fabricated for a Riot game.");
+        Assert.IsNull(service.CurrentSnapshot, "No live FPS data may be fabricated for a disabled game.");
 
         await service.StopAsync();
     }
 
     [TestMethod]
-    public async Task LiveService_ProtectedRiotProcessName_NeverCreatesPresentMonSession()
+    public async Task LiveService_ProtectedRiotProcessName_CustomItem_NeverCreatesPresentMonSession()
     {
         var manualRiot = CreateRiotActiveGame(5000, "manual-lol", "My League shortcut", allowBenchmark: true);
         var activeGameMonitor = new FakeActiveGameMonitor(manualRiot);
@@ -410,14 +410,58 @@ public sealed class LivePerformanceTelemetryServiceTests
         service.Start();
         await Task.Delay(150);
 
-        Assert.AreEqual(0, factoryCalls, "A protected Riot process name must never receive live PresentMon, even if the item kept AllowBenchmark == true.");
+        Assert.AreEqual(0, factoryCalls, "A protected Riot process name with Source != Riot must never receive live PresentMon, even if the item kept AllowBenchmark == true.");
         Assert.IsNull(service.CurrentSnapshot);
 
         await service.StopAsync();
     }
 
     [TestMethod]
-    public async Task LiveService_TransitionFromEligibleGameToRiot_TearsDownWithoutReattach()
+    public async Task LiveService_TrustedRiotActiveGame_CreatesPresentMonSession_AndProducesFps()
+    {
+        var trustedLeague = new ActiveGameSnapshot(
+            new FrameHub.Core.Models.Library.LibraryItem
+            {
+                Id = "riot-lol",
+                DisplayName = "League of Legends",
+                Source = FrameHub.Core.Models.Library.LibrarySource.Riot,
+                ProcessName = "League of Legends",
+                ExecutablePath = @"C:\Riot Games\League of Legends\Game\League of Legends.exe",
+                Type = FrameHub.Core.Models.Library.LibraryItemType.Game,
+                IsEnabled = true,
+                AllowBenchmark = true
+            },
+            new BenchmarkProcessIdentity
+            {
+                ProcessId = 4242,
+                ProcessName = "League of Legends",
+                ExecutablePath = @"C:\Riot Games\League of Legends\Game\League of Legends.exe",
+                StartTimeUtc = DateTime.UtcNow
+            }
+        );
+        var activeGameMonitor = new FakeActiveGameMonitor(trustedLeague);
+        var coordinator = CreateTestCoordinator();
+        int factoryCalls = 0;
+
+        using var service = new LivePerformanceTelemetryService(
+            activeGameMonitor,
+            coordinator,
+            apiFactory: () => { Interlocked.Increment(ref factoryCalls); return new TestFakeApi(); },
+            delayProvider: InstantDelayProvider);
+
+        service.Start();
+        await WaitUntilAsync(() => service.CurrentSnapshot != null);
+
+        Assert.AreEqual(1, factoryCalls, "Trusted Riot active game must create a PresentMon session.");
+        Assert.IsNotNull(service.CurrentSnapshot);
+        Assert.AreEqual(4242, service.CurrentSnapshot.ProcessId);
+        Assert.IsTrue(service.CurrentSnapshot.CurrentFps > 0, "Live FPS must be produced from PresentMon frame events for trusted Riot game.");
+
+        await service.StopAsync();
+    }
+
+    [TestMethod]
+    public async Task LiveService_TransitionFromEligibleGameToDisabledRiot_TearsDownWithoutReattach()
     {
         var cs2 = CreateActiveGame(3333, "cs2", "Counter-Strike 2");
         var league = CreateRiotActiveGame(4242, "riot-lol", "League of Legends", allowBenchmark: false);
@@ -444,9 +488,57 @@ public sealed class LivePerformanceTelemetryServiceTests
 
         Assert.IsTrue(firstApi.Calls.Contains("stop:3333"), "The CS2 PresentMon session must be torn down.");
         Assert.IsTrue(firstApi.Calls.Contains("close"));
-        Assert.IsFalse(firstApi.Calls.Any(c => c.StartsWith("start:4242", StringComparison.Ordinal)), "No PresentMon session may be created for the Riot game.");
-        Assert.AreEqual(1, factoryCalls, "No new PresentMon API session may be created after switching to a Riot game.");
+        Assert.IsFalse(firstApi.Calls.Any(c => c.StartsWith("start:4242", StringComparison.Ordinal)), "No PresentMon session may be created for the disabled game.");
+        Assert.AreEqual(1, factoryCalls, "No new PresentMon API session may be created after switching to a disabled game.");
         Assert.IsNull(service.CurrentSnapshot);
+
+        await service.StopAsync();
+    }
+
+    [TestMethod]
+    public async Task LiveService_TransitionFromEligibleGameToTrustedRiot_AttachesToRiotProcess()
+    {
+        var cs2 = CreateActiveGame(3333, "cs2", "Counter-Strike 2");
+        var trustedLeague = new ActiveGameSnapshot(
+            new FrameHub.Core.Models.Library.LibraryItem
+            {
+                Id = "riot-lol",
+                DisplayName = "League of Legends",
+                Source = FrameHub.Core.Models.Library.LibrarySource.Riot,
+                ProcessName = "League of Legends",
+                ExecutablePath = @"C:\Riot Games\League of Legends\Game\League of Legends.exe",
+                Type = FrameHub.Core.Models.Library.LibraryItemType.Game,
+                IsEnabled = true,
+                AllowBenchmark = true
+            },
+            new BenchmarkProcessIdentity
+            {
+                ProcessId = 4242,
+                ProcessName = "League of Legends",
+                ExecutablePath = @"C:\Riot Games\League of Legends\Game\League of Legends.exe",
+                StartTimeUtc = DateTime.UtcNow
+            }
+        );
+        var activeGameMonitor = new FakeActiveGameMonitor(cs2);
+        var coordinator = CreateTestCoordinator();
+        int factoryCalls = 0;
+
+        using var service = new LivePerformanceTelemetryService(
+            activeGameMonitor,
+            coordinator,
+            apiFactory: () => { Interlocked.Increment(ref factoryCalls); return new TestFakeApi(); },
+            delayProvider: InstantDelayProvider);
+
+        service.Start();
+        await WaitUntilAsync(() => service.CurrentSnapshot != null);
+        Assert.AreEqual(3333, service.CurrentSnapshot?.ProcessId);
+
+        activeGameMonitor.SetGame(trustedLeague);
+        await WaitUntilAsync(() => service.CurrentSnapshot?.ProcessId == 4242);
+
+        Assert.AreEqual(2, factoryCalls, "Switching to trusted Riot game must create a new session for the Riot process.");
+        Assert.IsNotNull(service.CurrentSnapshot);
+        Assert.AreEqual(4242, service.CurrentSnapshot.ProcessId);
 
         await service.StopAsync();
     }

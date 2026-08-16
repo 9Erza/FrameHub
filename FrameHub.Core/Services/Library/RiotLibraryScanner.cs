@@ -89,7 +89,7 @@ public sealed class RiotLibraryScanner
                         IsEnabled = true,
                         WatchProcess = true,
                         AllowRemoteControl = false,
-                        AllowBenchmark = false
+                        AllowBenchmark = true
                     });
                 }
                 catch (Exception ex)
@@ -133,7 +133,7 @@ public sealed class RiotLibraryScanner
         }
     }
 
-    internal static string? ExtractLaunchProduct(string? arguments)
+    public static string? ExtractLaunchProduct(string? arguments)
     {
         if (string.IsNullOrWhiteSpace(arguments)) return null;
 

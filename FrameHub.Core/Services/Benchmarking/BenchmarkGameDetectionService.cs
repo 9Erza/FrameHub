@@ -54,16 +54,14 @@ public sealed class BenchmarkGameDetectionService
 
     /// <summary>
     /// Benchmark/live-PresentMon eligible running games. A game is excluded when benchmark
-    /// capture is disabled or when its identity is a protected Riot process, even if a
-    /// malformed/manual/legacy item kept AllowBenchmark == true.
+    /// capture is disabled or when its identity is an untrusted protected Riot process.
     /// </summary>
     public IReadOnlyList<BenchmarkRunningGame> Detect(IEnumerable<LibraryItem> libraryItems)
         => DetectRunningGames(libraryItems, requireBenchmarkEligibility: true);
 
     /// <summary>
     /// Active-game running identity only. A game is NOT excluded merely because benchmark
-    /// capture is disabled (e.g. Riot titles are visible as the running/active game while
-    /// remaining ineligible for benchmark capture and live PresentMon telemetry).
+    /// capture is disabled (e.g. non-benchmarkable games stay visible as the running active game).
     /// </summary>
     public IReadOnlyList<BenchmarkRunningGame> DetectActiveGames(IEnumerable<LibraryItem> libraryItems)
         => DetectRunningGames(libraryItems, requireBenchmarkEligibility: false);
@@ -99,6 +97,11 @@ public sealed class BenchmarkGameDetectionService
 
             if (matches.Count != 1) continue;
             LibraryItem item = matches[0];
+            if (requireBenchmarkEligibility && !RiotGameProcesses.IsPassivePerformanceEligible(item, processName))
+            {
+                continue;
+            }
+
             BenchmarkTarget target = _resolver.CreateTarget(item);
             detected.Add(new BenchmarkRunningGame
             {
@@ -124,21 +127,12 @@ public sealed class BenchmarkGameDetectionService
     }
 
     /// <summary>
-    /// Eligibility boundary for benchmark capture and live PresentMon. AllowBenchmark is the
-    /// user-facing flag; the curated protected Riot process list is defense-in-depth so a
-    /// manual/custom/legacy item pointing at a protected Riot game executable can never become
-    /// benchmark or PresentMon eligible, while remaining observable as an active game.
+    /// Eligibility boundary for benchmark capture and live PresentMon.
+    /// Delegated to the authoritative shared rule in RiotGameProcesses.
     /// </summary>
     private static bool IsBenchmarkEligible(LibraryItem item)
     {
-        if (!item.AllowBenchmark) return false;
-        if (RiotGameProcesses.IsProtectedProcessName(item.ProcessName)) return false;
-        if (!string.IsNullOrWhiteSpace(item.ExecutablePath)
-            && RiotGameProcesses.IsProtectedProcessName(Path.GetFileNameWithoutExtension(item.ExecutablePath)))
-        {
-            return false;
-        }
-        return true;
+        return RiotGameProcesses.IsPassivePerformanceEligible(item);
     }
 
     private static string CredibleExecutableName(LibraryItem item)

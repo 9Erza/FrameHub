@@ -72,7 +72,7 @@ public sealed class LibraryService
             existing.LaunchPath ??= item.LaunchPath;
             existing.ProcessName = string.IsNullOrWhiteSpace(existing.ProcessName) ? item.ProcessName : existing.ProcessName;
             existing.IconPath ??= item.IconPath;
-            existing.AllowBenchmark = existing.AllowBenchmark && item.AllowBenchmark;
+            existing.AllowBenchmark = item.AllowBenchmark;
             existing.UpdatedAt = DateTime.UtcNow;
         }
 

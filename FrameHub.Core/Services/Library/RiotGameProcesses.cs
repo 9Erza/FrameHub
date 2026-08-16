@@ -1,3 +1,5 @@
+using FrameHub.Core.Models.Library;
+
 namespace FrameHub.Core.Services.Library;
 
 /// <summary>
@@ -47,9 +49,55 @@ public static class RiotGameProcesses
         return !string.IsNullOrWhiteSpace(processName) && ProtectedProcessNames.Contains(processName.Trim());
     }
 
+    public static bool IsSupportedGameProcessName(string? processName)
+    {
+        if (string.IsNullOrWhiteSpace(processName)) return false;
+        string trimmed = processName.Trim();
+        return SupportedProducts.Any(product => product.GameProcessName.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
+    }
+
     public static RiotProductKnowledge? FindProduct(string? productId)
     {
         if (string.IsNullOrWhiteSpace(productId)) return null;
         return SupportedProducts.FirstOrDefault(product => product.ProductId.Equals(productId.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Shared passive performance capture eligibility (live PresentMon and benchmark target detection).
+    /// Normal games are eligible when AllowBenchmark is true.
+    /// Protected Riot process identities are permitted ONLY when:
+    /// 1. The item was discovered through official Riot discovery (Source == LibrarySource.Riot);
+    /// 2. AllowBenchmark is true;
+    /// 3. The process identity (item and observed process, if any) matches a supported Riot game process (not launcher/client/anti-cheat).
+    /// Any other representation (Manual, Custom, Steam, Epic) pointing at a protected Riot process remains ineligible.
+    /// </summary>
+    public static bool IsPassivePerformanceEligible(LibraryItem? item, string? observedProcessName = null)
+    {
+        if (item == null || !item.AllowBenchmark) return false;
+
+        bool isProtectedItemProcess = IsProtectedProcessName(item.ProcessName)
+            || (!string.IsNullOrWhiteSpace(item.ExecutablePath) && IsProtectedProcessName(Path.GetFileNameWithoutExtension(item.ExecutablePath)));
+
+        bool isProtectedObservedProcess = !string.IsNullOrWhiteSpace(observedProcessName)
+            && IsProtectedProcessName(observedProcessName);
+
+        if (isProtectedItemProcess || isProtectedObservedProcess)
+        {
+            // Protected Riot identities are ONLY eligible if the LibraryItem is from trusted Riot discovery
+            if (item.Source != LibrarySource.Riot) return false;
+
+            // Ensure the item's process name is a supported game process (not RiotClientServices, LeagueClient, etc.)
+            if (!IsSupportedGameProcessName(item.ProcessName)) return false;
+
+            // If an observed process is provided, ensure it is also a supported game process
+            if (!string.IsNullOrWhiteSpace(observedProcessName) && !IsSupportedGameProcessName(observedProcessName))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        return true;
     }
 }
