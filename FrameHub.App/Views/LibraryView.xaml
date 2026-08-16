@@ -91,12 +91,12 @@
                                 <TextBlock Text="{Binding RemoteControlOptInHint}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="22,3,0,0" />
                             </StackPanel>
                         </StackPanel>
-                        <WrapPanel Grid.Column="2" VerticalAlignment="Center" Margin="18,0,0,0" MaxWidth="360">
-                            <Button Style="{StaticResource PrimaryButton}" Content="{Binding LaunchText}" Command="{Binding LaunchSelectedCommand}" Margin="0,0,8,8" />
-                            <Button Style="{StaticResource SecondaryButton}" Content="{Binding BenchmarkText}" Command="{Binding BenchmarkSelectedCommand}" Margin="0,0,8,8" />
-                            <Button Style="{StaticResource SecondaryButton}" Content="{Binding ApplyProfileText}" Command="{Binding ApplyLinkedProfileCommand}" Margin="0,0,8,8" />
-                            <Button Style="{StaticResource SubtleButton}" Content="{Binding OpenFolderText}" Command="{Binding OpenSelectedFolderCommand}" Margin="0,0,0,8" />
-                        </WrapPanel>
+                            <WrapPanel Grid.Column="2" VerticalAlignment="Center" Margin="18,0,0,0" MaxWidth="360">
+                                <Button Style="{StaticResource PrimaryButton}" Content="{Binding LaunchText}" Command="{Binding LaunchSelectedCommand}" ToolTip="{Binding LaunchText}" Margin="0,0,8,8" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="{Binding BenchmarkText}" Command="{Binding BenchmarkSelectedCommand}" ToolTip="{Binding BenchmarkButtonTooltip}" ToolTipService.ShowOnDisabled="True" Margin="0,0,8,8" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="{Binding ApplyProfileText}" Command="{Binding ApplyLinkedProfileCommand}" ToolTip="{Binding ApplyProfileButtonTooltip}" Margin="0,0,8,8" />
+                                <Button Style="{StaticResource SubtleButton}" Content="{Binding OpenFolderText}" Command="{Binding OpenSelectedFolderCommand}" Margin="0,0,0,8" />
+                            </WrapPanel>
                     </Grid>
                 </Border>
 

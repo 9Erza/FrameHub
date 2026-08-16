@@ -99,7 +99,22 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public string ReadyCountText => string.Format(_localization.T("Library.ReadyCount"), Items.Count(x => x.IsReady), Items.Count);
     public string DetailsTitle => _localization.T("Library.DetailsTitle");
     public string NoSelectionText => _localization.T("Library.NoSelection");
-    public string LaunchText => _localization.T("Library.Launch");
+    private bool IsSelectedItemRiot => SelectedItem?.Item.Source == LibrarySource.Riot;
+
+    public string LaunchText => IsSelectedItemRiot
+        ? _localization.T("Library.LaunchRiot")
+        : _localization.T("Library.Launch");
+
+    /// <summary>Neutral eligibility explanation shown when benchmark capture is disabled for the selected item.</summary>
+    public string? BenchmarkButtonTooltip =>
+        SelectedItem?.Item is { Type: LibraryItemType.Game, AllowBenchmark: false }
+            ? _localization.T("Library.BenchmarkUnavailable")
+            : null;
+
+    /// <summary>Explains that FrameHub never modifies protected Riot game processes (profile management stays available).</summary>
+    public string? ApplyProfileButtonTooltip => IsSelectedItemRiot
+        ? _localization.T("Library.RiotOptimizeNote")
+        : null;
     public string RemoteControlOptInText => _localization.T("Library.RemoteControlOptIn");
     public string RemoteControlOptInHint => _localization.T("Library.RemoteControlOptInHint");
     public string OpenFolderText => _localization.T("Library.OpenFolder");
@@ -352,6 +367,10 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(SelectedItemTitle));
             OnPropertyChanged(nameof(ShowLibraryHome));
             OnPropertyChanged(nameof(ShowSelectedDetail));
+            OnPropertyChanged(nameof(LaunchText));
+            OnPropertyChanged(nameof(BenchmarkButtonTooltip));
+            OnPropertyChanged(nameof(ApplyProfileButtonTooltip));
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
     }
 
@@ -524,7 +543,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         SelectItemCommand = new RelayCommand(parameter => SelectedItem = parameter as LibraryItemViewModel);
         LaunchSelectedCommand = new RelayCommand(_ => LaunchSelected(), _ => SelectedItem != null && IsSelectedItemLaunchable());
         OpenSelectedFolderCommand = new RelayCommand(_ => OpenSelectedFolder(), _ => SelectedItem != null);
-        BenchmarkSelectedCommand = new RelayCommand(_ => RequestBenchmark(), _ => SelectedItem != null && SelectedItem.Item.Type == LibraryItemType.Game);
+        BenchmarkSelectedCommand = new RelayCommand(_ => RequestBenchmark(), _ => SelectedItem != null && SelectedItem.Item.Type == LibraryItemType.Game && SelectedItem.Item.AllowBenchmark);
         CreateUpdateProfileCommand = new RelayCommand(_ => CreateOrUpdateProfileForSelected(), _ => SelectedItem != null && !string.IsNullOrWhiteSpace(SelectedItem.Item.ProcessName));
         ApplyLinkedProfileCommand = new RelayCommand(_ => ApplyLinkedProfile(), _ => SelectedItem != null && !string.IsNullOrWhiteSpace(SelectedItem.Item.ProcessName));
         SelectAllCoresCommand = new RelayCommand(_ => SetAllCores(true));
