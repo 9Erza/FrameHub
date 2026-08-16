@@ -58,14 +58,15 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     IBenchmarkCaptureCoordinator IBenchmarkRuntimeContext.BenchmarkCoordinator => BenchmarkCoordinator;
     IProcessObservationSnapshotProvider IBenchmarkRuntimeContext.ProcessObservationProvider => ProcessScanner.ObservationProvider;
 
-    public AppRuntimeService(string? customSettingsFilePath = null)
-        : this(new SettingsService(customSettingsFilePath))
+    public AppRuntimeService(string? customSettingsFilePath = null, IHardwareMonitorBackend? hardwareMonitor = null)
+        : this(new SettingsService(customSettingsFilePath), hardwareMonitor)
     {
     }
 
-    public AppRuntimeService(SettingsService settingsService)
+    public AppRuntimeService(SettingsService settingsService, IHardwareMonitorBackend? hardwareMonitor = null)
     {
         SettingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _hardwareMonitor = hardwareMonitor ?? new HardwareMonitorService();
         Settings = SettingsService.LoadSettings();
         ConfigureLoggerFromSettings();
 
@@ -152,6 +153,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         ConfigureLoggerFromSettings();
         _profileWatcherTimer.Interval = TimeSpan.FromSeconds(Math.Clamp(Settings.ProfileWatcherSeconds, 1, 30));
+        ReconcileHardwareMonitoring();
         _ = SyncCompanionServerStateAsync();
     }
 
@@ -445,7 +447,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             Settings.LogSourceName);
     }
 
-    private readonly HardwareMonitorService _hardwareMonitor = new();
+    private readonly IHardwareMonitorBackend _hardwareMonitor;
     private static readonly TimeSpan HardwareSnapshotTimeToLive = TimeSpan.FromMilliseconds(200);
     private int _hardwareConsumerCount;
     private readonly object _hardwareLock = new();
@@ -458,22 +460,35 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         {
             lock (_hardwareLock)
             {
-                return _hardwareConsumerCount > 0 && _hardwareMonitor.IsInitialized;
+                return !_disposed
+                    && Settings.HardwareMonitorEnabled
+                    && _hardwareConsumerCount > 0
+                    && _hardwareMonitor.IsInitialized;
             }
         }
     }
 
+    internal int HardwareConsumerCountForTesting
+    {
+        get
+        {
+            lock (_hardwareLock)
+            {
+                return _hardwareConsumerCount;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Registers a hardware consumer. The sensor backend opens only when the persisted
+    /// <see cref="AppSettings.HardwareMonitorEnabled"/> setting is true and at least one consumer exists.
+    /// </summary>
     public IHardwareMonitorLease AcquireHardwareLease()
     {
         lock (_hardwareLock)
         {
             _hardwareConsumerCount++;
-            if (_hardwareConsumerCount == 1)
-            {
-                _hardwareSnapshot = null;
-                _hardwareMonitor.Configure(Settings.EnableStorageSensors);
-                _hardwareMonitor.Start();
-            }
+            ReconcileHardwareMonitoringLocked();
             return new HardwareMonitorLease(this);
         }
     }
@@ -485,12 +500,47 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             if (_hardwareConsumerCount > 0)
             {
                 _hardwareConsumerCount--;
-                if (_hardwareConsumerCount == 0)
-                {
-                    _hardwareSnapshot = null;
-                    _hardwareMonitor.Stop(closeSensors: false);
-                }
             }
+            ReconcileHardwareMonitoringLocked();
+        }
+    }
+
+    /// <summary>
+    /// Persists the global hardware monitoring choice and reconciles the sensor backend.
+    /// </summary>
+    public void SetHardwareMonitorEnabled(bool enabled)
+    {
+        if (Settings.HardwareMonitorEnabled == enabled) return;
+        Settings.HardwareMonitorEnabled = enabled;
+        SaveSettings(Settings);
+    }
+
+    private void ReconcileHardwareMonitoring()
+    {
+        lock (_hardwareLock)
+        {
+            ReconcileHardwareMonitoringLocked();
+        }
+    }
+
+    private void ReconcileHardwareMonitoringLocked()
+    {
+        if (_disposed) return;
+
+        bool shouldBeActive = Settings.HardwareMonitorEnabled && _hardwareConsumerCount > 0;
+        if (shouldBeActive)
+        {
+            _hardwareMonitor.Configure(Settings.EnableStorageSensors);
+            if (!_hardwareMonitor.IsInitialized)
+            {
+                _hardwareSnapshot = null;
+                _hardwareMonitor.Start();
+            }
+        }
+        else if (_hardwareMonitor.IsInitialized)
+        {
+            _hardwareSnapshot = null;
+            _hardwareMonitor.Stop(closeSensors: true);
         }
     }
 
@@ -498,7 +548,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         lock (_hardwareLock)
         {
-            if (_hardwareConsumerCount <= 0)
+            if (_hardwareConsumerCount <= 0 || !Settings.HardwareMonitorEnabled)
             {
                 return new HardwareMetrics();
             }
@@ -512,15 +562,6 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             _hardwareSnapshot = _hardwareMonitor.GetAllMetrics();
             _hardwareSnapshotAt = now;
             return _hardwareSnapshot;
-        }
-    }
-
-    public void ConfigureHardwareStorageSensors(bool enableStorageSensors)
-    {
-        lock (_hardwareLock)
-        {
-            _hardwareSnapshot = null;
-            _hardwareMonitor.Configure(enableStorageSensors);
         }
     }
 

@@ -11,7 +11,7 @@
 
 ## Runtime composition and authorities
 
-`ShellViewModel` creates one `AppRuntimeService`. Runtime loads settings, profiles, and topology; composes process observation, benchmark, Active Game, live telemetry, Session, Library, Background App, and Companion adapters; then starts only configured or required work. Hardware sensors remain lease-controlled, and a 200 ms timestamped snapshot prevents simultaneous consumers from repeating a backend refresh.
+`ShellViewModel` creates one `AppRuntimeService`. Runtime loads settings, profiles, and topology; composes process observation, benchmark, Active Game, live telemetry, Session, Library, Background App, and Companion adapters; then starts only configured or required work. Hardware sensors open only while the persisted `HardwareMonitorEnabled` setting is true and at least one consumer (active Hardware page or authenticated telemetry connection) exists, and a 200 ms timestamped snapshot prevents simultaneous consumers from repeating a backend refresh.
 
 - `BenchmarkCaptureCoordinator`: benchmark acceptance, reservation, lifecycle, cancellation, terminal state, PresentMon preemption, and external-mutation arbitration.
 - `SessionOptimizationCoordinator`: Session start/restore, WAL/recovery, taskbar state, concurrency, and shared query/policy projection.

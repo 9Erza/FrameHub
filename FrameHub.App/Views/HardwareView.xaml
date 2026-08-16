@@ -18,13 +18,50 @@
 
                 <StackPanel Grid.Column="0">
                     <UniformGrid Columns="2" Margin="0,0,0,12">
-                        <Border Style="{StaticResource MetricCardBorder}" Margin="0,0,6,0"><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding CpuLabel}" Style="{StaticResource CardTitleText}" /><TextBlock Grid.Column="1" Text="CPU" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushAccentPrimary}" /></Grid><TextBlock Text="{Binding CpuTempText}" Style="{StaticResource CardValueText}" Margin="0,10,0,0" /><TextBlock Text="{Binding BackendStatusText}" Style="{StaticResource CaptionText}" Margin="0,5,0,0" /></StackPanel></Border>
-                        <Border Style="{StaticResource MetricCardBorder}" Margin="6,0,0,0"><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding GpuLabel}" Style="{StaticResource CardTitleText}" /><TextBlock Grid.Column="1" Text="GPU" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushAccentSecondary}" /></Grid><TextBlock Text="{Binding GpuTempText}" Style="{StaticResource CardValueText}" Margin="0,10,0,0" /><TextBlock Text="{Binding BackendStatusText}" Style="{StaticResource CaptionText}" Margin="0,5,0,0" /></StackPanel></Border>
+                        <Border Style="{StaticResource MetricCardBorder}" Margin="0,0,6,0">
+                            <StackPanel>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding CpuLabel}" Style="{StaticResource CardTitleText}" /><TextBlock Grid.Column="1" Text="CPU" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushAccentPrimary}" /></Grid>
+                                <TextBlock Text="{Binding CpuTempText}" Style="{StaticResource CardValueText}" Margin="0,10,0,0" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0"><TextBlock Text="{Binding CpuLoadLabel}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" /><TextBlock Text="{Binding CpuLoadText}" Style="{StaticResource CaptionText}" Foreground="{StaticResource BrushAccentPrimary}" Margin="6,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                                <TextBlock Text="{Binding BackendStatusText}" Style="{StaticResource CaptionText}" Margin="0,5,0,0" />
+                                <TextBlock Text="{Binding CpuElevationHintText}" TextWrapping="Wrap" Margin="0,5,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsCpuElevationHintVisible}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource MetricCardBorder}" Margin="6,0,0,0">
+                            <StackPanel>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding GpuLabel}" Style="{StaticResource CardTitleText}" /><TextBlock Grid.Column="1" Text="GPU" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushAccentSecondary}" /></Grid>
+                                <TextBlock Text="{Binding GpuTempText}" Style="{StaticResource CardValueText}" Margin="0,10,0,0" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0"><TextBlock Text="{Binding GpuLoadLabel}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" /><TextBlock Text="{Binding GpuLoadText}" Style="{StaticResource CaptionText}" Foreground="{StaticResource BrushAccentSecondary}" Margin="6,0,0,0" VerticalAlignment="Center" /></StackPanel>
+                                <TextBlock Text="{Binding BackendStatusText}" Style="{StaticResource CaptionText}" Margin="0,5,0,0" />
+                            </StackPanel>
+                        </Border>
                     </UniformGrid>
-                    <UniformGrid Columns="3">
-                        <Border Style="{StaticResource SoftCardBorder}" Margin="0,0,8,0"><StackPanel><TextBlock Text="{Binding GpuLoadLabel}" Style="{StaticResource CardTitleText}" /><TextBlock Text="{Binding GpuLoadText}" Style="{StaticResource MetricText}" Margin="0,8,0,0" /><ProgressBar Maximum="100" Value="{Binding GpuLoad}" Margin="0,12,0,0" /></StackPanel></Border>
-                        <Border Style="{StaticResource SoftCardBorder}" Margin="4,0"><StackPanel><TextBlock Text="{Binding RamLabel}" Style="{StaticResource CardTitleText}" /><TextBlock Text="{Binding RamUsageText}" Style="{StaticResource MetricText}" Margin="0,8,0,0" /><ProgressBar Maximum="100" Value="{Binding RamUsage}" Margin="0,12,0,0" /></StackPanel></Border>
-                        <Border Style="{StaticResource SoftCardBorder}" Margin="8,0,0,0"><StackPanel><TextBlock Text="{Binding VramLabel}" Style="{StaticResource CardTitleText}" /><TextBlock Text="{Binding VramUsageText}" Style="{StaticResource MetricText}" Margin="0,8,0,0" /><ProgressBar Maximum="100" Value="{Binding VramUsage}" Margin="0,12,0,0" /></StackPanel></Border>
+                    <UniformGrid Columns="2">
+                        <Border Style="{StaticResource SoftCardBorder}" Margin="0,0,8,0">
+                            <StackPanel>
+                                <TextBlock Text="{Binding RamLabel}" Style="{StaticResource CardTitleText}" />
+                                <TextBlock Text="{Binding RamUsedTotalText}" Style="{StaticResource MetricText}" Margin="0,8,0,0" />
+                                <TextBlock Text="{Binding RamUsageText}" Style="{StaticResource CaptionText}" Margin="0,4,0,0" />
+                                <ProgressBar Maximum="100" Value="{Binding RamUsage}" Margin="0,12,0,0" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SoftCardBorder}" Margin="8,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="{Binding VramLabel}" Style="{StaticResource CardTitleText}" />
+                                <TextBlock Text="{Binding VramUsedTotalText}" Style="{StaticResource MetricText}" Margin="0,8,0,0" />
+                                <TextBlock Text="{Binding VramUsageText}" Style="{StaticResource CaptionText}" Margin="0,4,0,0" />
+                                <ProgressBar Maximum="100" Value="{Binding VramUsage}" Margin="0,12,0,0" />
+                            </StackPanel>
+                        </Border>
                     </UniformGrid>
                 </StackPanel>
 

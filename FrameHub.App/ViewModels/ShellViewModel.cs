@@ -239,6 +239,15 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             _processesViewModel.Stop();
         }
 
+        if (!_currentKey.Equals("Hardware", StringComparison.OrdinalIgnoreCase) && key.Equals("Hardware", StringComparison.OrdinalIgnoreCase))
+        {
+            _hardwareViewModel.Activate();
+        }
+        else if (_currentKey.Equals("Hardware", StringComparison.OrdinalIgnoreCase) && !key.Equals("Hardware", StringComparison.OrdinalIgnoreCase))
+        {
+            _hardwareViewModel.Deactivate();
+        }
+
         if (key.Equals("Dashboard", StringComparison.OrdinalIgnoreCase))
         {
             _dashboardViewModel.ActivateGamingSection();

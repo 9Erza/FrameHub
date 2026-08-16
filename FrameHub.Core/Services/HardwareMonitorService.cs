@@ -8,9 +8,22 @@ using FrameHub.Core.Logging;
 namespace FrameHub.Core.Services
 {
     /// <summary>
+    /// Sensor-backend contract consumed by the App runtime so hardware lifecycle stays testable
+    /// without opening a real LibreHardwareMonitor Computer.
+    /// </summary>
+    public interface IHardwareMonitorBackend : IDisposable
+    {
+        bool IsInitialized { get; }
+        void Configure(bool enableStorageSensors);
+        void Start();
+        void Stop(bool closeSensors = false);
+        HardwareMetrics GetAllMetrics();
+    }
+
+    /// <summary>
     /// Lazy hardware monitor. LibreHardwareMonitor is opened only when metrics are actually requested.
     /// </summary>
-    public class HardwareMonitorService : IDisposable
+    public class HardwareMonitorService : IHardwareMonitorBackend
     {
         private Computer? _computer;
         private readonly ILogger _logger;

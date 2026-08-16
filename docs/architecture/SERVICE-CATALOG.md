@@ -196,19 +196,19 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 
 - **NAME:** `AppRuntimeService`
 - **PATH / PROJECT:** `FrameHub.App/Services/AppRuntimeService.cs` / App
-- **RESPONSIBILITY / AUTHORITATIVE FOR:** application lifetime composition, profile watcher, shared services, Companion synchronization, hardware leases.
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** application lifetime composition, profile watcher, shared services, Companion synchronization, hardware consumer reconciliation.
 - **LIFETIME / MAJOR CONSUMERS:** one per WPF shell; all major view models and App providers.
-- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** settings/profiles/activity/hardware lease count; configurable profile watcher.
-- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** compose shared authorities here; all profile mutation passes benchmark arbitration.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** settings/profiles/activity; hardware consumer count reconciled against the persisted `HardwareMonitorEnabled` setting (sensors open only when enabled AND consumers exist, closed otherwise); configurable profile watcher.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** compose shared authorities here; all profile mutation passes benchmark arbitration; hardware leases register consumers only — they never force sensors on.
 
 ### HardwareMonitorService
 
 - **NAME:** `HardwareMonitorService`
 - **PATH / PROJECT:** `FrameHub.Core/Services/HardwareMonitorService.cs` / Core
-- **RESPONSIBILITY / AUTHORITATIVE FOR:** LibreHardwareMonitor sensor backend and metrics projection.
-- **LIFETIME / MAJOR CONSUMERS:** one private App runtime instance; Hardware VM and Companion snapshots via leases.
-- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** open sensor computer while leased; synchronous hardware updates; App runtime shares a 200 ms timestamped result; no own timer.
-- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** reuse this backend and runtime cache; do not add another sensor owner.
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** LibreHardwareMonitor sensor backend (`IHardwareMonitorBackend`) and metrics projection.
+- **LIFETIME / MAJOR CONSUMERS:** one private App runtime instance; Hardware VM and Companion snapshots via runtime consumers.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** open sensor computer only while the runtime reconciles it active; synchronous hardware updates; App runtime shares a 200 ms timestamped result; no own timer.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** reuse this backend and runtime cache; do not add another sensor owner; CPU temperature may require elevation and must not gain a second fallback sensor path.
 
 ### AppTelemetrySnapshotProvider
 

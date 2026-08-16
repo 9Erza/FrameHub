@@ -7,7 +7,7 @@
 - `ProcessService` performs priority, affinity, and CPU Set native operations.
 - `ProcessSuspendService` performs suspend/resume and revalidates identities.
 - `LivePerformanceTelemetryService` owns live PresentMon; benchmark capture uses the configured preemption contract.
-- `HardwareMonitorService` is the single sensor backend and is controlled by App runtime leases; the runtime reuses metrics for 200 ms across consumers.
+- `HardwareMonitorService` is the single sensor backend (`IHardwareMonitorBackend`) behind the App runtime; sensors are open only while the persisted `HardwareMonitorEnabled` setting is true AND at least one registered consumer exists, and the runtime reuses metrics for 200 ms across consumers. Leases register consumers; they never force sensors on.
 
 ## Process observation and mutation
 
