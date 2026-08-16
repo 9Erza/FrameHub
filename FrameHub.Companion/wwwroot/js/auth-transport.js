@@ -1,8 +1,47 @@
 'use strict';
 
+    const STORAGE_KEY = 'companion_credential';
+
+    function getStoredCredential() {
+        try {
+            const persistent = localStorage.getItem(STORAGE_KEY);
+            if (persistent) return persistent;
+
+            // Backward compatibility: one-time in-browser migration from legacy sessionStorage
+            const legacy = sessionStorage.getItem(STORAGE_KEY);
+            if (legacy) {
+                localStorage.setItem(STORAGE_KEY, legacy);
+                try { sessionStorage.removeItem(STORAGE_KEY); } catch (_) { }
+                return legacy;
+            }
+        } catch (_) {
+            // Strict privacy or sandboxed fallback
+            try { return sessionStorage.getItem(STORAGE_KEY); } catch (_) { }
+        }
+        return null;
+    }
+
+    function setStoredCredential(credential) {
+        if (!credential) {
+            clearStoredCredential();
+            return;
+        }
+        try {
+            localStorage.setItem(STORAGE_KEY, credential);
+        } catch (_) { }
+        try {
+            sessionStorage.removeItem(STORAGE_KEY);
+        } catch (_) { }
+    }
+
+    function clearStoredCredential() {
+        try { localStorage.removeItem(STORAGE_KEY); } catch (_) { }
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch (_) { }
+    }
+
     function getAuthHeaders() {
         const headers = { 'Content-Type': 'application/json' };
-        const credential = sessionStorage.getItem(STORAGE_KEY);
+        const credential = getStoredCredential();
         if (credential) {
             headers['Authorization'] = 'Bearer ' + credential;
         }
@@ -129,7 +168,7 @@
             if (response.ok) {
                 const data = await response.json();
                 if (data.credential) {
-                    sessionStorage.setItem(STORAGE_KEY, data.credential);
+                    setStoredCredential(data.credential);
                     updateAuthUi(true, 'Paired Device');
                     syncDesktopLanguageOnce();
                     elements.pairingPending.classList.add('hidden');
@@ -195,6 +234,7 @@
                     return;
                 }
             } else if (ticketResp.status === 401) {
+                clearStoredCredential();
                 updateAuthUi(false, 'Pairing Required');
                 return;
             } else if (ticketResp.status === 403) {
@@ -324,7 +364,7 @@
         if (wsInstance && wsInstance.readyState === WebSocket.OPEN) return;
         const generation = telemetryConnectionGeneration;
         const expectedPairedState = lastAuthUiPaired;
-        const expectedCredential = sessionStorage.getItem(STORAGE_KEY);
+        const expectedCredential = getStoredCredential();
         const requestId = ++telemetryHttpRequestId;
         if (isUnloading || expectedPairedState === false) return;
 
@@ -334,7 +374,7 @@
                 && !isUnloading
                 && lastAuthUiPaired === expectedPairedState
                 && lastAuthUiPaired !== false
-                && sessionStorage.getItem(STORAGE_KEY) === expectedCredential
+                && getStoredCredential() === expectedCredential
                 && !(wsInstance && wsInstance.readyState === WebSocket.OPEN);
         };
 
@@ -343,6 +383,7 @@
             if (!ownsRequest()) return;
 
             if (resp.status === 401) {
+                clearStoredCredential();
                 updateAuthUi(false, 'Pairing Required');
                 return;
             }
@@ -351,7 +392,7 @@
                 const data = await resp.json();
                 if (!ownsRequest()) return;
                 renderTelemetry(data);
-                if (sessionStorage.getItem(STORAGE_KEY) && !wsInstance) {
+                if (getStoredCredential() && !wsInstance) {
                     initTelemetryConnection();
                 }
             }

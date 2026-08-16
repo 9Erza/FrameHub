@@ -1,6 +1,4 @@
     'use strict';
-
-    const STORAGE_KEY = 'companion_credential';
     let pollIntervalId = null;
     let isPollPending = false;
     let currentStatus = null;

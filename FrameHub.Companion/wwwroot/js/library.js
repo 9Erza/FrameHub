@@ -16,6 +16,8 @@
         try {
             const resp = await fetch('/api/v1/library', { headers: getAuthHeaders() });
             if (resp.status === 401) {
+                clearStoredCredential();
+                updateAuthUi(false, i18n ? i18n.t('auth.required') : 'Pairing Required');
                 showLibraryError(i18n ? i18n.t('launch.unauthorized') : 'Authentication required.');
                 return;
             }
@@ -192,6 +194,7 @@
         try {
             const resp = await fetch('/api/v1/background-apps', { headers: getAuthHeaders() });
             if (resp.status === 401) {
+                clearStoredCredential();
                 updateAuthUi(false, i18n ? i18n.t('auth.required') : 'Pairing Required');
                 showBackgroundAppsError(i18n ? i18n.t('backgroundApps.unauthorized') : 'Authentication required.');
                 return;
@@ -287,6 +290,7 @@
                 headers: getAuthHeaders()
             });
             if (resp.status === 401) {
+                clearStoredCredential();
                 updateAuthUi(false, i18n ? i18n.t('auth.required') : 'Pairing Required');
                 feedback.textContent = i18n ? i18n.t('backgroundApps.unauthorized') : 'Authentication required.';
                 feedback.className = 'launch-feedback error';

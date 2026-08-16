@@ -113,6 +113,7 @@
             });
 
             if (response.status === 401) {
+                clearStoredCredential();
                 updateAuthUi(false, 'Pairing Required');
                 return;
             }
@@ -172,13 +173,14 @@
             });
 
             if (response.status === 401) {
+                clearStoredCredential();
                 updateAuthUi(false, 'Pairing Required');
                 return;
             } else if (response.status === 403) {
-                if (sessionStorage.getItem(STORAGE_KEY)) updateAuthUi(true, 'Paired Device');
+                if (getStoredCredential()) updateAuthUi(true, 'Paired Device');
                 return;
             } else if (response.ok) {
-                const credential = sessionStorage.getItem(STORAGE_KEY);
+                const credential = getStoredCredential();
                 if (credential) {
                     updateAuthUi(true, 'Paired Device');
                     syncDesktopLanguageOnce();

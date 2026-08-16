@@ -10,7 +10,12 @@
 
         try {
             const resp = await fetch('/api/v1/session-optimization', { headers: getAuthHeaders() });
-            if (resp.status === 401 || resp.status === 403) {
+            if (resp.status === 401) {
+                clearStoredCredential();
+                updateAuthUi(false, 'Pairing Required');
+                return;
+            }
+            if (resp.status === 403) {
                 return;
             }
             if (!resp.ok) return;

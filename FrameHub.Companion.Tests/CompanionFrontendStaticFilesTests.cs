@@ -577,6 +577,98 @@ public sealed class CompanionFrontendStaticFilesTests
         Assert.IsTrue(content.Contains("resetTelemetryTransportForNewCredential"), "A new credential must bypass a prior ticket denial throttle.");
     }
 
+    [TestMethod]
+    public async Task ClientCredentialStorage_UsesCentralizedPersistentHelper_WithLegacyMigration()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+        string authTransportJs = await (await client.GetAsync($"http://127.0.0.1:{port}/js/auth-transport.js")).Content.ReadAsStringAsync();
+
+        // Must define centralized storage functions
+        Assert.IsTrue(authTransportJs.Contains("function getStoredCredential()"), "auth-transport.js must define getStoredCredential.");
+        Assert.IsTrue(authTransportJs.Contains("function setStoredCredential("), "auth-transport.js must define setStoredCredential.");
+        Assert.IsTrue(authTransportJs.Contains("function clearStoredCredential()"), "auth-transport.js must define clearStoredCredential.");
+
+        // Migration logic: checks localStorage first, falls back to legacy sessionStorage, promotes to localStorage, removes from sessionStorage
+        Assert.IsTrue(authTransportJs.Contains("localStorage.getItem(STORAGE_KEY)"), "getStoredCredential must read localStorage.");
+        Assert.IsTrue(authTransportJs.Contains("sessionStorage.getItem(STORAGE_KEY)"), "getStoredCredential must check legacy sessionStorage for migration.");
+        Assert.IsTrue(authTransportJs.Contains("localStorage.setItem(STORAGE_KEY, legacy)"), "getStoredCredential must promote legacy credential to localStorage.");
+        Assert.IsTrue(authTransportJs.Contains("sessionStorage.removeItem(STORAGE_KEY)"), "getStoredCredential must clean up legacy sessionStorage.");
+
+        // getAuthHeaders and handlePairingSubmit must use centralized helper
+        Assert.IsTrue(authTransportJs.Contains("const credential = getStoredCredential();"), "getAuthHeaders must use getStoredCredential.");
+        Assert.IsTrue(authTransportJs.Contains("setStoredCredential(data.credential);"), "handlePairingSubmit must use setStoredCredential.");
+
+        // Verify no other files directly use raw sessionStorage for credential
+        string[] otherModules = ["benchmarks.js", "library.js", "session-optimization.js", "app.js", "telemetry.js"];
+        foreach (string name in otherModules)
+        {
+            string content = await (await client.GetAsync($"http://127.0.0.1:{port}/js/{name}")).Content.ReadAsStringAsync();
+            Assert.IsFalse(content.Contains("sessionStorage.getItem(STORAGE_KEY)"), $"{name} must not directly call sessionStorage.getItem(STORAGE_KEY).");
+            Assert.IsFalse(content.Contains("sessionStorage.setItem(STORAGE_KEY"), $"{name} must not directly call sessionStorage.setItem(STORAGE_KEY).");
+        }
+    }
+
+    [TestMethod]
+    public async Task ClientCredential_401ClearsStoredCredential_403PreservesStoredCredential()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+        string authTransportJs = await (await client.GetAsync($"http://127.0.0.1:{port}/js/auth-transport.js")).Content.ReadAsStringAsync();
+        string benchmarksJs = await (await client.GetAsync($"http://127.0.0.1:{port}/js/benchmarks.js")).Content.ReadAsStringAsync();
+        string libraryJs = await (await client.GetAsync($"http://127.0.0.1:{port}/js/library.js")).Content.ReadAsStringAsync();
+        string optJs = await (await client.GetAsync($"http://127.0.0.1:{port}/js/session-optimization.js")).Content.ReadAsStringAsync();
+
+        // 401 paths must clear credential
+        Assert.IsTrue(authTransportJs.Contains("clearStoredCredential();"), "auth-transport.js must call clearStoredCredential on 401.");
+        Assert.IsTrue(benchmarksJs.Contains("clearStoredCredential();"), "benchmarks.js must call clearStoredCredential on 401.");
+        Assert.IsTrue(libraryJs.Contains("clearStoredCredential();"), "library.js must call clearStoredCredential on 401.");
+        Assert.IsTrue(optJs.Contains("clearStoredCredential();"), "session-optimization.js must call clearStoredCredential on 401.");
+
+        // 403 paths must preserve credential and not call clearStoredCredential
+        int fetchStatusStart = benchmarksJs.IndexOf("async function fetchStatus", StringComparison.Ordinal);
+        Assert.IsTrue(fetchStatusStart >= 0);
+        int fetchStatus403 = benchmarksJs.IndexOf("response.status === 403", fetchStatusStart, StringComparison.Ordinal);
+        Assert.IsTrue(fetchStatus403 >= 0);
+        string fetchStatus403Block = benchmarksJs.Substring(fetchStatus403, 150);
+        Assert.IsTrue(fetchStatus403Block.Contains("if (getStoredCredential()) updateAuthUi(true, 'Paired Device');"),
+            "403 on status check must keep UI paired if stored credential exists.");
+        Assert.IsFalse(fetchStatus403Block.Contains("clearStoredCredential"),
+            "403 must never clear stored credential.");
+    }
+
+    [TestMethod]
+    public async Task WebSocketTicketFlow_UsesBearerAuthHeader_DoesNotExposeCredentialInUrl()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+        string authTransportJs = await (await client.GetAsync($"http://127.0.0.1:{port}/js/auth-transport.js")).Content.ReadAsStringAsync();
+
+        // Ticket request must use getAuthHeaders (Bearer auth)
+        int ticketRequest = authTransportJs.IndexOf("fetch('/api/v1/telemetry/ws-ticket'", StringComparison.Ordinal);
+        Assert.IsTrue(ticketRequest >= 0, "auth-transport.js must request ws-ticket.");
+        string ticketBlock = authTransportJs.Substring(ticketRequest, 150);
+        Assert.IsTrue(ticketBlock.Contains("headers: getAuthHeaders()"), "Ticket request must pass Authorization header.");
+
+        // WebSocket URL must not have query strings containing token/credential
+        Assert.IsTrue(authTransportJs.Contains("const wsUrl = protocol + '//' + window.location.host + '/api/v1/telemetry/ws';"),
+            "WebSocket URL must be clean without credential query parameters.");
+        Assert.IsTrue(authTransportJs.Contains("new WebSocket(wsUrl, ['framehub.v1', 'ticket.' + ticket])"),
+            "WebSocket must pass ephemeral ticket via subprotocol.");
+    }
+
     private sealed class TestFakeBenchmarkProvider : ICompanionBenchmarkProvider
     {
         public CompanionBenchmarkStatusDto GetStatus()
