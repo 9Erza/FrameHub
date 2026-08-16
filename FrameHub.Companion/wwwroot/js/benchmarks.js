@@ -467,8 +467,8 @@
                     const tdDir = document.createElement('td');
                     let dirClass = 'dir-neutral';
                     let dirLabel = i18n ? i18n.t('comparison.neutral') : 'Neutral';
-                    const betterText = i18n ? i18n.t('comparison.better') : 'â–˛ Better';
-                    const worseText = i18n ? i18n.t('comparison.worse') : 'â–Ľ Worse';
+                    const betterText = i18n ? i18n.t('comparison.better') : '▲ Better';
+                    const worseText = i18n ? i18n.t('comparison.worse') : '▼ Worse';
 
                     if (m.direction === 'HigherIsBetter') {
                         if (m.delta > 0) { dirClass = 'dir-higher'; dirLabel = betterText; }

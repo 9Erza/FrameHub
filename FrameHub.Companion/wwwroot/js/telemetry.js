@@ -7,7 +7,7 @@
     }
 
     function formatTemp(val) {
-        if (typeof val === 'number' && isFinite(val) && val > 0) return Math.round(val) + 'Â°C';
+        if (typeof val === 'number' && isFinite(val) && val > 0) return Math.round(val) + '°C';
         return '--';
     }
 

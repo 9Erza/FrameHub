@@ -1,5 +1,6 @@
 using FrameHub.Companion.Models;
 using FrameHub.Companion.Providers;
+using FrameHub.Core.Services;
 using FrameHub.Core.Services.Benchmarking;
 using FrameHub.Core.Services.Library;
 using FrameHub.Core.Services.SessionOptimization;
@@ -128,24 +129,7 @@ public sealed class AppTelemetrySnapshotProvider : ITelemetrySnapshotProvider, I
         if (_runtime.IsHardwareMonitoringActive)
         {
             var metrics = _runtime.GetHardwareMetrics();
-            double cpuLoad = Math.Clamp(metrics.CpuLoad, 0.0, 100.0);
-            double gpuLoad = Math.Clamp(metrics.GpuLoad, 0.0, 100.0);
-
-            long? ramUsedBytes = metrics.RamUsedGB > 0 ? (long)(metrics.RamUsedGB * 1024.0 * 1024.0 * 1024.0) : null;
-            long? ramTotalBytes = (metrics.RamUsedGB + metrics.RamAvailableGB) > 0 ? (long)((metrics.RamUsedGB + metrics.RamAvailableGB) * 1024.0 * 1024.0 * 1024.0) : null;
-
-            hardwareSnapshot = new HardwareTelemetrySnapshot(
-                CpuUtilizationPercent: cpuLoad,
-                CpuTemperatureCelsius: metrics.CpuTemp > 0 ? metrics.CpuTemp : null,
-                GpuUtilizationPercent: gpuLoad,
-                GpuTemperatureCelsius: metrics.GpuTemp > 0 ? metrics.GpuTemp : null,
-                RamUsedBytes: ramUsedBytes,
-                RamTotalBytes: ramTotalBytes,
-                // The hardware backend currently exposes VRAM utilization percentage, not capacity.
-                // Do not fabricate byte values from an assumed GPU size.
-                VramUsedBytes: null,
-                VramTotalBytes: null
-            );
+            hardwareSnapshot = CreateHardwareSnapshot(metrics);
         }
 
         _currentSnapshot = new CompanionTelemetrySnapshot(
@@ -153,6 +137,28 @@ public sealed class AppTelemetrySnapshotProvider : ITelemetrySnapshotProvider, I
             Hardware: hardwareSnapshot,
             CurrentGame: ResolveCurrentGame(),
             LivePerformance: _liveTelemetryService?.CurrentSnapshot
+        );
+    }
+
+    public static HardwareTelemetrySnapshot? CreateHardwareSnapshot(HardwareMetrics? metrics)
+    {
+        if (metrics == null) return null;
+
+        double cpuLoad = Math.Clamp(metrics.CpuLoad, 0.0, 100.0);
+        double gpuLoad = Math.Clamp(metrics.GpuLoad, 0.0, 100.0);
+
+        long? ramUsedBytes = metrics.RamUsedGB > 0 ? (long)(metrics.RamUsedGB * 1024.0 * 1024.0 * 1024.0) : null;
+        long? ramTotalBytes = (metrics.RamUsedGB + metrics.RamAvailableGB) > 0 ? (long)((metrics.RamUsedGB + metrics.RamAvailableGB) * 1024.0 * 1024.0 * 1024.0) : null;
+
+        return new HardwareTelemetrySnapshot(
+            CpuUtilizationPercent: cpuLoad,
+            CpuTemperatureCelsius: metrics.CpuTemp is > 0 ? metrics.CpuTemp : null,
+            GpuUtilizationPercent: gpuLoad,
+            GpuTemperatureCelsius: metrics.GpuTemp > 0 ? metrics.GpuTemp : null,
+            RamUsedBytes: ramUsedBytes,
+            RamTotalBytes: ramTotalBytes,
+            VramUsedBytes: metrics.VramUsedBytes,
+            VramTotalBytes: metrics.VramTotalBytes
         );
     }
 

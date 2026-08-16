@@ -16,10 +16,11 @@ namespace FrameHub.Core.Services
         private readonly ILogger _logger;
         private bool _disposed;
         private bool _enableStorageSensors;
+        private bool _cpuSensorsLogged;
 
-        public HardwareMonitorService(bool enableStorageSensors = false)
+        public HardwareMonitorService(bool enableStorageSensors = false, ILogger? logger = null)
         {
-            _logger = LoggerService.Instance;
+            _logger = logger ?? LoggerService.Instance;
             _enableStorageSensors = enableStorageSensors;
         }
 
@@ -74,14 +75,22 @@ namespace FrameHub.Core.Services
             foreach (var hardware in _computer.Hardware)
             {
                 hardware.Update();
+                var sensorAdapters = hardware.Sensors.Select(s => new SensorAdapter(s)).ToList();
 
                 if (hardware.HardwareType == HardwareType.Cpu)
                 {
+                    if (!_cpuSensorsLogged)
+                    {
+                        _cpuSensorsLogged = true;
+                        var tempSensors = hardware.Sensors
+                            .Where(s => s.SensorType == SensorType.Temperature)
+                            .Select(s => $"{s.Name} ({s.SensorType}): {(s.Value.HasValue ? $"{s.Value.Value:N1}°C" : "null")}")
+                            .ToList();
+                        _logger.Info($"CPU temperature sensors discovered [{hardware.Name}]: {(tempSensors.Count > 0 ? string.Join(", ", tempSensors) : "none")}");
+                    }
+
                     metrics.CpuLoad = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Load && s.Name.Contains("Total"))?.Value ?? 0;
-
-                    var pkgTemp = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Temperature && s.Name.Contains("Package"));
-                    metrics.CpuTemp = pkgTemp?.Value ?? hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Temperature)?.Value ?? 0;
-
+                    metrics.CpuTemp = HardwareSensorReader.SelectCpuTemperature(sensorAdapters);
                     metrics.CpuPower = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Power && s.Name.Contains("Package"))?.Value ?? 0;
                     metrics.CpuClock = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Clock)?.Value ?? 0;
 
@@ -89,22 +98,28 @@ namespace FrameHub.Core.Services
                     var coreSensors = hardware.Sensors.Where(x => x.SensorType == SensorType.Temperature && x.Name.Contains("Core")).ToList();
                     foreach (var s in coreSensors)
                     {
-                        metrics.CoreTemps.Add($"{s.Name}: {s.Value:N1}°C");
+                        metrics.CoreTemps.Add($"{s.Name}: {(s.Value.HasValue ? $"{s.Value.Value:N1}°C" : "--")}");
                     }
                 }
 
-                if (hardware.HardwareType == HardwareType.GpuNvidia || hardware.HardwareType == HardwareType.GpuAmd)
+                if (hardware.HardwareType == HardwareType.GpuNvidia || hardware.HardwareType == HardwareType.GpuAmd || hardware.HardwareType == HardwareType.GpuIntel)
                 {
                     metrics.GpuLoad = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Load && s.Name.Contains("Core"))?.Value ?? 0;
-                    metrics.GpuTemp = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Temperature && s.Name == "GPU Core")?.Value ?? 0;
+                    metrics.GpuTemp = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Temperature && s.Name == "GPU Core")?.Value
+                        ?? hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Temperature)?.Value
+                        ?? 0;
                     metrics.GpuHotSpot = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Temperature && s.Name.Contains("Hot Spot"))?.Value ?? 0;
                     metrics.GpuVramTemp = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Temperature && s.Name.Contains("Memory"))?.Value ?? 0;
                     metrics.GpuCoreClock = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Clock && s.Name.Contains("Core"))?.Value ?? 0;
                     metrics.GpuMemClock = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Clock && s.Name.Contains("Memory"))?.Value ?? 0;
                     metrics.GpuPower = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Power)?.Value ?? 0;
 
+                    var (vramUsedBytes, vramTotalBytes) = HardwareSensorReader.ReadGpuVramBytes(sensorAdapters);
+                    metrics.VramUsedBytes = vramUsedBytes;
+                    metrics.VramTotalBytes = vramTotalBytes;
+
                     var vramLoad = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Load && s.Name.Contains("Memory"));
-                    metrics.VramUsagePct = vramLoad?.Value ?? 0;
+                    metrics.VramUsagePct = vramLoad?.Value ?? (vramTotalBytes.HasValue && vramTotalBytes.Value > 0 && vramUsedBytes.HasValue ? Math.Round((double)vramUsedBytes.Value / vramTotalBytes.Value * 100.0, 1) : 0);
                 }
 
                 if (hardware.HardwareType == HardwareType.Memory)
@@ -162,6 +177,7 @@ namespace FrameHub.Core.Services
             {
                 _computer?.Close();
                 _computer = null;
+                _cpuSensorsLogged = false;
                 _logger.Info("HardwareMonitorService sensors closed");
             }
             catch
@@ -181,7 +197,7 @@ namespace FrameHub.Core.Services
     public class HardwareMetrics
     {
         public double CpuLoad { get; set; }
-        public double CpuTemp { get; set; }
+        public double? CpuTemp { get; set; }
         public double CpuPower { get; set; }
         public double CpuClock { get; set; }
         public List<string> CoreTemps { get; set; } = new List<string>();
@@ -194,6 +210,8 @@ namespace FrameHub.Core.Services
         public double GpuMemClock { get; set; }
         public double GpuPower { get; set; }
         public double VramUsagePct { get; set; }
+        public long? VramUsedBytes { get; set; }
+        public long? VramTotalBytes { get; set; }
 
         public double RamUsagePct { get; set; }
         public double RamUsedGB { get; set; }

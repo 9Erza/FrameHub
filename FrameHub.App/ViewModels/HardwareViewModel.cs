@@ -16,7 +16,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     private bool _pollInProgress;
     private CancellationTokenSource? _pollCancellation;
     private bool _closeSensorsAfterPoll;
-    private double _cpuTemp;
+    private double? _cpuTemp;
     private double _gpuTemp;
     private double _gpuLoad;
     private double _ramUsage;
@@ -61,13 +61,16 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         ? _localization.T("Hardware.Monitor.DescriptionOn")
         : _localization.T("Hardware.Monitor.DescriptionOff");
 
-    public string CpuTempText => IsMonitorEnabled ? $"{CpuTemp:N1} °C" : "-- °C";
-    public string GpuTempText => IsMonitorEnabled ? $"{GpuTemp:N1} °C" : "-- °C";
+    public static string FormatCpuTemp(bool isMonitorEnabled, double? cpuTemp)
+        => isMonitorEnabled && cpuTemp.HasValue && cpuTemp.Value > 0 ? $"{cpuTemp.Value:N1} °C" : "-- °C";
+
+    public string CpuTempText => FormatCpuTemp(IsMonitorEnabled, CpuTemp);
+    public string GpuTempText => IsMonitorEnabled && GpuTemp > 0 ? $"{GpuTemp:N1} °C" : "-- °C";
     public string GpuLoadText => IsMonitorEnabled ? $"{GpuLoad:N1}%" : "--%";
     public string RamUsageText => IsMonitorEnabled ? $"{RamUsage:N1}%" : "--%";
     public string VramUsageText => IsMonitorEnabled ? $"{VramUsage:N1}%" : "--%";
 
-    public double CpuTemp { get => _cpuTemp; set { if (SetProperty(ref _cpuTemp, value)) OnPropertyChanged(nameof(CpuTempText)); } }
+    public double? CpuTemp { get => _cpuTemp; set { if (SetProperty(ref _cpuTemp, value)) OnPropertyChanged(nameof(CpuTempText)); } }
     public double GpuTemp { get => _gpuTemp; set { if (SetProperty(ref _gpuTemp, value)) OnPropertyChanged(nameof(GpuTempText)); } }
     public double GpuLoad { get => _gpuLoad; set { if (SetProperty(ref _gpuLoad, value)) OnPropertyChanged(nameof(GpuLoadText)); } }
     public double RamUsage { get => _ramUsage; set { if (SetProperty(ref _ramUsage, value)) OnPropertyChanged(nameof(RamUsageText)); } }
@@ -98,7 +101,14 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     private void StopMonitor(bool closeSensors)
     {
         _timer.Stop();
-        _pollCancellation?.Cancel();
+        try
+        {
+            _pollCancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
         if (closeSensors && _pollInProgress)
         {
             _closeSensorsAfterPoll = true;
@@ -123,7 +133,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         {
             var metrics = await Task.Run(_runtime.GetHardwareMetrics, cancellation);
             if (cancellation.IsCancellationRequested || !IsMonitorEnabled || _disposed) return;
-            CpuTemp = Math.Round(metrics.CpuTemp, 1);
+            CpuTemp = metrics.CpuTemp.HasValue ? Math.Round(metrics.CpuTemp.Value, 1) : null;
             GpuTemp = Math.Round(metrics.GpuTemp, 1);
             GpuLoad = Math.Round(metrics.GpuLoad, 1);
             RamUsage = Math.Round(metrics.RamUsagePct, 1);
@@ -173,8 +183,8 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        _pollCancellation?.Cancel();
-        _pollCancellation?.Dispose();
         StopMonitor(closeSensors: true);
+        _pollCancellation?.Dispose();
+        _pollCancellation = null;
     }
 }
