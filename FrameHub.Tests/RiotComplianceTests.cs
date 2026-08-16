@@ -237,6 +237,163 @@ public sealed class RiotComplianceTests
     }
 
     [TestMethod]
+    public void LegacyRiotItems_LeagueAndValorant_AutoUpgradedToAllowBenchmarkTrue_OnLoad()
+    {
+        string libraryPath = Path.Combine(_tempDirectory, "legacy-riot-library.json");
+        File.WriteAllText(libraryPath, """
+        [
+            {
+                "Id": "legacy-lol",
+                "DisplayName": "League of Legends",
+                "Source": 3,
+                "Type": 0,
+                "AppId": "league_of_legends",
+                "ExecutablePath": "C:\\Riot Games\\League of Legends\\Game\\League of Legends.exe",
+                "ProcessName": "League of Legends",
+                "AllowBenchmark": false
+            },
+            {
+                "Id": "legacy-val",
+                "DisplayName": "VALORANT",
+                "Source": 3,
+                "Type": 0,
+                "AppId": "valorant",
+                "ExecutablePath": "C:\\Riot Games\\VALORANT\\ShooterGame\\Binaries\\Win64\\VALORANT-Win64-Shipping.exe",
+                "ProcessName": "VALORANT-Win64-Shipping",
+                "AllowBenchmark": false
+            }
+        ]
+        """);
+
+        var service = new LibraryService(libraryPath);
+        List<LibraryItem> loaded = service.LoadItems();
+
+        Assert.AreEqual(2, loaded.Count);
+        LibraryItem lol = loaded.First(x => x.Id == "legacy-lol");
+        LibraryItem val = loaded.First(x => x.Id == "legacy-val");
+        Assert.IsTrue(lol.AllowBenchmark, "Legacy trusted League item must automatically gain benchmark eligibility on load.");
+        Assert.IsTrue(val.AllowBenchmark, "Legacy trusted VALORANT item must automatically gain benchmark eligibility on load.");
+    }
+
+    [TestMethod]
+    public void LegacyNonRiotItems_WithRiotProcess_NeverUpgradedToAllowBenchmarkTrue()
+    {
+        string libraryPath = Path.Combine(_tempDirectory, "legacy-nonriot-library.json");
+        File.WriteAllText(libraryPath, """
+        [
+            {
+                "Id": "manual-lol",
+                "DisplayName": "Manual League",
+                "Source": 0,
+                "Type": 0,
+                "ExecutablePath": "C:\\Games\\ManualLeague\\League of Legends.exe",
+                "ProcessName": "League of Legends",
+                "AllowBenchmark": false
+            },
+            {
+                "Id": "steam-lol",
+                "DisplayName": "Steam League",
+                "Source": 1,
+                "Type": 0,
+                "ExecutablePath": "C:\\Games\\SteamLeague\\League of Legends.exe",
+                "ProcessName": "League of Legends",
+                "AllowBenchmark": false
+            },
+            {
+                "Id": "epic-lol",
+                "DisplayName": "Epic League",
+                "Source": 2,
+                "Type": 0,
+                "ExecutablePath": "C:\\Games\\EpicLeague\\League of Legends.exe",
+                "ProcessName": "League of Legends",
+                "AllowBenchmark": false
+            }
+        ]
+        """);
+
+        var service = new LibraryService(libraryPath);
+        List<LibraryItem> loaded = service.LoadItems();
+
+        Assert.AreEqual(3, loaded.Count);
+        Assert.IsFalse(loaded.First(x => x.Id == "manual-lol").AllowBenchmark, "Manual items must never be upgraded.");
+        Assert.IsFalse(loaded.First(x => x.Id == "steam-lol").AllowBenchmark, "Steam items must never be upgraded.");
+        Assert.IsFalse(loaded.First(x => x.Id == "epic-lol").AllowBenchmark, "Epic items must never be upgraded.");
+    }
+
+    [TestMethod]
+    public void LegacyRiotClientAndLauncherItems_NeverUpgradedToAllowBenchmarkTrue()
+    {
+        string libraryPath = Path.Combine(_tempDirectory, "legacy-launchers-library.json");
+        File.WriteAllText(libraryPath, """
+        [
+            {
+                "Id": "riot-launcher",
+                "DisplayName": "Riot Client",
+                "Source": 3,
+                "Type": 0,
+                "ExecutablePath": "C:\\Riot Games\\Riot Client\\RiotClientServices.exe",
+                "ProcessName": "RiotClientServices",
+                "AllowBenchmark": false
+            },
+            {
+                "Id": "riot-client",
+                "DisplayName": "League Client",
+                "Source": 3,
+                "Type": 0,
+                "ExecutablePath": "C:\\Riot Games\\League of Legends\\LeagueClient.exe",
+                "ProcessName": "LeagueClient",
+                "AllowBenchmark": false
+            }
+        ]
+        """);
+
+        var service = new LibraryService(libraryPath);
+        List<LibraryItem> loaded = service.LoadItems();
+
+        Assert.AreEqual(2, loaded.Count);
+        Assert.IsFalse(loaded.First(x => x.Id == "riot-launcher").AllowBenchmark, "RiotClientServices must never be upgraded to benchmark eligible.");
+        Assert.IsFalse(loaded.First(x => x.Id == "riot-client").AllowBenchmark, "LeagueClient must never be upgraded to benchmark eligible.");
+    }
+
+    [TestMethod]
+    public void LoadItems_DoesNotModifySourceFileOnDisk()
+    {
+        string libraryPath = Path.Combine(_tempDirectory, "read-only-check.json");
+        string originalContent = """
+        [
+            {
+                "Id": "legacy-lol",
+                "DisplayName": "League of Legends",
+                "Source": 3,
+                "Type": 0,
+                "AppId": "league_of_legends",
+                "ExecutablePath": "C:\\Riot Games\\League of Legends\\Game\\League of Legends.exe",
+                "ProcessName": "League of Legends",
+                "AllowBenchmark": false
+            }
+        ]
+        """;
+        File.WriteAllText(libraryPath, originalContent);
+        DateTime originalWriteTime = File.GetLastWriteTimeUtc(libraryPath);
+
+        var service = new LibraryService(libraryPath);
+
+        // Load multiple times (as ActiveGameMonitor does)
+        for (int i = 0; i < 5; i++)
+        {
+            List<LibraryItem> items = service.LoadItems();
+            Assert.AreEqual(1, items.Count);
+            Assert.IsTrue(items[0].AllowBenchmark, "In-memory item is sanitized.");
+        }
+
+        string diskContent = File.ReadAllText(libraryPath);
+        DateTime diskWriteTime = File.GetLastWriteTimeUtc(libraryPath);
+
+        Assert.AreEqual(originalContent, diskContent, "LoadItems must remain strictly read-only and never write to disk.");
+        Assert.AreEqual(originalWriteTime, diskWriteTime, "File timestamp must not change on LoadItems.");
+    }
+
+    [TestMethod]
     public void BenchmarkDetection_TrustedRiotItem_IsBenchmarkEligible_WhenActualGameRunning()
     {
         string gamePath = Path.GetFullPath(Path.Combine(_tempDirectory, "League of Legends.exe"));

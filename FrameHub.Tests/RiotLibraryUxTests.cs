@@ -75,10 +75,10 @@ public sealed class RiotLibraryUxTests
     public void BenchmarkCommand_AllowBenchmarkFalse_CannotExecute()
     {
         using var host = CreateViewModelHost();
-        var league = host.Items.First(item => item.Id == "riot-lol");
-        Assert.IsFalse(league.Item.AllowBenchmark, "Test precondition: the Riot item must be benchmark-ineligible.");
+        var custom = host.Items.First(item => item.Id == "custom-ineligible");
+        Assert.IsFalse(custom.Item.AllowBenchmark, "Test precondition: the custom item must be benchmark-ineligible.");
 
-        host.ViewModel.SelectedItem = league;
+        host.ViewModel.SelectedItem = custom;
 
         Assert.IsFalse(host.ViewModel.BenchmarkSelectedCommand.CanExecute(null),
             "Benchmark must not appear actionable for AllowBenchmark == false items.");
@@ -90,12 +90,17 @@ public sealed class RiotLibraryUxTests
     {
         using var host = CreateViewModelHost();
         var cs2 = host.Items.First(item => item.Id == "cs2");
+        var league = host.Items.First(item => item.Id == "riot-lol");
         Assert.IsTrue(cs2.Item.AllowBenchmark, "Test precondition: the normal game must be benchmark-eligible.");
+        Assert.IsTrue(league.Item.AllowBenchmark, "Trusted Riot game is automatically benchmark-eligible on load.");
 
         host.ViewModel.SelectedItem = cs2;
-
         Assert.IsTrue(host.ViewModel.BenchmarkSelectedCommand.CanExecute(null), "Eligible games must keep today's behavior.");
         Assert.IsNull(host.ViewModel.BenchmarkButtonTooltip, "No eligibility tooltip is needed for eligible games.");
+
+        host.ViewModel.SelectedItem = league;
+        Assert.IsTrue(host.ViewModel.BenchmarkSelectedCommand.CanExecute(null), "Trusted Riot game benchmark button must be actionable.");
+        Assert.IsNull(host.ViewModel.BenchmarkButtonTooltip);
     }
 
     [TestMethod]
@@ -175,6 +180,16 @@ public sealed class RiotLibraryUxTests
                 Type = LibraryItemType.Game,
                 ProcessName = "League of Legends",
                 ExecutablePath = @"C:\Riot Games\League of Legends\Game\League of Legends.exe",
+                AllowBenchmark = false
+            },
+            new LibraryItem
+            {
+                Id = "custom-ineligible",
+                DisplayName = "Custom Ineligible Game",
+                Source = LibrarySource.Manual,
+                Type = LibraryItemType.Game,
+                ProcessName = "customgame",
+                ExecutablePath = @"C:\Games\Custom\customgame.exe",
                 AllowBenchmark = false
             },
             new LibraryItem

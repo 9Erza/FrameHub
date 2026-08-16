@@ -449,6 +449,11 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
             currentFps = stats1s.AverageFps > 0 ? stats1s.AverageFps : null;
             currentFrametimeMs = oneSecondSamples.Average();
         }
+        else if (threeSecondSamples.Count > 0)
+        {
+            currentFps = stats3s.AverageFps > 0 ? stats3s.AverageFps : null;
+            currentFrametimeMs = threeSecondSamples.Average();
+        }
 
         return new LivePerformanceSnapshot(
             ProcessId: pid,

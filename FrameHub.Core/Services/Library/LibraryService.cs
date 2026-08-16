@@ -118,6 +118,10 @@ public sealed class LibraryService
             item.LaunchPath = string.IsNullOrWhiteSpace(item.LaunchPath) ? null : item.LaunchPath.Trim();
             item.InstallPath = string.IsNullOrWhiteSpace(item.InstallPath) ? null : item.InstallPath.Trim();
             item.IconPath = string.IsNullOrWhiteSpace(item.IconPath) ? item.ExecutablePath : item.IconPath.Trim();
+            if (item.Source == LibrarySource.Riot && RiotGameProcesses.IsSupportedGameProcessName(item.ProcessName))
+            {
+                item.AllowBenchmark = true;
+            }
             item.UpdatedAt = item.UpdatedAt == default ? DateTime.UtcNow : item.UpdatedAt;
             item.DetectedAt = item.DetectedAt == default ? DateTime.UtcNow : item.DetectedAt;
             result.Add(item);

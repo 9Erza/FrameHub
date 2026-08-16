@@ -543,6 +543,98 @@ public sealed class LivePerformanceTelemetryServiceTests
         await service.StopAsync();
     }
 
+    [TestMethod]
+    public async Task LiveService_RollingBufferFallback_PreservesFpsWhenNoFreshFramesInLastSecond()
+    {
+        var game = CreateActiveGame(7777, "g-fallback", "Fallback Game");
+        var activeGameMonitor = new FakeActiveGameMonitor(game);
+        var coordinator = CreateTestCoordinator();
+        var fakeApi = new TestFakeApi { FrametimeMs = 16.67d, FramesPerConsume = 10, ConsumeOnceOnly = true };
+
+        using var service = new LivePerformanceTelemetryService(
+            activeGameMonitor,
+            coordinator,
+            apiFactory: () => fakeApi,
+            delayProvider: InstantDelayProvider);
+
+        service.Start();
+        await WaitUntilAsync(() => service.CurrentSnapshot != null);
+
+        var snapshot = service.CurrentSnapshot;
+        Assert.IsNotNull(snapshot);
+        Assert.IsNotNull(snapshot.CurrentFps);
+        Assert.IsTrue(snapshot.CurrentFps > 0);
+
+        // After initial consume, TestFakeApi emits 0 frames on subsequent ticks.
+        // Wait several ticks (e.g. 50ms with InstantDelayProvider = 5 iterations)
+        await Task.Delay(50);
+
+        // Verify that while rolling buffer has samples, CurrentFps is retained from the buffer rather than becoming null
+        var fallbackSnapshot = service.CurrentSnapshot;
+        Assert.IsNotNull(fallbackSnapshot);
+        Assert.IsNotNull(fallbackSnapshot.CurrentFps, "CurrentFps must be computed from rolling buffer fallback when fresh <=1s window is empty.");
+        Assert.IsNotNull(fallbackSnapshot.CurrentFrametimeMs);
+        Assert.IsNotNull(fallbackSnapshot.OnePercentLowFps);
+        Assert.IsNotNull(fallbackSnapshot.PointOnePercentLowFps);
+
+        await service.StopAsync();
+    }
+
+    [TestMethod]
+    public async Task LiveService_NativeConsumeError_ClearsSnapshotImmediately()
+    {
+        var game = CreateActiveGame(6666, "g-err", "Error Game");
+        var activeGameMonitor = new FakeActiveGameMonitor(game);
+        var coordinator = CreateTestCoordinator();
+        var fakeApi = new TestFakeApi { ConsumeStatus = PmStatus.Failure };
+
+        using var service = new LivePerformanceTelemetryService(
+            activeGameMonitor,
+            coordinator,
+            apiFactory: () => fakeApi,
+            delayProvider: InstantDelayProvider);
+
+        service.Start();
+        await Task.Delay(100);
+
+        Assert.IsNull(service.CurrentSnapshot, "Native PresentMon consume failure must clear snapshot immediately.");
+
+        await service.StopAsync();
+    }
+
+    [TestMethod]
+    public async Task LiveService_GameTransition_ClearsPreviousGameFramesImmediately()
+    {
+        var game1 = CreateActiveGame(1001, "g1", "Game One");
+        var game2 = CreateActiveGame(1002, "g2", "Game Two");
+        var activeGameMonitor = new FakeActiveGameMonitor(game1);
+        var coordinator = CreateTestCoordinator();
+        var api1 = new TestFakeApi { FrametimeMs = 16.67d }; // 60 FPS
+        var api2 = new TestFakeApi { FrametimeMs = 8.33d };  // 120 FPS
+
+        using var service = new LivePerformanceTelemetryService(
+            activeGameMonitor,
+            coordinator,
+            apiFactory: () => activeGameMonitor.CurrentSnapshot?.Process.ProcessId == 1001 ? api1 : api2,
+            delayProvider: InstantDelayProvider);
+
+        service.Start();
+        await WaitUntilAsync(() => service.CurrentSnapshot?.ProcessId == 1001);
+        Assert.AreEqual(1001, service.CurrentSnapshot?.ProcessId);
+
+        activeGameMonitor.SetGame(game2);
+        await WaitUntilAsync(() => service.CurrentSnapshot?.ProcessId == 1002);
+
+        var snap2 = service.CurrentSnapshot;
+        Assert.IsNotNull(snap2);
+        Assert.AreEqual(1002, snap2.ProcessId);
+        Assert.AreEqual("g2", snap2.LibraryItemId);
+        // Verify frame calculation reflects game 2 frametime (~120 FPS), not game 1 (~60 FPS)
+        Assert.IsTrue(snap2.CurrentFps > 100, "Snapshot for game 2 must reflect only game 2 frames, not leaked game 1 frames.");
+
+        await service.StopAsync();
+    }
+
     private BenchmarkCaptureCoordinator CreateTestCoordinator() => new(
         storage: new BenchmarkStorageService(_tempDirectory),
         backendFactory: () => new BlockingBackend(),
@@ -607,6 +699,10 @@ public sealed class LivePerformanceTelemetryServiceTests
         public List<string> Calls { get; } = new();
         public PmStatus CloseStatus { get; init; } = PmStatus.Success;
         public PmStatus StopStatus { get; init; } = PmStatus.Success;
+        public PmStatus ConsumeStatus { get; init; } = PmStatus.Success;
+        public double FrametimeMs { get; init; } = 16.67d;
+        public int FramesPerConsume { get; init; } = 5;
+        public bool ConsumeOnceOnly { get; init; } = true;
         private PmQueryElement[] _elements = Array.Empty<PmQueryElement>();
         private bool _consumedOnce;
 
@@ -631,14 +727,18 @@ public sealed class LivePerformanceTelemetryServiceTests
         public PmStatus ConsumeFrames(nint query, uint processId, byte[] blobs, ref uint frameCount)
         {
             Calls.Add($"consume:{processId}");
-            if (_consumedOnce)
+            if (ConsumeStatus != PmStatus.Success)
+            {
+                return ConsumeStatus;
+            }
+            if (_consumedOnce && ConsumeOnceOnly)
             {
                 frameCount = 0;
                 return PmStatus.Success;
             }
             _consumedOnce = true;
-            frameCount = 5;
-            for (int i = 0; i < 5; i++)
+            frameCount = (uint)FramesPerConsume;
+            for (int i = 0; i < FramesPerConsume; i++)
             {
                 var span = blobs.AsSpan(i * 32, 32);
                 foreach (var el in _elements)
@@ -650,7 +750,7 @@ public sealed class LivePerformanceTelemetryServiceTests
                     }
                     else if (el.Metric == PmMetric.BetweenPresents)
                     {
-                        BitConverter.TryWriteBytes(val, 16.67d); // 60 FPS
+                        BitConverter.TryWriteBytes(val, FrametimeMs);
                     }
                 }
             }
