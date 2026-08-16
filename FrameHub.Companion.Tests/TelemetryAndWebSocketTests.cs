@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -414,6 +416,128 @@ public sealed class TelemetryAndWebSocketTests
         }
     }
 
+    [TestMethod]
+    public void CompanionScopes_WriteTelemetry_IsKnownScope()
+    {
+        Assert.AreEqual("write:telemetry", CompanionScopes.WriteTelemetry);
+        Assert.IsTrue(CompanionScopes.KnownScopes.Contains(CompanionScopes.WriteTelemetry));
+    }
+
+    [TestMethod]
+    public void NullCompanionHardwareMonitoringProvider_ReturnsDisabledAndInactive()
+    {
+        var provider = new NullCompanionHardwareMonitoringProvider();
+        var status = provider.GetStatus();
+        Assert.IsFalse(status.Enabled);
+        Assert.IsFalse(status.Active);
+
+        var updated = provider.SetEnabled(true);
+        Assert.IsFalse(updated.Enabled);
+        Assert.IsFalse(updated.Active);
+    }
+
+    [TestMethod]
+    public async Task HardwareMonitorApi_GetAndPost_EnforcesSecurityAndScopes()
+    {
+        int port = GetFreePort();
+        using var server = new CompanionServer(_store, () => _now);
+        server.ConfigureTelemetryProvider(new TestTelemetrySnapshotProvider());
+        var mockProvider = new TestHardwareMonitoringProvider(enabled: false, active: false);
+        server.ConfigureHardwareMonitoringProvider(mockProvider);
+
+        var started = await server.StartAsync(new CompanionOptions
+        {
+            Enabled = true,
+            Port = port,
+            LanEnabled = false
+        });
+        Assert.IsTrue(started);
+
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+
+            // 1. GET /api/v1/telemetry/hardware-monitor (loopback unauthenticated allows read)
+            var getResp = await client.GetAsync("/api/v1/telemetry/hardware-monitor");
+            Assert.AreEqual(HttpStatusCode.OK, getResp.StatusCode);
+            var statusDto = await getResp.Content.ReadFromJsonAsync<HardwareMonitoringStatusDto>();
+            Assert.IsNotNull(statusDto);
+            Assert.IsFalse(statusDto.Enabled);
+            Assert.IsFalse(statusDto.Active);
+
+            // 2. POST /api/v1/telemetry/hardware-monitor without Auth header -> 401 Unauthorized (even on loopback!)
+            var postUnauthResp = await client.PostAsJsonAsync("/api/v1/telemetry/hardware-monitor", new SetHardwareMonitoringRequestDto(true));
+            Assert.AreEqual(HttpStatusCode.Unauthorized, postUnauthResp.StatusCode, "POST to hardware-monitor must require auth even on loopback.");
+
+            // 3. Create paired device with read:telemetry only (no write:telemetry)
+            string token = "test-token-read-only";
+            var deviceReadOnly = new PairedDeviceRecord
+            {
+                Id = Guid.NewGuid(),
+                DisplayName = "Read Only Device",
+                CredentialHash = PairingEngine.HashCredential(token),
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                Scopes = new List<string> { CompanionScopes.ReadTelemetry }
+            };
+            server.DeviceStore.AddDevice(deviceReadOnly);
+
+            // POST with read-only token -> 403 Forbidden
+            using var readOnlyReq = new HttpRequestMessage(HttpMethod.Post, "/api/v1/telemetry/hardware-monitor");
+            readOnlyReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            readOnlyReq.Content = JsonContent.Create(new SetHardwareMonitoringRequestDto(true));
+            var postForbiddenResp = await client.SendAsync(readOnlyReq);
+            Assert.AreEqual(HttpStatusCode.Forbidden, postForbiddenResp.StatusCode, "POST without write:telemetry must return 403.");
+
+            // 4. Create paired device with write:telemetry scope
+            string writeToken = "test-token-write";
+            var deviceWrite = new PairedDeviceRecord
+            {
+                Id = Guid.NewGuid(),
+                DisplayName = "Write Device",
+                CredentialHash = PairingEngine.HashCredential(writeToken),
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                Scopes = new List<string> { CompanionScopes.WriteTelemetry }
+            };
+            server.DeviceStore.AddDevice(deviceWrite);
+
+            // POST with write token -> 200 OK and toggles provider
+            using var writeReq = new HttpRequestMessage(HttpMethod.Post, "/api/v1/telemetry/hardware-monitor");
+            writeReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", writeToken);
+            writeReq.Content = JsonContent.Create(new SetHardwareMonitoringRequestDto(true));
+            var postSuccessResp = await client.SendAsync(writeReq);
+            Assert.AreEqual(HttpStatusCode.OK, postSuccessResp.StatusCode);
+            var updatedDto = await postSuccessResp.Content.ReadFromJsonAsync<HardwareMonitoringStatusDto>();
+            Assert.IsNotNull(updatedDto);
+            Assert.IsTrue(updatedDto.Enabled);
+            Assert.IsTrue(mockProvider.GetStatus().Enabled);
+        }
+        finally
+        {
+            await server.StopAsync();
+        }
+    }
+
+    private sealed class TestHardwareMonitoringProvider : ICompanionHardwareMonitoringProvider
+    {
+        private bool _enabled;
+        private bool _active;
+
+        public TestHardwareMonitoringProvider(bool enabled, bool active)
+        {
+            _enabled = enabled;
+            _active = active;
+        }
+
+        public HardwareMonitoringStatusDto GetStatus() => new(_enabled, _active);
+
+        public HardwareMonitoringStatusDto SetEnabled(bool enabled)
+        {
+            _enabled = enabled;
+            _active = enabled;
+            return GetStatus();
+        }
+    }
+
     private sealed class TestTelemetrySnapshotProvider : ITelemetrySnapshotProvider
     {
         public CompanionTelemetrySnapshot CurrentSnapshot { get; } = new(
@@ -433,7 +557,28 @@ public sealed class TelemetryAndWebSocketTests
                 DisplayName: "Counter-Strike 2",
                 IsRunning: true,
                 ProcessStartTimeUtc: DateTimeOffset.UtcNow.AddMinutes(-10)
-            )
+            ),
+            HardwareMonitor: new HardwareMonitoringStatusDto(Enabled: true, Active: true)
         );
+    }
+
+    private static int GetFreePort()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            try
+            {
+                using var listener = new TcpListener(IPAddress.Loopback, 0);
+                listener.Start();
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                listener.Stop();
+                return port;
+            }
+            catch
+            {
+                if (i == 4) throw;
+            }
+        }
+        throw new InvalidOperationException("Could not obtain free port.");
     }
 }

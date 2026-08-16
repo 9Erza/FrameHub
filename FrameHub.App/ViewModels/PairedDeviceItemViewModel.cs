@@ -9,6 +9,7 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
 {
     private readonly Action<Guid, string, bool> _onToggleScope;
     private bool _readTelemetryEnabled;
+    private bool _writeTelemetryEnabled;
     private bool _readBenchmarksEnabled;
     private bool _writeBenchmarksEnabled;
     private bool _readLibraryEnabled;
@@ -25,6 +26,7 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     public string PairedOnText { get; }
     public string LastUsedDisplay { get; }
     public string ScopeTelemetryLabel { get; }
+    public string ScopeWriteTelemetryLabel { get; }
     public string ScopeReadBenchmarksLabel { get; }
     public string ScopeWriteBenchmarksLabel { get; }
     public string ScopeReadLibraryLabel { get; }
@@ -54,6 +56,32 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
             if (SetProperty(ref _readTelemetryEnabled, value))
             {
                 _onToggleScope(Id, CompanionScopes.ReadTelemetry, value);
+
+                if (!value && _writeTelemetryEnabled)
+                {
+                    _writeTelemetryEnabled = false;
+                    OnPropertyChanged(nameof(WriteTelemetryEnabled));
+                    _onToggleScope(Id, CompanionScopes.WriteTelemetry, false);
+                }
+            }
+        }
+    }
+
+    public bool WriteTelemetryEnabled
+    {
+        get => _writeTelemetryEnabled;
+        set
+        {
+            if (SetProperty(ref _writeTelemetryEnabled, value))
+            {
+                _onToggleScope(Id, CompanionScopes.WriteTelemetry, value);
+
+                if (value && !_readTelemetryEnabled)
+                {
+                    _readTelemetryEnabled = true;
+                    OnPropertyChanged(nameof(ReadTelemetryEnabled));
+                    _onToggleScope(Id, CompanionScopes.ReadTelemetry, true);
+                }
             }
         }
     }
@@ -233,7 +261,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         string? areaLibraryLabel = null,
         string? areaBackgroundAppsLabel = null,
         string? areaOptimizationLabel = null,
-        string? areaBenchmarksLabel = null)
+        string? areaBenchmarksLabel = null,
+        string? scopeWriteTelemetryLabel = null)
     {
         Id = record.Id;
         DisplayName = record.DisplayName;
@@ -245,6 +274,7 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         LastUsedDisplay = string.IsNullOrWhiteSpace(lastUsedLabel) ? LastUsedText : $"{lastUsedLabel}: {LastUsedText}";
 
         ScopeTelemetryLabel = scopeTelemetryLabel ?? "Telemetry";
+        ScopeWriteTelemetryLabel = scopeWriteTelemetryLabel ?? "Telemetry Control";
         ScopeReadBenchmarksLabel = scopeReadBenchmarksLabel ?? "Benchmark Data";
         ScopeWriteBenchmarksLabel = scopeWriteBenchmarksLabel ?? "Benchmark Control";
         ScopeReadLibraryLabel = scopeReadLibraryLabel ?? "Read Library";
@@ -267,6 +297,7 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
 
         _onToggleScope = onToggleScope ?? ((_, _, _) => { });
         _readTelemetryEnabled = record.Scopes.Contains(CompanionScopes.ReadTelemetry, StringComparer.OrdinalIgnoreCase);
+        _writeTelemetryEnabled = record.Scopes.Contains(CompanionScopes.WriteTelemetry, StringComparer.OrdinalIgnoreCase);
         _readBenchmarksEnabled = record.Scopes.Contains(CompanionScopes.ReadBenchmarks, StringComparer.OrdinalIgnoreCase);
         _writeBenchmarksEnabled = record.Scopes.Contains(CompanionScopes.WriteBenchmarks, StringComparer.OrdinalIgnoreCase);
         _readLibraryEnabled = record.Scopes.Contains(CompanionScopes.ReadLibrary, StringComparer.OrdinalIgnoreCase);

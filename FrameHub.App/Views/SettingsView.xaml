@@ -230,7 +230,7 @@
                                                 <!-- Telemetry -->
                                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding AreaTelemetryLabel}" Style="{StaticResource SettingDescriptionText}" VerticalAlignment="Center"/>
                                                 <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding ReadTelemetryEnabled, Mode=TwoWay}" ToolTip="{Binding ScopeTelemetryLabel}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Row="1" Grid.Column="2" Text="—" Style="{StaticResource SmallMutedText}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <CheckBox Grid.Row="1" Grid.Column="2" IsChecked="{Binding WriteTelemetryEnabled, Mode=TwoWay}" ToolTip="{Binding ScopeWriteTelemetryLabel}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                                 <!-- Game library -->
                                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding AreaLibraryLabel}" Style="{StaticResource SettingDescriptionText}" VerticalAlignment="Center"/>

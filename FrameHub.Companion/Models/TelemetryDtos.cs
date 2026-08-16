@@ -6,7 +6,17 @@ public sealed record CompanionTelemetrySnapshot(
     DateTimeOffset CapturedAtUtc,
     HardwareTelemetrySnapshot? Hardware,
     CurrentGameSnapshot? CurrentGame,
-    LivePerformanceSnapshot? LivePerformance = null
+    LivePerformanceSnapshot? LivePerformance = null,
+    HardwareMonitoringStatusDto? HardwareMonitor = null
+);
+
+public sealed record HardwareMonitoringStatusDto(
+    bool Enabled,
+    bool Active
+);
+
+public sealed record SetHardwareMonitoringRequestDto(
+    bool Enabled
 );
 
 public sealed record HardwareTelemetrySnapshot(

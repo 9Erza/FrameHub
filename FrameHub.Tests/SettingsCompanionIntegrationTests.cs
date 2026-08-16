@@ -739,7 +739,8 @@ public sealed class SettingsCompanionIntegrationTests
             "Settings.CompanionAreaLibrary",
             "Settings.CompanionAreaBackgroundApps",
             "Settings.CompanionAreaOptimization",
-            "Settings.CompanionAreaBenchmarks"
+            "Settings.CompanionAreaBenchmarks",
+            "Settings.CompanionScopeWriteTelemetry"
         })
         {
             Assert.IsTrue(LocalizationService.EnglishKeys.Contains(key), $"Missing English key {key}");
@@ -788,7 +789,8 @@ public sealed class SettingsCompanionIntegrationTests
             areaLibraryLabel: "Biblioteka gier",
             areaBackgroundAppsLabel: "Aplikacje w tle",
             areaOptimizationLabel: "Optymalizacja",
-            areaBenchmarksLabel: "Benchmarki");
+            areaBenchmarksLabel: "Benchmarki",
+            scopeWriteTelemetryLabel: "Sterowanie telemetrią");
 
         Assert.AreEqual("Uprawnienia", customVm.PermissionsHeader);
         Assert.AreEqual("Obszar", customVm.AreaHeader);
@@ -799,6 +801,7 @@ public sealed class SettingsCompanionIntegrationTests
         Assert.AreEqual("Aplikacje w tle", customVm.AreaBackgroundAppsLabel);
         Assert.AreEqual("Optymalizacja", customVm.AreaOptimizationLabel);
         Assert.AreEqual("Benchmarki", customVm.AreaBenchmarksLabel);
+        Assert.AreEqual("Sterowanie telemetrią", customVm.ScopeWriteTelemetryLabel);
     }
 
     [TestMethod]
@@ -840,8 +843,9 @@ public sealed class SettingsCompanionIntegrationTests
         StringAssert.Contains(templateXaml, "Text=\"{Binding AreaOptimizationLabel}\"");
         StringAssert.Contains(templateXaml, "Text=\"{Binding AreaBenchmarksLabel}\"");
 
-        // 5. All 9 scope bindings in matrix
+        // 5. All 10 scope bindings in matrix
         StringAssert.Contains(templateXaml, "IsChecked=\"{Binding ReadTelemetryEnabled, Mode=TwoWay}\"");
+        StringAssert.Contains(templateXaml, "IsChecked=\"{Binding WriteTelemetryEnabled, Mode=TwoWay}\"");
         StringAssert.Contains(templateXaml, "IsChecked=\"{Binding ReadLibraryEnabled, Mode=TwoWay}\"");
         StringAssert.Contains(templateXaml, "IsChecked=\"{Binding WriteLaunchEnabled, Mode=TwoWay}\"");
         StringAssert.Contains(templateXaml, "IsChecked=\"{Binding ReadBackgroundAppsEnabled, Mode=TwoWay}\"");
@@ -850,9 +854,6 @@ public sealed class SettingsCompanionIntegrationTests
         StringAssert.Contains(templateXaml, "IsChecked=\"{Binding WriteOptimizationEnabled, Mode=TwoWay}\"");
         StringAssert.Contains(templateXaml, "IsChecked=\"{Binding ReadBenchmarksEnabled, Mode=TwoWay}\"");
         StringAssert.Contains(templateXaml, "IsChecked=\"{Binding WriteBenchmarksEnabled, Mode=TwoWay}\"");
-
-        // 6. Telemetry control unavailable placeholder
-        StringAssert.Contains(templateXaml, "Text=\"—\"");
     }
 
     private static string? FindRepoRoot()
@@ -898,6 +899,93 @@ public sealed class SettingsCompanionIntegrationTests
 
         // Verify status message is updated (either ready or success)
         Assert.IsNotNull(vm.StatusMessage);
+    }
+
+    [TestMethod]
+    public void PairedDeviceItemViewModel_WriteTelemetryCascade_TogglesReadTelemetryAndViceVersa()
+    {
+        var toggled = new List<(string scope, bool enabled)>();
+        var record = new PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Test Phone",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            Scopes = new List<string>()
+        };
+
+        var vm = new PairedDeviceItemViewModel(
+            record,
+            _ => { },
+            (_, scope, enabled) => toggled.Add((scope, enabled)));
+
+        Assert.IsFalse(vm.ReadTelemetryEnabled);
+        Assert.IsFalse(vm.WriteTelemetryEnabled);
+
+        // Enabling WriteTelemetry must automatically cascade and enable ReadTelemetry
+        vm.WriteTelemetryEnabled = true;
+        Assert.IsTrue(vm.WriteTelemetryEnabled);
+        Assert.IsTrue(vm.ReadTelemetryEnabled);
+        Assert.IsTrue(toggled.Contains((CompanionScopes.WriteTelemetry, true)));
+        Assert.IsTrue(toggled.Contains((CompanionScopes.ReadTelemetry, true)));
+
+        toggled.Clear();
+
+        // Disabling ReadTelemetry must automatically cascade and disable WriteTelemetry
+        vm.ReadTelemetryEnabled = false;
+        Assert.IsFalse(vm.ReadTelemetryEnabled);
+        Assert.IsFalse(vm.WriteTelemetryEnabled);
+        Assert.IsTrue(toggled.Contains((CompanionScopes.ReadTelemetry, false)));
+        Assert.IsTrue(toggled.Contains((CompanionScopes.WriteTelemetry, false)));
+    }
+
+    [TestMethod]
+    public void HardwareSensorReader_CalculateVramUsagePercentage_CalculatesCorrectByteRatio_AndHandlesFallbacks()
+    {
+        // 1. Real production reproduction case: 9.2 GB used out of 15.9 GB total
+        long usedBytes = (long)(9.2 * 1024 * 1024 * 1024);
+        long totalBytes = (long)(15.9 * 1024 * 1024 * 1024);
+        double? ratio = HardwareSensorReader.CalculateVramUsagePercentage(usedBytes, totalBytes, fallbackLoadPercent: 1.0f);
+        Assert.IsNotNull(ratio);
+        // (9.2 / 15.9) * 100 = 57.86%
+        Assert.AreEqual(57.86, ratio.Value, 0.1, "Must calculate honest byte ratio instead of ambiguous 1% load fallback");
+
+        // 2. Used > Total clamp test
+        double? clamped = HardwareSensorReader.CalculateVramUsagePercentage(200, 100);
+        Assert.AreEqual(100.0, clamped!.Value);
+
+        // 3. Negative used clamp test
+        double? zeroClamped = HardwareSensorReader.CalculateVramUsagePercentage(-10, 100);
+        Assert.AreEqual(0.0, zeroClamped!.Value);
+
+        // 4. Missing used or total falls back to fallbackLoadPercent
+        double? fallback = HardwareSensorReader.CalculateVramUsagePercentage(null, totalBytes, fallbackLoadPercent: 42.5f);
+        Assert.AreEqual(42.5, fallback!.Value);
+
+        // 5. Zero total falls back to fallbackLoadPercent
+        double? zeroTotalFallback = HardwareSensorReader.CalculateVramUsagePercentage(usedBytes, 0, fallbackLoadPercent: 33.3f);
+        Assert.AreEqual(33.3, zeroTotalFallback!.Value, 0.01);
+
+        // 6. No data at all returns 0.0
+        double allNull = HardwareSensorReader.CalculateVramUsagePercentage(null, null, null);
+        Assert.AreEqual(0.0, allNull);
+    }
+
+    [TestMethod]
+    public void AppCompanionHardwareMonitoringProvider_DelegatesToAppRuntimeService()
+    {
+        using var runtime = CreateTestRuntime();
+        var provider = new AppCompanionHardwareMonitoringProvider(runtime);
+
+        var initialStatus = provider.GetStatus();
+        Assert.AreEqual(runtime.Settings.HardwareMonitorEnabled, initialStatus.Enabled);
+        Assert.AreEqual(runtime.IsHardwareMonitoringActive, initialStatus.Active);
+
+        // Toggle via provider
+        bool targetState = !runtime.Settings.HardwareMonitorEnabled;
+        var updatedStatus = provider.SetEnabled(targetState);
+
+        Assert.AreEqual(targetState, runtime.Settings.HardwareMonitorEnabled);
+        Assert.AreEqual(targetState, updatedStatus.Enabled);
     }
 
     private static int GetFreePort()

@@ -132,7 +132,7 @@ namespace FrameHub.Core.Services
                     metrics.VramTotalBytes = vramTotalBytes;
 
                     var vramLoad = hardware.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Load && s.Name.Contains("Memory"));
-                    metrics.VramUsagePct = vramLoad?.Value ?? (vramTotalBytes.HasValue && vramTotalBytes.Value > 0 && vramUsedBytes.HasValue ? Math.Round((double)vramUsedBytes.Value / vramTotalBytes.Value * 100.0, 1) : 0);
+                    metrics.VramUsagePct = HardwareSensorReader.CalculateVramUsagePercentage(vramUsedBytes, vramTotalBytes, vramLoad?.Value);
                 }
 
                 if (hardware.HardwareType == HardwareType.Memory)

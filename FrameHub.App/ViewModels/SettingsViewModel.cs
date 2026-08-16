@@ -501,6 +501,7 @@ public sealed class SettingsViewModel : ViewModelBase
         PairedDevices.Clear();
         var devices = _runtime.CompanionServer.DeviceStore.Devices;
         string scopeTelemetryLabel = _localization.T("Settings.CompanionScopeTelemetry");
+        string scopeWriteTelemetryLabel = _localization.T("Settings.CompanionScopeWriteTelemetry");
         string scopeReadBenchmarksLabel = _localization.T("Settings.CompanionScopeReadBenchmarks");
         string scopeWriteBenchmarksLabel = _localization.T("Settings.CompanionScopeWriteBenchmarks");
         string scopeReadLibraryLabel = _localization.T("Settings.CompanionScopeReadLibrary");
@@ -550,7 +551,8 @@ public sealed class SettingsViewModel : ViewModelBase
                 areaLibraryLabel,
                 areaBackgroundAppsLabel,
                 areaOptimizationLabel,
-                areaBenchmarksLabel));
+                areaBenchmarksLabel,
+                scopeWriteTelemetryLabel));
         }
         OnPropertyChanged(nameof(HasPairedDevices));
         OnPropertyChanged(nameof(IsDeviceStoreFaulted));

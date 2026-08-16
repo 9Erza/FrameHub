@@ -109,6 +109,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         SessionOptimizationCoordinator = new SessionOptimizationCoordinator(ProcessScanner, benchmarkArbiter: BenchmarkCoordinator);
         SessionOptimizationProvider = new AppSessionOptimizationProvider(this, SessionOptimizationCoordinator, ActiveGameMonitor, BenchmarkCoordinator);
         CompanionServer.ConfigureSessionOptimizationProvider(SessionOptimizationProvider);
+        HardwareMonitoringProvider = new AppCompanionHardwareMonitoringProvider(this);
+        CompanionServer.ConfigureHardwareMonitoringProvider(HardwareMonitoringProvider);
         GamingQuickActions = new GamingQuickActionService(
             ProcessScanner,
             BenchmarkCoordinator,
@@ -129,10 +131,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public AppBackgroundAppProvider BackgroundAppProvider { get; }
     public SessionOptimizationCoordinator SessionOptimizationCoordinator { get; }
     public AppSessionOptimizationProvider SessionOptimizationProvider { get; }
+    public AppCompanionHardwareMonitoringProvider HardwareMonitoringProvider { get; }
     public IGamingQuickActionService GamingQuickActions { get; }
-
-
-
 
     public void SaveSettings(AppSettings settings)
     {

@@ -1,6 +1,9 @@
 'use strict';
 
     let lastTelemetrySnapshot = null;
+    let currentHardwareMonitorState = null;
+    let isTogglingHardwareMonitor = false;
+
     function formatPercent(val) {
         if (typeof val === 'number' && isFinite(val)) return Math.round(val) + '%';
         return '--';
@@ -37,6 +40,86 @@
         if (elements.hwGpuTemp) elements.hwGpuTemp.textContent = '--';
         if (elements.hwRamUsage) elements.hwRamUsage.textContent = '--';
         if (elements.hwVramUsage) elements.hwVramUsage.textContent = '--';
+        if (elements.hwCpuElevationHint) elements.hwCpuElevationHint.classList.add('hidden');
+    }
+
+    function updateHardwareMonitorUi(enabled) {
+        const i18n = window.FrameHubI18n;
+        const isEnabled = Boolean(enabled);
+
+        if (elements.hwToggleDot) {
+            elements.hwToggleDot.className = 'status-dot ' + (isEnabled ? 'connected' : 'disconnected');
+        }
+        if (elements.hwToggleText) {
+            elements.hwToggleText.textContent = i18n
+                ? i18n.t(isEnabled ? 'home.hwStatusOn' : 'home.hwStatusOff')
+                : (isEnabled ? 'Enabled' : 'Disabled');
+        }
+        if (elements.hwMonitorToggleBtn) {
+            elements.hwMonitorToggleBtn.title = i18n
+                ? i18n.t(isEnabled ? 'home.hwDisableBtn' : 'home.hwEnableBtn')
+                : (isEnabled ? 'Disable monitoring' : 'Enable monitoring');
+        }
+
+        if (isEnabled) {
+            if (elements.hwGridContainer) elements.hwGridContainer.classList.remove('hidden');
+            if (elements.hwDisabledNotice) elements.hwDisabledNotice.classList.add('hidden');
+        } else {
+            if (elements.hwGridContainer) elements.hwGridContainer.classList.add('hidden');
+            if (elements.hwDisabledNotice) elements.hwDisabledNotice.classList.remove('hidden');
+            if (elements.hwCpuElevationHint) elements.hwCpuElevationHint.classList.add('hidden');
+            resetHardwareMetrics();
+        }
+    }
+
+    function showHardwarePermissionNotice() {
+        if (elements.hwPermissionNotice) {
+            elements.hwPermissionNotice.classList.remove('hidden');
+        }
+    }
+
+    function hideHardwarePermissionNotice() {
+        if (elements.hwPermissionNotice) {
+            elements.hwPermissionNotice.classList.add('hidden');
+        }
+    }
+
+    async function handleToggleHardwareMonitor(targetEnabled) {
+        if (isTogglingHardwareMonitor) return;
+        isTogglingHardwareMonitor = true;
+        if (elements.hwMonitorToggleBtn) elements.hwMonitorToggleBtn.disabled = true;
+        if (elements.hwEnableBtn) elements.hwEnableBtn.disabled = true;
+        hideHardwarePermissionNotice();
+
+        try {
+            const resp = await fetch('/api/v1/telemetry/hardware-monitor', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ enabled: targetEnabled })
+            });
+
+            if (resp.status === 401) {
+                clearStoredCredential();
+                updateAuthUi(false, 'Pairing Required');
+                return;
+            }
+
+            if (resp.status === 403) {
+                showHardwarePermissionNotice();
+                return;
+            }
+
+            if (resp.ok) {
+                const status = await resp.json();
+                currentHardwareMonitorState = status;
+                updateHardwareMonitorUi(status.enabled);
+            }
+        } catch (_) {
+        } finally {
+            isTogglingHardwareMonitor = false;
+            if (elements.hwMonitorToggleBtn) elements.hwMonitorToggleBtn.disabled = false;
+            if (elements.hwEnableBtn) elements.hwEnableBtn.disabled = false;
+        }
     }
 
     function resetTelemetryPresentation() {
@@ -100,17 +183,34 @@
             }
         }
 
+        // Hardware Monitor State Sync
+        if (telemetry.hardwareMonitor) {
+            currentHardwareMonitorState = telemetry.hardwareMonitor;
+            updateHardwareMonitorUi(telemetry.hardwareMonitor.enabled);
+        }
+
         // Hardware Telemetry
+        const isMonitorEnabled = currentHardwareMonitorState ? currentHardwareMonitorState.enabled : Boolean(telemetry.hardware);
         const hw = telemetry.hardware;
-        if (hw) {
+        if (isMonitorEnabled && hw) {
             if (elements.hwCpuLoad) elements.hwCpuLoad.textContent = formatPercent(hw.cpuUtilizationPercent);
             if (elements.hwCpuTemp) elements.hwCpuTemp.textContent = formatTemp(hw.cpuTemperatureCelsius);
             if (elements.hwGpuLoad) elements.hwGpuLoad.textContent = formatPercent(hw.gpuUtilizationPercent);
             if (elements.hwGpuTemp) elements.hwGpuTemp.textContent = formatTemp(hw.gpuTemperatureCelsius);
             if (elements.hwRamUsage) elements.hwRamUsage.textContent = formatRam(hw.ramUsedBytes, hw.ramTotalBytes);
             if (elements.hwVramUsage) elements.hwVramUsage.textContent = formatRam(hw.vramUsedBytes, hw.vramTotalBytes);
+
+            // CPU Elevation Hint
+            if (elements.hwCpuElevationHint) {
+                const hasValidCpuTemp = typeof hw.cpuTemperatureCelsius === 'number' && isFinite(hw.cpuTemperatureCelsius) && hw.cpuTemperatureCelsius > 0;
+                elements.hwCpuElevationHint.classList.toggle('hidden', hasValidCpuTemp);
+            }
+        } else if (isMonitorEnabled) {
+            resetHardwareMetrics();
+            if (elements.hwCpuElevationHint) elements.hwCpuElevationHint.classList.remove('hidden');
         } else {
             resetHardwareMetrics();
+            if (elements.hwCpuElevationHint) elements.hwCpuElevationHint.classList.add('hidden');
         }
     }
 

@@ -30,6 +30,7 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
     private ICompanionLibraryProvider? _libraryProvider;
     private ICompanionBackgroundAppsProvider? _backgroundAppsProvider;
     private ICompanionSessionOptimizationProvider? _sessionOptimizationProvider;
+    private ICompanionHardwareMonitoringProvider? _hardwareMonitoringProvider;
     private Func<IHardwareMonitorLease>? _hardwareLeaser;
 
     public DeviceRecordStore DeviceStore { get; }
@@ -77,6 +78,11 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
     {
         _snapshotProvider = provider;
         _hardwareLeaser = hardwareLeaser;
+    }
+
+    public void ConfigureHardwareMonitoringProvider(ICompanionHardwareMonitoringProvider provider)
+    {
+        _hardwareMonitoringProvider = provider;
     }
 
     public void ConfigureBenchmarkProvider(ICompanionBenchmarkProvider provider)
@@ -191,6 +197,9 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
 
                 var optimizationProvider = _sessionOptimizationProvider ?? new NullCompanionSessionOptimizationProvider();
                 builder.Services.AddSingleton<ICompanionSessionOptimizationProvider>(optimizationProvider);
+
+                var hardwareMonitoringProvider = _hardwareMonitoringProvider ?? new NullCompanionHardwareMonitoringProvider();
+                builder.Services.AddSingleton<ICompanionHardwareMonitoringProvider>(hardwareMonitoringProvider);
 
                 builder.WebHost.UseKestrel(kestrel =>
                 {

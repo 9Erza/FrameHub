@@ -136,7 +136,11 @@ public sealed class AppTelemetrySnapshotProvider : ITelemetrySnapshotProvider, I
             CapturedAtUtc: now,
             Hardware: hardwareSnapshot,
             CurrentGame: ResolveCurrentGame(),
-            LivePerformance: _liveTelemetryService?.CurrentSnapshot
+            LivePerformance: _liveTelemetryService?.CurrentSnapshot,
+            HardwareMonitor: new HardwareMonitoringStatusDto(
+                Enabled: _runtime.Settings.HardwareMonitorEnabled,
+                Active: _runtime.IsHardwareMonitoringActive
+            )
         );
     }
 

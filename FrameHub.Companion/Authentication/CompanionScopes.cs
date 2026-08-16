@@ -4,6 +4,7 @@ public static class CompanionScopes
 {
     public const string ReadStatus = "read:status";
     public const string ReadTelemetry = "read:telemetry";
+    public const string WriteTelemetry = "write:telemetry";
     public const string ReadBenchmarks = "read:benchmarks";
     public const string WriteBenchmarks = "write:benchmarks";
     public const string ReadLibrary = "read:library";
@@ -17,6 +18,7 @@ public static class CompanionScopes
     {
         ReadStatus,
         ReadTelemetry,
+        WriteTelemetry,
         ReadBenchmarks,
         WriteBenchmarks,
         ReadLibrary,
@@ -26,7 +28,6 @@ public static class CompanionScopes
         ReadOptimization,
         WriteOptimization
     };
-
 
     public static bool IsValidScope(string? scope)
     {

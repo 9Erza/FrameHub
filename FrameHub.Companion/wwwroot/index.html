@@ -99,15 +99,28 @@
                         </div>
 
                         <!-- Hardware Telemetry -->
-                        <div class="dashboard-subtitle" style="margin-top: 1.25rem;" data-i18n="home.hwSubtitle">Hardware Telemetry</div>
-                        <div class="hardware-grid">
+                        <div class="dashboard-header-row" style="margin-top: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+                            <div class="dashboard-subtitle" style="margin-top: 0;" data-i18n="home.hwSubtitle">Hardware Telemetry</div>
+                            <button id="hw-monitor-toggle-btn" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; padding: 0.25rem 0.6rem;" type="button">
+                                <span id="hw-toggle-dot" class="status-dot disconnected"></span>
+                                <span id="hw-toggle-text" data-i18n="home.hwStatusOff">Disabled</span>
+                            </button>
+                        </div>
+                        <div id="hw-disabled-notice" class="hw-disabled-card hidden" style="margin-top: 0.75rem; padding: 1rem; border-radius: var(--radius-sm, 6px); background: rgba(255, 255, 255, 0.03); border: 1px dashed rgba(255, 255, 255, 0.15); text-align: center;">
+                            <div class="stat-label" data-i18n="home.hwDisabledTitle" style="font-size: 0.95rem; font-weight: 500; margin-bottom: 0.35rem;">Hardware telemetry is disabled.</div>
+                            <div class="text-muted" data-i18n="home.hwDisabledDesc" style="font-size: 0.85rem; margin-bottom: 0.75rem;">Enable monitoring to display CPU, GPU, RAM and VRAM.</div>
+                            <button id="hw-enable-btn" class="btn btn-primary btn-sm" type="button" data-i18n="home.hwEnableBtn">Enable monitoring</button>
+                            <div id="hw-permission-notice" class="text-muted hidden" style="font-size: 0.8rem; margin-top: 0.5rem;" data-i18n="home.hwPermissionRequired">write:telemetry permission required to change hardware monitor state</div>
+                        </div>
+                        <div id="hw-grid-container" class="hardware-grid">
                             <div class="stat-card">
                                 <span class="stat-label" data-i18n="home.cpuLoad">CPU Load</span>
                                 <span class="stat-value" id="hw-cpu-load">--</span>
                             </div>
-                            <div class="stat-card">
+                            <div class="stat-card" style="position: relative;">
                                 <span class="stat-label" data-i18n="home.cpuTemp">CPU Temp</span>
                                 <span class="stat-value" id="hw-cpu-temp">--</span>
+                                <div id="hw-cpu-elevation-hint" class="hint-text hidden" style="font-size: 0.75rem; color: #888; margin-top: 0.25rem;" data-i18n="home.cpuElevationHint">CPU temperature may require running FrameHub as administrator.</div>
                             </div>
                             <div class="stat-card">
                                 <span class="stat-label" data-i18n="home.gpuLoad">GPU Load</span>

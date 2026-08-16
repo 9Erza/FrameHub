@@ -14,13 +14,16 @@ public sealed class TelemetryController : ControllerBase
 {
     private readonly ITelemetrySnapshotProvider _snapshotProvider;
     private readonly WebSocketTicketStore _ticketStore;
+    private readonly ICompanionHardwareMonitoringProvider _hardwareMonitoringProvider;
 
     public TelemetryController(
         ITelemetrySnapshotProvider snapshotProvider,
-        WebSocketTicketStore ticketStore)
+        WebSocketTicketStore ticketStore,
+        ICompanionHardwareMonitoringProvider? hardwareMonitoringProvider = null)
     {
         _snapshotProvider = snapshotProvider;
         _ticketStore = ticketStore;
+        _hardwareMonitoringProvider = hardwareMonitoringProvider ?? new NullCompanionHardwareMonitoringProvider();
     }
 
     [HttpGet]
@@ -28,6 +31,24 @@ public sealed class TelemetryController : ControllerBase
     {
         var snapshot = _snapshotProvider.CurrentSnapshot;
         return Ok(snapshot);
+    }
+
+    [HttpGet("hardware-monitor")]
+    public IActionResult GetHardwareMonitorStatus()
+    {
+        return Ok(_hardwareMonitoringProvider.GetStatus());
+    }
+
+    [HttpPost("hardware-monitor")]
+    public IActionResult SetHardwareMonitorStatus([FromBody] SetHardwareMonitoringRequestDto? request)
+    {
+        if (request == null)
+        {
+            return BadRequest("Invalid request payload.");
+        }
+
+        var status = _hardwareMonitoringProvider.SetEnabled(request.Enabled);
+        return Ok(status);
     }
 
     [HttpPost("ws-ticket")]

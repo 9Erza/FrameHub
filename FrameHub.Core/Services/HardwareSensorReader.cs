@@ -127,4 +127,20 @@ public static class HardwareSensorReader
             _ => null
         };
     }
+
+    public static double CalculateVramUsagePercentage(long? usedBytes, long? totalBytes, float? fallbackLoadPercent = null)
+    {
+        if (usedBytes.HasValue && totalBytes.HasValue && totalBytes.Value > 0 && usedBytes.Value >= 0)
+        {
+            double pct = (double)usedBytes.Value / totalBytes.Value * 100.0;
+            return Math.Round(Math.Clamp(pct, 0.0, 100.0), 1);
+        }
+
+        if (fallbackLoadPercent.HasValue && !float.IsNaN(fallbackLoadPercent.Value) && !float.IsInfinity(fallbackLoadPercent.Value))
+        {
+            return Math.Round(Math.Clamp((double)fallbackLoadPercent.Value, 0.0, 100.0), 1);
+        }
+
+        return 0.0;
+    }
 }

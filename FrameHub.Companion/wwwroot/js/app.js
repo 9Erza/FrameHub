@@ -88,10 +88,18 @@
         livePointOneLow: document.getElementById('live-point-one-low'),
         hwCpuLoad: document.getElementById('hw-cpu-load'),
         hwCpuTemp: document.getElementById('hw-cpu-temp'),
+        hwCpuElevationHint: document.getElementById('hw-cpu-elevation-hint'),
         hwGpuLoad: document.getElementById('hw-gpu-load'),
         hwGpuTemp: document.getElementById('hw-gpu-temp'),
         hwRamUsage: document.getElementById('hw-ram-usage'),
         hwVramUsage: document.getElementById('hw-vram-usage'),
+        hwMonitorToggleBtn: document.getElementById('hw-monitor-toggle-btn'),
+        hwToggleDot: document.getElementById('hw-toggle-dot'),
+        hwToggleText: document.getElementById('hw-toggle-text'),
+        hwDisabledNotice: document.getElementById('hw-disabled-notice'),
+        hwEnableBtn: document.getElementById('hw-enable-btn'),
+        hwPermissionNotice: document.getElementById('hw-permission-notice'),
+        hwGridContainer: document.getElementById('hw-grid-container'),
 
         optSection: document.getElementById('session-optimization-section'),
         optStateBadge: document.getElementById('opt-state-badge'),
@@ -187,6 +195,17 @@
         elements.btnRefreshTargets.addEventListener('click', loadTargets);
         elements.btnStart.addEventListener('click', handleStart);
         elements.btnStop.addEventListener('click', handleStop);
+        if (elements.hwMonitorToggleBtn) {
+            elements.hwMonitorToggleBtn.addEventListener('click', function () {
+                const target = !currentHardwareMonitorState || !currentHardwareMonitorState.enabled;
+                handleToggleHardwareMonitor(target);
+            });
+        }
+        if (elements.hwEnableBtn) {
+            elements.hwEnableBtn.addEventListener('click', function () {
+                handleToggleHardwareMonitor(true);
+            });
+        }
         elements.btnRefreshHistory.addEventListener('click', fetchHistory);
         elements.btnCompareSessions.addEventListener('click', handleCompareClick);
         elements.btnCloseComparison.addEventListener('click', handleCloseComparison);

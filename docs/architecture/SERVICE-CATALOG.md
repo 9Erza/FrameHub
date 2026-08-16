@@ -219,6 +219,15 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 - **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** latest immutable DTO; 500 ms publication loop; conditional hardware read.
 - **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** presentation snapshot only; do not move business authority into DTO assembly.
 
+### ICompanionHardwareMonitoringProvider and AppCompanionHardwareMonitoringProvider
+
+- **NAME:** `ICompanionHardwareMonitoringProvider`, `AppCompanionHardwareMonitoringProvider`
+- **PATH / PROJECT:** `FrameHub.Companion/Providers/ICompanionHardwareMonitoringProvider.cs`, `FrameHub.App/Services/AppCompanionHardwareMonitoringProvider.cs` / Companion, App
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** remote hardware monitoring state query and mutation provider contract and App delegation to `AppRuntimeService.SetHardwareMonitorEnabled`.
+- **LIFETIME / MAJOR CONSUMERS:** Companion server singleton; `TelemetryController`.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** delegates to App runtime settings/lifecycle authority; no background loop or cache.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** remote mutations require `write:telemetry` scope without localhost write bypass; safe boolean DTOs only.
+
 ### CompanionServer and authentication services
 
 - **NAME:** `CompanionServer`, `CompanionAuthMiddleware`, `PairingEngine`, `CompanionScopes`
