@@ -154,6 +154,37 @@ public sealed class ActiveGameMonitorTests
         Assert.AreEqual(osStartTime2, snapshot.Process.StartTimeUtc);
     }
 
+    [TestMethod]
+    public void ResolveActiveGame_RiotItemRunning_BecomesCurrentSnapshot()
+    {
+        string leaguePath = "C:\\Riot Games\\League of Legends\\Game\\League of Legends.exe";
+        var startTime = new DateTime(2026, 8, 15, 21, 30, 0, DateTimeKind.Utc);
+        var snapshotProvider = new FakeProcessSnapshotProvider([
+            new BenchmarkProcessSnapshot(4242, "League of Legends", leaguePath, startTime)
+        ]);
+        var gameDetector = new BenchmarkGameDetectionService(snapshotProvider);
+        var riotItem = new LibraryItem
+        {
+            Id = "riot-lol",
+            DisplayName = "League of Legends",
+            Source = LibrarySource.Riot,
+            Type = LibraryItemType.Game,
+            ProcessName = "League of Legends",
+            ExecutablePath = leaguePath,
+            AllowBenchmark = false
+        };
+
+        var monitor = new ActiveGameMonitor(gameDetector, libraryLoader: () => [riotItem]);
+        monitor.UpdateSnapshotOnce();
+
+        var snapshot = monitor.CurrentSnapshot;
+        Assert.IsNotNull(snapshot, "A running Riot game must be published by the active-game authority.");
+        Assert.AreEqual("riot-lol", snapshot.LibraryItem.Id);
+        Assert.AreEqual(4242, snapshot.Process.ProcessId);
+        Assert.AreEqual("League of Legends", snapshot.Process.ProcessName);
+        Assert.AreEqual(startTime, snapshot.Process.StartTimeUtc);
+    }
+
     private static LibraryItem CreateGameItem(string id, string name, string executable) => new()
     {
         Id = id,

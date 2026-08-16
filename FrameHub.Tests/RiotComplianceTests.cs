@@ -272,6 +272,119 @@ public sealed class RiotComplianceTests
     }
 
     [TestMethod]
+    public void ActiveGameDetection_IncludesRiotItem_WhileBenchmarkDetectionExcludesIt()
+    {
+        string leaguePath = Path.GetFullPath(Path.Combine(_tempDirectory, "League of Legends.exe"));
+        string cs2Path = Path.GetFullPath(Path.Combine(_tempDirectory, "cs2.exe"));
+        var provider = new FakeProcessProvider(
+            new BenchmarkProcessSnapshot(4242, "League of Legends", leaguePath, DateTime.UtcNow),
+            new BenchmarkProcessSnapshot(5252, "cs2", cs2Path, DateTime.UtcNow));
+        var detector = new BenchmarkGameDetectionService(provider);
+        var riotItem = new LibraryItem
+        {
+            Id = "riot-lol",
+            DisplayName = "League of Legends",
+            Source = LibrarySource.Riot,
+            Type = LibraryItemType.Game,
+            ProcessName = "League of Legends",
+            ExecutablePath = leaguePath,
+            AllowBenchmark = false
+        };
+        var cs2Item = new LibraryItem
+        {
+            Id = "cs2",
+            DisplayName = "Counter-Strike 2",
+            Type = LibraryItemType.Game,
+            ProcessName = "cs2",
+            ExecutablePath = cs2Path,
+            AllowBenchmark = true
+        };
+
+        IReadOnlyList<BenchmarkRunningGame> active = detector.DetectActiveGames([riotItem, cs2Item]);
+        IReadOnlyList<BenchmarkRunningGame> eligible = detector.Detect([riotItem, cs2Item]);
+
+        Assert.AreEqual(2, active.Count, "A running Riot game must remain visible as an active game.");
+        Assert.IsTrue(active.Any(g => g.LibraryItem.Id == "riot-lol"));
+        Assert.IsTrue(active.Any(g => g.LibraryItem.Id == "cs2"));
+
+        Assert.AreEqual(1, eligible.Count, "Only the benchmark-eligible game may be a benchmark target.");
+        Assert.AreEqual("cs2", eligible[0].LibraryItem.Id, "Riot games must never become benchmark or live-PresentMon targets.");
+    }
+
+    [TestMethod]
+    public void ActiveGameDetection_LauncherProcessesOnly_DoNotReportLeagueRunning()
+    {
+        var provider = new FakeProcessProvider(
+            new BenchmarkProcessSnapshot(900, "RiotClientServices", Path.GetFullPath(Path.Combine(_tempDirectory, "RiotClientServices.exe")), DateTime.UtcNow),
+            new BenchmarkProcessSnapshot(901, "LeagueClient", Path.GetFullPath(Path.Combine(_tempDirectory, "LeagueClient.exe")), DateTime.UtcNow),
+            new BenchmarkProcessSnapshot(902, "LeagueClientUx", Path.GetFullPath(Path.Combine(_tempDirectory, "LeagueClientUx.exe")), DateTime.UtcNow));
+        var detector = new BenchmarkGameDetectionService(provider);
+        var riotItem = new LibraryItem
+        {
+            Id = "riot-lol",
+            DisplayName = "League of Legends",
+            Source = LibrarySource.Riot,
+            Type = LibraryItemType.Game,
+            ProcessName = "League of Legends",
+            ExecutablePath = Path.GetFullPath(Path.Combine(_tempDirectory, "League of Legends.exe")),
+            AllowBenchmark = false
+        };
+
+        IReadOnlyList<BenchmarkRunningGame> active = detector.DetectActiveGames([riotItem]);
+        IReadOnlyList<BenchmarkRunningGame> eligible = detector.Detect([riotItem]);
+
+        Assert.AreEqual(0, active.Count, "Riot Client or League client processes alone must never count as the game running.");
+        Assert.AreEqual(0, eligible.Count);
+    }
+
+    [TestMethod]
+    public void BenchmarkDetection_ManualItemWithProtectedRiotName_NeverBenchmarkEligible()
+    {
+        var provider = new FakeProcessProvider(
+            new BenchmarkProcessSnapshot(5000, "League of Legends", null, DateTime.UtcNow));
+        var detector = new BenchmarkGameDetectionService(provider);
+        var manualItem = new LibraryItem
+        {
+            Id = "manual-lol",
+            DisplayName = "My League shortcut",
+            Type = LibraryItemType.Game,
+            ProcessName = "League of Legends",
+            AllowBenchmark = true
+        };
+
+        IReadOnlyList<BenchmarkRunningGame> active = detector.DetectActiveGames([manualItem]);
+        IReadOnlyList<BenchmarkRunningGame> eligible = detector.Detect([manualItem]);
+
+        Assert.AreEqual(1, active.Count, "A manual item matching a protected Riot game process may stay visible as an active game.");
+        Assert.AreEqual("manual-lol", active[0].LibraryItem.Id);
+        Assert.AreEqual(0, eligible.Count, "A protected Riot identity must never be benchmark eligible, even with AllowBenchmark == true.");
+    }
+
+    [TestMethod]
+    public void BenchmarkDetection_ManualItemWithProtectedRiotExecutablePath_NeverBenchmarkEligible()
+    {
+        string leaguePath = Path.GetFullPath(Path.Combine(_tempDirectory, "League of Legends.exe"));
+        var provider = new FakeProcessProvider(
+            new BenchmarkProcessSnapshot(5001, "League of Legends", leaguePath, DateTime.UtcNow));
+        var detector = new BenchmarkGameDetectionService(provider);
+        var manualItem = new LibraryItem
+        {
+            Id = "manual-lol-path",
+            DisplayName = "My League launcher entry",
+            Type = LibraryItemType.Game,
+            ProcessName = "customlaunchername",
+            ExecutablePath = leaguePath,
+            AllowBenchmark = true
+        };
+
+        IReadOnlyList<BenchmarkRunningGame> active = detector.DetectActiveGames([manualItem]);
+        IReadOnlyList<BenchmarkRunningGame> eligible = detector.Detect([manualItem]);
+
+        Assert.AreEqual(1, active.Count, "The path-matched manual item stays visible as an active game.");
+        Assert.AreEqual(0, eligible.Count, "A protected Riot executable path must never be benchmark eligible, even with AllowBenchmark == true.");
+    }
+
+    [TestMethod]
     public void Optimization_ProtectsRiotProcesses_FromProfileMutation()
     {
         var optimization = new OptimizationService(new ProcessService(), () => new Dictionary<int, uint>());

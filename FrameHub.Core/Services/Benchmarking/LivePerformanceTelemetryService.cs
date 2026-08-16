@@ -1,5 +1,6 @@
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models.Benchmarking;
+using FrameHub.Core.Services.Library;
 
 namespace FrameHub.Core.Services.Benchmarking;
 
@@ -191,6 +192,19 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
 
                 var activeGame = _activeGameMonitor.CurrentSnapshot;
                 if (activeGame == null || activeGame.Process.ProcessId <= 0)
+                {
+                    _currentSnapshot = null;
+                    swapChainBuffers.Clear();
+                    TeardownOwnedSession(ref api, ref session, ref query, ref trackingPid);
+
+                    await WaitDelayAsync(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                // Eligibility gate before any PresentMon session creation: active-game visibility
+                // alone never authorizes PresentMon. Benchmark-ineligible games (AllowBenchmark == false)
+                // and any protected Riot identity tear down an existing session and stay idle.
+                if (!IsLiveTelemetryEligible(activeGame))
                 {
                     _currentSnapshot = null;
                     swapChainBuffers.Clear();
@@ -464,6 +478,18 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
             _nativeSessionReleased = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             return true;
         }
+    }
+
+    /// <summary>
+    /// Live PresentMon eligibility. Benchmark capture must be enabled for the library item and
+    /// the observed process must not be a protected Riot identity (defense-in-depth for
+    /// manual/custom/legacy items that kept AllowBenchmark == true).
+    /// </summary>
+    private static bool IsLiveTelemetryEligible(ActiveGameSnapshot activeGame)
+    {
+        if (!activeGame.LibraryItem.AllowBenchmark) return false;
+        if (RiotGameProcesses.IsProtectedProcessName(activeGame.Process.ProcessName)) return false;
+        return true;
     }
 
     private void TeardownOwnedSession(ref IPresentMonApi? api, ref nint session, ref nint query, ref uint trackingPid)

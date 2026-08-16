@@ -161,7 +161,9 @@ public sealed class ActiveGameMonitor : IActiveGameMonitor
         IReadOnlyList<BenchmarkRunningGame> detectedGames;
         try
         {
-            detectedGames = _gameDetector.Detect(libraryItems);
+            // Active-game identity, not benchmark eligibility: a running game stays visible
+            // (e.g. Riot titles) even though benchmark/PresentMon flows filter it out.
+            detectedGames = _gameDetector.DetectActiveGames(libraryItems);
         }
         catch (Exception ex)
         {
