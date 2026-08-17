@@ -117,10 +117,9 @@
                                 <span class="stat-label" data-i18n="home.cpuLoad">CPU Load</span>
                                 <span class="stat-value" id="hw-cpu-load">--</span>
                             </div>
-                            <div class="stat-card" style="position: relative;">
+                            <div class="stat-card">
                                 <span class="stat-label" data-i18n="home.cpuTemp">CPU Temp</span>
                                 <span class="stat-value" id="hw-cpu-temp">--</span>
-                                <div id="hw-cpu-elevation-hint" class="hint-text hidden" style="font-size: 0.75rem; color: #888; margin-top: 0.25rem;" data-i18n="home.cpuElevationHint">CPU temperature may require running FrameHub as administrator.</div>
                             </div>
                             <div class="stat-card">
                                 <span class="stat-label" data-i18n="home.gpuLoad">GPU Load</span>
@@ -138,6 +137,10 @@
                                 <span class="stat-label" data-i18n="home.vramUsage">VRAM Usage</span>
                                 <span class="stat-value" id="hw-vram-usage">--</span>
                             </div>
+                        </div>
+                        <div id="hw-cpu-elevation-hint" class="hw-elevation-hint hidden">
+                            <span class="hint-icon" aria-hidden="true">ⓘ</span>
+                            <span class="hint-text" data-i18n="home.cpuElevationHint">CPU temperature may require running FrameHub as administrator.</span>
                         </div>
                     </div>
                 </section>

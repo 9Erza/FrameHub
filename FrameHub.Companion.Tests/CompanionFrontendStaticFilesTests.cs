@@ -760,6 +760,54 @@ public sealed class CompanionFrontendStaticFilesTests
         Assert.AreEqual("application/json", response.Content.Headers.ContentType?.MediaType);
     }
 
+    [TestMethod]
+    public async Task IndexHtml_HardwareTelemetryLayout_HasAllSixMetricCardsInGridAndElevationHintOutside()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+        string indexHtml = await (await client.GetAsync($"http://127.0.0.1:{port}/index.html")).Content.ReadAsStringAsync();
+        string stylesCss = await (await client.GetAsync($"http://127.0.0.1:{port}/css/styles.css")).Content.ReadAsStringAsync();
+
+        // 1. Grid container must contain all 6 hardware metrics
+        int gridStart = indexHtml.IndexOf("id=\"hw-grid-container\"", StringComparison.Ordinal);
+        Assert.IsTrue(gridStart >= 0, "index.html must have #hw-grid-container");
+
+        int cpuLoadIdx = indexHtml.IndexOf("id=\"hw-cpu-load\"", gridStart, StringComparison.Ordinal);
+        int cpuTempIdx = indexHtml.IndexOf("id=\"hw-cpu-temp\"", gridStart, StringComparison.Ordinal);
+        int gpuLoadIdx = indexHtml.IndexOf("id=\"hw-gpu-load\"", gridStart, StringComparison.Ordinal);
+        int gpuTempIdx = indexHtml.IndexOf("id=\"hw-gpu-temp\"", gridStart, StringComparison.Ordinal);
+        int ramUsageIdx = indexHtml.IndexOf("id=\"hw-ram-usage\"", gridStart, StringComparison.Ordinal);
+        int vramUsageIdx = indexHtml.IndexOf("id=\"hw-vram-usage\"", gridStart, StringComparison.Ordinal);
+
+        Assert.IsTrue(cpuLoadIdx > gridStart, "hw-cpu-load must be inside grid container");
+        Assert.IsTrue(cpuTempIdx > gridStart, "hw-cpu-temp must be inside grid container");
+        Assert.IsTrue(gpuLoadIdx > gridStart, "hw-gpu-load must be inside grid container");
+        Assert.IsTrue(gpuTempIdx > gridStart, "hw-gpu-temp must be inside grid container");
+        Assert.IsTrue(ramUsageIdx > gridStart, "hw-ram-usage must be inside grid container");
+        Assert.IsTrue(vramUsageIdx > gridStart, "hw-vram-usage must be inside grid container");
+
+        // 2. Elevation hint must be OUTSIDE the grid container (after vramUsageIdx)
+        int elevationHintIdx = indexHtml.IndexOf("id=\"hw-cpu-elevation-hint\"", StringComparison.Ordinal);
+        Assert.IsTrue(elevationHintIdx > vramUsageIdx, "hw-cpu-elevation-hint must be located after the last metric card in the grid");
+
+        // 3. CPU Temp card must not have nested hint text
+        int cpuTempCardEnd = indexHtml.IndexOf("</div>", cpuTempIdx, StringComparison.Ordinal);
+        string cpuTempCard = indexHtml.Substring(cpuTempIdx, cpuTempCardEnd - cpuTempIdx);
+        Assert.IsFalse(cpuTempCard.Contains("hw-cpu-elevation-hint"), "hw-cpu-elevation-hint must not be nested inside CPU Temp card");
+        Assert.IsFalse(cpuTempCard.Contains("hint-text"), "No hint-text must remain nested inside CPU Temp card");
+
+        // 4. Elevation hint must have localization attribute and styles class
+        Assert.IsTrue(indexHtml.Contains("class=\"hw-elevation-hint hidden\""), "Elevation hint must have hw-elevation-hint class");
+        Assert.IsTrue(indexHtml.Contains("data-i18n=\"home.cpuElevationHint\""), "Elevation hint must bind home.cpuElevationHint");
+
+        // 5. CSS must define .hw-elevation-hint
+        Assert.IsTrue(stylesCss.Contains(".hw-elevation-hint"), "styles.css must define .hw-elevation-hint rule");
+    }
+
     private sealed class TestFakeBenchmarkProvider : ICompanionBenchmarkProvider
     {
         public CompanionBenchmarkStatusDto GetStatus()
