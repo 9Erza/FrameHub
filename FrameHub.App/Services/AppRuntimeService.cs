@@ -85,7 +85,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         };
         _profileWatcherTimer.Tick += async (_, _) => await RunProfileWatcherOnceAsync();
 
-        BenchmarkCoordinator = new BenchmarkCaptureCoordinator();
+        BenchmarkCoordinator = new BenchmarkCaptureCoordinator(environmentProvider: new BenchmarkEnvironmentProvider());
         var gameDetector = new BenchmarkGameDetectionService(
             new SystemBenchmarkProcessSnapshotProvider(ProcessScanner.ObservationProvider));
         ActiveGameMonitor = new ActiveGameMonitor(gameDetector);

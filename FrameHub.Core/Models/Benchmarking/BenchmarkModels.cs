@@ -99,7 +99,12 @@ public sealed class BenchmarkSessionMetadata
     public BenchmarkSessionStatus Status { get; set; } = BenchmarkSessionStatus.Created;
     public string? DiagnosticMessage { get; set; }
     public string? ErrorCode { get; set; }
-    public Dictionary<string, string?> Environment { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Optional one-shot environment context captured at benchmark start. Absent or partially
+    /// empty for historical schema-v1 records; loading never requires it to be present.
+    /// </summary>
+    public BenchmarkEnvironmentSnapshot? Environment { get; init; }
 }
 
 public sealed class BenchmarkSession

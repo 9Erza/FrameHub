@@ -63,6 +63,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public ObservableCollection<BenchmarkGameOptionViewModel> Games { get; } = new();
     public ObservableCollection<BenchmarkHistoryItemViewModel> History { get; } = new();
     public ObservableCollection<BenchmarkComparisonRowViewModel> ComparisonRows { get; } = new();
+    public ObservableCollection<BenchmarkEnvironmentDifferenceRowViewModel> EnvironmentDifferenceRows { get; } = new();
     public IReadOnlyList<int> DurationOptions { get; } = [30, 60, 120];
     public IReadOnlyList<int> CountdownOptions { get; } = [0, 3, 5];
 
@@ -103,6 +104,9 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public string CompareSessionBHeader => _localization.T("Benchmark.Compare.Column.SessionB");
     public string CompareDeltaHeader => _localization.T("Benchmark.Compare.Column.Delta");
     public string CompareChangeHeader => _localization.T("Benchmark.Compare.Column.Change");
+    public string EnvironmentDifferencesTitle => _localization.T("Benchmark.Compare.EnvironmentDifferences");
+    public string EnvironmentDifferencesHint => _localization.T("Benchmark.Compare.EnvironmentDiffers");
+    public bool HasEnvironmentDifferences => EnvironmentDifferenceRows.Count > 0;
     public string OpenFolderText => _localization.T("Benchmark.OpenFolder");
     public string DeleteText => _localization.T("Benchmark.Delete");
     public string ResultTitle => _localization.T("Benchmark.Result.Title");
@@ -635,7 +639,9 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     private void RebuildComparison()
     {
         ComparisonRows.Clear();
+        EnvironmentDifferenceRows.Clear();
         OnPropertyChanged(nameof(CompareValidationText));
+        OnPropertyChanged(nameof(HasEnvironmentDifferences));
         if (ComparisonA?.IsCompleted != true || ComparisonB?.IsCompleted != true
             || ComparisonA.Entry.Metadata.SessionId == ComparisonB.Entry.Metadata.SessionId
             || !BenchmarkComparisonService.IsSameGame(ComparisonA.Entry.Metadata.Game, ComparisonB.Entry.Metadata.Game)) return;
@@ -643,7 +649,30 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         {
             ComparisonRows.Add(new BenchmarkComparisonRowViewModel(metric, _localization.T($"Benchmark.Metric.{metric.Key}"), _localization.CurrentLanguage));
         }
+
+        foreach (BenchmarkEnvironmentDifference difference in BenchmarkComparisonService.CompareEnvironments(ComparisonA.Entry, ComparisonB.Entry))
+        {
+            EnvironmentDifferenceRows.Add(new BenchmarkEnvironmentDifferenceRowViewModel(
+                EnvironmentDifferenceLabel(difference.Key),
+                difference.FirstValue,
+                difference.SecondValue));
+        }
+
+        OnPropertyChanged(nameof(HasEnvironmentDifferences));
     }
+
+    private string EnvironmentDifferenceLabel(string key) => key switch
+    {
+        BenchmarkComparisonService.EnvironmentKeyOs => _localization.T("Benchmark.Environment.Os"),
+        BenchmarkComparisonService.EnvironmentKeyCpu => _localization.T("Benchmark.Environment.Cpu"),
+        BenchmarkComparisonService.EnvironmentKeyGpu => _localization.T("Benchmark.Environment.Gpu"),
+        BenchmarkComparisonService.EnvironmentKeyGpuDriver => _localization.T("Benchmark.Environment.GpuDriver"),
+        BenchmarkComparisonService.EnvironmentKeyMemory => _localization.T("Benchmark.Environment.Memory"),
+        BenchmarkComparisonService.EnvironmentKeyDisplayResolution => _localization.T("Benchmark.Environment.Display"),
+        BenchmarkComparisonService.EnvironmentKeyDisplayRefreshRate => _localization.T("Benchmark.Environment.RefreshRate"),
+        BenchmarkComparisonService.EnvironmentKeyFrameHubVersion => _localization.T("Benchmark.Environment.FrameHub"),
+        _ => key
+    };
 
     string BuildCompareValidationText()
     {

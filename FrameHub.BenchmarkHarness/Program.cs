@@ -42,7 +42,8 @@ try
         identity,
         new AppInfo().Version,
         DateTime.UtcNow,
-        requestedCaptureDurationSeconds: options.DurationSeconds);
+        requestedCaptureDurationSeconds: options.DurationSeconds,
+        environment: new BenchmarkEnvironmentProvider().Capture());
     var backend = new PresentMonApiCaptureBackend(new PresentMonApiFrameSource(() => new PresentMonApi(new PresentMonApiDllLocator(options.PresentMonApiDllPath)), identity.ProcessName), storage: storage);
     BenchmarkCaptureResult result = await backend.CaptureAsync(session, cancellation.Token);
     BenchmarkReportWriter.WriteSummary(Console.Out, result);

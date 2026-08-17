@@ -68,6 +68,31 @@ public sealed class BenchmarkHistoryItemViewModel
     private string Format(double? value, string format) => value is double number && double.IsFinite(number) ? number.ToString(format, Culture) : "—";
 }
 
+public sealed class BenchmarkEnvironmentRowViewModel
+{
+    public BenchmarkEnvironmentRowViewModel(string label, string value)
+    {
+        Label = label;
+        Value = value;
+    }
+    public string Label { get; }
+    public string Value { get; }
+}
+
+public sealed class BenchmarkEnvironmentDifferenceRowViewModel
+{
+    public BenchmarkEnvironmentDifferenceRowViewModel(string label, string firstValue, string secondValue)
+    {
+        Label = label;
+        FirstValue = firstValue;
+        SecondValue = secondValue;
+    }
+    public string Label { get; }
+    public string FirstValue { get; }
+    public string SecondValue { get; }
+    public string ChangeText => $"{FirstValue} → {SecondValue}";
+}
+
 public sealed class BenchmarkResultViewModel
 {
     private readonly LocalizationService _localization;
@@ -148,7 +173,56 @@ public sealed class BenchmarkResultViewModel
     public string RequestedDurationLabel => _localization.T("Benchmark.Duration");
     public string QualityIssuesLabel => _localization.T("Benchmark.Result.QualityIssues");
     public string AdvancedLabel => _localization.T("Benchmark.AdvancedDetails");
+    public string EnvironmentLabel => _localization.T("Benchmark.Result.Environment");
+    public IReadOnlyList<BenchmarkEnvironmentRowViewModel> EnvironmentRows => BuildEnvironmentRows();
     private string MetricSummary(BenchmarkMetricSet? metrics) => metrics is null ? _localization.T("Benchmark.Unavailable") : $"{metrics.ValidFrameCount:N0} · P95 {metrics.P95FrameTimeMs?.ToString("0.00", Culture) ?? "—"} ms · P99 {metrics.P99FrameTimeMs?.ToString("0.00", Culture) ?? "—"} ms";
+
+    private IReadOnlyList<BenchmarkEnvironmentRowViewModel> BuildEnvironmentRows()
+    {
+        BenchmarkEnvironmentSnapshot? environment = Entry.Metadata.Environment;
+        string unavailable = _localization.T("Benchmark.Unavailable");
+        return
+        [
+            new(_localization.T("Benchmark.Environment.Cpu"), OrUnavailable(environment?.CpuName)),
+            new(_localization.T("Benchmark.Environment.Gpu"), OrUnavailable(environment?.GpuName)),
+            new(_localization.T("Benchmark.Environment.GpuDriver"), OrUnavailable(environment?.GpuDriverVersion)),
+            new(_localization.T("Benchmark.Environment.Os"), FormatOs(environment)),
+            new(_localization.T("Benchmark.Environment.Memory"), FormatMemory(environment?.TotalMemoryBytes)),
+            new(_localization.T("Benchmark.Environment.Display"), FormatDisplay(environment)),
+            new(_localization.T("Benchmark.Environment.FrameHub"), OrUnavailable(Entry.Metadata.FrameHubVersion))
+        ];
+
+        string OrUnavailable(string? value) => string.IsNullOrWhiteSpace(value) ? unavailable : value.Trim();
+    }
+
+    private string FormatOs(BenchmarkEnvironmentSnapshot? environment)
+    {
+        string unavailable = _localization.T("Benchmark.Unavailable");
+        string? description = string.IsNullOrWhiteSpace(environment?.OsDescription) ? null : environment.OsDescription.Trim();
+        string? build = string.IsNullOrWhiteSpace(environment?.OsBuild) ? null : environment.OsBuild.Trim();
+        if (description is null && build is null) return unavailable;
+        if (description is null) return build!;
+        if (build is null || description.Contains(build, StringComparison.OrdinalIgnoreCase)) return description;
+        return string.Format(Culture, _localization.T("Benchmark.Environment.OsBuildFormat"), description, build);
+    }
+
+    private string FormatMemory(ulong? totalMemoryBytes) =>
+        totalMemoryBytes is > 0
+            ? (totalMemoryBytes.Value / (1024.0 * 1024 * 1024)).ToString("0.0", Culture) + " GB"
+            : _localization.T("Benchmark.Unavailable");
+
+    private string FormatDisplay(BenchmarkEnvironmentSnapshot? environment)
+    {
+        string unavailable = _localization.T("Benchmark.Unavailable");
+        int? width = environment?.DisplayWidth is > 0 ? environment.DisplayWidth : null;
+        int? height = environment?.DisplayHeight is > 0 ? environment.DisplayHeight : null;
+        int? refresh = environment?.DisplayRefreshRateHz is > 0 ? environment.DisplayRefreshRateHz : null;
+        if (width is null && height is null && refresh is null) return unavailable;
+        if (width is null || height is null) return $"{refresh?.ToString(Culture) ?? "—"} Hz";
+        string resolution = $"{width.Value.ToString(Culture)} × {height.Value.ToString(Culture)}";
+        return refresh is null ? resolution : $"{resolution} @ {refresh.Value.ToString(Culture)} Hz";
+    }
+
     private string LocalizeQualityIssue(string code)
     {
         string key = $"Benchmark.QualityIssue.{code}";

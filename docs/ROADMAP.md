@@ -9,11 +9,11 @@
 - M10.2 Gaming Quick Actions / Gaming Mode: a Dashboard quick action that composes trusted Library launch, the shared launch cooldown, and Session Optimization lifecycle (optimize-only when the game is already running), with live session state and Restore.
 - Riot Games discovery (League of Legends, VALORANT): passive Start Menu shortcut discovery, official-shortcut launch, actual-game process identity, and hard non-mutation/non-benchmark protection for Riot game/client/Vanguard processes.
 - Architecture/performance consolidation checkpoint: shared on-demand process observation, batch Library/Background state, benchmark-safe profile mutation, unified Session preview policy, separated Companion providers, modular frontend, and canonical architecture documentation.
+- Benchmark Environment Metadata v1: one-shot, best-effort, backward-compatible environment context (OS/build, CPU, GPU/driver, RAM, primary display, FrameHub version) captured per benchmark, shown in Desktop benchmark details, and surfaced as advisory environment differences during comparison.
 
 ## Planned
 
 - Additional game integrations and clearer before/after reporting.
-- Additional benchmark environment metadata and reporting refinements in future releases.
 
 M10.1 deliberately uses one Stop action: FrameHub first requests a normal GUI close, waits briefly, then may force-terminate only the exact revalidated process instance belonging to the opted-in Library item. Apps that launch under a different executable identity are not controlled in this milestone.
 

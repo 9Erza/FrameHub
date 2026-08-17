@@ -16,6 +16,7 @@
 | Detect benchmark targets/games | `BenchmarkGameDetectionService`, `BenchmarkGameResolver`, shared observation provider |
 | Change benchmark statistics | `BenchmarkAnalyzer`, `BenchmarkStatistics`, quality evaluator, and dedicated tests |
 | Change benchmark storage/history | `BenchmarkStorageService` and schema-aware models |
+| Add or read benchmark environment context | `IBenchmarkEnvironmentProvider` captured once by `BenchmarkCaptureCoordinator`; comparison differences via `BenchmarkComparisonService.CompareEnvironments` |
 | Change benchmark PresentMon capture | `PresentMonApiCaptureBackend` and existing preemption protocol |
 | Change live PresentMon | `LivePerformanceTelemetryService`; do not add another owner |
 | Change hardware telemetry | `HardwareMonitorService`, App runtime leases, `AppTelemetrySnapshotProvider` |

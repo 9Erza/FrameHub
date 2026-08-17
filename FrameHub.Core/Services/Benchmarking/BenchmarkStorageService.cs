@@ -29,7 +29,8 @@ public sealed class BenchmarkStorageService
         string? activeCpuProfileId = null,
         string? activeCpuProfileName = null,
         bool? sessionOptimizationActive = null,
-        double? requestedCaptureDurationSeconds = null)
+        double? requestedCaptureDurationSeconds = null,
+        BenchmarkEnvironmentSnapshot? environment = null)
     {
         Guid sessionId = Guid.NewGuid();
         string gameDirectory = Path.Combine(_rootDirectory, CreateStableGameFolderKey(target));
@@ -51,7 +52,8 @@ public sealed class BenchmarkStorageService
                 Status = BenchmarkSessionStatus.Created,
                 ActiveCpuProfileId = activeCpuProfileId,
                 ActiveCpuProfileName = activeCpuProfileName,
-                SessionOptimizationActive = sessionOptimizationActive
+                SessionOptimizationActive = sessionOptimizationActive,
+                Environment = environment
             }
         };
 

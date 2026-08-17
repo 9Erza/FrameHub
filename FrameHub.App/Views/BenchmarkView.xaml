@@ -97,12 +97,28 @@
                         <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,14">
                             <StackPanel><TextBlock Text="{Binding QualityLabel}" Style="{StaticResource DataTitleText}"/><TextBlock Text="{Binding QualityIssues}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,7,0,0"/></StackPanel>
                         </Border>
-                        <Border Style="{StaticResource SectionSurface}">
+                        <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,14">
                             <StackPanel>
                                 <TextBlock Text="{Binding ContextLabel}" Style="{StaticResource DataTitleText}"/>
                                 <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding CpuProfileLabel}" Style="{StaticResource CaptionText}"/><TextBlock Grid.Column="1" Text="{Binding CpuProfile}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" MaxWidth="190"/></Grid>
                                 <Grid Margin="0,7,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding SessionOptimizationLabel}" Style="{StaticResource CaptionText}"/><TextBlock Grid.Column="1" Text="{Binding SessionOptimization}" Style="{StaticResource DataTitleText}"/></Grid>
                                 <Grid Margin="0,7,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding RequestedDurationLabel}" Style="{StaticResource CaptionText}"/><TextBlock Grid.Column="1" Text="{Binding RequestedDuration}" Style="{StaticResource DataTitleText}"/></Grid>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SectionSurface}">
+                            <StackPanel>
+                                <TextBlock Text="{Binding EnvironmentLabel}" Style="{StaticResource DataTitleText}"/>
+                                <ItemsControl ItemsSource="{Binding EnvironmentRows}" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,7">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Label}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" MaxWidth="190" ToolTip="{Binding Value}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -123,7 +139,7 @@
 
                 <Expander Header="{Binding AdvancedLabel}">
                     <Border Style="{StaticResource DataPanel}" Padding="16">
-                        <StackPanel><TextBlock Text="{Binding ProcessDetails}" Style="{StaticResource BodyText}" TextWrapping="Wrap"/><TextBlock Text="{Binding ExecutablePath}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,10"/><TextBlock Text="{Binding SwapChain}" Style="{StaticResource DataTitleText}"/><TextBlock Text="{Binding SelectionReason}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,10"/><TextBlock Text="{Binding Methodology}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap"/><TextBlock Text="{Binding DisplayedTiming}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0"/><TextBlock Text="{Binding BetweenDisplayChange}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,0"/><TextBlock Text="{Binding FrameTypes}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0"/><TextBlock Text="{Binding Diagnostics}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0"/><TextBlock Text="{Binding StoragePath}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,10,0,0"/><TextBlock Text="{Binding PresentMonVersion, StringFormat=PresentMon/API: {0}}" Style="{StaticResource CaptionText}" Margin="0,4,0,0"/><TextBlock Text="{Binding FrameHubVersion, StringFormat=FrameHub: {0}}" Style="{StaticResource CaptionText}"/></StackPanel>
+                        <StackPanel><TextBlock Text="{Binding ProcessDetails}" Style="{StaticResource BodyText}" TextWrapping="Wrap"/><TextBlock Text="{Binding ExecutablePath}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,10"/><TextBlock Text="{Binding SwapChain}" Style="{StaticResource DataTitleText}"/><TextBlock Text="{Binding SelectionReason}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,10"/><TextBlock Text="{Binding Methodology}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap"/><TextBlock Text="{Binding DisplayedTiming}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0"/><TextBlock Text="{Binding BetweenDisplayChange}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,0"/><TextBlock Text="{Binding FrameTypes}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0"/><TextBlock Text="{Binding Diagnostics}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0"/><TextBlock Text="{Binding StoragePath}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,10,0,0"/><TextBlock Text="{Binding PresentMonVersion, StringFormat=PresentMon/API: {0}}" Style="{StaticResource CaptionText}" Margin="0,4,0,0"/></StackPanel>
                     </Border>
                 </Expander>
             </StackPanel>
@@ -218,6 +234,23 @@
                         <TextBlock Text="{Binding CompareValidationText}" Style="{StaticResource StatusText}" Margin="0,0,0,10"/>
                         <Border Style="{StaticResource SectionSurface}">
                             <StackPanel><Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="{Binding CompareMetricHeader}" Style="{StaticResource TinyCapsText}"/><TextBlock Grid.Column="1" Text="{Binding CompareSessionAHeader}" Style="{StaticResource TinyCapsText}"/><TextBlock Grid.Column="2" Text="{Binding CompareSessionBHeader}" Style="{StaticResource TinyCapsText}"/><TextBlock Grid.Column="3" Text="{Binding CompareDeltaHeader}" Style="{StaticResource TinyCapsText}"/><TextBlock Grid.Column="4" Text="{Binding CompareChangeHeader}" Style="{StaticResource TinyCapsText}"/></Grid><ItemsControl ItemsSource="{Binding ComparisonRows}"><ItemsControl.ItemTemplate><DataTemplate><Border Style="{StaticResource InlineRow}"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Name}" Style="{StaticResource DataTitleText}"/><TextBlock Grid.Column="1" Text="{Binding SessionA}" Style="{StaticResource BodyText}"/><TextBlock Grid.Column="2" Text="{Binding SessionB}" Style="{StaticResource BodyText}"/><TextBlock Grid.Column="3" Text="{Binding Delta}" Style="{StaticResource BodyText}"/><TextBlock Grid.Column="4" Text="{Binding Percentage}" Style="{StaticResource DataTitleText}"/></Grid></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SectionSurface}" Margin="0,12,0,0" Visibility="{Binding HasEnvironmentDifferences, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <StackPanel>
+                                <TextBlock Text="{Binding EnvironmentDifferencesTitle}" Style="{StaticResource DataTitleText}"/>
+                                <TextBlock Text="{Binding EnvironmentDifferencesHint}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,5,0,8"/>
+                                <ItemsControl ItemsSource="{Binding EnvironmentDifferenceRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,6">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Label}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding ChangeText}" Style="{StaticResource BodyText}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </Border>
                     </StackPanel>
                 </Grid>

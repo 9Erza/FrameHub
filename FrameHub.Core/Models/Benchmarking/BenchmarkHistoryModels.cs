@@ -31,4 +31,15 @@ public sealed class BenchmarkComparisonMetric
     public BenchmarkMetricDirection Direction { get; init; }
 }
 
+/// <summary>
+/// One advisory environment difference between two compared benchmark sessions.
+/// Values are preformatted neutral strings; unavailable values never appear here.
+/// </summary>
+public sealed class BenchmarkEnvironmentDifference
+{
+    public required string Key { get; init; }
+    public required string FirstValue { get; init; }
+    public required string SecondValue { get; init; }
+}
+
 public readonly record struct BenchmarkChartPoint(double ElapsedSeconds, double FrameTimeMs);

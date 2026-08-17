@@ -125,6 +125,15 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 - **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** disk-backed, atomic metadata writes; no timer.
 - **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** preserve schema/version and session-directory ownership.
 
+### BenchmarkEnvironmentProvider
+
+- **NAME:** `IBenchmarkEnvironmentProvider`, `BenchmarkEnvironmentProvider`
+- **PATH / PROJECT:** `FrameHub.Core/Services/Benchmarking/BenchmarkEnvironmentProvider.cs` / Core
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** one-shot best-effort benchmark environment snapshot (OS/build, CPU, GPU/driver, RAM, primary display) persisted with benchmark sessions.
+- **LIFETIME / MAJOR CONSUMERS:** stateless provider supplied by `AppRuntimeService` to `BenchmarkCaptureCoordinator`; developer harness creates one directly per capture.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** no state, cache, timer, or lifecycle; a single `Capture()` call uses one-shot WMI metadata, `GlobalMemoryStatusEx`, and `EnumDisplaySettings` queries.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** contextual data only — never a second capture lifecycle; independent of Hardware Monitor/PawnIO/elevation; collects no personally identifying information; field failures degrade to null and never abort capture.
+
 ## Library and remote control
 
 ### GamingQuickActionService

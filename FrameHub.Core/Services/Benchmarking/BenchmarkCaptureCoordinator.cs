@@ -8,6 +8,7 @@ public sealed class BenchmarkCaptureCoordinator : IBenchmarkCaptureCoordinator, 
     private readonly BenchmarkStorageService _storage;
     private readonly Func<IBenchmarkCaptureBackend> _backendFactory;
     private readonly IBenchmarkProcessIdentityProvider _identityProvider;
+    private readonly IBenchmarkEnvironmentProvider? _environmentProvider;
     private readonly ILogger _logger;
     private readonly Func<TimeSpan, CancellationToken, Task> _delayProvider;
     private ILivePresentMonPreemption? _livePresentMonPreemption;
@@ -78,13 +79,15 @@ public sealed class BenchmarkCaptureCoordinator : IBenchmarkCaptureCoordinator, 
         Func<IBenchmarkCaptureBackend>? backendFactory = null,
         IBenchmarkProcessIdentityProvider? identityProvider = null,
         ILogger? logger = null,
-        Func<TimeSpan, CancellationToken, Task>? delayProvider = null)
+        Func<TimeSpan, CancellationToken, Task>? delayProvider = null,
+        IBenchmarkEnvironmentProvider? environmentProvider = null)
     {
         _storage = storage ?? new BenchmarkStorageService();
         _backendFactory = backendFactory ?? (() => new PresentMonApiCaptureBackend(storage: _storage));
         _identityProvider = identityProvider ?? new BenchmarkProcessIdentityProvider();
         _logger = logger ?? LoggerService.Instance;
         _delayProvider = delayProvider ?? Task.Delay;
+        _environmentProvider = environmentProvider;
     }
 
     public Task<BenchmarkCaptureOutcome> StartCaptureAsync(BenchmarkCaptureRequest request, CancellationToken cancellationToken = default)
@@ -212,6 +215,26 @@ public sealed class BenchmarkCaptureCoordinator : IBenchmarkCaptureCoordinator, 
         return true;
     }
 
+    /// <summary>
+    /// Captures the one-shot benchmark environment snapshot. Best-effort only:
+    /// any provider failure is logged and never aborts benchmark capture.
+    /// The provider is invoked exactly once per accepted capture and never polled.
+    /// </summary>
+    private BenchmarkEnvironmentSnapshot? CaptureEnvironmentSnapshot()
+    {
+        IBenchmarkEnvironmentProvider? provider = _environmentProvider;
+        if (provider is null) return null;
+        try
+        {
+            return provider.Capture();
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Benchmark environment snapshot unavailable; capture continues without it: {ex.Message}");
+            return null;
+        }
+    }
+
     public bool TryAcquireExternalMutation(out IDisposable? lease)
     {
         lock (_lock)
@@ -321,6 +344,7 @@ public sealed class BenchmarkCaptureCoordinator : IBenchmarkCaptureCoordinator, 
 
             // 2. Session Creation (Exactly once)
             DateTime startUtc = DateTime.UtcNow;
+            BenchmarkEnvironmentSnapshot? environment = CaptureEnvironmentSnapshot();
             BenchmarkSession session = _storage.CreateSession(
                 request.Target,
                 request.Process,
@@ -329,7 +353,8 @@ public sealed class BenchmarkCaptureCoordinator : IBenchmarkCaptureCoordinator, 
                 request.ProfileId,
                 request.ProfileName,
                 request.SessionOptimizationActive,
-                request.DurationSeconds);
+                request.DurationSeconds,
+                environment);
 
             // 3. Instantiate Backend (Exactly once per accepted capture)
             IBenchmarkCaptureBackend backend = _backendFactory();
