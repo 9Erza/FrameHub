@@ -69,6 +69,15 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 - **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** file-backed JSON with atomic service; no native work or timer.
 - **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** preserve WAL persist-before-mutation and conservative recovery semantics.
 
+### ISessionCpuControlBackend and SessionCpuControlBackend
+
+- **NAME:** `ISessionCpuControlBackend`, `SessionCpuControlBackend`
+- **PATH / PROJECT:** `FrameHub.Core/Services/SessionOptimization/SessionCpuControlBackend.cs` / Core
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** narrow native boundary for session CPU scheduling operations (topology projection, selection validation, fresh identity revalidation, current core reading, and ProcessService core optimization application); synthetic test seam.
+- **LIFETIME / MAJOR CONSUMERS:** configured into `SessionOptimizationCoordinator` by `AppRuntimeService`.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** delegates to `ProcessService`, hardware topology, and CPU Set map; no state, no cache, no background loop.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** does not decide session policy, profile lookup, or restore baseline; freshly validates PID/start/name/path identity before mutation and fails closed on change/exit.
+
 ## Benchmark and telemetry
 
 ### BenchmarkCaptureCoordinator

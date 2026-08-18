@@ -33,6 +33,7 @@
 | Change Companion benchmark UI | `benchmarks.js` |
 | Change Companion Library/Background UI | `library.js` |
 | Change Companion Session UI | `session-optimization.js` |
+| Control active game CPU scheduling remotely | `SessionOptimizationCoordinator`, `ISessionCpuControlBackend`, `read:optimization-cpu` / `write:optimization-cpu` scopes |
 | Change frontend bootstrap/navigation | `app.js`; do not move domain logic back into it |
 | Add localization text | Desktop `LocalizationService` or Companion `i18n.js`; keep EN/PL parity |
 | Persist general JSON safely | existing domain owner and `AtomicFileService` where semantics match |

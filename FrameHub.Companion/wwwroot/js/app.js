@@ -110,7 +110,22 @@
         btnApplyOpt: document.getElementById('btn-apply-optimization'),
         btnRestoreOpt: document.getElementById('btn-restore-optimization'),
         btnRefreshOpt: document.getElementById('btn-refresh-optimization'),
-        optFeedback: document.getElementById('opt-feedback')
+        optFeedback: document.getElementById('opt-feedback'),
+
+        optCpuBlock: document.getElementById('opt-cpu-block'),
+        optCpuSource: document.getElementById('opt-cpu-source'),
+        optCpuModeLabel: document.getElementById('opt-cpu-mode-label'),
+        optCpuSummary: document.getElementById('opt-cpu-summary'),
+        optCpuOverrideBadge: document.getElementById('opt-cpu-override-badge'),
+        optCpuUnavailable: document.getElementById('opt-cpu-unavailable'),
+        btnEditCpu: document.getElementById('btn-edit-cpu'),
+        optCpuEditor: document.getElementById('opt-cpu-editor'),
+        optCpuChips: document.getElementById('opt-cpu-chips'),
+        btnCpuModeAffinity: document.getElementById('btn-cpu-mode-affinity'),
+        btnCpuModeCpusets: document.getElementById('btn-cpu-mode-cpusets'),
+        btnApplyCpu: document.getElementById('btn-apply-cpu'),
+        btnCancelCpu: document.getElementById('btn-cancel-cpu'),
+        btnRestoreCpu: document.getElementById('btn-restore-cpu')
     };
 
     let selectedSessionIds = new Set();
@@ -191,7 +206,16 @@
         if (elements.btnRefreshBackgroundApps) elements.btnRefreshBackgroundApps.addEventListener('click', fetchBackgroundApps);
         if (elements.btnApplyOpt) elements.btnApplyOpt.addEventListener('click', handleApplyOptimization);
         if (elements.btnRestoreOpt) elements.btnRestoreOpt.addEventListener('click', handleRestoreOptimization);
-        if (elements.btnRefreshOpt) elements.btnRefreshOpt.addEventListener('click', fetchOptimizationState);
+        if (elements.btnRefreshOpt) elements.btnRefreshOpt.addEventListener('click', function () {
+            fetchOptimizationState();
+            fetchSessionCpuState();
+        });
+        if (elements.btnEditCpu) elements.btnEditCpu.addEventListener('click', handleEditCpu);
+        if (elements.btnApplyCpu) elements.btnApplyCpu.addEventListener('click', handleApplyCpuOverride);
+        if (elements.btnCancelCpu) elements.btnCancelCpu.addEventListener('click', function () { setCpuEditorOpen(false); });
+        if (elements.btnRestoreCpu) elements.btnRestoreCpu.addEventListener('click', handleResetCpuOverride);
+        if (elements.btnCpuModeAffinity) elements.btnCpuModeAffinity.addEventListener('click', function () { setCpuEditMode('affinity'); });
+        if (elements.btnCpuModeCpusets) elements.btnCpuModeCpusets.addEventListener('click', function () { setCpuEditMode('cpu-sets'); });
         elements.btnRefreshTargets.addEventListener('click', loadTargets);
         elements.btnStart.addEventListener('click', handleStart);
         elements.btnStop.addEventListener('click', handleStop);
@@ -214,11 +238,15 @@
         fetchHistory();
         fetchStatus();
         fetchOptimizationState();
+        fetchSessionCpuState();
         initTelemetryConnection();
 
-        // Polling interval (1000ms for status, 4000ms for optimization)
+        // Polling interval (1000ms for status, 4000ms for optimization + session CPU)
         pollIntervalId = setInterval(fetchStatus, 1000);
-        optPollIntervalId = setInterval(fetchOptimizationState, 4000);
+        optPollIntervalId = setInterval(function () {
+            fetchOptimizationState();
+            fetchSessionCpuState();
+        }, 4000);
     }
 
     // Clean up on unload

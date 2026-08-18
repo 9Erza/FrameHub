@@ -18,6 +18,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     private bool _writeBackgroundAppsEnabled;
     private bool _readOptimizationEnabled;
     private bool _writeOptimizationEnabled;
+    private bool _readOptimizationCpuEnabled;
+    private bool _writeOptimizationCpuEnabled;
 
     public Guid Id { get; }
     public string DisplayName { get; }
@@ -35,6 +37,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     public string ScopeWriteBackgroundAppsLabel { get; }
     public string ScopeReadOptimizationLabel { get; }
     public string ScopeWriteOptimizationLabel { get; }
+    public string ScopeReadOptimizationCpuLabel { get; }
+    public string ScopeWriteOptimizationCpuLabel { get; }
     public string RevokeLabel { get; }
     public ICommand RevokeCommand { get; }
 
@@ -47,6 +51,7 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
     public string AreaBackgroundAppsLabel { get; }
     public string AreaOptimizationLabel { get; }
     public string AreaBenchmarksLabel { get; }
+    public string AreaSessionCpuLabel { get; }
 
     public bool ReadTelemetryEnabled
     {
@@ -236,6 +241,44 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         }
     }
 
+    public bool ReadOptimizationCpuEnabled
+    {
+        get => _readOptimizationCpuEnabled;
+        set
+        {
+            if (SetProperty(ref _readOptimizationCpuEnabled, value))
+            {
+                _onToggleScope(Id, CompanionScopes.ReadOptimizationCpu, value);
+
+                if (!value && _writeOptimizationCpuEnabled)
+                {
+                    _writeOptimizationCpuEnabled = false;
+                    OnPropertyChanged(nameof(WriteOptimizationCpuEnabled));
+                    _onToggleScope(Id, CompanionScopes.WriteOptimizationCpu, false);
+                }
+            }
+        }
+    }
+
+    public bool WriteOptimizationCpuEnabled
+    {
+        get => _writeOptimizationCpuEnabled;
+        set
+        {
+            if (SetProperty(ref _writeOptimizationCpuEnabled, value))
+            {
+                _onToggleScope(Id, CompanionScopes.WriteOptimizationCpu, value);
+
+                if (value && !_readOptimizationCpuEnabled)
+                {
+                    _readOptimizationCpuEnabled = true;
+                    OnPropertyChanged(nameof(ReadOptimizationCpuEnabled));
+                    _onToggleScope(Id, CompanionScopes.ReadOptimizationCpu, true);
+                }
+            }
+        }
+    }
+
     public PairedDeviceItemViewModel(
         PairedDeviceRecord record,
         Action<Guid> onRevoke,
@@ -262,7 +305,10 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         string? areaBackgroundAppsLabel = null,
         string? areaOptimizationLabel = null,
         string? areaBenchmarksLabel = null,
-        string? scopeWriteTelemetryLabel = null)
+        string? scopeWriteTelemetryLabel = null,
+        string? scopeReadOptimizationCpuLabel = null,
+        string? scopeWriteOptimizationCpuLabel = null,
+        string? areaSessionCpuLabel = null)
     {
         Id = record.Id;
         DisplayName = record.DisplayName;
@@ -283,6 +329,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         ScopeWriteBackgroundAppsLabel = scopeWriteBackgroundAppsLabel ?? "Background App Control";
         ScopeReadOptimizationLabel = scopeReadOptimizationLabel ?? "Optimization Data";
         ScopeWriteOptimizationLabel = scopeWriteOptimizationLabel ?? "Optimization Control";
+        ScopeReadOptimizationCpuLabel = scopeReadOptimizationCpuLabel ?? "Session CPU Data";
+        ScopeWriteOptimizationCpuLabel = scopeWriteOptimizationCpuLabel ?? "Session CPU Control";
         RevokeLabel = revokeLabel ?? "Revoke";
 
         PermissionsHeader = permissionsHeader ?? "Permissions";
@@ -294,6 +342,7 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         AreaBackgroundAppsLabel = areaBackgroundAppsLabel ?? "Background apps";
         AreaOptimizationLabel = areaOptimizationLabel ?? "Optimization";
         AreaBenchmarksLabel = areaBenchmarksLabel ?? "Benchmarks";
+        AreaSessionCpuLabel = areaSessionCpuLabel ?? "Session CPU";
 
         _onToggleScope = onToggleScope ?? ((_, _, _) => { });
         _readTelemetryEnabled = record.Scopes.Contains(CompanionScopes.ReadTelemetry, StringComparer.OrdinalIgnoreCase);
@@ -306,6 +355,8 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         _writeBackgroundAppsEnabled = record.Scopes.Contains(CompanionScopes.WriteBackgroundApps, StringComparer.OrdinalIgnoreCase);
         _readOptimizationEnabled = record.Scopes.Contains(CompanionScopes.ReadOptimization, StringComparer.OrdinalIgnoreCase);
         _writeOptimizationEnabled = record.Scopes.Contains(CompanionScopes.WriteOptimization, StringComparer.OrdinalIgnoreCase);
+        _readOptimizationCpuEnabled = record.Scopes.Contains(CompanionScopes.ReadOptimizationCpu, StringComparer.OrdinalIgnoreCase);
+        _writeOptimizationCpuEnabled = record.Scopes.Contains(CompanionScopes.WriteOptimizationCpu, StringComparer.OrdinalIgnoreCase);
 
         RevokeCommand = new RelayCommand(_ => onRevoke(Id));
     }

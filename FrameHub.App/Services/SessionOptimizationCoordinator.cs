@@ -1,5 +1,8 @@
+using System.IO;
 using System.Threading;
 using FrameHub.Core.Logging;
+using FrameHub.Core.Models;
+using FrameHub.Core.Models.Benchmarking;
 using FrameHub.Core.Models.Library;
 using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services;
@@ -31,6 +34,35 @@ public sealed record SessionOptimizationRestoreResult
 }
 
 /// <summary>
+/// Read-only view of the temporary active-game session CPU control state.
+/// The session token is an opaque coordinator-generated identity for optimistic
+/// targeting; it is never a PID or process reference.
+/// </summary>
+public sealed record SessionCpuStateResult
+{
+    public bool Available { get; init; }
+    public string UnavailableReason { get; init; } = string.Empty;
+    public bool ProtectedGame { get; init; }
+    public Guid? SessionToken { get; init; }
+    public string? LibraryItemId { get; init; }
+    public string? GameDisplayName { get; init; }
+    public string? GameProcessName { get; init; }
+    public bool TemporaryOverrideActive { get; init; }
+    public SessionCpuSelection? CurrentSelection { get; init; }
+    public SessionCpuSelection? OverrideSelection { get; init; }
+    public SessionCpuSelection? BaselineSelection { get; init; }
+    public SessionCpuTopology? Topology { get; init; }
+}
+
+public sealed record SessionCpuMutationResult
+{
+    public bool Success { get; init; }
+    public string ErrorCode { get; init; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
+    public SessionCpuStateResult? State { get; init; }
+}
+
+/// <summary>
 /// Authoritative application-level coordinator for Session Optimization.
 /// Manages active session state, process suspension/resumption, taskbar hiding,
 /// persistence and concurrency gating across Desktop UI and remote Companion requests.
@@ -45,16 +77,20 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
     private readonly TaskbarVisibilityService _taskbarService;
     private readonly LibraryService _libraryService;
     private readonly IBenchmarkOperationArbiter? _benchmarkArbiter;
+    private readonly IActiveGameMonitor? _activeGameMonitor;
+    private readonly ISessionCpuControlBackend? _sessionCpuBackend;
     private readonly ILogger _logger;
 
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
     private readonly SemaphoreSlim _scanGate = new(1, 1);
     private readonly object _stateLock = new();
     private readonly object _lifecycleLock = new();
+    private readonly object _sessionCpuLock = new();
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly TaskCompletionSource _operationsDrained = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private ActiveSessionState? _activeSession;
+    private SessionCpuOverrideState? _sessionCpuState;
     private int _activeOperations;
     private bool _shutdownStarted;
     private bool _gatesDisposed;
@@ -91,7 +127,9 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         TaskbarVisibilityService? taskbarService = null,
         LibraryService? libraryService = null,
         ILogger? logger = null,
-        IBenchmarkOperationArbiter? benchmarkArbiter = null)
+        IBenchmarkOperationArbiter? benchmarkArbiter = null,
+        IActiveGameMonitor? activeGameMonitor = null,
+        ISessionCpuControlBackend? sessionCpuBackend = null)
     {
         processScanner ??= new ProcessScannerService(new ProcessService());
         _stateService = stateService ?? new SessionStateService();
@@ -100,6 +138,8 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         _taskbarService = taskbarService ?? new TaskbarVisibilityService();
         _libraryService = libraryService ?? new LibraryService();
         _benchmarkArbiter = benchmarkArbiter;
+        _activeGameMonitor = activeGameMonitor;
+        _sessionCpuBackend = sessionCpuBackend;
         _logger = logger ?? LoggerService.Instance;
 
         _activeSession = _stateService.Load();
@@ -474,6 +514,338 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         {
             ExitOperation();
         }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Temporary active-game session CPU control (Companion V2)
+    // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Current state of temporary session CPU control for the authoritative active game.
+    /// The target is always resolved server-side from the ActiveGameMonitor snapshot;
+    /// callers never supply a PID, path, or process name.
+    /// </summary>
+    public SessionCpuStateResult GetSessionCpuState()
+    {
+        if (_activeGameMonitor is null || _sessionCpuBackend is null)
+        {
+            return new SessionCpuStateResult { Available = false, UnavailableReason = "session_cpu_unavailable" };
+        }
+
+        ActiveGameSnapshot? snapshot = _activeGameMonitor.CurrentSnapshot;
+        SessionCpuOverrideState state = ReconcileSessionCpuState(snapshot);
+        return BuildSessionCpuState(state, snapshot);
+    }
+
+    /// <summary>
+    /// Applies a temporary CPU scheduling override to the authoritative active game.
+    /// Fails closed on stale session token, protected games, benchmark activity,
+    /// missing/changed process identity, or invalid selections. The first override for
+    /// a session captures the actual current scheduling state as the restore baseline.
+    /// </summary>
+    public SessionCpuMutationResult ApplySessionCpuOverride(Guid sessionToken, OptimizationMode mode, long mask)
+    {
+        if (!TryEnterOperation())
+        {
+            return SessionCpuError("coordinator_stopping", "Session Optimization is shutting down.");
+        }
+
+        try
+        {
+            if (!_mutationGate.Wait(0))
+            {
+                return SessionCpuError("operation_in_progress", "Another session optimization operation is in progress.");
+            }
+
+            IDisposable? benchmarkLease = null;
+            try
+            {
+                if (_benchmarkArbiter != null && !_benchmarkArbiter.TryAcquireExternalMutation(out benchmarkLease))
+                {
+                    return SessionCpuError("benchmark_active", "CPU configuration cannot change while a benchmark is active.");
+                }
+
+                if (_activeGameMonitor is null || _sessionCpuBackend is null)
+                {
+                    return SessionCpuError("session_cpu_unavailable", "Session CPU control is unavailable.");
+                }
+
+                ActiveGameSnapshot? snapshot = _activeGameMonitor.CurrentSnapshot;
+                if (snapshot is null)
+                {
+                    return SessionCpuError("no_game", "No active game detected.");
+                }
+
+                SessionCpuOverrideState state = ReconcileSessionCpuState(snapshot);
+                if (state.Token != sessionToken)
+                {
+                    return SessionCpuStale(state, snapshot);
+                }
+
+                if (IsProtectedActiveGame(snapshot))
+                {
+                    return SessionCpuFailure(state, snapshot, "protected_game", "CPU control is unavailable for this protected game.");
+                }
+
+                if (!_sessionCpuBackend.IsValidSelection(mode, mask))
+                {
+                    return SessionCpuError("invalid_selection", "The selected CPU configuration is not valid for this system.");
+                }
+
+                if (_sessionCpuBackend.ResolveFreshIdentity(snapshot.Process) is null)
+                {
+                    return SessionCpuError("target_lost", "The game process exited or changed; no changes were made.");
+                }
+
+                lock (_sessionCpuLock)
+                {
+                    if (state.Override is null)
+                    {
+                        SessionCpuSelection? baseline = _sessionCpuBackend.GetCurrentSelection(snapshot.Process.ProcessId);
+                        if (baseline is null)
+                        {
+                            // Without a readable baseline a safe restore is impossible; fail closed.
+                            return SessionCpuError("baseline_unavailable", "The current CPU configuration could not be read, so a temporary change was refused.");
+                        }
+                        state.Baseline = baseline;
+                    }
+                }
+
+                string applied = _sessionCpuBackend.ApplySelection(snapshot.Process.ProcessId, new SessionCpuSelection(mode, mask));
+                if (!applied.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.Warn($"Session CPU override failed for '{snapshot.LibraryItem.DisplayName}': {applied}");
+                    return SessionCpuError("apply_failed", "The CPU configuration could not be applied.");
+                }
+
+                lock (_sessionCpuLock)
+                {
+                    state.Override = new SessionCpuSelection(mode, mask);
+                }
+
+                _logger.Info($"Temporary session CPU override applied to '{snapshot.LibraryItem.DisplayName}' ({mode}, mask 0x{mask:X}).");
+                return new SessionCpuMutationResult
+                {
+                    Success = true,
+                    ErrorCode = "applied",
+                    Message = "Temporary CPU configuration applied.",
+                    State = BuildSessionCpuState(state, snapshot)
+                };
+            }
+            finally
+            {
+                benchmarkLease?.Dispose();
+                _mutationGate.Release();
+            }
+        }
+        finally
+        {
+            ExitOperation();
+        }
+    }
+
+    /// <summary>
+    /// Restores the captured pre-override CPU scheduling state (which equals the applied
+    /// profile settings when a profile was in effect). Idempotent; never guesses a
+    /// baseline and never restores against a process that exited or was reused.
+    /// </summary>
+    public SessionCpuMutationResult ResetSessionCpuOverride(Guid sessionToken)
+    {
+        if (!TryEnterOperation())
+        {
+            return SessionCpuError("coordinator_stopping", "Session Optimization is shutting down.");
+        }
+
+        try
+        {
+            if (!_mutationGate.Wait(0))
+            {
+                return SessionCpuError("operation_in_progress", "Another session optimization operation is in progress.");
+            }
+
+            IDisposable? benchmarkLease = null;
+            try
+            {
+                if (_benchmarkArbiter != null && !_benchmarkArbiter.TryAcquireExternalMutation(out benchmarkLease))
+                {
+                    return SessionCpuError("benchmark_active", "CPU configuration cannot change while a benchmark is active.");
+                }
+
+                if (_activeGameMonitor is null || _sessionCpuBackend is null)
+                {
+                    return SessionCpuError("session_cpu_unavailable", "Session CPU control is unavailable.");
+                }
+
+                ActiveGameSnapshot? snapshot = _activeGameMonitor.CurrentSnapshot;
+                if (snapshot is null)
+                {
+                    return SessionCpuError("no_game", "No active game detected.");
+                }
+
+                SessionCpuOverrideState state = ReconcileSessionCpuState(snapshot);
+                if (state.Token != sessionToken)
+                {
+                    return SessionCpuStale(state, snapshot);
+                }
+
+                lock (_sessionCpuLock)
+                {
+                    if (state.Override is null)
+                    {
+                        // Idempotent: nothing to restore.
+                        return new SessionCpuMutationResult
+                        {
+                            Success = true,
+                            ErrorCode = "restored",
+                            Message = "CPU configuration already matches the session baseline.",
+                            State = BuildSessionCpuState(state, snapshot)
+                        };
+                    }
+
+                    if (IsProtectedActiveGame(snapshot))
+                    {
+                        return SessionCpuFailure(state, snapshot, "protected_game", "CPU control is unavailable for this protected game.");
+                    }
+
+                    SessionCpuSelection baseline = state.Baseline ?? throw new InvalidOperationException("Session CPU override without a captured baseline.");
+
+                    if (_sessionCpuBackend.ResolveFreshIdentity(snapshot.Process) is null)
+                    {
+                        return SessionCpuError("target_lost", "The game process exited or changed; no changes were made.");
+                    }
+
+                    string applied = _sessionCpuBackend.ApplySelection(snapshot.Process.ProcessId, baseline);
+                    if (!applied.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.Warn($"Session CPU restore failed for '{snapshot.LibraryItem.DisplayName}': {applied}");
+                        return SessionCpuError("apply_failed", "The CPU configuration could not be restored.");
+                    }
+
+                    state.Override = null;
+                }
+
+                _logger.Info($"Temporary session CPU override restored for '{snapshot.LibraryItem.DisplayName}'.");
+                return new SessionCpuMutationResult
+                {
+                    Success = true,
+                    ErrorCode = "restored",
+                    Message = "CPU configuration restored.",
+                    State = BuildSessionCpuState(state, snapshot)
+                };
+            }
+            finally
+            {
+                benchmarkLease?.Dispose();
+                _mutationGate.Release();
+            }
+        }
+        finally
+        {
+            ExitOperation();
+        }
+    }
+
+    /// <summary>
+    /// Observation-time reconciliation: when the authoritative active game ended or
+    /// changed (different library item or process instance), any stale override state is
+    /// discarded and a fresh opaque token is issued. No timer or watcher is involved.
+    /// </summary>
+    private SessionCpuOverrideState ReconcileSessionCpuState(ActiveGameSnapshot? snapshot)
+    {
+        lock (_sessionCpuLock)
+        {
+            SessionCpuOverrideState? current = _sessionCpuState;
+            bool sameSession = current is not null
+                && snapshot is not null
+                && string.Equals(current.LibraryItemId, snapshot.LibraryItem.Id, StringComparison.OrdinalIgnoreCase)
+                && current.Identity.IsSameInstance(snapshot.Process);
+            if (sameSession)
+            {
+                return current!;
+            }
+
+            _sessionCpuState = snapshot is null
+                ? null
+                : new SessionCpuOverrideState
+                {
+                    Token = Guid.NewGuid(),
+                    LibraryItemId = snapshot.LibraryItem.Id,
+                    GameDisplayName = snapshot.LibraryItem.DisplayName,
+                    GameProcessName = snapshot.Process.ProcessName,
+                    Identity = snapshot.Process
+                };
+            return _sessionCpuState!;
+        }
+    }
+
+    private SessionCpuStateResult BuildSessionCpuState(SessionCpuOverrideState? state, ActiveGameSnapshot? snapshot)
+    {
+        bool protectedGame = IsProtectedActiveGame(snapshot);
+        SessionCpuSelection? current = snapshot is not null
+            ? _sessionCpuBackend?.GetCurrentSelection(snapshot.Process.ProcessId)
+            : null;
+
+        return new SessionCpuStateResult
+        {
+            Available = snapshot is not null && !protectedGame,
+            UnavailableReason = snapshot is null ? "no_game" : protectedGame ? "protected_game" : string.Empty,
+            ProtectedGame = protectedGame,
+            SessionToken = state?.Token,
+            LibraryItemId = state?.LibraryItemId,
+            GameDisplayName = snapshot?.LibraryItem.DisplayName,
+            GameProcessName = state?.GameProcessName,
+            TemporaryOverrideActive = state?.Override is not null,
+            CurrentSelection = current,
+            OverrideSelection = state?.Override,
+            BaselineSelection = state?.Baseline,
+            Topology = _sessionCpuBackend?.GetTopology()
+        };
+    }
+
+    private static bool IsProtectedActiveGame(ActiveGameSnapshot? snapshot)
+    {
+        if (snapshot is null)
+        {
+            return false;
+        }
+
+        if (RiotGameProcesses.IsProtectedProcessName(snapshot.LibraryItem.ProcessName)
+            || RiotGameProcesses.IsProtectedProcessName(snapshot.Process.ProcessName))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(snapshot.LibraryItem.ExecutablePath)
+            && RiotGameProcesses.IsProtectedProcessName(Path.GetFileNameWithoutExtension(snapshot.LibraryItem.ExecutablePath));
+    }
+
+    private SessionCpuMutationResult SessionCpuStale(SessionCpuOverrideState state, ActiveGameSnapshot snapshot) =>
+        SessionCpuFailure(state, snapshot, "stale_session", "The game session changed; refresh and try again.");
+
+    private SessionCpuMutationResult SessionCpuFailure(SessionCpuOverrideState state, ActiveGameSnapshot snapshot, string errorCode, string message) => new()
+    {
+        Success = false,
+        ErrorCode = errorCode,
+        Message = message,
+        State = BuildSessionCpuState(state, snapshot)
+    };
+
+    private static SessionCpuMutationResult SessionCpuError(string errorCode, string message) => new()
+    {
+        Success = false,
+        ErrorCode = errorCode,
+        Message = message
+    };
+
+    private sealed class SessionCpuOverrideState
+    {
+        public Guid Token { get; init; }
+        public string LibraryItemId { get; init; } = string.Empty;
+        public string GameDisplayName { get; init; } = string.Empty;
+        public string GameProcessName { get; init; } = string.Empty;
+        public BenchmarkProcessIdentity Identity { get; init; } = new();
+        public SessionCpuSelection? Baseline { get; set; }
+        public SessionCpuSelection? Override { get; set; }
     }
 
     private SessionOptimizationStartResult RollBackFailedStart(

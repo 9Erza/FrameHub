@@ -626,6 +626,9 @@ public sealed class LocalizationService
         ["Settings.CompanionAreaBackgroundApps"] = "Background apps",
         ["Settings.CompanionAreaOptimization"] = "Optimization",
         ["Settings.CompanionAreaBenchmarks"] = "Benchmarks",
+        ["Settings.CompanionAreaSessionCpu"] = "Session CPU",
+        ["Settings.CompanionScopeReadOptimizationCpu"] = "Session CPU data",
+        ["Settings.CompanionScopeWriteOptimizationCpu"] = "Session CPU control",
 
         ["Processes.Title"] = "Processes & CPU",
         ["Processes.Subtitle"] = "Adjust priority and CPU assignment for currently running processes.",
@@ -1463,6 +1466,9 @@ public sealed class LocalizationService
         ["Settings.CompanionAreaBackgroundApps"] = "Aplikacje w tle",
         ["Settings.CompanionAreaOptimization"] = "Optymalizacja",
         ["Settings.CompanionAreaBenchmarks"] = "Benchmarki",
+        ["Settings.CompanionAreaSessionCpu"] = "CPU sesji",
+        ["Settings.CompanionScopeReadOptimizationCpu"] = "Dane CPU sesji",
+        ["Settings.CompanionScopeWriteOptimizationCpu"] = "Sterowanie CPU sesji",
 
         ["Processes.Title"] = "Procesy i CPU",
         ["Processes.Subtitle"] = "Dostosuj priorytet i przypisanie CPU dla aktualnie uruchomionych procesów.",

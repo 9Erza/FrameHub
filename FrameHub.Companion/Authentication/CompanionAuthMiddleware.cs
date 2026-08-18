@@ -323,6 +323,63 @@ public sealed class CompanionAuthMiddleware
             }
         }
 
+        // 9. Session Optimization CPU Endpoints (/api/v1/session-optimization/cpu, /cpu/reset).
+        // Matched BEFORE the general session-optimization block because these paths also
+        // match its prefix. Dedicated scopes; strong CPU mutations require the explicit
+        // write scope even on loopback — no localhost write bypass.
+        if (path.Equals("/api/v1/session-optimization/cpu", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/api/v1/session-optimization/cpu/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (HttpMethods.IsGet(context.Request.Method))
+            {
+                // Unauthenticated ONLY on 127.0.0.1 / loopback
+                if (isLoopbackLocal && isLoopbackRemote)
+                {
+                    await _next(context);
+                    return;
+                }
+
+                // On LAN: Authentication is REQUIRED with read:optimization-cpu scope
+                if (!TryAuthenticateBearer(context, deviceStore, out var cpuDevice, out var cpuAuthError))
+                {
+                    context.Response.StatusCode = cpuAuthError;
+                    return;
+                }
+
+                if (!cpuDevice.Scopes.Contains(CompanionScopes.ReadOptimizationCpu, StringComparer.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+
+                deviceStore.UpdateLastUsed(cpuDevice.Id, DateTimeOffset.UtcNow);
+                context.Items["PairedDevice"] = cpuDevice;
+                await _next(context);
+                return;
+            }
+
+            if (HttpMethods.IsPost(context.Request.Method))
+            {
+                // ALWAYS authenticated paired DeviceId + write:optimization-cpu, INCLUDING localhost
+                if (!TryAuthenticateBearer(context, deviceStore, out var cpuDevice, out var cpuAuthError))
+                {
+                    context.Response.StatusCode = cpuAuthError;
+                    return;
+                }
+
+                if (!cpuDevice.Scopes.Contains(CompanionScopes.WriteOptimizationCpu, StringComparer.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+
+                deviceStore.UpdateLastUsed(cpuDevice.Id, DateTimeOffset.UtcNow);
+                context.Items["PairedDevice"] = cpuDevice;
+                await _next(context);
+                return;
+            }
+        }
+
         // 9. Session Optimization Endpoints (/api/v1/session-optimization, /api/v1/session-optimization/apply, /api/v1/session-optimization/restore)
         if (path.Equals("/api/v1/session-optimization", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/api/v1/session-optimization/", StringComparison.OrdinalIgnoreCase))
         {

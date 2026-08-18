@@ -38,6 +38,17 @@
 - Remote DTOs do not expose executable paths, PIDs, command lines, environment data, or credentials.
 - Dynamic frontend content is assigned through safe DOM APIs, not dynamic `innerHTML`.
 
+### Session CPU control (narrow exception)
+
+The earlier broad prohibition on remote affinity/CPU Set exposure is replaced by one narrow rule:
+
+- Companion MAY apply temporary CPU affinity/CPU Set overrides, but only to the single authoritative active game process resolved server-side from the ActiveGameMonitor snapshot, only through `SessionOptimizationCoordinator`, and only for the current session.
+- Remote requests carry only an opaque session token plus a mode/processor selection — never a PID, path, process name, or priority; the coordinator freshly revalidates PID/start/name/path identity before every mutation and fails closed.
+- Overrides are in-memory only, never modify `ProcessProfile`/`LibraryItem` data, are discarded when the session ends or changes, and restore re-applies the captured pre-override baseline.
+- Requires dedicated `read:optimization-cpu`/`write:optimization-cpu` scopes; mutation is a strong write authenticated even on loopback.
+- Apply/reset are rejected during an active benchmark through the standard external-mutation arbitration; an already-applied override persists through a benchmark unchanged.
+- Protected Riot game/client/Vanguard processes are never remotely mutated (read/reporting only); all other arbitrary remote process CPU control remains prohibited.
+
 ## Persistence
 
 - Session intent is persisted before suspend/taskbar mutation; recovery remains conservative after ambiguous failure.

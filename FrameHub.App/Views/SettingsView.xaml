@@ -220,6 +220,7 @@
                                                     <RowDefinition Height="28"/>
                                                     <RowDefinition Height="28"/>
                                                     <RowDefinition Height="28"/>
+                                                    <RowDefinition Height="28"/>
                                                 </Grid.RowDefinitions>
 
                                                 <!-- Header Row -->
@@ -251,6 +252,11 @@
                                                 <TextBlock Grid.Row="5" Grid.Column="0" Text="{Binding AreaBenchmarksLabel}" Style="{StaticResource SettingDescriptionText}" VerticalAlignment="Center"/>
                                                 <CheckBox Grid.Row="5" Grid.Column="1" IsChecked="{Binding ReadBenchmarksEnabled, Mode=TwoWay}" ToolTip="{Binding ScopeReadBenchmarksLabel}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 <CheckBox Grid.Row="5" Grid.Column="2" IsChecked="{Binding WriteBenchmarksEnabled, Mode=TwoWay}" ToolTip="{Binding ScopeWriteBenchmarksLabel}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                                <!-- Session CPU -->
+                                                <TextBlock Grid.Row="6" Grid.Column="0" Text="{Binding AreaSessionCpuLabel}" Style="{StaticResource SettingDescriptionText}" VerticalAlignment="Center"/>
+                                                <CheckBox Grid.Row="6" Grid.Column="1" IsChecked="{Binding ReadOptimizationCpuEnabled, Mode=TwoWay}" ToolTip="{Binding ScopeReadOptimizationCpuLabel}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <CheckBox Grid.Row="6" Grid.Column="2" IsChecked="{Binding WriteOptimizationCpuEnabled, Mode=TwoWay}" ToolTip="{Binding ScopeWriteOptimizationCpuLabel}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Grid>
                                         </StackPanel>
                                     </Border>

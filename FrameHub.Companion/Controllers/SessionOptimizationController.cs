@@ -84,4 +84,94 @@ public sealed class SessionOptimizationController : ControllerBase
             _ => StatusCode(StatusCodes.Status400BadRequest, result)
         };
     }
+
+    [HttpGet("cpu")]
+    public async Task<IActionResult> GetCpuState(CancellationToken cancellationToken = default)
+    {
+        if (_provider == null)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new CompanionSessionCpuResultDto
+            {
+                Success = false,
+                ErrorCode = "session_cpu_provider_unavailable"
+            });
+        }
+
+        CompanionSessionCpuStateDto state = await _provider.GetCpuStateAsync(cancellationToken).ConfigureAwait(false);
+        return Ok(state);
+    }
+
+    [HttpPost("cpu")]
+    public async Task<IActionResult> ApplyCpu([FromBody] CompanionSessionCpuApplyRequestDto? request, CancellationToken cancellationToken = default)
+    {
+        if (_provider == null)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new CompanionSessionCpuResultDto
+            {
+                Success = false,
+                ErrorCode = "session_cpu_provider_unavailable"
+            });
+        }
+
+        if (request == null)
+        {
+            return BadRequest(new CompanionSessionCpuResultDto
+            {
+                Success = false,
+                ErrorCode = "invalid_request",
+                Message = "A CPU configuration request body is required."
+            });
+        }
+
+        CompanionSessionCpuResultDto result = await _provider.ApplyCpuOverrideAsync(request, cancellationToken).ConfigureAwait(false);
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+
+        return result.ErrorCode switch
+        {
+            "no_game" or "protected_game" => StatusCode(StatusCodes.Status422UnprocessableEntity, result),
+            "stale_session" or "target_lost" or "benchmark_active" or "operation_in_progress" or "baseline_unavailable" => StatusCode(StatusCodes.Status409Conflict, result),
+            "invalid_request" or "invalid_selection" => StatusCode(StatusCodes.Status400BadRequest, result),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, result)
+        };
+    }
+
+    [HttpPost("cpu/reset")]
+    public async Task<IActionResult> ResetCpu([FromBody] CompanionSessionCpuResetRequestDto? request, CancellationToken cancellationToken = default)
+    {
+        if (_provider == null)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new CompanionSessionCpuResultDto
+            {
+                Success = false,
+                ErrorCode = "session_cpu_provider_unavailable"
+            });
+        }
+
+        if (request == null)
+        {
+            return BadRequest(new CompanionSessionCpuResultDto
+            {
+                Success = false,
+                ErrorCode = "invalid_request",
+                Message = "A session token is required."
+            });
+        }
+
+        CompanionSessionCpuResultDto result = await _provider.ResetCpuOverrideAsync(request, cancellationToken).ConfigureAwait(false);
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+
+        return result.ErrorCode switch
+        {
+            "no_game" or "protected_game" => StatusCode(StatusCodes.Status422UnprocessableEntity, result),
+            "stale_session" or "target_lost" or "benchmark_active" or "operation_in_progress" => StatusCode(StatusCodes.Status409Conflict, result),
+            "invalid_request" or "invalid_selection" => StatusCode(StatusCodes.Status400BadRequest, result),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, result)
+        };
+    }
 }

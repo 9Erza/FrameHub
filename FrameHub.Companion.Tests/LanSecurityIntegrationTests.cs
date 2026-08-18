@@ -601,6 +601,21 @@ public sealed class LanSecurityIntegrationTests
         {
             return Task.FromResult(new CompanionOptimizationResultDto { Success = true, ErrorCode = "restored", SuspendedProcessCount = 0 });
         }
+
+        public Task<CompanionSessionCpuStateDto> GetCpuStateAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CompanionSessionCpuStateDto { Available = true });
+        }
+
+        public Task<CompanionSessionCpuResultDto> ApplyCpuOverrideAsync(CompanionSessionCpuApplyRequestDto request, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CompanionSessionCpuResultDto { Success = true, ErrorCode = "applied" });
+        }
+
+        public Task<CompanionSessionCpuResultDto> ResetCpuOverrideAsync(CompanionSessionCpuResetRequestDto request, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CompanionSessionCpuResultDto { Success = true, ErrorCode = "restored" });
+        }
     }
 
     private sealed class FakeTestBenchmarkProvider : ICompanionBenchmarkProvider

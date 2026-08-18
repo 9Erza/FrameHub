@@ -13,6 +13,8 @@ public static class CompanionScopes
     public const string WriteBackgroundApps = "write:background-apps";
     public const string ReadOptimization = "read:optimization";
     public const string WriteOptimization = "write:optimization";
+    public const string ReadOptimizationCpu = "read:optimization-cpu";
+    public const string WriteOptimizationCpu = "write:optimization-cpu";
 
     public static readonly IReadOnlySet<string> KnownScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -26,7 +28,9 @@ public static class CompanionScopes
         ReadBackgroundApps,
         WriteBackgroundApps,
         ReadOptimization,
-        WriteOptimization
+        WriteOptimization,
+        ReadOptimizationCpu,
+        WriteOptimizationCpu
     };
 
     public static bool IsValidScope(string? scope)

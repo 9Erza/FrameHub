@@ -523,6 +523,9 @@ public sealed class SettingsViewModel : ViewModelBase
         string areaBackgroundAppsLabel = _localization.T("Settings.CompanionAreaBackgroundApps");
         string areaOptimizationLabel = _localization.T("Settings.CompanionAreaOptimization");
         string areaBenchmarksLabel = _localization.T("Settings.CompanionAreaBenchmarks");
+        string scopeReadOptimizationCpuLabel = _localization.T("Settings.CompanionScopeReadOptimizationCpu");
+        string scopeWriteOptimizationCpuLabel = _localization.T("Settings.CompanionScopeWriteOptimizationCpu");
+        string areaSessionCpuLabel = _localization.T("Settings.CompanionAreaSessionCpu");
 
         foreach (var dev in devices)
         {
@@ -552,7 +555,10 @@ public sealed class SettingsViewModel : ViewModelBase
                 areaBackgroundAppsLabel,
                 areaOptimizationLabel,
                 areaBenchmarksLabel,
-                scopeWriteTelemetryLabel));
+                scopeWriteTelemetryLabel,
+                scopeReadOptimizationCpuLabel,
+                scopeWriteOptimizationCpuLabel,
+                areaSessionCpuLabel));
         }
         OnPropertyChanged(nameof(HasPairedDevices));
         OnPropertyChanged(nameof(IsDeviceStoreFaulted));

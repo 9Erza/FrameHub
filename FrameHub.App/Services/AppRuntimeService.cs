@@ -3,9 +3,13 @@ using FrameHub.Companion;
 using FrameHub.Companion.Providers;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
+using FrameHub.Core.Models.Library;
 using FrameHub.Core.Services;
 using FrameHub.Core.Services.Benchmarking;
+using FrameHub.Core.Services.Library;
+using FrameHub.Core.Services.SessionOptimization;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows.Threading;
 
 namespace FrameHub.App.Services;
@@ -106,8 +110,9 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             launchReservations: LaunchReservations);
         CompanionServer.ConfigureLibraryProvider(LibraryProvider);
         CompanionServer.ConfigureBackgroundAppsProvider(BackgroundAppProvider);
-        SessionOptimizationCoordinator = new SessionOptimizationCoordinator(ProcessScanner, benchmarkArbiter: BenchmarkCoordinator);
-        SessionOptimizationProvider = new AppSessionOptimizationProvider(this, SessionOptimizationCoordinator, ActiveGameMonitor, BenchmarkCoordinator);
+        SessionCpuControlBackend sessionCpuBackend = new(() => Cores, () => CpuSetMap);
+        SessionOptimizationCoordinator = new SessionOptimizationCoordinator(ProcessScanner, benchmarkArbiter: BenchmarkCoordinator, activeGameMonitor: ActiveGameMonitor, sessionCpuBackend: sessionCpuBackend);
+        SessionOptimizationProvider = new AppSessionOptimizationProvider(this, SessionOptimizationCoordinator, ActiveGameMonitor, BenchmarkCoordinator, gameProfileResolver: FindActiveGameCpuProfile);
         CompanionServer.ConfigureSessionOptimizationProvider(SessionOptimizationProvider);
         HardwareMonitoringProvider = new AppCompanionHardwareMonitoringProvider(this);
         CompanionServer.ConfigureHardwareMonitoringProvider(HardwareMonitoringProvider);
@@ -140,6 +145,34 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         SettingsService.SaveSettings(Settings);
         ApplyRuntimeSettings();
         RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Presentation-only source resolution for session CPU control: finds the enabled
+    /// core-optimization profile associated with a library game (by LibraryItemId or
+    /// process identity, mirroring the benchmark profile match). Never mutates anything.
+    /// </summary>
+    private ProcessProfile? FindActiveGameCpuProfile(string libraryItemId)
+    {
+        try
+        {
+            LibraryItem? item = new LibraryService().LoadItems()
+                .FirstOrDefault(candidate => candidate.Type == LibraryItemType.Game
+                    && candidate.Id.Equals(libraryItemId, StringComparison.OrdinalIgnoreCase));
+            if (item is null)
+            {
+                return null;
+            }
+
+            return Profiles.FirstOrDefault(profile => profile.IsEnabled
+                && profile.ApplyCoreOptimization
+                && (profile.LibraryItemId?.Equals(item.Id, StringComparison.OrdinalIgnoreCase) == true
+                    || ProfileService.MatchesIdentity(profile, item.ProcessName, item.ExecutablePath)));
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public void ReloadSettings()

@@ -164,6 +164,36 @@
                             <span class="badge badge-info hidden" id="opt-taskbar-badge" data-i18n="optimization.taskbarHidden">Taskbar Hidden</span>
                             <span class="badge badge-warning hidden" id="opt-recovery-badge" data-i18n="optimization.recoveryPending">Recovery Pending</span>
                         </div>
+                        <div class="opt-cpu-block" id="opt-cpu-block" style="margin-top: 0.9rem;">
+                            <div class="opt-info-row">
+                                <span class="opt-label" data-i18n="optimization.cpu.title">CPU configuration</span>
+                                <span class="opt-value" id="opt-cpu-source">--</span>
+                            </div>
+                            <div class="opt-info-row">
+                                <span class="opt-label" id="opt-cpu-mode-label" data-i18n="optimization.cpu.affinity">Affinity</span>
+                                <span class="opt-value" id="opt-cpu-summary">--</span>
+                            </div>
+                            <div class="opt-status-flags">
+                                <span class="badge badge-warning hidden" id="opt-cpu-override-badge" data-i18n="optimization.cpu.sourceOverride">Temporary override</span>
+                            </div>
+                            <div class="opt-cpu-unavailable hidden" id="opt-cpu-unavailable"></div>
+                            <div style="margin-top: 0.6rem;">
+                                <button type="button" class="btn btn-sm btn-secondary" id="btn-edit-cpu" data-i18n="optimization.cpu.edit">Edit CPU for this session</button>
+                            </div>
+                            <div class="opt-cpu-editor hidden" id="opt-cpu-editor">
+                                <div class="opt-cpu-notice" data-i18n="optimization.cpu.sessionOnlyNotice">Changes apply only to the current game session and are not saved to the profile.</div>
+                                <div class="opt-cpu-mode-toggle">
+                                    <button type="button" class="btn btn-sm opt-cpu-mode active" id="btn-cpu-mode-affinity" data-i18n="optimization.cpu.affinity">Affinity</button>
+                                    <button type="button" class="btn btn-sm opt-cpu-mode" id="btn-cpu-mode-cpusets" data-i18n="optimization.cpu.cpuSets">CPU Sets</button>
+                                </div>
+                                <div class="cpu-chip-grid" id="opt-cpu-chips"></div>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.6rem;">
+                                    <button type="button" class="btn btn-sm btn-primary" id="btn-apply-cpu" data-i18n="optimization.cpu.apply">Apply for this session</button>
+                                    <button type="button" class="btn btn-sm btn-secondary" id="btn-cancel-cpu" data-i18n="optimization.cpu.cancel">Cancel</button>
+                                    <button type="button" class="btn btn-sm btn-secondary hidden" id="btn-restore-cpu" data-i18n="optimization.cpu.restore">Restore profile settings</button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="opt-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <button type="button" class="btn btn-primary" id="btn-apply-optimization" data-i18n="optimization.apply">Start Optimization</button>
                             <button type="button" class="btn btn-secondary hidden" id="btn-restore-optimization" data-i18n="optimization.restore">Restore Session</button>

@@ -798,6 +798,74 @@ input:focus, select:focus {
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+/* Session CPU control (temporary active-game override) */
+.opt-cpu-block {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 0.6rem;
+}
+.opt-cpu-unavailable {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    padding: 0.35rem 0;
+    word-break: break-word;
+}
+.opt-cpu-notice {
+    font-size: 0.78rem;
+    color: var(--warning, #f59e0b);
+    background-color: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.6rem;
+    margin: 0.6rem 0;
+    word-break: break-word;
+}
+.opt-cpu-editor {
+    margin-top: 0.6rem;
+}
+.opt-cpu-mode-toggle {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.6rem;
+    flex-wrap: wrap;
+}
+.opt-cpu-mode {
+    opacity: 0.65;
+}
+.opt-cpu-mode.active {
+    opacity: 1;
+    border-color: var(--accent, #3b82f6);
+}
+.cpu-chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+.cpu-chip {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 0.55rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.04);
+    color: var(--text-main);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+.cpu-chip.cpu-chip-ecore {
+    border-style: dashed;
+}
+.cpu-chip.cpu-chip-thread {
+    opacity: 0.8;
+}
+.cpu-chip.active {
+    background-color: rgba(59, 130, 246, 0.25);
+    border-color: var(--accent, #3b82f6);
+    color: var(--text-main);
+}
+
 .background-app-card {
     min-height: 128px;
 }
