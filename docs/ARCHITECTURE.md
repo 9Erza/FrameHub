@@ -10,4 +10,4 @@ This is the landing page for the canonical architecture documentation. Read thes
 - [Refactor candidates](architecture/REFACTOR-CANDIDATES.md) — remaining evidence-backed work only.
 - [Benchmarking](BENCHMARKING.md) — detailed capture, identity, storage, and PresentMon behavior.
 
-Operational rules for coding agents are in repository-root [AGENTS.md](../AGENTS.md).
+Operational rules for coding agents are in repository-root [AGENTS.md](../AGENTS.md) and the [Agent Documentation System](agents/README.md).
