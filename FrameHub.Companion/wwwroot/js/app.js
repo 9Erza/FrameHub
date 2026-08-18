@@ -112,7 +112,8 @@
         btnRefreshOpt: document.getElementById('btn-refresh-optimization'),
         optFeedback: document.getElementById('opt-feedback'),
 
-        optCpuBlock: document.getElementById('opt-cpu-block'),
+        gameCpuSection: document.getElementById('game-cpu-section'),
+        optCpuGameName: document.getElementById('opt-cpu-game-name'),
         optCpuSource: document.getElementById('opt-cpu-source'),
         optCpuModeLabel: document.getElementById('opt-cpu-mode-label'),
         optCpuSummary: document.getElementById('opt-cpu-summary'),
@@ -123,9 +124,13 @@
         optCpuChips: document.getElementById('opt-cpu-chips'),
         btnCpuModeAffinity: document.getElementById('btn-cpu-mode-affinity'),
         btnCpuModeCpusets: document.getElementById('btn-cpu-mode-cpusets'),
+        btnCpuPresetAll: document.getElementById('btn-cpu-preset-all'),
+        btnCpuPresetPhysical: document.getElementById('btn-cpu-preset-physical'),
+        btnCpuPresetClear: document.getElementById('btn-cpu-preset-clear'),
         btnApplyCpu: document.getElementById('btn-apply-cpu'),
         btnCancelCpu: document.getElementById('btn-cancel-cpu'),
-        btnRestoreCpu: document.getElementById('btn-restore-cpu')
+        btnRestoreCpu: document.getElementById('btn-restore-cpu'),
+        optCpuFeedback: document.getElementById('opt-cpu-feedback')
     };
 
     let selectedSessionIds = new Set();
@@ -216,6 +221,9 @@
         if (elements.btnRestoreCpu) elements.btnRestoreCpu.addEventListener('click', handleResetCpuOverride);
         if (elements.btnCpuModeAffinity) elements.btnCpuModeAffinity.addEventListener('click', function () { setCpuEditMode('affinity'); });
         if (elements.btnCpuModeCpusets) elements.btnCpuModeCpusets.addEventListener('click', function () { setCpuEditMode('cpu-sets'); });
+        if (elements.btnCpuPresetAll) elements.btnCpuPresetAll.addEventListener('click', handlePresetAll);
+        if (elements.btnCpuPresetPhysical) elements.btnCpuPresetPhysical.addEventListener('click', handlePresetPhysical);
+        if (elements.btnCpuPresetClear) elements.btnCpuPresetClear.addEventListener('click', handlePresetClear);
         elements.btnRefreshTargets.addEventListener('click', loadTargets);
         elements.btnStart.addEventListener('click', handleStart);
         elements.btnStop.addEventListener('click', handleStop);

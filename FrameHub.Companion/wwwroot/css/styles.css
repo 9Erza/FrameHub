@@ -798,15 +798,21 @@ input:focus, select:focus {
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-/* Session CPU control (temporary active-game override) */
-.opt-cpu-block {
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    padding-top: 0.6rem;
+/* Game CPU Control (temporary active-game override) */
+.opt-cpu-summary-card {
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.75rem;
+    margin-bottom: 0.5rem;
 }
 .opt-cpu-unavailable {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     color: var(--text-muted);
-    padding: 0.35rem 0;
+    padding: 0.4rem 0.6rem;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-sm);
     word-break: break-word;
 }
 .opt-cpu-notice {
@@ -825,15 +831,44 @@ input:focus, select:focus {
 .opt-cpu-mode-toggle {
     display: flex;
     gap: 0.4rem;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.4rem;
     flex-wrap: wrap;
 }
 .opt-cpu-mode {
-    opacity: 0.65;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    opacity: 0.7;
+    transition: all 0.2s ease;
 }
 .opt-cpu-mode.active {
     opacity: 1;
     border-color: var(--accent, #3b82f6);
+    background-color: rgba(59, 130, 246, 0.15);
+    color: var(--text-main);
+}
+.badge-subtle {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.opt-cpu-helper-text {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.35;
+    margin-bottom: 0.6rem;
+}
+.opt-cpu-presets-bar {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
 }
 .cpu-chip-grid {
     display: flex;
@@ -842,7 +877,7 @@ input:focus, select:focus {
 }
 .cpu-chip {
     min-width: 44px;
-    min-height: 44px;
+    min-height: 40px;
     padding: 0 0.55rem;
     border-radius: var(--radius-sm);
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -853,6 +888,7 @@ input:focus, select:focus {
     cursor: pointer;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s ease;
 }
 .cpu-chip.cpu-chip-ecore {
     border-style: dashed;
@@ -864,6 +900,9 @@ input:focus, select:focus {
     background-color: rgba(59, 130, 246, 0.25);
     border-color: var(--accent, #3b82f6);
     color: var(--text-main);
+}
+.cpu-chip:hover {
+    border-color: rgba(255, 255, 255, 0.35);
 }
 
 .background-app-card {

@@ -181,17 +181,46 @@ public sealed class SessionCpuApiTests
         using var client = new HttpClient();
 
         string html = await client.GetStringAsync($"http://127.0.0.1:{port}/index.html");
+        // Separate cards
+        StringAssert.Contains(html, "id=\"session-optimization-section\"");
+        StringAssert.Contains(html, "id=\"game-cpu-section\"");
+        StringAssert.Contains(html, "data-i18n=\"optimization.title\"");
+        StringAssert.Contains(html, "data-i18n=\"optimization.cpu.title\"");
+
+        // CPU editor and controls
         StringAssert.Contains(html, "opt-cpu-editor");
         StringAssert.Contains(html, "opt-cpu-chips");
         StringAssert.Contains(html, "optimization.cpu.sessionOnlyNotice");
         StringAssert.Contains(html, "btn-apply-cpu");
         StringAssert.Contains(html, "btn-restore-cpu");
 
+        // Presets & Recommended badge
+        StringAssert.Contains(html, "btn-cpu-preset-all");
+        StringAssert.Contains(html, "btn-cpu-preset-physical");
+        StringAssert.Contains(html, "btn-cpu-preset-clear");
+        StringAssert.Contains(html, "optimization.cpu.recommended");
+        StringAssert.Contains(html, "opt-cpu-mode-helper");
+        StringAssert.Contains(html, "opt-cpu-feedback");
+
         string i18n = await client.GetStringAsync($"http://127.0.0.1:{port}/js/i18n.js");
+        Assert.AreEqual(2, Count(i18n, "'optimization.cpu.title':"));
         Assert.AreEqual(2, Count(i18n, "'optimization.cpu.sessionOnlyNotice':"),
             "EN and PL dictionaries must both explain that session changes are not saved to the profile.");
         Assert.AreEqual(2, Count(i18n, "'optimization.cpu.edit':"));
         Assert.AreEqual(2, Count(i18n, "'optimization.cpu.protected':"));
+        Assert.AreEqual(2, Count(i18n, "'optimization.cpu.presetAll':"));
+        Assert.AreEqual(2, Count(i18n, "'optimization.cpu.presetPhysical':"));
+        Assert.AreEqual(2, Count(i18n, "'optimization.cpu.presetClear':"));
+        Assert.AreEqual(2, Count(i18n, "'optimization.cpu.recommended':"));
+        Assert.AreEqual(2, Count(i18n, "'optimization.cpu.cpuSetsHelper':"));
+        Assert.AreEqual(2, Count(i18n, "'optimization.description':"));
+
+        string js = await client.GetStringAsync($"http://127.0.0.1:{port}/js/session-optimization.js");
+        StringAssert.Contains(js, "getPhysicalProcessorIndices");
+        StringAssert.Contains(js, "handlePresetAll");
+        StringAssert.Contains(js, "handlePresetPhysical");
+        StringAssert.Contains(js, "handlePresetClear");
+        StringAssert.Contains(js, "updateApplyButtonState");
     }
 
     private static int Count(string haystack, string needle)

@@ -554,6 +554,54 @@ public sealed class SessionCpuPermissionAndPresentationTests
             Assert.AreNotEqual(key, english, $"Missing English localization for '{key}'.");
             Assert.AreNotEqual(key, polish, $"Missing Polish localization for '{key}'.");
         }
+
+        Assert.AreEqual("Game CPU Control", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionAreaSessionCpu", "en"));
+        Assert.AreEqual("Sterowanie CPU gry", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionAreaSessionCpu", "pl"));
+        Assert.AreEqual("Game CPU data", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeReadOptimizationCpu", "en"));
+        Assert.AreEqual("Dane CPU gry", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeReadOptimizationCpu", "pl"));
+        Assert.AreEqual("Game CPU control", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeWriteOptimizationCpu", "en"));
+        Assert.AreEqual("Sterowanie CPU gry", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeWriteOptimizationCpu", "pl"));
+    }
+
+    [TestMethod]
+    public void PairedDeviceItemViewModel_UsesGameCpuControlTerminologyInFallbacks()
+    {
+        var record = new FrameHub.Companion.Persistence.PairedDeviceRecord
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Test Phone",
+            CredentialHash = "hash",
+            Scopes = new List<string>()
+        };
+
+        var vm = new PairedDeviceItemViewModel(record, _ => { }, (_, _, _) => { });
+        Assert.AreEqual("Game CPU Control", vm.AreaSessionCpuLabel);
+        Assert.AreEqual("Game CPU Data", vm.ScopeReadOptimizationCpuLabel);
+        Assert.AreEqual("Game CPU Control", vm.ScopeWriteOptimizationCpuLabel);
+    }
+
+    [TestMethod]
+    public void Topology_PreservesPhysicalCoreAndThreadMetadata_WithoutOddEvenAssumption()
+    {
+        // Asymmetric/hybrid layout: 2 P-cores with SMT (indices 0, 1T, 2, 3T) and 2 E-cores without SMT (indices 4, 5)
+        var core0 = new CoreInfo { Index = 0, CoreIndex = 0, IsThread = false, IsECore = false, TypeTag = "[P]" };
+        var core0T = new CoreInfo { Index = 1, CoreIndex = 0, IsThread = true, IsECore = false, TypeTag = "[P]" };
+        var core1 = new CoreInfo { Index = 2, CoreIndex = 1, IsThread = false, IsECore = false, TypeTag = "[P]" };
+        var core1T = new CoreInfo { Index = 3, CoreIndex = 1, IsThread = true, IsECore = false, TypeTag = "[P]" };
+        var core2 = new CoreInfo { Index = 4, CoreIndex = 2, IsThread = false, IsECore = true, TypeTag = "[E]" };
+        var core3 = new CoreInfo { Index = 5, CoreIndex = 3, IsThread = false, IsECore = true, TypeTag = "[E]" };
+
+        var backend = new SessionCpuControlBackend(
+            () => [core0, core0T, core1, core1T, core2, core3],
+            () => new Dictionary<int, uint> { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 });
+
+        var topology = backend.GetTopology();
+        Assert.AreEqual(6, topology.Processors.Count);
+
+        var physicalProcessors = topology.Processors.Where(p => !p.IsThread).ToList();
+        Assert.AreEqual(4, physicalProcessors.Count, "4 physical cores exist across the 6 logical processors.");
+        CollectionAssert.AreEqual(new[] { 0, 2, 4, 5 }, physicalProcessors.Select(p => p.Index).ToList(),
+            "Physical cores must be selected strictly via !IsThread/topology, correctly including E-core 5 even though 5 is odd.");
     }
 
     [TestMethod]
