@@ -165,6 +165,25 @@ Sensory sprzętowe są inicjalizowane dopiero po ręcznym włączeniu monitoring
 
 ---
 
+## Rozwój, wsparcie i kompatybilność
+
+### Transparentność rozwoju
+
+FrameHub to niezależny projekt hobbystyczny rozwijany i utrzymywany w czasie wolnym przez jednego autora. Ze względu na brak zaplecza w postaci firmy czy dedykowanego zespołu inżynierskiego, czas przeznaczony na rozwój i bieżące wsparcie jest naturalnie ograniczony.
+
+Proces powstawania projektu opiera się na automatycznych testach, ukierunkowanych przeglądach kodu oraz konserwatywnych decyzjach technicznych. W codziennej pracy wykorzystywane są nowoczesne narzędzia wspomagające programowanie i research, w tym narzędzia oparte na AI, które pomagają m.in. przy implementacji, przygotowywaniu testów, weryfikacji kodu, tworzeniu dokumentacji oraz researchu technicznym. Kierunek architektoniczny, zakres funkcji, granice bezpieczeństwa i decyzje o wydaniach pozostają w pełni kierowane przez autora projektu.
+
+### Wsparcie, gwarancje i kompatybilność z systemami anti-cheat
+
+- **Utrzymanie i zgłoszenia**: Zgłoszenia błędów oraz kwestii związanych z bezpieczeństwem są mile widziane poprzez GitHub Issues oraz prywatny kontakt z autorem (zobacz [Security Policy](SECURITY.md)). Autor dąży do analizowania i naprawiania istotnych usterek oraz problemów bezpieczeństwa w miarę dostępnego czasu, jednak nie gwarantuje określonego czasu reakcji (SLA), terminów wydań ani ciągłego harmonogramu aktualizacji.
+- **Licencja i gwarancje**: FrameHub jest udostępniany na warunkach [licencji MIT](LICENSE) na zasadzie „AS IS” („tak jak jest”), bez jakichkolwiek gwarancji. Plik [LICENSE](LICENSE) zawiera wiążące postanowienia prawne.
+- **Filozofia anti-cheat i brak inwazyjności**: FrameHub jest projektowany z zachowaniem szczególnej ostrożności wobec procesów gier oraz platform anti-cheat. Projekt świadomie unika inwazyjnych technik, takich jak wstrzykiwanie bibliotek DLL, odczyt lub modyfikacja pamięci gry, sterowniki trybu jądra (kernel-mode), podpinanie debuggera, próby obchodzenia zabezpieczeń anti-cheat czy nieudokumentowane hooki w pamięci procesów.
+- **Research i ocena ryzyka**: Wszelkie funkcjonalności wchodzące w interakcję z grami, procesami systemowymi lub telemetrią są analizowane w oparciu o oficjalną dokumentację, źródła techniczne oraz manualny research, a także dodatkowo weryfikowane przy pomocy niezależnych narzędzi badawczych opartych na AI. W przypadku pojawienia się istotnych wątpliwości, niepotrzebnej inwazyjności lub niejasnego wpływu na systemy zabezpieczeń gier, zasadą projektu jest odrzucenie lub zaniechanie danej funkcji zamiast akceptowania niepotrzebnego ryzyka.
+- **Reakcja na nowe ryzyka**: W przypadku pojawienia się wiarygodnych przesłanek, że jakakolwiek funkcja FrameHub może stwarzać nieakceptowalne ryzyko kompatybilności z systemami anti-cheat lub stabilności, priorytetem jest jej natychmiastowe ograniczenie, wyłączenie lub usunięcie do czasu bezpiecznego wyjaśnienia sprawy.
+- **Brak formalnych certyfikacji**: FrameHub jest niezależnym projektem hobbystycznym i nie posiada formalnych partnerstw, aprobat ani certyfikatów od producentów gier czy dostawców systemów anti-cheat. Z uwagi na ciągłe zmiany w grach, aktualizacje systemu Windows, sterowników oraz niejawny charakter mechanizmów anti-cheat, żadne narzędzie zewnętrzne nie może zagwarantować 100% zgodności. Zaleca się świadome stosowanie ustawień i weryfikację ich działania na własnym sprzęcie.
+
+---
+
 ## Szybki start
 
 1. Otwórz **Bibliotekę gier**.

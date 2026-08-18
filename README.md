@@ -164,6 +164,25 @@ Hardware sensors are initialized only after you explicitly enable monitoring.
 
 ---
 
+## Development, support and compatibility
+
+### Development transparency
+
+FrameHub is an independent hobby project developed and maintained by a single author in spare time. Because it is not backed by a company or a dedicated engineering team, available development time is naturally limited.
+
+Development is structured around automated testing, focused code review and conservative technical decisions. Modern tooling, including AI-assisted development and research tools, is used throughout the workflow to assist with implementation, testing, targeted code reviews, documentation and technical research. Architectural direction, feature scope, safety boundaries and release decisions remain entirely maintainer-directed.
+
+### Support, warranty and anti-cheat compatibility
+
+- **Maintenance and issue reports**: Bug reports and security-sensitive disclosures are welcome via GitHub issues and private maintainer contact (see [Security Policy](SECURITY.md)). The maintainer intends to investigate and address meaningful bugs and security issues as time permits, but no response times, SLAs, fix deadlines or continuous release schedules can be guaranteed.
+- **License and warranty**: FrameHub is distributed under the terms of the [MIT License](LICENSE) on an "AS IS" basis, without warranties of any kind. The [LICENSE](LICENSE) file contains the authoritative legal terms.
+- **Anti-cheat philosophy and non-invasiveness**: FrameHub is designed with a deliberately conservative approach toward gaming environments and anti-cheat platforms. The project actively avoids invasive mechanisms, including DLL injection, reading or modifying game memory, kernel-mode drivers, debugger attachment, anti-cheat circumvention, undocumented game hooks and intentional security bypasses.
+- **Research and risk assessment**: Potential features interacting with games, system processes or telemetry are evaluated against official documentation, primary technical sources and manual research, supplemented by cross-checking across independent AI-assisted research tools. If a proposed approach introduces meaningful uncertainty, unnecessary invasiveness or an unclear anti-cheat interaction, the design choice is to reject or omit the feature rather than accept unnecessary risk.
+- **Handling newly identified risks**: If credible evidence indicates that an existing feature introduces an unexpected compatibility or security risk, the maintainer's policy is to restrict, disable or remove the functionality until it can be safely addressed.
+- **No formal vendor certification**: FrameHub is an independent hobby project and has no formal partnerships, endorsements or certifications from game publishers or anti-cheat vendors. Because games, operating system updates, graphics drivers and anti-cheat heuristics evolve continuously—and many anti-cheat internals are intentionally undocumented—no third-party utility can promise permanent or complete compatibility. Users should review configured settings and test them on their own systems.
+
+---
+
 ## Quick start
 
 1. Open **Game Library**.
