@@ -10,33 +10,18 @@
 - Riot Games discovery (League of Legends, VALORANT): passive Start Menu shortcut discovery, official-shortcut launch, actual-game process identity, and hard non-mutation/non-benchmark protection for Riot game/client/Vanguard processes.
 - Architecture/performance consolidation checkpoint: shared on-demand process observation, batch Library/Background state, benchmark-safe profile mutation, unified Session preview policy, separated Companion providers, modular frontend, and canonical architecture documentation.
 - Benchmark Environment Metadata v1: one-shot, best-effort, backward-compatible environment context (OS/build, CPU, GPU/driver, RAM, primary display, FrameHub version) captured per benchmark, shown in Desktop benchmark details, and surfaced as advisory environment differences during comparison.
-- Companion Game CPU Control V1 & UX Polish: active-game temporary CPU scheduling override (Affinity / CPU Sets), separate Session Optimization (background apps) and Game CPU Control cards, CPU Sets recommendation, topology-driven presets (All, Physical only, Clear), and dedicated scopes (`read:optimization-cpu`, `write:optimization-cpu`).
+- Companion Game CPU Assignment V1 & UX Polish: active-game temporary CPU scheduling override (Affinity / CPU Sets), separate Session Optimization (background apps) and Game CPU Assignment cards, CPU Sets recommendation, topology-driven presets (All, Physical only, Clear), and dedicated scopes (`read:optimization-cpu`, `write:optimization-cpu`).
+- Final UX Cohesion & Release Polish: Companion game icons with client-side blob caching, official branding in Companion header, Missing Executable handling across Desktop and Companion with safe disabled actions, automated removal of leaked test artifacts, Desktop "Games & Optimization" ("Gry i optymalizacja") navigation clarity, ComboBox display fix, "Quick Start" ("Szybki start") card clarity, and streamlined Settings.
 
 ## Planned Near-Term Backlog
 
-1. **Companion Game Library UX**:
-   - Display game icons in library item list.
-   - Investigate, remove, or fix unexplained "Desktop Game" placeholder entries.
-   - Gracefully handle launch errors if a library item references a missing or moved executable.
-2. **Companion Navigation & Branding**:
-   - Replace generic lightning icon with official FrameHub application logo where appropriate.
-   - Ensure clicking the header brand/logo navigates directly to the Home tab.
-3. **Session Optimization & Game CPU Control Follow-ups**:
-   - Maintain clear separation between Session Optimization (background process suspension/recovery) and Game CPU Control (active game affinity / CPU Sets scheduling).
-   - Continue promoting CPU Sets as recommended where supported by platform topology.
-4. **Desktop Game Library UX**:
-   - Refine user-facing naming (e.g. evaluating "Gry i optymalizacja" / equivalent) to communicate game-specific optimization capabilities.
-   - Preserve clear product distinction from generic "Procesy i CPU" tools.
-5. **Desktop Dashboard Presentation**:
-   - Eliminate raw developer/class-name strings (e.g., `FrameHub.Core.Models.Library.LibraryItem`) from user-facing views.
-   - Clarify and redesign the "Tryb gaming" / "Gaming Mode" quick action card so users immediately understand the exact actions executed.
-6. **Companion Settings Refinement**:
-   - Simplify "Język prezentacji" label to clean, user-friendly "Język" / "Language".
-   - Evaluate a concise, high-value set of Companion preferences rather than filler settings.
-7. **Runtime Resource & Overhead Audit**:
+1. **Runtime Resource & Overhead Audit**:
    - Separately measure FrameHub.App CPU and RAM footprint during idle, gaming, and benchmark capture workloads.
    - Identify and eliminate evidence-backed background polling or observation waste.
    - Distinguish FrameHub process overhead from development/IDE background processes.
+2. **Session Optimization & Game CPU Assignment Follow-ups**:
+   - Maintain clear separation between Session Optimization (background process suspension/recovery) and Game CPU Assignment (active game affinity / CPU Sets scheduling).
+   - Continue promoting CPU Sets as recommended where supported by platform topology.
 
 ## Riot Games Support Boundaries
 

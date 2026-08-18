@@ -32,6 +32,29 @@ public sealed class LibraryController : ControllerBase
         return Ok(items);
     }
 
+    [HttpGet("{id}/icon")]
+    public async Task<IActionResult> GetIcon([FromRoute] string id, CancellationToken cancellationToken = default)
+    {
+        if (_libraryProvider == null)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return NotFound();
+        }
+
+        var iconResult = await _libraryProvider.GetItemIconAsync(id, cancellationToken).ConfigureAwait(false);
+        if (iconResult == null || iconResult.Bytes.Length == 0)
+        {
+            return NotFound();
+        }
+
+        Response.Headers.CacheControl = "private, max-age=3600";
+        return File(iconResult.Bytes, iconResult.ContentType);
+    }
+
     [HttpPost("{id}/launch")]
     public async Task<IActionResult> Launch([FromRoute] string id, CancellationToken cancellationToken = default)
     {

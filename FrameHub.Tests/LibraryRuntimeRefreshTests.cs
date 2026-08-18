@@ -1,6 +1,7 @@
 using System.IO;
 using FrameHub.App.Services;
 using FrameHub.App.ViewModels;
+using FrameHub.App.ViewModels.Library;
 using FrameHub.Core.Models.Library;
 using FrameHub.Core.Services;
 using FrameHub.Core.Services.Library;
@@ -188,6 +189,137 @@ public sealed class LibraryRuntimeRefreshTests
             index += fragment.Length;
         }
         return count;
+    }
+
+    [TestMethod]
+    public void DashboardView_GamingGamesComboBox_HasExplicitDisplayNameItemTemplate()
+    {
+        string? repoRoot = FindRepoRoot();
+        if (repoRoot == null)
+        {
+            Assert.Inconclusive("Repository source root was not discoverable from the test assembly location.");
+        }
+
+        string xaml = File.ReadAllText(Path.Combine(repoRoot!, "FrameHub.App", "Views", "DashboardView.xaml"));
+        int comboStart = xaml.IndexOf("ItemsSource=\"{Binding GamingGames}\"", StringComparison.Ordinal);
+        Assert.IsTrue(comboStart >= 0, "DashboardView must contain the GamingGames ComboBox.");
+
+        int comboEnd = xaml.IndexOf("</ComboBox>", comboStart, StringComparison.Ordinal);
+        Assert.IsTrue(comboEnd > comboStart, "GamingGames ComboBox closing tag must exist.");
+        string comboXaml = xaml.Substring(comboStart, comboEnd - comboStart);
+
+        StringAssert.Contains(comboXaml, "Text=\"{Binding DisplayName}\"",
+            "Dashboard ComboBox must explicitly bind DisplayName in its ItemTemplate and not rely on domain model ToString().");
+
+        // Verify LibraryItem has no custom presentation ToString override
+        var item = new LibraryItem();
+        Assert.AreEqual(typeof(LibraryItem).ToString(), item.ToString(),
+            "LibraryItem domain entity must not override ToString() with presentation logic.");
+    }
+
+    [TestMethod]
+    public void LibraryService_Sanitize_StripsDeletedTempTestArtifacts()
+    {
+        string libraryPath = Path.Combine(_tempDirectory, $"library-sanitize-{Guid.NewGuid():N}.json");
+        var libraryService = new LibraryService(libraryPath);
+
+        string nonExistentTemp = Path.Combine(Path.GetTempPath(), "FrameHub.LibraryRefreshTests", "temp_sub", "desktop_test_game.exe");
+        var testArtifact = new LibraryItem
+        {
+            Id = "desktop-game-1",
+            DisplayName = "Desktop Game",
+            ExecutablePath = nonExistentTemp,
+            Type = LibraryItemType.Game
+        };
+
+        var realGame = new LibraryItem
+        {
+            Id = "real-game-1",
+            DisplayName = "Real Game",
+            ExecutablePath = @"C:\Program Files (x86)\Steam\steamapps\common\RealGame\game.exe",
+            Type = LibraryItemType.Game
+        };
+
+        libraryService.SaveItems(new[] { testArtifact, realGame });
+        var loaded = libraryService.LoadItems();
+
+        Assert.AreEqual(1, loaded.Count);
+        Assert.AreEqual("real-game-1", loaded[0].Id);
+    }
+
+    [TestMethod]
+    public void LibraryService_Sanitize_PreservesLegitimateMissingAndCustomItems()
+    {
+        string libraryPath = Path.Combine(_tempDirectory, $"library-preserve-{Guid.NewGuid():N}.json");
+        var libraryService = new LibraryService(libraryPath);
+
+        // 1. Legitimate manual item named "Desktop Game" in standard games folder (missing exe)
+        var manualDesktopGame = new LibraryItem
+        {
+            Id = "manual-desktop-game",
+            DisplayName = "Desktop Game",
+            ExecutablePath = @"C:\Games\Desktop Game\game.exe",
+            Type = LibraryItemType.Game
+        };
+
+        // 2. Legitimate missing executable in a custom user folder named "Temp" (not OS temp)
+        var customTempGame = new LibraryItem
+        {
+            Id = "custom-temp-game",
+            DisplayName = "Custom Temp Game",
+            ExecutablePath = @"C:\Temp\MyOldGame\game.exe",
+            Type = LibraryItemType.Game
+        };
+
+        // 3. Legitimate missing game in Steam folder
+        var missingSteamGame = new LibraryItem
+        {
+            Id = "missing-steam-game",
+            DisplayName = "Missing Steam Game",
+            ExecutablePath = @"D:\SteamLibrary\steamapps\common\UninstalledGame\game.exe",
+            Type = LibraryItemType.Game
+        };
+
+        // 4. Valid existing executable created in isolated test temp folder
+        string validExePath = Path.Combine(_tempDirectory, "existing_game.exe");
+        File.WriteAllText(validExePath, "dummy");
+        var existingGame = new LibraryItem
+        {
+            Id = "existing-game",
+            DisplayName = "Existing Game",
+            ExecutablePath = validExePath,
+            Type = LibraryItemType.Game
+        };
+
+        libraryService.SaveItems(new[] { manualDesktopGame, customTempGame, missingSteamGame, existingGame });
+        var loaded = libraryService.LoadItems();
+
+        Assert.AreEqual(4, loaded.Count, "All 4 legitimate items must survive sanitization.");
+        Assert.IsTrue(loaded.Any(x => x.Id == "manual-desktop-game"));
+        Assert.IsTrue(loaded.Any(x => x.Id == "custom-temp-game"));
+        Assert.IsTrue(loaded.Any(x => x.Id == "missing-steam-game"));
+        Assert.IsTrue(loaded.Any(x => x.Id == "existing-game"));
+    }
+
+    [TestMethod]
+    public void LibraryItemViewModel_MissingExecutable_ReportsMissingStatus()
+    {
+        string settingsPath = Path.Combine(_tempDirectory, $"settings-vm-{Guid.NewGuid():N}.json");
+        using var runtime = new AppRuntimeService(settingsPath);
+        var loc = new LocalizationService(runtime.SettingsService);
+
+        var missingItem = new LibraryItem
+        {
+            Id = "missing-1",
+            DisplayName = "Missing Game",
+            ExecutablePath = @"C:\NonExistentDrive\Games\missing.exe",
+            Type = LibraryItemType.Game
+        };
+
+        var vm = new LibraryItemViewModel(missingItem, loc, () => Array.Empty<Core.Models.ProcessProfile>());
+        Assert.IsTrue(vm.IsExecutableMissing);
+        Assert.AreEqual(loc.T("Library.ExeMissingBadge"), vm.ExeMissingText);
+        Assert.AreEqual(loc.T("Library.ExeMissingStatus"), vm.StatusText);
     }
 
     private static string? FindRepoRoot()

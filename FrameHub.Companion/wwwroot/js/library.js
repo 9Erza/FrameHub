@@ -2,6 +2,7 @@
 
     let isLibraryFetching = false;
     let cachedLibraryItems = null;
+    const iconUrlCache = new Map();
 
     async function fetchLibraryItems() {
         if (isLibraryFetching) return;
@@ -67,6 +68,19 @@
             const card = document.createElement('div');
             card.className = 'library-card' + (item.isRunning ? ' is-running' : '');
 
+            const cardHeader = document.createElement('div');
+            cardHeader.className = 'library-card-header';
+
+            const iconWrap = document.createElement('div');
+            iconWrap.className = 'library-card-icon-wrap';
+
+            if (item.hasIcon) {
+                loadCardIcon(item.id, iconWrap);
+            } else {
+                renderIconPlaceholder(iconWrap);
+            }
+            cardHeader.appendChild(iconWrap);
+
             const info = document.createElement('div');
             info.className = 'library-card-info';
 
@@ -97,10 +111,16 @@
                 badgeRunning.className = 'badge badge-running';
                 badgeRunning.textContent = i18n ? i18n.t('library.running') : 'Running';
                 badges.appendChild(badgeRunning);
+            } else if (item.isExecutableMissing) {
+                const badgeMissing = document.createElement('span');
+                badgeMissing.className = 'badge badge-warning';
+                badgeMissing.textContent = i18n ? i18n.t('library.missingBadge') : 'Missing';
+                badges.appendChild(badgeMissing);
             }
 
             info.appendChild(badges);
-            card.appendChild(info);
+            cardHeader.appendChild(info);
+            card.appendChild(cardHeader);
 
             const actions = document.createElement('div');
             actions.className = 'library-card-actions';
@@ -111,13 +131,16 @@
             const btnLaunch = document.createElement('button');
             btnLaunch.type = 'button';
             btnLaunch.className = 'btn btn-primary btn-launch';
-            btnLaunch.textContent = item.isRunning
-                ? (i18n ? i18n.t('library.running') : 'Running')
-                : (i18n ? i18n.t('library.launch') : 'Launch');
 
             if (item.isRunning) {
+                btnLaunch.textContent = i18n ? i18n.t('library.running') : 'Running';
                 btnLaunch.disabled = true;
+            } else if (item.isExecutableMissing) {
+                btnLaunch.textContent = i18n ? i18n.t('library.launch') : 'Launch';
+                btnLaunch.disabled = true;
+                btnLaunch.title = i18n ? i18n.t('launch.executable_missing') : 'Game executable was not found on desktop.';
             } else {
+                btnLaunch.textContent = i18n ? i18n.t('library.launch') : 'Launch';
                 btnLaunch.addEventListener('click', function () {
                     handleLaunchItem(item, card, btnLaunch, feedback);
                 });
@@ -129,6 +152,51 @@
 
             elements.libraryList.appendChild(card);
         });
+    }
+
+    async function loadCardIcon(itemId, wrapEl) {
+        if (iconUrlCache.has(itemId)) {
+            const cached = iconUrlCache.get(itemId);
+            if (cached) {
+                const img = document.createElement('img');
+                img.className = 'library-card-icon';
+                img.alt = '';
+                img.src = cached;
+                wrapEl.appendChild(img);
+            } else {
+                renderIconPlaceholder(wrapEl);
+            }
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/v1/library/' + encodeURIComponent(itemId) + '/icon', {
+                headers: getAuthHeaders()
+            });
+            if (resp.ok) {
+                const blob = await resp.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                iconUrlCache.set(itemId, objectUrl);
+                const img = document.createElement('img');
+                img.className = 'library-card-icon';
+                img.alt = '';
+                img.src = objectUrl;
+                wrapEl.appendChild(img);
+            } else {
+                iconUrlCache.set(itemId, null);
+                renderIconPlaceholder(wrapEl);
+            }
+        } catch (_) {
+            iconUrlCache.set(itemId, null);
+            renderIconPlaceholder(wrapEl);
+        }
+    }
+
+    function renderIconPlaceholder(wrapEl) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'library-card-icon-placeholder';
+        placeholder.textContent = '🎮';
+        wrapEl.appendChild(placeholder);
     }
 
     async function handleLaunchItem(item, cardEl, btnLaunch, feedbackEl) {
@@ -326,4 +394,4 @@
         }
     }
 
-    // Session Optimization Logic (M9.5)
+    // Session Optimization Logic

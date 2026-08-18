@@ -49,7 +49,7 @@ The project currently focuses on:
 
 | Module | What it does |
 | --- | --- |
-| **Game Library** | Scan Steam, Epic and custom folders, add executables manually and configure CPU settings for a specific game. |
+| **Games & Optimization** | Scan Steam, Epic and custom folders, add executables manually, launch games, and configure CPU optimization settings for specific games. |
 | **Session Optimization** | Temporarily suspend selected background applications while a configured game session is active, then restore them safely. |
 | **Benchmarks** | Detect running library games, capture exact-process frame timing, graph frame times, retain local history and compare same-game sessions. |
 | **Processes & CPU** | Inspect a running process and immediately apply CPU Sets, Processor Affinity or process priority. |

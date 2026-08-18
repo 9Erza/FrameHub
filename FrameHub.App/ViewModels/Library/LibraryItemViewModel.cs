@@ -1,11 +1,11 @@
+using System.IO;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using FrameHub.App.Helpers;
 using FrameHub.App.Services;
 using FrameHub.Core.Models;
 using FrameHub.Core.Models.Library;
 using FrameHub.Core.Services;
-using System.IO;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 namespace FrameHub.App.ViewModels.Library;
 
@@ -28,8 +28,16 @@ public sealed class LibraryItemViewModel : ViewModelBase
     public string InstallPath => string.IsNullOrWhiteSpace(Item.InstallPath) ? "—" : Item.InstallPath!;
     public string WatchText => Item.WatchProcess ? _localization.T("Library.WatcherOn") : _localization.T("Library.WatcherOff");
     public string ProfileText => HasLinkedProfile ? _localization.T("Library.ProfileLinked") : _localization.T("Library.ProfileMissing");
-    public string StatusText => IsOptimized ? _localization.T("Library.Status.Optimized") : IsRunning ? _localization.T("Library.Status.Running") : _localization.T("Library.Status.NotRunning");
+    public string StatusText => IsExecutableMissing
+        ? _localization.T("Library.ExeMissingStatus")
+        : IsOptimized
+            ? _localization.T("Library.Status.Optimized")
+            : IsRunning
+                ? _localization.T("Library.Status.Running")
+                : _localization.T("Library.Status.NotRunning");
     public string SetupText => IsReady ? _localization.T("Library.Status.Ready") : _localization.T("Library.Status.NeedsSetup");
+    public bool IsExecutableMissing => !string.IsNullOrWhiteSpace(Item.ExecutablePath) && !File.Exists(Item.LaunchPath ?? Item.ExecutablePath);
+    public string ExeMissingText => _localization.T("Library.ExeMissingBadge");
 
     public bool IsReady => !string.IsNullOrWhiteSpace(Item.ProcessName) || !string.IsNullOrWhiteSpace(Item.ExecutablePath);
     public bool IsBackgroundApp => Item.Type == LibraryItemType.BackgroundApp;

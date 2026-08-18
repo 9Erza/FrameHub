@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FrameHub Companion — Benchmark</title>
+    <title>FrameHub Companion</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
     <div class="app-container">
         <!-- App Header -->
         <header class="app-header">
-            <div class="brand">
-                <div class="brand-icon">⚡</div>
+            <button type="button" class="brand" id="brand-home-btn" aria-label="FrameHub Companion Home">
+                <img class="brand-logo" src="/assets/logo.png" alt="FrameHub Logo" width="32" height="32">
                 <div class="brand-text">
                     <h1 data-i18n="brand.title">FrameHub Companion</h1>
-                    <span class="sub-title" data-i18n="brand.subtitle">Benchmark Control</span>
+                    <span class="sub-title" data-i18n="brand.subtitle">Game performance & optimization</span>
                 </div>
-            </div>
+            </button>
             <div class="auth-status-badge" id="auth-status-badge">
                 <span class="status-dot disconnected"></span>
                 <span id="auth-status-text" data-i18n="auth.checking">Checking Pairing...</span>
@@ -145,39 +145,10 @@
                     </div>
                 </section>
 
-                <!-- Session Optimization Section (Section A) -->
-                <section class="card" id="session-optimization-section" style="margin-top: 1rem;">
-                    <div class="card-header">
-                        <h2 data-i18n="optimization.title">Session Optimization</h2>
-                        <span class="badge badge-secondary" id="opt-state-badge" data-i18n="optimization.inactive">Inactive</span>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted" data-i18n="optimization.description" style="font-size: 0.85rem; margin-bottom: 0.75rem;">Suspends selected background processes during gameplay to reduce their impact on performance.</p>
-                        <div class="opt-info-row">
-                            <span class="opt-label" data-i18n="optimization.game">Active Game:</span>
-                            <span class="opt-value" id="opt-game-name">--</span>
-                        </div>
-                        <div class="opt-info-row">
-                            <span class="opt-label" data-i18n="optimization.suspended">Suspended Apps:</span>
-                            <span class="opt-value" id="opt-suspended-count">0</span>
-                        </div>
-                        <div class="opt-status-flags">
-                            <span class="badge badge-info hidden" id="opt-taskbar-badge" data-i18n="optimization.taskbarHidden">Taskbar Hidden</span>
-                            <span class="badge badge-warning hidden" id="opt-recovery-badge" data-i18n="optimization.recoveryPending">Recovery Pending</span>
-                        </div>
-                        <div class="opt-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <button type="button" class="btn btn-primary" id="btn-apply-optimization" data-i18n="optimization.apply">Start session optimization</button>
-                            <button type="button" class="btn btn-secondary hidden" id="btn-restore-optimization" data-i18n="optimization.restore">Restore session</button>
-                            <button type="button" class="btn btn-sm btn-secondary" id="btn-refresh-optimization" data-i18n="optimization.refresh">Refresh</button>
-                        </div>
-                        <div class="optimization-feedback hidden" id="opt-feedback" style="margin-top: 0.75rem;"></div>
-                    </div>
-                </section>
-
-                <!-- Game CPU Control Section (Section B) -->
+                <!-- Game CPU Control Section (Section A) -->
                 <section class="card" id="game-cpu-section" style="margin-top: 1rem;">
                     <div class="card-header">
-                        <h2 data-i18n="optimization.cpu.title">Game CPU Control</h2>
+                        <h2 data-i18n="optimization.cpu.title">Game CPU Assignment</h2>
                         <span class="badge badge-warning hidden" id="opt-cpu-override-badge" data-i18n="optimization.cpu.sourceOverride">Temporary override</span>
                     </div>
                     <div class="card-body">
@@ -193,7 +164,7 @@
                                 <span class="opt-value" id="opt-cpu-source">--</span>
                             </div>
                             <div class="opt-info-row">
-                                <span class="opt-label" id="opt-cpu-mode-label" data-i18n="optimization.cpu.affinity">Affinity</span>
+                                <span class="opt-label" id="opt-cpu-mode-label" data-i18n="optimization.cpu.modeLabel">CPU mode:</span>
                                 <span class="opt-value" id="opt-cpu-summary">--</span>
                             </div>
                         </div>
@@ -238,6 +209,35 @@
                         </div>
 
                         <div class="optimization-feedback hidden" id="opt-cpu-feedback" style="margin-top: 0.75rem;"></div>
+                    </div>
+                </section>
+
+                <!-- Session Optimization Section (Section B) -->
+                <section class="card" id="session-optimization-section" style="margin-top: 1rem;">
+                    <div class="card-header">
+                        <h2 data-i18n="optimization.title">Session Optimization</h2>
+                        <span class="badge badge-secondary" id="opt-state-badge" data-i18n="optimization.inactive">Inactive</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted" data-i18n="optimization.description" style="font-size: 0.85rem; margin-bottom: 0.75rem;">Suspends selected background processes during gameplay to reduce their impact on performance.</p>
+                        <div class="opt-info-row">
+                            <span class="opt-label" data-i18n="optimization.game">Active Game:</span>
+                            <span class="opt-value" id="opt-game-name">--</span>
+                        </div>
+                        <div class="opt-info-row">
+                            <span class="opt-label" data-i18n="optimization.suspended">Suspended Apps:</span>
+                            <span class="opt-value" id="opt-suspended-count">0</span>
+                        </div>
+                        <div class="opt-status-flags">
+                            <span class="badge badge-info hidden" id="opt-taskbar-badge" data-i18n="optimization.taskbarHidden">Taskbar Hidden</span>
+                            <span class="badge badge-warning hidden" id="opt-recovery-badge" data-i18n="optimization.recoveryPending">Recovery Pending</span>
+                        </div>
+                        <div class="opt-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-primary" id="btn-apply-optimization" data-i18n="optimization.apply">Start session optimization</button>
+                            <button type="button" class="btn btn-secondary hidden" id="btn-restore-optimization" data-i18n="optimization.restore">Restore session</button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="btn-refresh-optimization" data-i18n="optimization.refresh">Refresh</button>
+                        </div>
+                        <div class="optimization-feedback hidden" id="opt-feedback" style="margin-top: 0.75rem;"></div>
                     </div>
                 </section>
             </div>
@@ -490,9 +490,9 @@
                     <div class="card-header">
                         <h2 data-i18n="settings.title">Companion Settings</h2>
                     </div>
-                    <div class="card-body">
-                        <div class="form-group">
-                            <label for="language-select" data-i18n="settings.langLabel">Presentation Language</label>
+                    <div class="card-body settings-grid">
+                        <div class="settings-group form-group">
+                            <label for="language-select" data-i18n="settings.langLabel">Language</label>
                             <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem;" data-i18n="settings.langDesc">Select the interface language for FrameHub Companion.</p>
                             <div class="select-wrapper">
                                 <select id="language-select">
@@ -500,6 +500,15 @@
                                     <option value="pl" data-i18n="settings.langPl">Polski</option>
                                 </select>
                             </div>
+                        </div>
+                        <div class="settings-group">
+                            <h3 style="font-size: 1rem; margin-bottom: 0.4rem;" data-i18n="settings.connectionTitle">Connection & Device</h3>
+                            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.75rem;" data-i18n="settings.unpairDesc">Removes the saved pairing credential from this browser.</p>
+                            <button type="button" id="btn-unpair-device" class="btn btn-secondary btn-sm" data-i18n="settings.unpairBtn">Unpair Device</button>
+                        </div>
+                        <div class="settings-group">
+                            <h3 style="font-size: 1rem; margin-bottom: 0.4rem;" data-i18n="settings.aboutTitle">About</h3>
+                            <p class="text-muted" style="font-size: 0.85rem;" data-i18n="settings.aboutDesc">FrameHub Companion connects locally to FrameHub running on your Windows PC.</p>
                         </div>
                     </div>
                 </section>

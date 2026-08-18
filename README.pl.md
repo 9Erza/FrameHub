@@ -49,7 +49,7 @@ Projekt skupia się obecnie na:
 
 | Moduł | Zastosowanie |
 | --- | --- |
-| **Biblioteka gier** | Skanowanie Steam, Epic i własnych folderów, ręczne dodawanie plików wykonywalnych oraz konfiguracja ustawień CPU dla konkretnej gry. |
+| **Gry i optymalizacja** | Skanowanie Steam, Epic i własnych folderów, ręczne dodawanie plików wykonywalnych, uruchamianie gier oraz konfiguracja ustawień optymalizacji CPU dla konkretnej gry. |
 | **Optymalizacja sesji** | Tymczasowe wstrzymywanie wybranych aplikacji działających w tle podczas aktywnej sesji gry i bezpieczne przywracanie ich po zakończeniu. |
 | **Procesy i CPU** | Podgląd uruchomionego procesu i natychmiastowe zastosowanie CPU Sets, Processor Affinity lub priorytetu procesu. |
 | **Benchmarki** | Wykrywanie uruchomionych gier z biblioteki, pomiar dokładnego procesu, wykres czasu klatek, lokalna historia i porównanie sesji tej samej gry. |

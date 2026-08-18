@@ -1,3 +1,4 @@
+using System.IO;
 using FrameHub.Companion.Models;
 using FrameHub.Companion.Providers;
 using FrameHub.Core.Logging;
@@ -70,13 +71,18 @@ public sealed class AppLibraryProvider : ICompanionLibraryProvider
             var dtos = new List<CompanionLibraryItemDto>(exposedItems.Count);
             foreach (var item in exposedItems)
             {
+                bool isMissing = !File.Exists(item.LaunchPath ?? item.ExecutablePath);
+                bool hasIcon = !string.IsNullOrWhiteSpace(item.IconPath) ? File.Exists(item.IconPath) : (!string.IsNullOrWhiteSpace(item.ExecutablePath) && File.Exists(item.ExecutablePath));
+
                 dtos.Add(new CompanionLibraryItemDto
                 {
                     Id = item.Id,
                     DisplayName = item.DisplayName,
                     Source = item.Source.ToString(),
                     Type = item.Type.ToString(),
-                    IsRunning = runningIds.Contains(item.Id)
+                    IsRunning = runningIds.Contains(item.Id),
+                    HasIcon = hasIcon,
+                    IsExecutableMissing = isMissing
                 });
             }
 
@@ -86,6 +92,70 @@ public sealed class AppLibraryProvider : ICompanionLibraryProvider
         {
             _logger.Error($"Failed to get companion library items: {ex.Message}", ex);
             return Array.Empty<CompanionLibraryItemDto>();
+        }
+    }
+
+    public Task<CompanionLibraryIconResult?> GetItemIconAsync(string id, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return Task.FromResult<CompanionLibraryIconResult?>(null);
+        }
+
+        try
+        {
+            var allItems = _libraryService.LoadItems();
+            var targetItem = FilterExposedItems(allItems).FirstOrDefault(x => x.Id.Equals(id.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (targetItem == null)
+            {
+                return Task.FromResult<CompanionLibraryIconResult?>(null);
+            }
+
+            string? path = !string.IsNullOrWhiteSpace(targetItem.IconPath) ? targetItem.IconPath : targetItem.ExecutablePath;
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                return Task.FromResult<CompanionLibraryIconResult?>(null);
+            }
+
+            string ext = Path.GetExtension(path);
+            if (string.Equals(ext, ".png", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult<CompanionLibraryIconResult?>(new CompanionLibraryIconResult
+                {
+                    Bytes = File.ReadAllBytes(path),
+                    ContentType = "image/png"
+                });
+            }
+
+            if (string.Equals(ext, ".jpg", StringComparison.OrdinalIgnoreCase) || string.Equals(ext, ".jpeg", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult<CompanionLibraryIconResult?>(new CompanionLibraryIconResult
+                {
+                    Bytes = File.ReadAllBytes(path),
+                    ContentType = "image/jpeg"
+                });
+            }
+
+            using var icon = System.Drawing.Icon.ExtractAssociatedIcon(path);
+            if (icon == null)
+            {
+                return Task.FromResult<CompanionLibraryIconResult?>(null);
+            }
+
+            using var bmp = icon.ToBitmap();
+            using var ms = new MemoryStream();
+            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+
+            return Task.FromResult<CompanionLibraryIconResult?>(new CompanionLibraryIconResult
+            {
+                Bytes = ms.ToArray(),
+                ContentType = "image/png"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug($"Failed to extract icon for library item '{id}': {ex.Message}");
+            return Task.FromResult<CompanionLibraryIconResult?>(null);
         }
     }
 

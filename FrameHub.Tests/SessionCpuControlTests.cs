@@ -555,12 +555,12 @@ public sealed class SessionCpuPermissionAndPresentationTests
             Assert.AreNotEqual(key, polish, $"Missing Polish localization for '{key}'.");
         }
 
-        Assert.AreEqual("Game CPU Control", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionAreaSessionCpu", "en"));
-        Assert.AreEqual("Sterowanie CPU gry", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionAreaSessionCpu", "pl"));
+        Assert.AreEqual("Game CPU Assignment", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionAreaSessionCpu", "en"));
+        Assert.AreEqual("Przydział CPU dla gry", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionAreaSessionCpu", "pl"));
         Assert.AreEqual("Game CPU data", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeReadOptimizationCpu", "en"));
         Assert.AreEqual("Dane CPU gry", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeReadOptimizationCpu", "pl"));
-        Assert.AreEqual("Game CPU control", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeWriteOptimizationCpu", "en"));
-        Assert.AreEqual("Sterowanie CPU gry", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeWriteOptimizationCpu", "pl"));
+        Assert.AreEqual("Game CPU assignment", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeWriteOptimizationCpu", "en"));
+        Assert.AreEqual("Przydział CPU dla gry", FrameHub.App.Services.LocalizationService.Translate("Settings.CompanionScopeWriteOptimizationCpu", "pl"));
     }
 
     [TestMethod]
@@ -575,9 +575,9 @@ public sealed class SessionCpuPermissionAndPresentationTests
         };
 
         var vm = new PairedDeviceItemViewModel(record, _ => { }, (_, _, _) => { });
-        Assert.AreEqual("Game CPU Control", vm.AreaSessionCpuLabel);
+        Assert.AreEqual("Game CPU Assignment", vm.AreaSessionCpuLabel);
         Assert.AreEqual("Game CPU Data", vm.ScopeReadOptimizationCpuLabel);
-        Assert.AreEqual("Game CPU Control", vm.ScopeWriteOptimizationCpuLabel);
+        Assert.AreEqual("Game CPU Assignment", vm.ScopeWriteOptimizationCpuLabel);
     }
 
     [TestMethod]

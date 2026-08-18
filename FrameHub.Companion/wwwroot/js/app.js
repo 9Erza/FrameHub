@@ -32,6 +32,8 @@
         navTabBenchmarks: document.getElementById('nav-tab-benchmarks'),
         navTabSettings: document.getElementById('nav-tab-settings'),
         languageSelect: document.getElementById('language-select'),
+        brandHomeBtn: document.getElementById('brand-home-btn'),
+        btnUnpairDevice: document.getElementById('btn-unpair-device'),
 
         btnRefreshLibrary: document.getElementById('btn-refresh-library'),
         libraryLoading: document.getElementById('library-loading'),
@@ -202,6 +204,21 @@
                 });
             }
         });
+
+        // Brand Home button listener
+        if (elements.brandHomeBtn) {
+            elements.brandHomeBtn.addEventListener('click', function () {
+                switchTab('home');
+            });
+        }
+
+        // Unpair Device button listener
+        if (elements.btnUnpairDevice) {
+            elements.btnUnpairDevice.addEventListener('click', function () {
+                clearStoredCredential();
+                updateAuthUi(false, window.FrameHubI18n ? window.FrameHubI18n.t('auth.required') : 'Pairing Required');
+            });
+        }
 
         elements.pairingForm.addEventListener('submit', handlePairingSubmit);
         if (elements.btnRefreshLibrary) elements.btnRefreshLibrary.addEventListener('click', function () {

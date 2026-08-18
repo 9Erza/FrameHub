@@ -104,6 +104,8 @@ public sealed class LibraryService
         var result = new List<LibraryItem>();
         foreach (var item in items)
         {
+            if (item == null) continue;
+            if (IsTestArtifact(item)) continue;
             if (!LibraryItemFilter.IsSupportedLibraryItem(item)) continue;
             if (string.IsNullOrWhiteSpace(item.DisplayName) && string.IsNullOrWhiteSpace(item.ExecutablePath)) continue;
 
@@ -140,6 +142,69 @@ public sealed class LibraryService
         return executablePath != null
             ? $"exe:{executablePath}"
             : $"item:{item.Id}:{item.Source}:{item.AppId}:{item.DisplayName}";
+    }
+
+    private static bool IsTestArtifact(LibraryItem item)
+    {
+        if (string.IsNullOrWhiteSpace(item.ExecutablePath))
+        {
+            return false;
+        }
+
+        // 1. Existing executables are never treated as test artifacts
+        if (File.Exists(item.ExecutablePath))
+        {
+            return false;
+        }
+
+        string normalizedPath;
+        try
+        {
+            normalizedPath = Path.GetFullPath(item.ExecutablePath.Trim());
+        }
+        catch
+        {
+            return false;
+        }
+
+        string tempRoot;
+        try
+        {
+            tempRoot = Path.GetFullPath(Path.GetTempPath());
+            if (!tempRoot.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                && !tempRoot.EndsWith(Path.AltDirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+            {
+                tempRoot += Path.DirectorySeparatorChar;
+            }
+        }
+        catch
+        {
+            tempRoot = string.Empty;
+        }
+
+        bool isUnderOsTemp = !string.IsNullOrEmpty(tempRoot)
+            && normalizedPath.StartsWith(tempRoot, StringComparison.OrdinalIgnoreCase);
+
+        bool hasTestDirectoryMarker = normalizedPath.Contains(@"\FrameHub.Tests\", StringComparison.OrdinalIgnoreCase)
+            || normalizedPath.Contains("/FrameHub.Tests/", StringComparison.OrdinalIgnoreCase)
+            || normalizedPath.Contains(@"\FrameHub.LibraryRefreshTests\", StringComparison.OrdinalIgnoreCase)
+            || normalizedPath.Contains("/FrameHub.LibraryRefreshTests/", StringComparison.OrdinalIgnoreCase);
+
+        string fileName = Path.GetFileName(normalizedPath);
+        bool hasSyntheticTestExeName = fileName.Equals("desktop_test_game.exe", StringComparison.OrdinalIgnoreCase)
+            || fileName.StartsWith("desktop_test_", StringComparison.OrdinalIgnoreCase);
+
+        if (isUnderOsTemp && (hasTestDirectoryMarker || hasSyntheticTestExeName))
+        {
+            return true;
+        }
+
+        if (hasTestDirectoryMarker)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static string? TryNormalizePath(string? path)

@@ -449,6 +449,32 @@ public sealed class LanSecurityIntegrationTests
         Assert.IsTrue(afterGrantWrite!.Scopes.Contains(CompanionScopes.WriteLaunch));
     }
 
+    [TestMethod]
+    public async Task LibraryIcon_ReturnsIconBytesAndCacheHeader_WhenItemExists()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_deviceStore);
+        server.ConfigureLibraryProvider(new FakeLibraryProvider());
+
+        bool started = await server.StartAsync(new CompanionOptions { Enabled = true, Port = port });
+        Assert.IsTrue(started);
+
+        using var client = new HttpClient();
+
+        // 1. Loopback GET /api/v1/library/test-1/icon returns icon bytes and Cache-Control
+        var iconResp = await client.GetAsync($"http://127.0.0.1:{port}/api/v1/library/test-1/icon");
+        Assert.AreEqual(HttpStatusCode.OK, iconResp.StatusCode);
+        Assert.AreEqual("image/png", iconResp.Content.Headers.ContentType?.MediaType);
+        byte[] bytes = await iconResp.Content.ReadAsByteArrayAsync();
+        CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, bytes);
+        Assert.IsTrue(iconResp.Headers.CacheControl?.Private == true);
+        Assert.AreEqual(TimeSpan.FromHours(1), iconResp.Headers.CacheControl?.MaxAge);
+
+        // 2. GET for non-existent item returns 404
+        var missingResp = await client.GetAsync($"http://127.0.0.1:{port}/api/v1/library/non-existent/icon");
+        Assert.AreEqual(HttpStatusCode.NotFound, missingResp.StatusCode);
+    }
+
     private (PairedDeviceRecord Device, string Token) AddDeviceWithScopes(string name, params string[] scopes)
     {
         string token = $"cred_{Guid.NewGuid():N}";
@@ -478,6 +504,20 @@ public sealed class LanSecurityIntegrationTests
         public Task<CompanionLaunchResultDto> LaunchItemAsync(string id, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new CompanionLaunchResultDto { Success = true, ErrorCode = "launched" });
+        }
+
+        public Task<CompanionLibraryIconResult?> GetItemIconAsync(string id, CancellationToken cancellationToken = default)
+        {
+            if (id == "test-1")
+            {
+                return Task.FromResult<CompanionLibraryIconResult?>(new CompanionLibraryIconResult
+                {
+                    Bytes = new byte[] { 1, 2, 3 },
+                    ContentType = "image/png"
+                });
+            }
+
+            return Task.FromResult<CompanionLibraryIconResult?>(null);
         }
     }
 

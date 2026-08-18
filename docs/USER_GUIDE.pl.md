@@ -2,7 +2,7 @@
 
 [English](USER_GUIDE.md)
 
-Po pierwszym uruchomieniu przeskanuj **Bibliotekę gier**. Dodaj folder lub plik EXE ręcznie, jeśli launcher nie wykrył gry. Zapis profilu utrwala regułę; **Optymalizuj/Zastosuj** próbuje zmienić pasujące, uruchomione procesy.
+Po pierwszym uruchomieniu przeskanuj **Gry i optymalizacja** (Bibliotekę gier). Dodaj folder lub plik EXE ręcznie, jeśli launcher nie wykrył gry. Zapis profilu utrwala regułę; **Optymalizuj/Zastosuj** próbuje zmienić pasujące, uruchomione procesy.
 
 W **Optymalizacji sesji** wybierasz procesy do wstrzymania, sprawdzasz podgląd i uruchamiasz sesję ręcznie albo automatycznie. FrameHub zapisuje wstrzymane procesy i wznawia je przy przywracaniu — nie kończy ich.
 

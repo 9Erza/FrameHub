@@ -330,7 +330,7 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         ScopeReadOptimizationLabel = scopeReadOptimizationLabel ?? "Optimization Data";
         ScopeWriteOptimizationLabel = scopeWriteOptimizationLabel ?? "Optimization Control";
         ScopeReadOptimizationCpuLabel = scopeReadOptimizationCpuLabel ?? "Game CPU Data";
-        ScopeWriteOptimizationCpuLabel = scopeWriteOptimizationCpuLabel ?? "Game CPU Control";
+        ScopeWriteOptimizationCpuLabel = scopeWriteOptimizationCpuLabel ?? "Game CPU Assignment";
         RevokeLabel = revokeLabel ?? "Revoke";
 
         PermissionsHeader = permissionsHeader ?? "Permissions";
@@ -342,7 +342,7 @@ public sealed class PairedDeviceItemViewModel : ViewModelBase
         AreaBackgroundAppsLabel = areaBackgroundAppsLabel ?? "Background apps";
         AreaOptimizationLabel = areaOptimizationLabel ?? "Optimization";
         AreaBenchmarksLabel = areaBenchmarksLabel ?? "Benchmarks";
-        AreaSessionCpuLabel = areaSessionCpuLabel ?? "Game CPU Control";
+        AreaSessionCpuLabel = areaSessionCpuLabel ?? "Game CPU Assignment";
 
         _onToggleScope = onToggleScope ?? ((_, _, _) => { });
         _readTelemetryEnabled = record.Scopes.Contains(CompanionScopes.ReadTelemetry, StringComparer.OrdinalIgnoreCase);

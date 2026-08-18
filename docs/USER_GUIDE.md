@@ -2,7 +2,7 @@
 
 [Polski](USER_GUIDE.pl.md)
 
-On first launch, scan **Game Library**. Add custom folders or a manual executable if a launcher scan misses a game. Select an item to save its CPU profile; **Save** persists a rule, while **Optimize/Apply** attempts to change currently running matching processes.
+On first launch, scan **Games & Optimization** (Game Library). Add custom folders or a manual executable if a launcher scan misses a game. Select an item to save its CPU profile; **Save** persists a rule, while **Optimize/Apply** attempts to change currently running matching processes.
 
 Use **Session Optimization** to choose what may be suspended, preview the result, then run an automatic or manual session. FrameHub records suspended processes and resumes them during recovery; it does not kill them.
 

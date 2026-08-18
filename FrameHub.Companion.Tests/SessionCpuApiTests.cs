@@ -181,9 +181,14 @@ public sealed class SessionCpuApiTests
         using var client = new HttpClient();
 
         string html = await client.GetStringAsync($"http://127.0.0.1:{port}/index.html");
-        // Separate cards
+        // Separate cards and priority ordering: CPU Control before Session Optimization
         StringAssert.Contains(html, "id=\"session-optimization-section\"");
         StringAssert.Contains(html, "id=\"game-cpu-section\"");
+        int cpuCardIndex = html.IndexOf("id=\"game-cpu-section\"", StringComparison.Ordinal);
+        int sessionCardIndex = html.IndexOf("id=\"session-optimization-section\"", StringComparison.Ordinal);
+        Assert.IsTrue(cpuCardIndex >= 0 && sessionCardIndex > cpuCardIndex,
+            "Game CPU Control card must be placed visually above Session Optimization in the DOM.");
+
         StringAssert.Contains(html, "data-i18n=\"optimization.title\"");
         StringAssert.Contains(html, "data-i18n=\"optimization.cpu.title\"");
 
@@ -204,6 +209,27 @@ public sealed class SessionCpuApiTests
 
         string i18n = await client.GetStringAsync($"http://127.0.0.1:{port}/js/i18n.js");
         Assert.AreEqual(2, Count(i18n, "'optimization.cpu.title':"));
+        StringAssert.Contains(i18n, "'optimization.cpu.title': 'Game CPU Assignment'");
+        StringAssert.Contains(i18n, "'optimization.cpu.title': 'Przydział CPU dla gry'");
+        Assert.IsFalse(i18n.Contains("'optimization.cpu.title': 'Kontrola CPU gry'"),
+            "Visible Polish title must be 'Przydział CPU dla gry', not 'Kontrola CPU gry'.");
+        Assert.IsFalse(i18n.Contains("'optimization.cpu.title': 'Sterowanie CPU gry'"),
+            "Visible Polish title must be 'Przydział CPU dla gry', not 'Sterowanie CPU gry'.");
+        Assert.IsFalse(i18n.Contains("'optimization.cpu.title': 'Game CPU Control'"),
+            "Visible English title must be 'Game CPU Assignment', not 'Game CPU Control'.");
+
+        // Subtitle brand positioning
+        StringAssert.Contains(i18n, "'brand.subtitle': 'Game performance & optimization'");
+        StringAssert.Contains(i18n, "'brand.subtitle': 'Wydajność i optymalizacja gier'");
+        Assert.IsFalse(i18n.Contains("'brand.subtitle': 'Benchmark Control'"));
+        Assert.IsFalse(i18n.Contains("'brand.subtitle': 'Sterowanie Benchmarkiem'"));
+
+        // Default & Reduced CPU State dictionary entries
+        StringAssert.Contains(i18n, "'optimization.cpu.defaultSetting': 'Default system setting'");
+        StringAssert.Contains(i18n, "'optimization.cpu.defaultSetting': 'Standardowe ustawienie'");
+        StringAssert.Contains(i18n, "'optimization.cpu.systemSetting': 'System setting'");
+        StringAssert.Contains(i18n, "'optimization.cpu.systemSetting': 'Ustawienie systemowe'");
+
         Assert.AreEqual(2, Count(i18n, "'optimization.cpu.sessionOnlyNotice':"),
             "EN and PL dictionaries must both explain that session changes are not saved to the profile.");
         Assert.AreEqual(2, Count(i18n, "'optimization.cpu.edit':"));
@@ -221,6 +247,36 @@ public sealed class SessionCpuApiTests
         StringAssert.Contains(js, "handlePresetPhysical");
         StringAssert.Contains(js, "handlePresetClear");
         StringAssert.Contains(js, "updateApplyButtonState");
+
+        // Verify neutral default system state discrimination
+        StringAssert.Contains(js, "defaultSetting");
+        StringAssert.Contains(js, "systemSetting");
+    }
+
+    [TestMethod]
+    public async Task CpuPresentationSemantics_StateDiscriminationRules_PresentExpectedLabels()
+    {
+        int port = GetFreePort();
+        await using var server = new CompanionServer(_store);
+        Assert.IsTrue(await server.StartAsync(new CompanionOptions { Enabled = true, Port = port }));
+        using var client = new HttpClient();
+
+        string js = await client.GetStringAsync($"http://127.0.0.1:{port}/js/session-optimization.js");
+
+        // 1. State A: Default system state (!isExplicit && isFullSelection)
+        StringAssert.Contains(js, "isExplicit && isFullSelection");
+        StringAssert.Contains(js, "defaultSetting");
+
+        // 2. State B: Explicit CPU Sets
+        StringAssert.Contains(js, "selection.mode === 'cpu-sets'");
+        StringAssert.Contains(js, "cpuSets");
+
+        // 3. State C: Explicit Affinity
+        StringAssert.Contains(js, "isExplicit && selection.mode === 'affinity'");
+        StringAssert.Contains(js, "affinity");
+
+        // 4. State D: System setting with reduced processor mask
+        StringAssert.Contains(js, "systemSetting");
     }
 
     private static int Count(string haystack, string needle)

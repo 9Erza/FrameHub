@@ -248,7 +248,7 @@
         let available = false;
 
         if (cpuPermissionDenied) {
-            noteText = cpuT('optimization.cpu.permission', 'This device does not have permission for Game CPU Control.');
+            noteText = cpuT('optimization.cpu.permission', 'This device does not have permission for Game CPU Assignment.');
         } else if (!state || !state.available) {
             const reason = state ? state.unavailableReason : '';
             if (reason === 'no_game') noteText = cpuT('optimization.cpu.noGame', 'No active game. Launch a game from the library or manually to view and temporarily change its CPU settings.');
@@ -273,13 +273,33 @@
 
         const selection = state && state.currentSelection;
         const total = state && state.topology && state.topology.processors ? state.topology.processors.length : 0;
-        if (elements.optCpuModeLabel) {
-            elements.optCpuModeLabel.textContent = selection && selection.mode === 'cpu-sets'
-                ? cpuT('optimization.cpu.cpuSets', 'CPU Sets')
-                : cpuT('optimization.cpu.affinity', 'Affinity');
-        }
-        if (elements.optCpuSummary) {
-            elements.optCpuSummary.textContent = selection ? cpuSelectionSummary(selection, total) : '--';
+        const isTemporary = Boolean(state && state.temporaryOverrideActive);
+        const isProfile = Boolean(state && state.source === 'profile');
+        const isExplicit = isTemporary || isProfile;
+        const selectedCount = selection && selection.indices ? selection.indices.length : 0;
+        const isFullSelection = total > 0 && selectedCount >= total;
+
+        if (elements.optCpuModeLabel && elements.optCpuSummary) {
+            if (!selection || !state || !state.available) {
+                elements.optCpuModeLabel.textContent = cpuT('optimization.cpu.modeLabel', 'CPU mode');
+                elements.optCpuSummary.textContent = '--';
+            } else if (!isExplicit && isFullSelection) {
+                // State A: Default system state (all processors available, no FrameHub profile/temporary override)
+                elements.optCpuModeLabel.textContent = cpuT('optimization.cpu.modeLabel', 'CPU mode');
+                elements.optCpuSummary.textContent = cpuT('optimization.cpu.defaultSetting', 'Default system setting') + ' (' + total + ' / ' + total + ')';
+            } else if (selection.mode === 'cpu-sets') {
+                // State B: Explicit CPU Sets
+                elements.optCpuModeLabel.textContent = cpuT('optimization.cpu.cpuSets', 'CPU Sets');
+                elements.optCpuSummary.textContent = cpuSelectionSummary(selection, total);
+            } else if (isExplicit && selection.mode === 'affinity') {
+                // State C: Explicit Affinity
+                elements.optCpuModeLabel.textContent = cpuT('optimization.cpu.affinity', 'Affinity');
+                elements.optCpuSummary.textContent = cpuSelectionSummary(selection, total);
+            } else {
+                // State D: External / System setting with reduced processor mask
+                elements.optCpuModeLabel.textContent = cpuT('optimization.cpu.systemSetting', 'System setting');
+                elements.optCpuSummary.textContent = cpuSelectionSummary(selection, total);
+            }
         }
 
         if (elements.optCpuOverrideBadge) {
@@ -418,7 +438,7 @@
                 return;
             }
             if (resp.status === 403) {
-                showCpuFeedback(cpuT('optimization.cpu.permission', 'This device does not have permission for Game CPU Control.'), false);
+                showCpuFeedback(cpuT('optimization.cpu.permission', 'This device does not have permission for Game CPU Assignment.'), false);
                 return;
             }
 
@@ -461,7 +481,7 @@
                 return;
             }
             if (resp.status === 403) {
-                showCpuFeedback(cpuT('optimization.cpu.permission', 'This device does not have permission for Game CPU Control.'), false);
+                showCpuFeedback(cpuT('optimization.cpu.permission', 'This device does not have permission for Game CPU Assignment.'), false);
                 return;
             }
 
