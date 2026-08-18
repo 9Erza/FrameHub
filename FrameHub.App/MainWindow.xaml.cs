@@ -1,25 +1,58 @@
+using FrameHub.App.Helpers;
+using FrameHub.App.Services;
 using FrameHub.App.ViewModels;
+using FrameHub.Core.Logging;
+using FrameHub.Core.Models;
+using FrameHub.Core.Services;
 using System;
 using System.Diagnostics;
-using DrawingIcon = System.Drawing.Icon;
-using DrawingSystemIcons = System.Drawing.SystemIcons;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using DrawingIcon = System.Drawing.Icon;
+using DrawingSystemIcons = System.Drawing.SystemIcons;
 using WinForms = System.Windows.Forms;
-using FrameHub.App.Services;
 
 namespace FrameHub.App;
 
 public partial class MainWindow : Window
 {
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    private enum ShutdownState
+    {
+        NotStarted,
+        InProgress,
+        Completed
+    }
+
     private WinForms.NotifyIcon? _trayIcon;
-    private WinForms.ToolStripItem? _trayOpenItem;
-    private WinForms.ToolStripItem? _trayExitItem;
+    private WinForms.ToolStripMenuItem? _trayHeaderItem;
+    private WinForms.ToolStripMenuItem? _trayOpenItem;
+    private WinForms.ToolStripMenuItem? _trayGoToItem;
+    private WinForms.ToolStripMenuItem? _trayDashboardItem;
+    private WinForms.ToolStripMenuItem? _trayGamesItem;
+    private WinForms.ToolStripMenuItem? _trayBenchmarksItem;
+    private WinForms.ToolStripMenuItem? _trayHardwareItem;
+    private WinForms.ToolStripMenuItem? _traySettingsItem;
+    private WinForms.ToolStripSeparator? _traySeparatorItem;
+    private WinForms.ToolStripMenuItem? _trayExitItem;
+
     private bool _isExitRequested;
     private bool _isHidingToTray;
+    private ShutdownState _shutdownState = ShutdownState.NotStarted;
+    private WindowState _lastNonMinimizedWindowState = WindowState.Normal;
     private GlobalHotkeyService? _globalHotkeyService;
 
     private ShellViewModel? ViewModel => DataContext as ShellViewModel;
@@ -31,6 +64,7 @@ public partial class MainWindow : Window
         DataContext = shellViewModel;
         shellViewModel.UiLanguageChanged += (_, _) => RefreshTrayTexts();
         shellViewModel.UserNotificationRequested += ShowBenchmarkNotification;
+        shellViewModel.UpdateAvailableRequested += ShowUpdateDialog;
         shellViewModel.Runtime.RuntimeStateChanged += (_, _) => ApplyBenchmarkHotkeyRegistration();
         Loaded += MainWindow_Loaded;
         SourceInitialized += (_, _) =>
@@ -57,6 +91,7 @@ public partial class MainWindow : Window
         UpdateResponsiveShell();
         InitializeTrayIcon();
         ApplyStartupWindowBehavior();
+        RunAutomaticUpdateCheck();
     }
 
     private void InitializeTrayIcon()
@@ -73,9 +108,82 @@ public partial class MainWindow : Window
             icon = DrawingSystemIcons.Application;
         }
 
-        var menu = new WinForms.ContextMenuStrip();
-        _trayOpenItem = menu.Items.Add(ViewModel?.TrayOpenText ?? "Open FrameHub", null, (_, _) => ShowFromTray());
-        _trayExitItem = menu.Items.Add(ViewModel?.TrayExitText ?? "Exit", null, (_, _) => ExitApplication());
+        var menu = new WinForms.ContextMenuStrip
+        {
+            Renderer = new FrameHubDarkMenuRenderer(),
+            ShowCheckMargin = false,
+            ShowImageMargin = false,
+            BackColor = System.Drawing.Color.FromArgb(15, 23, 42),
+            ForeColor = System.Drawing.Color.FromArgb(241, 245, 249),
+            Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular)
+        };
+
+        _trayHeaderItem = new WinForms.ToolStripMenuItem($"FrameHub {ViewModel?.AppVersion ?? new AppInfo().Version}")
+        {
+            Enabled = false,
+            Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold)
+        };
+
+        _trayOpenItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayOpenText ?? "Open FrameHub", null, (_, _) => RestoreAndActivate());
+
+        _trayGoToItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayGoToText ?? "Go to");
+        _trayGoToItem.DropDown.Renderer = new FrameHubDarkMenuRenderer();
+        if (_trayGoToItem.DropDown is WinForms.ToolStripDropDownMenu subMenu)
+        {
+            subMenu.ShowCheckMargin = false;
+            subMenu.ShowImageMargin = false;
+        }
+        _trayGoToItem.DropDown.BackColor = System.Drawing.Color.FromArgb(15, 23, 42);
+        _trayGoToItem.DropDown.ForeColor = System.Drawing.Color.FromArgb(241, 245, 249);
+        _trayGoToItem.DropDown.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular);
+
+        _trayDashboardItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayDashboardText ?? "Dashboard", null, (_, _) =>
+        {
+            RestoreAndActivate();
+            ViewModel?.NavigateTo("Dashboard");
+        });
+
+        _trayGamesItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayGamesOptimizationText ?? "Games & Optimization", null, (_, _) =>
+        {
+            RestoreAndActivate();
+            ViewModel?.NavigateTo("Library");
+        });
+
+        _trayBenchmarksItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayBenchmarksText ?? "Benchmarks", null, (_, _) =>
+        {
+            RestoreAndActivate();
+            ViewModel?.NavigateTo("Benchmarks");
+        });
+
+        _trayHardwareItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayHardwareText ?? "Hardware Monitor", null, (_, _) =>
+        {
+            RestoreAndActivate();
+            ViewModel?.NavigateTo("Hardware");
+        });
+
+        _traySettingsItem = new WinForms.ToolStripMenuItem(ViewModel?.TraySettingsText ?? "Settings", null, (_, _) =>
+        {
+            RestoreAndActivate();
+            ViewModel?.NavigateTo("Settings");
+        });
+
+        _trayGoToItem.DropDownItems.AddRange(new WinForms.ToolStripItem[]
+        {
+            _trayDashboardItem,
+            _trayGamesItem,
+            _trayBenchmarksItem,
+            _trayHardwareItem,
+            _traySettingsItem
+        });
+
+        _traySeparatorItem = new WinForms.ToolStripSeparator();
+        _trayExitItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayExitText ?? "Exit FrameHub", null, (_, _) => ExitApplication());
+
+        menu.Items.Add(_trayHeaderItem);
+        menu.Items.Add(_trayOpenItem);
+        menu.Items.Add(_trayGoToItem);
+        menu.Items.Add(_traySeparatorItem);
+        menu.Items.Add(_trayExitItem);
 
         _trayIcon = new WinForms.NotifyIcon
         {
@@ -84,7 +192,16 @@ public partial class MainWindow : Window
             ContextMenuStrip = menu,
             Visible = ShouldKeepTrayIconVisible()
         };
-        _trayIcon.DoubleClick += (_, _) => ShowFromTray();
+
+        _trayIcon.MouseClick += (_, me) =>
+        {
+            if (me.Button == WinForms.MouseButtons.Left)
+            {
+                RestoreAndActivate();
+            }
+        };
+
+        _trayIcon.DoubleClick += (_, _) => RestoreAndActivate();
     }
 
     private void ApplyStartupWindowBehavior()
@@ -157,6 +274,11 @@ public partial class MainWindow : Window
 
     private void MainWindow_StateChanged(object? sender, EventArgs e)
     {
+        if (WindowState == WindowState.Normal || WindowState == WindowState.Maximized)
+        {
+            _lastNonMinimizedWindowState = WindowState;
+        }
+
         if (WindowState == WindowState.Maximized)
         {
             ApplyCurrentScreenWorkArea();
@@ -166,6 +288,8 @@ public partial class MainWindow : Window
         {
             HideToTray();
         }
+
+        RunAutomaticUpdateCheck();
     }
 
     private void ToggleWindowState()
@@ -207,8 +331,15 @@ public partial class MainWindow : Window
 
     private void RefreshTrayTexts()
     {
+        if (_trayHeaderItem != null) _trayHeaderItem.Text = $"FrameHub {ViewModel?.AppVersion ?? new AppInfo().Version}";
         if (_trayOpenItem != null) _trayOpenItem.Text = ViewModel?.TrayOpenText ?? "Open FrameHub";
-        if (_trayExitItem != null) _trayExitItem.Text = ViewModel?.TrayExitText ?? "Exit";
+        if (_trayGoToItem != null) _trayGoToItem.Text = ViewModel?.TrayGoToText ?? "Go to";
+        if (_trayDashboardItem != null) _trayDashboardItem.Text = ViewModel?.TrayDashboardText ?? "Dashboard";
+        if (_trayGamesItem != null) _trayGamesItem.Text = ViewModel?.TrayGamesOptimizationText ?? "Games & Optimization";
+        if (_trayBenchmarksItem != null) _trayBenchmarksItem.Text = ViewModel?.TrayBenchmarksText ?? "Benchmarks";
+        if (_trayHardwareItem != null) _trayHardwareItem.Text = ViewModel?.TrayHardwareText ?? "Hardware Monitor";
+        if (_traySettingsItem != null) _traySettingsItem.Text = ViewModel?.TraySettingsText ?? "Settings";
+        if (_trayExitItem != null) _trayExitItem.Text = ViewModel?.TrayExitText ?? "Exit FrameHub";
     }
 
     private void ApplyBenchmarkHotkeyRegistration()
@@ -253,11 +384,81 @@ public partial class MainWindow : Window
         _isHidingToTray = false;
     }
 
-    private void ShowFromTray()
+    public void RestoreAndActivate()
     {
-        Show();
-        WindowState = WindowState.Normal;
+        if (!IsVisible)
+        {
+            Show();
+        }
+
+        if (WindowState == WindowState.Minimized || WindowState != _lastNonMinimizedWindowState)
+        {
+            WindowState = _lastNonMinimizedWindowState;
+        }
+
         Activate();
+
+        try
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            if (handle != IntPtr.Zero)
+            {
+                BringWindowToTop(handle);
+                SetForegroundWindow(handle);
+            }
+        }
+        catch
+        {
+            // Best effort foreground activation
+        }
+
+        // Two-phase restore: Windows notification overflow flyout retains foreground capture during
+        // the initial synchronous MouseClick turn. Re-assert activation on the next dispatcher turn
+        // so FrameHub reliably foregrounds on the very first left click.
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+        {
+            try
+            {
+                if (!IsVisible) Show();
+                if (WindowState == WindowState.Minimized || WindowState != _lastNonMinimizedWindowState)
+                {
+                    WindowState = _lastNonMinimizedWindowState;
+                }
+                Activate();
+                var handle = new WindowInteropHelper(this).Handle;
+                if (handle != IntPtr.Zero)
+                {
+                    BringWindowToTop(handle);
+                    SetForegroundWindow(handle);
+                }
+            }
+            catch
+            {
+                // Best effort
+            }
+        }));
+
+        RunAutomaticUpdateCheck();
+    }
+
+    /// <summary>
+    /// Automatic update checks run only when the main window is actually presented to the user,
+    /// never during hidden tray startup or while minimized. The once-per-process gate lives in
+    /// ShellViewModel/UpdateCheckSession, so repeated presentations never repeat the check.
+    /// </summary>
+    private void RunAutomaticUpdateCheck()
+    {
+        if (!IsVisible || WindowState == WindowState.Minimized) return;
+        if (ViewModel is ShellViewModel shell)
+        {
+            _ = shell.RunAutomaticUpdateCheckIfEligibleAsync();
+        }
+    }
+
+    private void ShowUpdateDialog(Core.Services.UpdateCheckResult result)
+    {
+        if (!IsVisible) return;
+        Views.UpdateAvailableDialog.Present(this, result.LatestVersion, result.ReleaseUrl, ViewModel!.Localization);
     }
 
     private bool ShouldKeepTrayIconVisible()
@@ -273,13 +474,46 @@ public partial class MainWindow : Window
         {
             _trayIcon.Visible = false;
         }
-        Show();
+        _ = PerformGracefulShutdownAsync();
+    }
+
+    private async Task PerformGracefulShutdownAsync()
+    {
+        if (_shutdownState != ShutdownState.NotStarted) return;
+        _shutdownState = ShutdownState.InProgress;
+
+        _globalHotkeyService?.Dispose();
+        _globalHotkeyService = null;
+
+        if (_trayIcon != null)
+        {
+            _trayIcon.Visible = false;
+        }
+
+        Hide();
+
+        if (ViewModel is ShellViewModel shell)
+        {
+            using var shutdownCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            try
+            {
+                await Task.Run(async () => await shell.ShutdownAsync(shutdownCts.Token).ConfigureAwait(false), shutdownCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                LoggerService.Instance.Warn("Graceful application shutdown deadline exceeded.");
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Instance.Warn($"Error during application shutdown: {ex.Message}");
+            }
+        }
+
+        _shutdownState = ShutdownState.Completed;
         Close();
     }
 
-    private bool _shutdownCompleted;
-
-    protected override async void OnClosing(System.ComponentModel.CancelEventArgs e)
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         if (!_isExitRequested && !_isHidingToTray && ViewModel?.Runtime.Settings.CloseToTray == true)
         {
@@ -288,15 +522,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!_shutdownCompleted && ViewModel is ShellViewModel shell)
+        if (_shutdownState == ShutdownState.NotStarted)
         {
             e.Cancel = true;
-            IsEnabled = false;
-            _globalHotkeyService?.Dispose();
-            _globalHotkeyService = null;
-            await shell.ShutdownAsync();
-            _shutdownCompleted = true;
-            Close();
+            _ = PerformGracefulShutdownAsync();
+            return;
+        }
+
+        if (_shutdownState == ShutdownState.InProgress)
+        {
+            e.Cancel = true;
             return;
         }
 

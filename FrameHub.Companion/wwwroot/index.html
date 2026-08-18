@@ -2,13 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>FrameHub Companion</title>
+    <meta name="theme-color" content="#0f172a">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="shortcut icon" type="image/png" href="/assets/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- App Header -->
+    <div class="app-shell">
+        <!-- App Header (fixed app chrome, never scrolls) -->
         <header class="app-header">
             <button type="button" class="brand" id="brand-home-btn" aria-label="FrameHub Companion Home">
                 <img class="brand-logo" src="/assets/logo.png" alt="FrameHub Logo" width="32" height="32">
@@ -23,6 +27,8 @@
             </div>
         </header>
 
+        <!-- Single vertical scroll region: content + footer scroll together -->
+        <div class="app-scroll-region" id="app-scroll-region">
         <!-- Main Content Area -->
         <main class="main-content">
             <!-- Pairing / Authentication Card -->
@@ -146,7 +152,7 @@
                 </section>
 
                 <!-- Game CPU Control Section (Section A) -->
-                <section class="card" id="game-cpu-section" style="margin-top: 1rem;">
+                <section class="card" id="game-cpu-section">
                     <div class="card-header">
                         <h2 data-i18n="optimization.cpu.title">Game CPU Assignment</h2>
                         <span class="badge badge-warning hidden" id="opt-cpu-override-badge" data-i18n="optimization.cpu.sourceOverride">Temporary override</span>
@@ -213,7 +219,7 @@
                 </section>
 
                 <!-- Session Optimization Section (Section B) -->
-                <section class="card" id="session-optimization-section" style="margin-top: 1rem;">
+                <section class="card" id="session-optimization-section">
                     <div class="card-header">
                         <h2 data-i18n="optimization.title">Session Optimization</h2>
                         <span class="badge badge-secondary" id="opt-state-badge" data-i18n="optimization.inactive">Inactive</span>
@@ -263,7 +269,7 @@
                         <div id="library-list" class="library-cards-grid"></div>
                     </div>
                 </section>
-                <section class="card" id="background-apps-section" style="margin-top: 1rem;">
+                <section class="card" id="background-apps-section">
                     <div class="card-header">
                         <h2 data-i18n="backgroundApps.title">Background Apps</h2>
                         <div class="header-actions">
@@ -515,27 +521,28 @@
             </div>
         </main>
 
-        <!-- App Footer -->
+        <!-- App Footer (part of the scrolling content, fully visible above the nav) -->
         <footer class="app-footer">
-            <p data-i18n="footer.text">FrameHub Companion &bull; Single Source of Truth: BenchmarkCaptureCoordinator</p>
+            <p data-i18n="footer.text">FrameHub Companion</p>
         </footer>
+        </div>
 
-        <!-- Mobile Bottom Navigation Shell -->
+        <!-- Mobile Bottom Navigation (outside the scroll region, immobile in its shell slot) -->
         <nav class="bottom-nav hidden" id="app-nav" aria-label="Main Navigation">
             <button type="button" class="nav-item active" id="nav-tab-home" data-tab="home" aria-selected="true" aria-controls="home-view">
-                <span class="nav-icon">🏠</span>
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
                 <span class="nav-label" data-i18n="nav.home">Home</span>
             </button>
             <button type="button" class="nav-item" id="nav-tab-library" data-tab="library" aria-selected="false" aria-controls="library-view">
-                <span class="nav-icon">🎮</span>
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><line x1="7" y1="10" x2="7" y2="14"/><line x1="5" y1="12" x2="9" y2="12"/><circle cx="15.5" cy="11.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="13.5" r="0.5" fill="currentColor"/></svg></span>
                 <span class="nav-label" data-i18n="nav.library">Library</span>
             </button>
             <button type="button" class="nav-item" id="nav-tab-benchmarks" data-tab="benchmarks" aria-selected="false" aria-controls="benchmarks-view">
-                <span class="nav-icon">📊</span>
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
                 <span class="nav-label" data-i18n="nav.benchmarks">Benchmarks</span>
             </button>
             <button type="button" class="nav-item" id="nav-tab-settings" data-tab="settings" aria-selected="false" aria-controls="settings-view">
-                <span class="nav-icon">⚙️</span>
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span>
                 <span class="nav-label" data-i18n="nav.settings">Settings</span>
             </button>
         </nav>

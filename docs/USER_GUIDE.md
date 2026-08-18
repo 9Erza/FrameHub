@@ -26,6 +26,13 @@ When CS2 config is detected in exactly one Steam userdata folder, FrameHub uses 
    - **Game CPU Assignment**: When a game is active, temporarily adjust CPU core scheduling using topology presets (All Cores, Physical Only, Clear) or custom CPU Sets.
    - **Session Optimization**: Monitor and control background app suspension.
    - **Benchmarks**: Monitor active benchmark progress or trigger remote capture.
+6. The Companion is designed as a mobile app shell: the bottom navigation stays fixed while content scrolls, works in mobile Safari/Chrome, and can be added to your home screen with the FrameHub icon.
+
+---
+
+## Update Checks
+
+With **Settings > Check for updates at startup** enabled, FrameHub checks for a new release once per application run — but only after the main window is actually shown to you. It never interrupts silent tray/minimized startup, stays silent when you are up to date or offline, and shows a FrameHub-styled dialog with a direct link to the release page when a new version is available. **Settings > Check now** performs a manual check at any time and uses the same dialog; no installers are downloaded or executed automatically.
 
 ---
 

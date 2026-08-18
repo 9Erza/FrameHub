@@ -26,6 +26,13 @@ Gdy istnieje jeden prawidłowy folder Steam userdata CS2, FrameHub wybiera go au
    - **Przydział CPU dla gry**: Przy aktywnej grze tymczasowo dostosuj przydział rdzeni procesora przy użyciu presetów topologii (Wszystkie rdzenie, Tylko fizyczne, Wyczyść) lub CPU Sets.
    - **Optymalizacja sesji**: Monitoruj i kontroluj stan wstrzymania aplikacji w tle.
    - **Benchmarki**: Śledź postęp testów lub uruchamiaj pomiary zdalnie.
+6. Companion działa jako mobilna powłoka aplikacji: dolna nawigacja pozostaje stała podczas przewijania treści, działa w mobilnym Safari/Chrome, a stronę można dodać do ekranu głównego z ikoną FrameHub.
+
+---
+
+## Sprawdzanie aktualizacji
+
+Po włączeniu **Ustawienia > Sprawdzaj aktualizacje przy starcie** FrameHub sprawdza dostępność nowej wersji raz na uruchomienie aplikacji — ale dopiero wtedy, gdy okno główne zostanie faktycznie pokazane. Nie przerywa cichego startu do zasobnika/zminimalizowanego, milczy, gdy wersja jest aktualna lub brakuje internetu, a przy nowej wersji wyświetla okno w stylu FrameHub z bezpośrednim odnośnikiem do strony wydania. Przycisk **Ustawienia > Sprawdź teraz** wykonuje ręczne sprawdzenie w dowolnym momencie i używa tego samego okna; instalatory nie są pobierane ani uruchamiane automatycznie.
 
 ---
 

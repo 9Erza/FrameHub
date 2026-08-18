@@ -565,9 +565,9 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public async Task CancelAndWaitForCleanupAsync()
+    public async Task CancelAndWaitForCleanupAsync(CancellationToken cancellationToken = default)
     {
-        await _coordinator.StopAsync();
+        await _coordinator.StopAsync(cancellationToken);
     }
 
     public async Task RefreshHistoryAsync()

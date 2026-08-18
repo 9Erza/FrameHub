@@ -336,7 +336,12 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
 
         if (app != null)
         {
-            try { await app.StopAsync().ConfigureAwait(false); } catch { }
+            try
+            {
+                using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                await app.StopAsync(stopCts.Token).ConfigureAwait(false);
+            }
+            catch { }
             try { await app.DisposeAsync().ConfigureAwait(false); } catch { }
         }
 
@@ -388,7 +393,13 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
     {
         if (_disposed) return;
 
-        await _gate.WaitAsync().ConfigureAwait(false);
+        bool gateAcquired = false;
+        try
+        {
+            gateAcquired = await _gate.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch { }
+
         try
         {
             if (_disposed) return;
@@ -397,8 +408,11 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
         }
         finally
         {
-            _gate.Release();
-            _gate.Dispose();
+            if (gateAcquired)
+            {
+                _gate.Release();
+                _gate.Dispose();
+            }
         }
     }
 
@@ -406,6 +420,10 @@ public sealed class CompanionServer : IAsyncDisposable, IDisposable
     {
         if (_disposed) return;
 
-        Task.Run(async () => await DisposeAsync().ConfigureAwait(false)).GetAwaiter().GetResult();
+        try
+        {
+            Task.Run(async () => await DisposeAsync().ConfigureAwait(false)).Wait(TimeSpan.FromSeconds(3));
+        }
+        catch { }
     }
 }

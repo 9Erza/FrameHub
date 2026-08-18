@@ -1,8 +1,14 @@
 using FrameHub.App.Helpers;
 using FrameHub.App.Services;
+using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace FrameHub.App.ViewModels;
@@ -11,6 +17,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 {
     public event EventHandler? UiLanguageChanged;
     public event Action<string>? UserNotificationRequested;
+    public event Action<UpdateCheckResult>? UpdateAvailableRequested;
     private readonly LocalizationService _localization;
     private readonly SettingsService _settingsService;
     private readonly AppRuntimeService _runtime;
@@ -19,6 +26,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     private string _currentSubtitle = string.Empty;
     private string _currentKey = "Dashboard";
     private bool _disposed;
+    private readonly UpdateCheckSession _updateCheckSession = new();
 
     private readonly DashboardViewModel _dashboardViewModel;
     private readonly LibraryViewModel _libraryViewModel;
@@ -44,6 +52,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public ICommand OpenSupportCommand { get; }
 
     public AppRuntimeService Runtime => _runtime;
+    public LocalizationService Localization => _localization;
 
     public string AppName { get; } = "FrameHub";
     public string AppVersion { get; } = new AppInfo().Version;
@@ -63,6 +72,12 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public string WebsiteTooltip => _localization.T("Footer.Website");
     public string SupportTooltip => _localization.T("Footer.Support");
     public string TrayOpenText => _localization.T("Tray.Open");
+    public string TrayGoToText => _localization.T("Tray.GoTo");
+    public string TrayDashboardText => _localization.T("Tray.Dashboard");
+    public string TrayGamesOptimizationText => _localization.T("Tray.GamesOptimization");
+    public string TrayBenchmarksText => _localization.T("Tray.Benchmarks");
+    public string TrayHardwareText => _localization.T("Tray.Hardware");
+    public string TraySettingsText => _localization.T("Tray.Settings");
     public string TrayExitText => _localization.T("Tray.Exit");
     public string ProjectVersionLabel => $"FrameHub {AppVersion}";
 
@@ -194,6 +209,12 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(WebsiteTooltip));
         OnPropertyChanged(nameof(SupportTooltip));
         OnPropertyChanged(nameof(TrayOpenText));
+        OnPropertyChanged(nameof(TrayGoToText));
+        OnPropertyChanged(nameof(TrayDashboardText));
+        OnPropertyChanged(nameof(TrayGamesOptimizationText));
+        OnPropertyChanged(nameof(TrayBenchmarksText));
+        OnPropertyChanged(nameof(TrayHardwareText));
+        OnPropertyChanged(nameof(TraySettingsText));
         OnPropertyChanged(nameof(TrayExitText));
     }
 
@@ -205,6 +226,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public void NavigateTo(string key) => Navigate(key);
 
     private void Navigate(string key)
     {
@@ -301,10 +323,28 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _runtime.Dispose();
     }
 
-    public async Task ShutdownAsync()
+    public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
-        await _benchmarkViewModel.CancelAndWaitForCleanupAsync();
-        Dispose();
+        LoggerService.Instance.Info("Shell shutdown initiated.");
+        try
+        {
+            await _benchmarkViewModel.CancelAndWaitForCleanupAsync(cancellationToken).ConfigureAwait(false);
+            LoggerService.Instance.Info("Benchmark shutdown cleanup completed.");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"Benchmark shutdown cleanup error: {ex.Message}");
+        }
+
+        try
+        {
+            Dispose();
+            LoggerService.Instance.Info("Shell disposal completed.");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"Shell disposal error: {ex.Message}");
+        }
     }
 
     public async Task HandleBenchmarkHotkeyAsync()
@@ -321,4 +361,18 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     }
 
     public void ReportBenchmarkHotkeyRegistrationFailure() => _settingsViewModel.ReportBenchmarkHotkeyRegistrationFailure();
+
+    /// <summary>
+    /// Runs the once-per-process automatic update check. Silent unless an update is available.
+    /// Triggered only when the main window is actually presented (never during hidden/tray/minimized startup).
+    /// </summary>
+    public async Task RunAutomaticUpdateCheckIfEligibleAsync()
+    {
+        if (_disposed) return;
+        UpdateCheckResult? result = await _updateCheckSession.TryRunAutomaticCheckAsync(_runtime.Settings.CheckForUpdates);
+        if (result is not null && UpdateCheckSession.ShouldPresentUpdateDialog(result))
+        {
+            UpdateAvailableRequested?.Invoke(result);
+        }
+    }
 }

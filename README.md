@@ -15,12 +15,12 @@ LAN Companion server, CS2 configuration and hardware monitoring in one desktop a
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-2EA44F?style=flat-square)](LICENSE)
-![Release](https://img.shields.io/badge/release-v0.7.0-2EA44F?style=flat-square)
+![Release](https://img.shields.io/badge/release-v0.7.1-2EA44F?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Current release: v0.7.0.** See the [Changelog](CHANGELOG.md) for release details and the [Roadmap](docs/ROADMAP.md) for future work.
+> **Current release: v0.7.1.** See the [Changelog](CHANGELOG.md) for release details and the [Roadmap](docs/ROADMAP.md) for future work.
 
 ---
 

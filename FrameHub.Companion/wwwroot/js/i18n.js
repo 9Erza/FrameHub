@@ -250,7 +250,7 @@
             'optimization.cpu.invalid_selection': 'The selected CPU configuration is not valid for this system.',
             'optimization.cpu.benchmark_active': 'CPU configuration cannot change while a benchmark is active.',
 
-            'footer.text': 'FrameHub Companion • Single Source of Truth: BenchmarkCaptureCoordinator',
+            'footer.text': 'FrameHub Companion',
             'errors.serviceUnavailable': 'Benchmark provider service is unavailable.',
             'errors.captureFailed': 'Benchmark capture failed: '
         },
@@ -500,7 +500,7 @@
             'optimization.cpu.invalid_selection': 'Wybrana konfiguracja CPU jest nieprawidłowa dla tego systemu.',
             'optimization.cpu.benchmark_active': 'Nie można zmieniać konfiguracji CPU podczas benchmarku.',
 
-            'footer.text': 'FrameHub Companion • Jedno Źródło Prawdy: BenchmarkCaptureCoordinator',
+            'footer.text': 'FrameHub Companion',
             'errors.serviceUnavailable': 'Usługa dostawcy benchmarków jest niedostępna.',
             'errors.captureFailed': 'Przechwytywanie benchmarku nie powiodło się: '
         }

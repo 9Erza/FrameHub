@@ -296,4 +296,121 @@ public sealed class AppLibraryLaunchServiceTests
         Assert.IsFalse(result.Success);
         Assert.AreEqual("launch_failed", result.ErrorCode);
     }
+
+    [TestMethod]
+    public void Launch_SteamGameWithValidAppId_LaunchesThroughSteamProtocolUri()
+    {
+        ProcessStartInfo? capturedPsi = null;
+        var launchService = new AppLibraryLaunchService(psi =>
+        {
+            capturedPsi = psi;
+            return true;
+        });
+
+        var item = new LibraryItem
+        {
+            Id = "steam-cs2",
+            DisplayName = "Counter-Strike 2",
+            Source = LibrarySource.Steam,
+            AppId = "730",
+            Type = LibraryItemType.Game,
+            IsEnabled = true,
+            ExecutablePath = _fakeExecutablePath
+        };
+
+        var result = launchService.Launch(item);
+
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual("launched", result.ErrorCode);
+        Assert.IsNotNull(capturedPsi);
+        Assert.AreEqual("steam://run/730", capturedPsi.FileName);
+        Assert.IsTrue(capturedPsi.UseShellExecute);
+        Assert.IsTrue(string.IsNullOrEmpty(capturedPsi.Arguments));
+    }
+
+    [TestMethod]
+    public void Launch_SteamGameWithArbitraryNumericAppId_PreservesDiscoveredAppId()
+    {
+        ProcessStartInfo? capturedPsi = null;
+        var launchService = new AppLibraryLaunchService(psi =>
+        {
+            capturedPsi = psi;
+            return true;
+        });
+
+        var item = new LibraryItem
+        {
+            Id = "steam-dota",
+            DisplayName = "Dota 2",
+            Source = LibrarySource.Steam,
+            AppId = "570",
+            Type = LibraryItemType.Game,
+            IsEnabled = true,
+            ExecutablePath = _fakeExecutablePath
+        };
+
+        var result = launchService.Launch(item);
+
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual("launched", result.ErrorCode);
+        Assert.IsNotNull(capturedPsi);
+        Assert.AreEqual("steam://run/570", capturedPsi.FileName);
+        Assert.IsTrue(capturedPsi.UseShellExecute);
+    }
+
+    [TestMethod]
+    public void Launch_SteamGameMissingAppId_ReturnsSteamAppIdMissingAndDoesNotDirectLaunch()
+    {
+        bool invoked = false;
+        var launchService = new AppLibraryLaunchService(_ =>
+        {
+            invoked = true;
+            return true;
+        });
+
+        var item = new LibraryItem
+        {
+            Id = "steam-no-appid",
+            DisplayName = "Unindexed Steam Game",
+            Source = LibrarySource.Steam,
+            AppId = null,
+            Type = LibraryItemType.Game,
+            IsEnabled = true,
+            ExecutablePath = _fakeExecutablePath
+        };
+
+        var result = launchService.Launch(item);
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual("steam_appid_missing", result.ErrorCode);
+        Assert.IsFalse(invoked, "Direct executable launch must be refused when Steam AppId is missing to preserve VAC/Steam launch context.");
+    }
+
+    [TestMethod]
+    public void Launch_SteamGameNonNumericAppId_ReturnsSteamAppIdMissing()
+    {
+        bool invoked = false;
+        var launchService = new AppLibraryLaunchService(_ =>
+        {
+            invoked = true;
+            return true;
+        });
+
+        var item = new LibraryItem
+        {
+            Id = "steam-bad-appid",
+            DisplayName = "Corrupted Steam Game",
+            Source = LibrarySource.Steam,
+            AppId = "invalid_id_not_numeric",
+            Type = LibraryItemType.Game,
+            IsEnabled = true,
+            ExecutablePath = _fakeExecutablePath
+        };
+
+        var result = launchService.Launch(item);
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual("steam_appid_missing", result.ErrorCode);
+        Assert.IsFalse(invoked);
+    }
 }

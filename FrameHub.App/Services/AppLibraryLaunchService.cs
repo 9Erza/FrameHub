@@ -56,9 +56,45 @@ public sealed class AppLibraryLaunchService : IAppLibraryLaunchService
             return LibraryLaunchResult.Fail("not_launchable");
         }
 
-        if (string.IsNullOrWhiteSpace(item.ExecutablePath) && string.IsNullOrWhiteSpace(item.LaunchPath))
+        if (string.IsNullOrWhiteSpace(item.ExecutablePath) && string.IsNullOrWhiteSpace(item.LaunchPath) && item.Source != LibrarySource.Steam)
         {
             return LibraryLaunchResult.Fail("not_launchable");
+        }
+
+        // Steam-sourced games must be launched through the official Steam protocol (steam://run/<AppID>)
+        // so the Steam client initializes the game inside its secure VAC/overlay launcher context.
+        if (item.Source == LibrarySource.Steam)
+        {
+            if (string.IsNullOrWhiteSpace(item.AppId) || !uint.TryParse(item.AppId.Trim(), out _))
+            {
+                _logger.Warn($"Steam library item '{item.DisplayName}' lacks a valid numeric Steam AppId ('{item.AppId}'). Direct executable launch is refused to preserve Steam launch context.");
+                return LibraryLaunchResult.Fail("steam_appid_missing");
+            }
+
+            string steamUri = $"steam://run/{item.AppId.Trim()}";
+            var steamStartInfo = new ProcessStartInfo
+            {
+                FileName = steamUri,
+                UseShellExecute = true
+            };
+
+            try
+            {
+                bool steamStarted = _processStarter(steamStartInfo);
+                if (!steamStarted)
+                {
+                    _logger.Warn($"Process launcher returned false for Steam item '{item.DisplayName}' ({steamUri}).");
+                    return LibraryLaunchResult.Fail("launch_failed");
+                }
+
+                _logger.Info($"Successfully launched Steam library item '{item.DisplayName}' through Steam protocol '{steamUri}'.");
+                return LibraryLaunchResult.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to launch Steam library item '{item.DisplayName}' through Steam protocol '{steamUri}': {ex.Message}", ex);
+                return LibraryLaunchResult.Fail("launch_failed");
+            }
         }
 
         // Trusted shell launch entry (e.g. an official Riot-created Start Menu shortcut). The shortcut

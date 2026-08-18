@@ -658,6 +658,9 @@ public sealed class SettingsViewModel : ViewModelBase
     /// <summary>Test seam substituting the WPF confirmation dialog; when null the real MessageBox is used.</summary>
     public Func<string, bool>? RevokeConfirmationPrompt { get; set; }
 
+    /// <summary>Test seam substituting the FrameHub-styled update dialog; when null the real dialog is presented.</summary>
+    public Action<string>? UpdateDialogPresenter { get; set; }
+
     private bool ConfirmRevokeDevice(string deviceName)
     {
         Func<string, bool>? prompt = RevokeConfirmationPrompt;
@@ -919,10 +922,13 @@ public sealed class SettingsViewModel : ViewModelBase
         if (result.IsUpdateAvailable)
         {
             StatusMessage = string.Format(_localization.T("Settings.UpdateAvailable"), result.LatestVersion);
-            var answer = WpfMessageBox.Show(StatusMessage + "\n\n" + _localization.T("Settings.OpenReleaseQuestion"), "FrameHub", MessageBoxButton.YesNo, MessageBoxImage.Information);
-            if (answer == MessageBoxResult.Yes)
+            if (UpdateDialogPresenter is Action<string> presenter)
             {
-                UpdateService.OpenReleasePage(result.ReleaseUrl);
+                presenter(result.LatestVersion);
+            }
+            else
+            {
+                Views.UpdateAvailableDialog.Present(System.Windows.Application.Current?.MainWindow, result.LatestVersion, result.ReleaseUrl, _localization);
             }
         }
         else

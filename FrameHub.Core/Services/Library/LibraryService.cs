@@ -66,10 +66,10 @@ public sealed class LibraryService
             existing.DisplayName = string.IsNullOrWhiteSpace(existing.DisplayName) ? item.DisplayName : existing.DisplayName;
             existing.Source = existing.Source == LibrarySource.Manual ? existing.Source : item.Source;
             existing.Type = existing.Type;
-            existing.AppId ??= item.AppId;
-            existing.InstallPath ??= item.InstallPath;
-            existing.ExecutablePath ??= item.ExecutablePath;
-            existing.LaunchPath ??= item.LaunchPath;
+            existing.AppId = string.IsNullOrWhiteSpace(existing.AppId) ? item.AppId : existing.AppId;
+            existing.InstallPath = string.IsNullOrWhiteSpace(existing.InstallPath) ? item.InstallPath : existing.InstallPath;
+            existing.ExecutablePath = string.IsNullOrWhiteSpace(existing.ExecutablePath) ? item.ExecutablePath : existing.ExecutablePath;
+            existing.LaunchPath = string.IsNullOrWhiteSpace(existing.LaunchPath) ? item.LaunchPath : existing.LaunchPath;
             existing.ProcessName = string.IsNullOrWhiteSpace(existing.ProcessName) ? item.ProcessName : existing.ProcessName;
             existing.IconPath ??= item.IconPath;
             existing.AllowBenchmark = item.AllowBenchmark;

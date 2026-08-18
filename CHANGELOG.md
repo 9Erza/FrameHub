@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-08-18
+
+### Changed
+
+- Reworked the Companion mobile layout into a true app shell: fixed header, one vertical scrolling content region, and a layout-anchored bottom navigation that stays visible and tappable while scrolling.
+- Improved iOS Safari viewport handling (`100dvh`, `viewport-fit=cover`, safe-area insets) so the shell stays stable when the browser toolbar expands or collapses and the navigation never sits under the home indicator.
+- Introduced compact mobile spacing and density on phone viewports and contained all accidental horizontal overflow to the app shell.
+- Replaced emoji navigation icons with consistent inline SVG application icons inheriting the active/inactive nav colors.
+- Simplified the user-facing Companion footer to plain product copy.
+- Added FrameHub browser identity to Companion: favicon, Apple touch icon and theme color derived from the official FrameHub logo.
+- Improved the desktop update notification: the automatic check now runs once per process, only when the main window is actually presented (never during tray/minimized startup), silent when up to date or offline, and available updates are shown in a FrameHub-styled dialog shared with the manual "Check now" flow.
+- Polished the desktop system tray context menu with FrameHub dark styling, version header, direct navigation submenu ("Go to" / "Przejdź do"), and complete EN/PL localization.
+- Improved system tray click handling: single left click immediately restores and brings FrameHub to the foreground while remembering whether the window was previously Normal or Maximized.
+
+### Fixed
+
+- Steam-discovered games are launched through Steam rather than directly through their executable, preserving the expected Steam launch context.
+- Tray restore now reliably brings FrameHub to the foreground with one left click.
+- Custom window controls no longer retain stale focus/highlight state after tray restoration.
+- Bottom navigation moving or disappearing while scrolling on mobile devices.
+- Companion footer being hidden behind the mobile navigation and reachable only through rubber-band overscroll.
+- Unintended page-wide horizontal scrolling/dragging of the Companion shell.
+- Update popup appearing at inappropriate startup timing (silent tray or minimized starts).
+- Potential indefinite hang on tray exit by implementing single-flight graceful shutdown with bounded cancellation deadlines for background services, Kestrel, and active benchmarks.
+- Inconsistent window state restoration when opening from the system tray.
+
 ## [0.7.0] - 2026-08-18
 
 - Added the LAN Companion Server (ASP.NET Core / Kestrel) and mobile web UI with cryptographically secure pairing, QR code connection, opaque session tokens, and granular permission scopes (`read:library`, `write:library-launch`, `read:telemetry`, `read:benchmarks`, `write:benchmarks`, `read:session-optimization`, `write:session-optimization`, `read:optimization-cpu`, `write:optimization-cpu`, `read:background-apps`, `write:background-apps`).

@@ -623,7 +623,13 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         _disposed = true;
         _profileWatcherTimer.Stop();
 
-        _companionSyncGate.Wait();
+        bool gateAcquired = false;
+        try
+        {
+            gateAcquired = _companionSyncGate.Wait(TimeSpan.FromSeconds(3));
+        }
+        catch { }
+
         try
         {
             // Stop external consumers before disposing the providers and state authorities they call.
@@ -652,7 +658,10 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         }
         finally
         {
-            _companionSyncGate.Release();
+            if (gateAcquired)
+            {
+                _companionSyncGate.Release();
+            }
         }
     }
 }
