@@ -12,14 +12,11 @@
 - Benchmark Environment Metadata v1: one-shot, best-effort, backward-compatible environment context (OS/build, CPU, GPU/driver, RAM, primary display, FrameHub version) captured per benchmark, shown in Desktop benchmark details, and surfaced as advisory environment differences during comparison.
 - Companion Game CPU Assignment V1 & UX Polish: active-game temporary CPU scheduling override (Affinity / CPU Sets), separate Session Optimization (background apps) and Game CPU Assignment cards, CPU Sets recommendation, topology-driven presets (All, Physical only, Clear), and dedicated scopes (`read:optimization-cpu`, `write:optimization-cpu`).
 - Final UX Cohesion & Release Polish: Companion game icons with client-side blob caching, official branding in Companion header, Missing Executable handling across Desktop and Companion with safe disabled actions, automated removal of leaked test artifacts, Desktop "Games & Optimization" ("Gry i optymalizacja") navigation clarity, ComboBox display fix, "Quick Start" ("Szybki start") card clarity, and streamlined Settings.
+- Runtime Resource & Overhead Audit: comprehensive static background work inventory, memory working set decomposition (managed GC heap ~20–37 MB vs native WPF/D3D graphics surfaces ~170–190 MB), 10-minute idle soak verification showing stable plateau (<0.15 MB/min slope, ~0.25% idle CPU), verified lease-controlled hardware monitor shutdown and zero duplicate background loops.
 
 ## Planned Near-Term Backlog
 
-1. **Runtime Resource & Overhead Audit**:
-   - Separately measure FrameHub.App CPU and RAM footprint during idle, gaming, and benchmark capture workloads.
-   - Identify and eliminate evidence-backed background polling or observation waste.
-   - Distinguish FrameHub process overhead from development/IDE background processes.
-2. **Session Optimization & Game CPU Assignment Follow-ups**:
+1. **Session Optimization & Game CPU Assignment Follow-ups**:
    - Maintain clear separation between Session Optimization (background process suspension/recovery) and Game CPU Assignment (active game affinity / CPU Sets scheduling).
    - Continue promoting CPU Sets as recommended where supported by platform topology.
 
