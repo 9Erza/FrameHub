@@ -7,7 +7,7 @@
 **Windows gaming and performance control without black-box tweaks.**
 
 Game library, per-game CPU profiles, session optimization, local frame-time benchmarking,
-CS2 configuration and hardware monitoring in one desktop application.
+LAN Companion server, CS2 configuration and hardware monitoring in one desktop application.
 
 [**English**](README.md) · [Polski](README.pl.md)
 
@@ -15,12 +15,12 @@ CS2 configuration and hardware monitoring in one desktop application.
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-2EA44F?style=flat-square)](LICENSE)
-![Release](https://img.shields.io/badge/release-v0.6.0-2EA44F?style=flat-square)
+![Release](https://img.shields.io/badge/release-v0.7.0-2EA44F?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Current release: v0.6.0.** See the [Changelog](CHANGELOG.md) for release details and the [Roadmap](docs/ROADMAP.md) for future work.
+> **Current release: v0.7.0.** See the [Changelog](CHANGELOG.md) for release details and the [Roadmap](docs/ROADMAP.md) for future work.
 
 ---
 
@@ -39,7 +39,9 @@ The project currently focuses on:
 
 - **per-game CPU and process profiles,**
 - **temporary background-process optimization while gaming,**
-- **local per-frame benchmarking, history and same-game comparison,**
+- **active-game CPU scheduling control (CPU Sets & Affinity),**
+- **LAN Companion server for mobile device monitoring and control,**
+- **local per-frame benchmarking, history and same-game comparison with environment metadata,**
 - **safe Counter-Strike 2 configuration workflows,**
 - **optional local hardware monitoring and diagnostics.**
 
@@ -51,15 +53,17 @@ The project currently focuses on:
 | --- | --- |
 | **Games & Optimization** | Scan Steam, Epic and custom folders, add executables manually, launch games, and configure CPU optimization settings for specific games. |
 | **Session Optimization** | Temporarily suspend selected background applications while a configured game session is active, then restore them safely. |
-| **Benchmarks** | Detect running library games, capture exact-process frame timing, graph frame times, retain local history and compare same-game sessions. |
+| **Game CPU Assignment** | Temporarily assign active-game CPU cores (Affinity / CPU Sets) with topology presets (All, Physical Only, Clear). |
+| **Companion Server** | Local LAN web server enabling real-time mobile hardware telemetry, benchmark control, and library launching with secure pairing. |
+| **Benchmarks** | Detect running library games, capture exact-process frame timing with environment metadata, graph frame times, retain local history and compare same-game sessions. |
 | **Processes & CPU** | Inspect a running process and immediately apply CPU Sets, Processor Affinity or process priority. |
 | **Profiles & Rules** | Save process settings and let the profile watcher apply them automatically when a matching executable starts. |
-| **Hardware Monitor** | Opt-in local CPU, GPU and RAM telemetry. Monitoring is disabled again on every new FrameHub launch. |
-| **Logs & Settings** | Diagnostics, language, tray behavior, logging and Windows startup configuration. |
+| **Hardware Monitor** | Opt-in local CPU, GPU and RAM telemetry with lease-controlled sensor lifecycle. |
+| **Logs & Settings** | Diagnostics, language, tray behavior, logging, Companion pairing, and Windows startup configuration. |
 
-### Benchmarking in v0.6.0
+### Benchmarking in v0.7.0
 
-Start a game from Game Library, open **Benchmarks** (or use the game's **Benchmark** action), choose a duration, and reproduce the same scene each time. FrameHub shows Average FPS, median, 1% Low, 0.1% Low, P95/P99 frame time, quality diagnostics, a spike-preserving frame-time graph, local history, and same-game comparisons. Raw frames and summaries remain on this machine under `%LOCALAPPDATA%\FrameHub\Benchmarks`; FrameHub adds no upload, analytics, account, or cloud service.
+Start a game from Game Library, open **Benchmarks** (or use the game's **Benchmark** action), choose a duration, and reproduce the same scene each time. FrameHub shows Average FPS, median, 1% Low, 0.1% Low, P95/P99 frame time, environment metadata context (OS, CPU, GPU driver, RAM, display), quality diagnostics, a spike-preserving frame-time graph, local history, and same-game comparisons. Raw frames and summaries remain on this machine under `%LOCALAPPDATA%\FrameHub\Benchmarks`; FrameHub adds no upload, analytics, account, or cloud service.
 
 Benchmark capture uses Intel PresentMon Shared Service/API. The official pinned PresentMon v2.5.1 MSI is embedded in the single FrameHub Setup, so users do not download a second installer. PresentMon is a shared MIT-licensed prerequisite and may remain installed after FrameHub is removed; see [Third-party notices](docs/THIRD-PARTY-NOTICES.md).
 
@@ -69,7 +73,7 @@ FrameHub itself does not inject DLLs into games, read or modify game memory, ins
 
 ## Features
 
-### Game Library
+### Game Library & Quick Actions
 
 - Steam library scanning.
 - Epic Games library scanning.
@@ -78,17 +82,32 @@ FrameHub itself does not inject DLLs into games, read or modify game memory, ins
 - Per-game configuration.
 - Running-game detection.
 - CPU profile assignment for individual games.
+- Gaming Quick Actions: one-click launch combining game startup and Session Optimization.
+- Conservative Riot Games management (League of Legends, VALORANT) with passive shortcut discovery and launch.
+- Missing executable safeguards and status indicators.
 - Filtering of known non-game Steam support packages.
 
-### Session Optimization
+### Session Optimization & Game CPU Assignment
 
 - Automatic game detection.
 - Manual optimization sessions.
 - Temporary suspension of selected background applications.
+- Active-game CPU Sets and Affinity temporary overrides.
+- Core topology presets (All Cores, Physical Only, Clear).
 - Safe restoration after a session.
 - Recovery state for interrupted sessions.
 - Process validation designed to reduce incorrect resume operations.
-- Automatic and manual session workflows.
+
+### LAN Companion Server & Mobile Web UI
+
+- Lightweight ASP.NET Core Kestrel LAN web server.
+- Cryptographically secure pairing with opaque device records and QR code connection.
+- Granular permission scopes for read/write access.
+- Real-time WebSocket hardware telemetry streaming.
+- Mobile game library browsing and remote launching.
+- Mobile benchmark status and capture controls.
+- Mobile Session Optimization and Game CPU Assignment cards.
+- Client-side game icon caching via IndexedDB.
 
 ### CPU and process control
 
@@ -120,8 +139,8 @@ FrameHub itself does not inject DLLs into games, read or modify game memory, ins
 - Local GPU telemetry.
 - RAM monitoring.
 - Monitoring is completely opt-in.
-- Sensor polling runs only after monitoring is explicitly enabled.
-- Monitoring starts disabled again after every new FrameHub launch.
+- Sensor polling runs only while an active consumer lease exists and monitoring is enabled.
+- Automatic sensor shutdown on consumer release.
 
 ### Windows integration
 
@@ -148,6 +167,7 @@ FrameHub does **not**:
 - bypass anti-cheat systems,
 - silently apply undocumented Windows tweaks,
 - use generic "one-click FPS boost" packs,
+- mutate or benchmark Riot game/client/Vanguard processes,
 - silently write to an ambiguous CS2 Steam account.
 
 CPU and process changes are explicit and user-controlled.
@@ -187,10 +207,11 @@ Development is structured around automated testing, focused code review and cons
 
 1. Open **Game Library**.
 2. Scan Steam, Epic or your custom folders, or add a game manually.
-3. Select a game and configure a CPU profile if desired.
+3. Select a game and configure a CPU profile or use **Quick Start** on the Dashboard.
 4. Configure **Session Optimization** if you want FrameHub to temporarily suspend selected background applications while gaming.
 5. Use **Processes & CPU** when you want direct control over an already running process.
-6. Enable **Hardware Monitor** only when you want local telemetry.
+6. Pair your mobile device under **Settings > Companion** for remote LAN monitoring and control.
+7. Enable **Hardware Monitor** only when you want local telemetry.
 
 For detailed usage instructions, see the [User Guide](docs/USER_GUIDE.md).
 
@@ -260,6 +281,7 @@ This includes:
 - settings,
 - game library data,
 - saved profiles,
+- companion device pairings,
 - application logs,
 - Session Optimization recovery data,
 - application-managed backups.
@@ -316,4 +338,3 @@ If FrameHub is useful to you, **starring the repository** or supporting developm
 ## License
 
 FrameHub is licensed under the [MIT License](LICENSE).
-
