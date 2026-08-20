@@ -41,23 +41,6 @@ namespace FrameHub.Core.Services
             }
         }
 
-        public bool SetProcessAffinity(int pid, long mask)
-        {
-            if (mask == 0) return false;
-
-            try
-            {
-                using var proc = Process.GetProcessById(pid);
-                proc.ProcessorAffinity = (IntPtr)mask;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.Warn($"Failed to set CPU affinity for PID {pid}: {ex.Message}");
-                return false;
-            }
-        }
-
         public bool SetPriority(int pid, ProcessPriorityClass priority)
         {
             try
@@ -70,20 +53,6 @@ namespace FrameHub.Core.Services
             {
                 _logger.Warn($"Failed to set priority for PID {pid}: {ex.Message}");
                 return false;
-            }
-        }
-
-        public string GetPriorityString(int pid)
-        {
-            try
-            {
-                using var proc = Process.GetProcessById(pid);
-                return proc.PriorityClass.ToString();
-            }
-            catch (Exception ex)
-            {
-                _logger.Debug($"Failed to read priority for PID {pid}: {ex.Message}");
-                return "Normal";
             }
         }
 

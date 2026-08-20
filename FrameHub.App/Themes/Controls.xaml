@@ -822,15 +822,6 @@
         <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
     </Style>
 
-    <Style x:Key="FooterIconButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
-        <Setter Property="Width" Value="30" />
-        <Setter Property="Height" Value="30" />
-        <Setter Property="MinHeight" Value="30" />
-        <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="Transparent" />
-    </Style>
-
     <Style x:Key="FooterProjectButton" TargetType="Button" BasedOn="{StaticResource SubtleButton}">
         <Setter Property="HorizontalContentAlignment" Value="Left" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />

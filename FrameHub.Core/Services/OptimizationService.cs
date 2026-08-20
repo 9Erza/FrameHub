@@ -219,8 +219,6 @@ namespace FrameHub.Core.Services
             catch { return false; }
         }
 
-        public void ClearAllCache() => _appliedProfileSignatures.Clear();
-
         public void CleanupStaleCache(HashSet<ProcessInstanceKey> activeInstances)
         {
             foreach (var staleKey in _appliedProfileSignatures.Keys.Where(k => !activeInstances.Contains(k)).ToList())

@@ -74,24 +74,6 @@ namespace FrameHub.Core.Services
             {
                 _logger.Error("Failed to save settings", ex);
             }
-
-        }
-
-        public WindowsStartupStatus GetWindowsStartupStatus()
-        {
-            string? registryCommand = GetRegistryCommand();
-            var task = ReadScheduledTaskStartup(new DesiredStartupConfiguration(true, StartupWindowMode.Normal, true));
-            if (!task.ReadSucceeded) return new(WindowsStartupState.Broken, "Scheduled Task state could not be read safely.");
-            if (registryCommand != null && task.Exists) return new(WindowsStartupState.Conflict, "Registry and scheduled task are both present.");
-            if (registryCommand == null && !task.Exists) return new(WindowsStartupState.Disabled, "Autostart disabled.");
-            if (registryCommand != null) return IsExpectedCommand(registryCommand) ? new(WindowsStartupState.Registry, "Autostart configured normally.") : new(WindowsStartupState.Broken, "Registry autostart command requires attention.");
-            return task.IsElevated && task.IsExpectedExecutable ? new(WindowsStartupState.ElevatedScheduledTask, "Autostart configured with administrator privileges.") : new(WindowsStartupState.Broken, "Scheduled task requires attention.");
-        }
-
-        public StartupConfigurationEvaluation EvaluateStartupConfiguration(AppSettings settings)
-        {
-            var desired = new DesiredStartupConfiguration(settings.StartWithWindows, settings.StartupWindowMode, settings.StartupRunElevated);
-            return StartupConfigurationPlanner.Evaluate(desired, GetActualStartupConfiguration(desired));
         }
 
         public ActualStartupConfiguration GetActualStartupConfiguration(DesiredStartupConfiguration desired)
@@ -242,13 +224,6 @@ namespace FrameHub.Core.Services
             {
                 _logger.Warn($"Administrator restart cancelled or failed: {ex.Message}");
             }
-        }
-
-        public WindowsStartupStatus ApplyWindowsStartup(AppSettings settings)
-        {
-            var desired = new DesiredStartupConfiguration(settings.StartWithWindows, settings.StartupWindowMode, settings.StartupRunElevated);
-            var result = new StartupConfigurationExecutor(this).ApplyAsync(desired).GetAwaiter().GetResult();
-            return new((WindowsStartupState)result.FinalEvaluation.State, result.Error ?? result.FinalEvaluation.State.ToString());
         }
 
         private static AppSettings SanitizeSettings(AppSettings settings)

@@ -8,15 +8,7 @@
   <ItemGroup>
     <Resource Include="Assets\FrameHub.ico" />
     <Resource Include="Assets\FrameHubLogo.png" />
-    <Resource Include="Assets\pl_flag.png" />
-    <Resource Include="Assets\us_flag.png" />
     <Resource Include="Assets\BuyMeACoffee.png" />
-    <Resource Include="Assets\Fonts\Sora-Medium.ttf" />
-    <Resource Include="Assets\Fonts\Sora-SemiBold.ttf" />
-    <Resource Include="Assets\Fonts\Sora-Bold.ttf" />
-    <Resource Include="Assets\Fonts\Sora-ExtraBold.ttf" />
-    <Resource Include="Assets\Fonts\SpaceGrotesk-Medium.ttf" />
-    <Resource Include="Assets\Fonts\SpaceGrotesk-Bold.ttf" />
   </ItemGroup>
 
   <PropertyGroup>

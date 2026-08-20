@@ -91,11 +91,6 @@
         <Setter Property="FontSize" Value="11.5" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
     </Style>
-    <Style x:Key="CodeText" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource FontMono}" />
-        <Setter Property="FontSize" Value="12" />
-        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
-    </Style>
 
     <Style x:Key="SettingTitleText" TargetType="TextBlock" BasedOn="{StaticResource DataTitleText}" />
     <Style x:Key="SettingDescriptionText" TargetType="TextBlock" BasedOn="{StaticResource SecondaryBodyText}"><Setter Property="TextWrapping" Value="Wrap" /></Style>

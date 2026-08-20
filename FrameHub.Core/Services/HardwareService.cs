@@ -11,15 +11,12 @@ using FrameHub.Core.Models;
 namespace FrameHub.Core.Services
 {
     /// <summary>
-    /// Handles CPU topology discovery and lightweight per-core telemetry.
+    /// Handles CPU topology discovery.
     /// </summary>
-    public class HardwareService : IDisposable
+    public class HardwareService
     {
         private const int MaxAffinityMaskLogicalProcessors = 64;
         private readonly ILogger _logger;
-        private readonly List<PerformanceCounter> _cpuCounters = new();
-        private bool _countersInitialized;
-        private bool _disposed;
 
         public HardwareService()
         {
@@ -56,32 +53,6 @@ namespace FrameHub.Core.Services
             }
 
             return GetFallbackTopology();
-        }
-
-        public List<double> GetCurrentLoads()
-        {
-            EnsureCountersInitialized();
-            var loads = new List<double>();
-
-            foreach (var counter in _cpuCounters)
-            {
-                try
-                {
-                    loads.Add(Math.Round(counter.NextValue(), 1));
-                }
-                catch (Exception ex)
-                {
-                    _logger.Debug($"Failed to sample CPU load: {ex.Message}");
-                    loads.Add(0);
-                }
-            }
-
-            if (loads.Count > 0)
-            {
-                _logger.Debug($"CPU Load: Avg={loads.Average():F1}%, Max={loads.Max():F1}%, Min={loads.Min():F1}%");
-            }
-
-            return loads;
         }
 
         public Dictionary<int, uint> GetLogicalCoreToCpuSetIdMap()
@@ -284,52 +255,6 @@ namespace FrameHub.Core.Services
             }
 
             return results;
-        }
-
-        private void EnsureCountersInitialized()
-        {
-            if (_countersInitialized || _disposed) return;
-            _countersInitialized = true;
-
-            try
-            {
-                int coreCount = Math.Min(Environment.ProcessorCount, MaxAffinityMaskLogicalProcessors);
-                for (int i = 0; i < coreCount; i++)
-                {
-                    var counter = new PerformanceCounter("Processor Information", "% Processor Utility", $"0,{i}");
-                    counter.NextValue();
-                    _cpuCounters.Add(counter);
-                }
-
-                _logger.Info($"Initialized {coreCount} CPU performance counters");
-            }
-            catch (Exception ex)
-            {
-                _logger.Warn($"Failed to initialize CPU performance counters: {ex.Message}");
-            }
-        }
-
-        public void ReleaseCpuLoadCounters()
-        {
-            foreach (var counter in _cpuCounters)
-            {
-                counter.Dispose();
-            }
-
-            if (_cpuCounters.Count > 0)
-            {
-                _logger.Debug($"Released {_cpuCounters.Count} CPU performance counters");
-            }
-
-            _cpuCounters.Clear();
-            _countersInitialized = false;
-        }
-
-        public void Dispose()
-        {
-            if (_disposed) return;
-            _disposed = true;
-            ReleaseCpuLoadCounters();
         }
 
         private sealed class CpuSetInfo

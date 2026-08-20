@@ -57,8 +57,6 @@ Name: "desktopicon"; Description: "Utwórz skrót na pulpicie"; GroupDescription
 Source: "..\artifacts\publish\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\docs\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\licenses\PresentMon-LICENSE.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
-Source: "..\licenses\Sora-OFL.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
-Source: "..\licenses\SpaceGrotesk-OFL.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "{#PresentMonMsiPath}"; DestDir: "{tmp}"; Flags: dontcopy
 
 [Icons]

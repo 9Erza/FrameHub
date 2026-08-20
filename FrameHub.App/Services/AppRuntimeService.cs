@@ -652,8 +652,6 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
                 _hardwareSnapshot = null;
                 _hardwareMonitor.Dispose();
             }
-            HardwareTopologyService.ReleaseCpuLoadCounters();
-            HardwareTopologyService.Dispose();
             SettingsService.Dispose();
         }
         finally
