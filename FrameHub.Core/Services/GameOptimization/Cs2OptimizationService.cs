@@ -183,6 +183,8 @@ public sealed partial class Cs2OptimizationService
 
             if (!string.IsNullOrWhiteSpace(analysis.Paths.VideoConfigPath) && videoChanges.Count > 0)
             {
+                if (IsReparsePoint(analysis.Paths.VideoConfigPath))
+                    throw new InvalidDataException($"Video config '{analysis.Paths.VideoConfigPath}' is a reparse point or link.");
                 originalFiles[analysis.Paths.VideoConfigPath] = File.ReadAllBytes(analysis.Paths.VideoConfigPath);
                 ValveConfigParser.UpdateQuotedValueFile(analysis.Paths.VideoConfigPath, videoChanges);
                 writtenFiles.Add(analysis.Paths.VideoConfigPath);
@@ -190,6 +192,8 @@ public sealed partial class Cs2OptimizationService
 
             if (!string.IsNullOrWhiteSpace(analysis.Paths.MachineConvarsPath) && machineChanges.Count > 0)
             {
+                if (IsReparsePoint(analysis.Paths.MachineConvarsPath))
+                    throw new InvalidDataException($"Machine convars config '{analysis.Paths.MachineConvarsPath}' is a reparse point or link.");
                 originalFiles[analysis.Paths.MachineConvarsPath] = File.ReadAllBytes(analysis.Paths.MachineConvarsPath);
                 ValveConfigParser.UpdateQuotedValueFile(analysis.Paths.MachineConvarsPath, machineChanges);
                 writtenFiles.Add(analysis.Paths.MachineConvarsPath);
@@ -303,13 +307,14 @@ public sealed partial class Cs2OptimizationService
         if (!TryAcquireMutation(out IDisposable? lease))
             return new GameConfigBackupResult { Message = "Configuration changes are blocked while a benchmark is reserved or running." };
         using var mutationLease = lease;
+        string? latest = null;
         try
         {
             if (!analysis.UserdataResolution.IsResolved)
             {
                 return new GameConfigBackupResult { Success = false, Message = "Steam userdata account is unresolved." };
             }
-            string? latest = FindLatestBackupDirectory(analysis);
+            latest = FindLatestBackupDirectory(analysis);
             if (latest == null) return new GameConfigBackupResult { Success = false, Message = "Nie znaleziono kopii zapasowej CS2." };
 
             int restored = RestoreVerifiedBackup(analysis, latest);
@@ -321,9 +326,22 @@ public sealed partial class Cs2OptimizationService
                 Message = restored > 0 ? $"Przywrócono pliki konfiguracji CS2: {restored}. Źródło: {latest}" : $"Znaleziono ostatnią kopię, ale nie wykryto pasującej aktualnej ścieżki konfiguracji: {latest}"
             };
         }
+        catch (BackupRestoreException ex)
+        {
+            _logger.Error("Failed to restore CS2 backup", ex);
+            return new GameConfigBackupResult
+            {
+                Success = false,
+                BackupFolder = latest ?? string.Empty,
+                Message = ex.Message,
+                RollbackAttempted = ex.RollbackAttempted,
+                RollbackSucceeded = ex.RollbackSucceeded
+            };
+        }
         catch (Exception ex)
         {
-            return new GameConfigBackupResult { Success = false, Message = ex.Message };
+            _logger.Error("Failed to restore CS2 backup", ex);
+            return new GameConfigBackupResult { Success = false, BackupFolder = latest ?? string.Empty, Message = ex.Message };
         }
     }
 
@@ -902,6 +920,7 @@ public sealed partial class Cs2OptimizationService
         }
 
         return candidates.Where(path => !Path.GetFileName(path).StartsWith('.')
+                && !IsReparsePoint(path)
                 && File.Exists(Path.Combine(path, "cs2_video.txt")))
             .OrderByDescending(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase).FirstOrDefault();
     }
