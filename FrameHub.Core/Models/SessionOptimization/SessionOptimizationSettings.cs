@@ -9,6 +9,7 @@ public sealed class SessionOptimizationSettings
     public string? SelectedGameId { get; set; }
     public bool HideTaskbarDuringSession { get; set; }
     public bool ShowManualProcessList { get; set; }
+    public bool ApplyGamePriorityOverride { get; set; }
 
     // Kept for compatibility with earlier builds of the module.
     public bool ShowConfirmationBeforeManualStart { get; set; } = true;

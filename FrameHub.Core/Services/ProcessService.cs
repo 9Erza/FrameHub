@@ -2,12 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using FrameHub.Core.Helpers;
 using FrameHub.Core.Logging;
 using FrameHub.Core.Models;
+using FrameHub.Core.Models.Benchmarking;
 
 namespace FrameHub.Core.Services
 {
+    public interface IProcessPriorityAccessor
+    {
+        ProcessPriorityClass? Priority { get; set; }
+        bool MatchesIdentity(BenchmarkProcessIdentity expected);
+    }
+
     /// <summary>
     /// Safe wrapper around process priority, affinity and CPU Sets APIs.
     /// </summary>
@@ -41,17 +49,268 @@ namespace FrameHub.Core.Services
             }
         }
 
-        public virtual bool SetPriority(int pid, ProcessPriorityClass priority)
+        private const uint PROCESS_SET_INFORMATION = 0x0200;
+        private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint GetPriorityClass(IntPtr hProcess);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetPriorityClass(IntPtr hProcess, uint dwPriorityClass);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetProcessTimes(
+            IntPtr hProcess,
+            out System.Runtime.InteropServices.ComTypes.FILETIME creationTime,
+            out System.Runtime.InteropServices.ComTypes.FILETIME exitTime,
+            out System.Runtime.InteropServices.ComTypes.FILETIME kernelTime,
+            out System.Runtime.InteropServices.ComTypes.FILETIME userTime);
+
+        private static bool TryGetProcessStartTimeUtc(IntPtr processHandle, out DateTime startTimeUtc)
+        {
+            startTimeUtc = default;
+            if (!GetProcessTimes(processHandle, out var creationTime, out _, out _, out _))
+            {
+                return false;
+            }
+
+            try
+            {
+                long fileTime = ((long)(uint)creationTime.dwHighDateTime << 32) | (uint)creationTime.dwLowDateTime;
+                startTimeUtc = DateTime.FromFileTimeUtc(fileTime);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public Func<int, IProcessPriorityAccessor?>? ProcessPriorityAccessorForTesting { get; set; }
+
+        public virtual ProcessPriorityClass? GetPriority(int pid) => GetPriority(pid, null);
+
+        public virtual ProcessPriorityClass? GetPriority(BenchmarkProcessIdentity expectedIdentity)
+        {
+            ArgumentNullException.ThrowIfNull(expectedIdentity);
+            return GetPriority(expectedIdentity.ProcessId, expectedIdentity);
+        }
+
+        public virtual ProcessPriorityClass? GetPriority(int pid, BenchmarkProcessIdentity? expectedIdentity)
         {
             try
             {
-                using var proc = Process.GetProcessById(pid);
-                proc.PriorityClass = priority;
-                return true;
+                if (ProcessPriorityAccessorForTesting != null)
+                {
+                    var testHandle = ProcessPriorityAccessorForTesting(pid);
+                    if (testHandle == null) return null;
+                    if (expectedIdentity != null && !testHandle.MatchesIdentity(expectedIdentity))
+                    {
+                        _logger.Debug($"Process identity mismatch or process recycled for PID {pid}.");
+                        return null;
+                    }
+                    return testHandle.Priority;
+                }
+
+                IntPtr hProc = NativeMethods.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+                if (hProc == IntPtr.Zero)
+                {
+                    _logger.Debug($"OpenProcess failed for PID {pid} during priority read: {Marshal.GetLastWin32Error()}");
+                    return null;
+                }
+
+                try
+                {
+                    if (expectedIdentity != null)
+                    {
+                        if (!TryGetProcessStartTimeUtc(hProc, out DateTime startUtc)
+                            || expectedIdentity.StartTimeUtc == default
+                            || startUtc != expectedIdentity.StartTimeUtc)
+                        {
+                            _logger.Debug($"Process identity start time mismatch or process recycled for PID {pid}.");
+                            return null;
+                        }
+
+                        using var proc = Process.GetProcessById(pid);
+                        if (!MatchesExpectedIdentity(proc, expectedIdentity))
+                        {
+                            _logger.Debug($"Process identity mismatch for PID {pid}.");
+                            return null;
+                        }
+                    }
+
+                    uint prio = GetPriorityClass(hProc);
+                    if (prio == 0)
+                    {
+                        _logger.Debug($"GetPriorityClass failed for PID {pid}: {Marshal.GetLastWin32Error()}");
+                        return null;
+                    }
+
+                    return (ProcessPriorityClass)prio;
+                }
+                finally
+                {
+                    NativeMethods.CloseHandle(hProc);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Could not read priority for PID {pid}: {ex.Message}");
+                return null;
+            }
+        }
+
+        public virtual bool SetPriority(int pid, ProcessPriorityClass priority) => SetPriority(pid, priority, null);
+
+        public virtual bool SetPriority(BenchmarkProcessIdentity expectedIdentity, ProcessPriorityClass priority)
+        {
+            ArgumentNullException.ThrowIfNull(expectedIdentity);
+            return SetPriority(expectedIdentity.ProcessId, priority, expectedIdentity);
+        }
+
+        public virtual bool SetPriority(int pid, ProcessPriorityClass priority, BenchmarkProcessIdentity? expectedIdentity)
+        {
+            try
+            {
+                if (ProcessPriorityAccessorForTesting != null)
+                {
+                    var testHandle = ProcessPriorityAccessorForTesting(pid);
+                    if (testHandle == null) return false;
+                    if (expectedIdentity != null && !testHandle.MatchesIdentity(expectedIdentity))
+                    {
+                        _logger.Warn($"Process identity mismatch or process recycled for PID {pid}; priority not set.");
+                        return false;
+                    }
+                    testHandle.Priority = priority;
+                    return true;
+                }
+
+                IntPtr hProc = NativeMethods.OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+                if (hProc == IntPtr.Zero)
+                {
+                    _logger.Warn($"OpenProcess failed for PID {pid} during priority set: {Marshal.GetLastWin32Error()}");
+                    return false;
+                }
+
+                try
+                {
+                    if (expectedIdentity != null)
+                    {
+                        if (!TryGetProcessStartTimeUtc(hProc, out DateTime startUtc)
+                            || expectedIdentity.StartTimeUtc == default
+                            || startUtc != expectedIdentity.StartTimeUtc)
+                        {
+                            _logger.Warn($"Process identity start time mismatch or process recycled for PID {pid}; priority not set.");
+                            return false;
+                        }
+
+                        using var proc = Process.GetProcessById(pid);
+                        if (!MatchesExpectedIdentity(proc, expectedIdentity))
+                        {
+                            _logger.Warn($"Process identity mismatch for PID {pid}; priority not set.");
+                            return false;
+                        }
+                    }
+
+                    bool ok = SetPriorityClass(hProc, (uint)priority);
+                    if (!ok)
+                    {
+                        _logger.Warn($"SetPriorityClass failed for PID {pid}: {Marshal.GetLastWin32Error()}");
+                        return false;
+                    }
+
+                    return true;
+                }
+                finally
+                {
+                    NativeMethods.CloseHandle(hProc);
+                }
             }
             catch (Exception ex)
             {
                 _logger.Warn($"Failed to set priority for PID {pid}: {ex.Message}");
+                return false;
+            }
+        }
+
+        public static bool MatchesIdentityCore(
+            BenchmarkProcessIdentity expected,
+            int actualPid,
+            string? actualProcessName,
+            DateTime actualStartTimeUtc,
+            string? actualExecutablePath)
+        {
+            if (expected == null) return false;
+            if (expected.ProcessId != actualPid) return false;
+            if (expected.StartTimeUtc == default || actualStartTimeUtc == default) return false;
+            if (expected.StartTimeUtc != actualStartTimeUtc) return false;
+
+            if (string.IsNullOrWhiteSpace(expected.ProcessName) || string.IsNullOrWhiteSpace(actualProcessName)) return false;
+            string expectedName = ProfileService.NormalizeProcessName(expected.ProcessName);
+            string actualName = ProfileService.NormalizeProcessName(actualProcessName);
+            if (!string.Equals(expectedName, actualName, StringComparison.OrdinalIgnoreCase)) return false;
+
+            if (!string.IsNullOrWhiteSpace(expected.ExecutablePath))
+            {
+                if (string.IsNullOrWhiteSpace(actualExecutablePath))
+                {
+                    return false;
+                }
+
+                string? expectedNorm = ProfileService.NormalizeExecutablePath(expected.ExecutablePath);
+                string? actualNorm = ProfileService.NormalizeExecutablePath(actualExecutablePath);
+                if (expectedNorm == null || !string.Equals(expectedNorm, actualNorm, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public static bool MatchesExpectedIdentity(Process proc, BenchmarkProcessIdentity expected)
+        {
+            if (proc == null || expected == null) return false;
+            if (proc.Id != expected.ProcessId) return false;
+
+            try
+            {
+                if (proc.HasExited) return false;
+
+                DateTime startUtc;
+                try
+                {
+                    startUtc = proc.StartTime.ToUniversalTime();
+                }
+                catch
+                {
+                    return false;
+                }
+
+                string procName;
+                try
+                {
+                    procName = proc.ProcessName;
+                }
+                catch
+                {
+                    return false;
+                }
+
+                string? execPath = null;
+                try
+                {
+                    execPath = proc.MainModule?.FileName;
+                }
+                catch
+                {
+                    execPath = null;
+                }
+
+                return MatchesIdentityCore(expected, proc.Id, procName, startUtc, execPath);
+            }
+            catch
+            {
                 return false;
             }
         }

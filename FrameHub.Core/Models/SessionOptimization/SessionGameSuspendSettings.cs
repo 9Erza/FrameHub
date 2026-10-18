@@ -18,6 +18,11 @@ public sealed class SessionGameSuspendSettings
     /// </summary>
     public bool ManualProcessRulesEnabled { get; set; }
 
+    /// <summary>
+    /// Enables temporary process priority elevation (AboveNormal) during the session for this game.
+    /// </summary>
+    public bool ApplyPriorityOverride { get; set; }
+
     public Dictionary<string, bool> RuleEnabledStates { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, bool> CustomProcessEnabledStates { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
 }

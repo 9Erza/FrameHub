@@ -44,6 +44,14 @@ public interface ISessionCpuControlBackend
 
     /// <summary>Returns the existing ProcessService result string ("OK…" on success).</summary>
     string ApplySelection(int processId, SessionCpuSelection selection);
+
+    ProcessPriorityClass? GetCurrentPriority(int processId);
+
+    ProcessPriorityClass? GetCurrentPriority(BenchmarkProcessIdentity expectedIdentity);
+
+    bool ApplyPriority(int processId, ProcessPriorityClass priority);
+
+    bool ApplyPriority(BenchmarkProcessIdentity expectedIdentity, ProcessPriorityClass priority);
 }
 
 /// <summary>
@@ -166,4 +174,16 @@ public sealed class SessionCpuControlBackend : ISessionCpuControlBackend
 
     public string ApplySelection(int processId, SessionCpuSelection selection) =>
         _processService.ApplyCoreOptimization(processId, selection.Mask, selection.Mode, _cpuSetMapProvider());
+
+    public ProcessPriorityClass? GetCurrentPriority(int processId) =>
+        _processService.GetPriority(processId);
+
+    public ProcessPriorityClass? GetCurrentPriority(BenchmarkProcessIdentity expectedIdentity) =>
+        _processService.GetPriority(expectedIdentity);
+
+    public bool ApplyPriority(int processId, ProcessPriorityClass priority) =>
+        _processService.SetPriority(processId, priority);
+
+    public bool ApplyPriority(BenchmarkProcessIdentity expectedIdentity, ProcessPriorityClass priority) =>
+        _processService.SetPriority(expectedIdentity, priority);
 }

@@ -5,6 +5,7 @@ using FrameHub.Core.Models.Library;
 using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services.SessionOptimization;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Threading;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -80,6 +81,10 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     public string ManualGameLabel => IsPolish ? "Gra" : "Game";
     public string HideTaskbarLabel => IsPolish ? "Ukryj pasek zadań podczas sesji" : "Hide taskbar during session";
     public string HideTaskbarHint => IsPolish ? "Pasek zadań zostanie przywrócony po zakończeniu sesji." : "The taskbar is restored when the session ends.";
+    public string GamePriorityLabel => IsPolish ? "Podwyższony priorytet procesu gry" : "Elevated game process priority";
+    public string GamePriorityHint => IsPolish
+        ? "Tymczasowo ustawia priorytet procesu gry na Powyżej normalnego (AboveNormal) na czas trwania sesji i przywraca go po zakończeniu."
+        : "Temporarily sets game process priority to AboveNormal during the session and restores it when the session ends.";
     public string WindowsInterfaceLabel => IsPolish ? "Interfejs Windows" : "Windows interface";
     public string WindowsInterfaceHint => IsPolish
         ? "Wstrzymuje explorer.exe. Może utrudnić Alt+Tab oraz korzystanie z paska zadań i menu Start do czasu przywrócenia sesji."
@@ -151,6 +156,53 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             _settings.HideTaskbarDuringSession = value;
             SaveSettings();
             OnPropertyChanged();
+        }
+    }
+
+    public bool GamePriorityOverrideEnabled
+    {
+        get
+        {
+            if (SelectedGame == null)
+            {
+                return _settings.ApplyGamePriorityOverride;
+            }
+
+            var gameSettings = GetSelectedGameSettings();
+            return gameSettings.ApplyPriorityOverride;
+        }
+        set
+        {
+            if (SelectedGame == null)
+            {
+                if (_settings.ApplyGamePriorityOverride == value) return;
+                _settings.ApplyGamePriorityOverride = value;
+            }
+            else
+            {
+                var gameSettings = GetSelectedGameSettings();
+                if (gameSettings.ApplyPriorityOverride == value) return;
+                gameSettings.ApplyPriorityOverride = value;
+            }
+
+            SaveSettings();
+            OnPropertyChanged();
+
+            if (IsSessionActive)
+            {
+                var cpuState = _coordinator.GetSessionCpuState();
+                if (cpuState.Available && cpuState.SessionToken.HasValue)
+                {
+                    if (value)
+                    {
+                        _coordinator.ApplySessionPriorityOverride(cpuState.SessionToken.Value, ProcessPriorityClass.AboveNormal);
+                    }
+                    else
+                    {
+                        _coordinator.ResetSessionPriorityOverride(cpuState.SessionToken.Value);
+                    }
+                }
+            }
         }
     }
 
@@ -281,9 +333,18 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
                 ? (IsPolish ? " Pasek zadań ukryty." : " Taskbar hidden.")
                 : string.Empty;
 
+            string priority = string.Empty;
+            var cpuState = _coordinator.GetSessionCpuState();
+            if (cpuState.TemporaryOverrideActive && cpuState.OverridePriority.HasValue)
+            {
+                priority = IsPolish
+                    ? $" Priorytet: {cpuState.OverridePriority.Value}."
+                    : $" Priority: {cpuState.OverridePriority.Value}.";
+            }
+
             return IsPolish
-                ? $"Aktywna ({source}) dla: {game}. Procesy do odzyskania: {GetRecoveryProcessCount(_activeSession)}.{taskbar}"
-                : $"Active ({source}) for: {game}. Processes requiring recovery: {GetRecoveryProcessCount(_activeSession)}.{taskbar}";
+                ? $"Aktywna ({source}) dla: {game}. Procesy do odzyskania: {GetRecoveryProcessCount(_activeSession)}.{taskbar}{priority}"
+                : $"Active ({source}) for: {game}. Processes requiring recovery: {GetRecoveryProcessCount(_activeSession)}.{taskbar}{priority}";
         }
     }
 
@@ -496,6 +557,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
         OnPropertyChanged(nameof(SelectedManualGame));
         OnPropertyChanged(nameof(WindowsInterfaceEnabled));
+        OnPropertyChanged(nameof(GamePriorityOverrideEnabled));
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -1042,6 +1104,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(HasSuspendedProcesses));
         OnPropertyChanged(nameof(NoSuspendedProcessesVisible));
         OnPropertyChanged(nameof(StopButtonText));
+        OnPropertyChanged(nameof(GamePriorityOverrideEnabled));
         CommandManager.InvalidateRequerySuggested();
     }
 
