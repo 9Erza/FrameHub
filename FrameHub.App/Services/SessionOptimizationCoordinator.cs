@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using FrameHub.Core.Logging;
@@ -51,6 +52,9 @@ public sealed record SessionCpuStateResult
     public SessionCpuSelection? CurrentSelection { get; init; }
     public SessionCpuSelection? OverrideSelection { get; init; }
     public SessionCpuSelection? BaselineSelection { get; init; }
+    public ProcessPriorityClass? CurrentPriority { get; init; }
+    public ProcessPriorityClass? OverridePriority { get; init; }
+    public ProcessPriorityClass? BaselinePriority { get; init; }
     public SessionCpuTopology? Topology { get; init; }
 }
 
@@ -405,6 +409,16 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                 _loadedStateRequiresConservativeRecovery = false;
                 _logger.Info($"Session optimization started ({trigger}) for '{gameItem.DisplayName}'. Suspended: {journal.SuspendedProcesses.Count}, Failed: {failedCount}, Taskbar: {journal.TaskbarHidden}.");
 
+                var gameSettings = GetGameSettings(gameItem.Id, settings);
+                if (gameSettings.ApplyPriorityOverride || settings.ApplyGamePriorityOverride)
+                {
+                    SessionCpuStateResult cpuState = GetSessionCpuState();
+                    if (cpuState.Available && cpuState.SessionToken.HasValue)
+                    {
+                        ApplySessionPriorityOverrideCore(cpuState.SessionToken.Value, ProcessPriorityClass.AboveNormal);
+                    }
+                }
+
                 return new SessionOptimizationStartResult
                 {
                     Success = true,
@@ -475,6 +489,19 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                 if (_benchmarkArbiter != null && !_benchmarkArbiter.TryAcquireExternalMutation(out benchmarkLease))
                 {
                     return BenchmarkActiveRestoreResult();
+                }
+
+                lock (_sessionCpuLock)
+                {
+                    if (_sessionCpuState?.PriorityOverride is not null && _sessionCpuState.PriorityBaseline is not null && _sessionCpuBackend != null)
+                    {
+                        ProcessPriorityClass? cur = _sessionCpuBackend.GetCurrentPriority(_sessionCpuState.Identity);
+                        if (cur == _sessionCpuState.PriorityOverride)
+                        {
+                            _sessionCpuBackend.ApplyPriority(_sessionCpuState.Identity, _sessionCpuState.PriorityBaseline.Value);
+                        }
+                        _sessionCpuState.PriorityOverride = null;
+                    }
                 }
 
                 var currentSession = ActiveSession;
@@ -746,6 +773,222 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
     }
 
     /// <summary>
+    /// Temporarily adjusts the priority of the authoritative active game for the duration of the session.
+    /// Reversible, opt-in; fails closed if benchmarks are running, the game is protected by anti-cheat,
+    /// target identity changed/exited, or an unsupported priority class is requested.
+    /// Only Normal and AboveNormal priorities are permitted.
+    /// </summary>
+    public SessionCpuMutationResult ApplySessionPriorityOverride(Guid sessionToken, ProcessPriorityClass priority)
+    {
+        if (priority is not (ProcessPriorityClass.Normal or ProcessPriorityClass.AboveNormal))
+        {
+            return SessionCpuError("invalid_priority", "Only Normal and AboveNormal process priorities are supported for gaming sessions.");
+        }
+
+        if (!TryEnterOperation())
+        {
+            return SessionCpuError("coordinator_stopping", "Session Optimization is shutting down.");
+        }
+
+        try
+        {
+            if (!_mutationGate.Wait(0))
+            {
+                return SessionCpuError("operation_in_progress", "Another session optimization operation is in progress.");
+            }
+
+            IDisposable? benchmarkLease = null;
+            try
+            {
+                if (_benchmarkArbiter != null && !_benchmarkArbiter.TryAcquireExternalMutation(out benchmarkLease))
+                {
+                    return SessionCpuError("benchmark_active", "Process priority cannot change while a benchmark is active.");
+                }
+
+                return ApplySessionPriorityOverrideCore(sessionToken, priority);
+            }
+            finally
+            {
+                benchmarkLease?.Dispose();
+                _mutationGate.Release();
+            }
+        }
+        finally
+        {
+            ExitOperation();
+        }
+    }
+
+    private SessionCpuMutationResult ApplySessionPriorityOverrideCore(Guid sessionToken, ProcessPriorityClass priority)
+    {
+        if (_activeGameMonitor is null || _sessionCpuBackend is null)
+        {
+            return SessionCpuError("session_cpu_unavailable", "Session CPU control is unavailable.");
+        }
+
+        ActiveGameSnapshot? snapshot = _activeGameMonitor.CurrentSnapshot;
+        if (snapshot is null)
+        {
+            return SessionCpuError("no_game", "No active game detected.");
+        }
+
+        SessionCpuOverrideState state = ReconcileSessionCpuState(snapshot);
+        if (state.Token != sessionToken)
+        {
+            return SessionCpuStale(state, snapshot);
+        }
+
+        if (IsProtectedActiveGame(snapshot))
+        {
+            return SessionCpuFailure(state, snapshot, "protected_game", "Priority control is unavailable for this protected game.");
+        }
+
+        if (_sessionCpuBackend.ResolveFreshIdentity(snapshot.Process) is null)
+        {
+            return SessionCpuError("target_lost", "The game process exited or changed; no changes were made.");
+        }
+
+        lock (_sessionCpuLock)
+        {
+            if (state.PriorityBaseline is null)
+            {
+                ProcessPriorityClass? baseline = _sessionCpuBackend.GetCurrentPriority(snapshot.Process);
+                if (baseline is null)
+                {
+                    return SessionCpuError("baseline_unavailable", "The current process priority could not be read, so a temporary change was refused.");
+                }
+
+                state.PriorityBaseline = baseline;
+            }
+        }
+
+        if (!_sessionCpuBackend.ApplyPriority(snapshot.Process, priority))
+        {
+            _logger.Warn($"Session priority override failed for '{snapshot.LibraryItem.DisplayName}' (PID {snapshot.Process.ProcessId}, priority {priority}).");
+            return SessionCpuError("apply_failed", "The process priority could not be applied.");
+        }
+
+        lock (_sessionCpuLock)
+        {
+            state.PriorityOverride = priority;
+        }
+
+        _logger.Info($"Temporary session priority override applied to '{snapshot.LibraryItem.DisplayName}' ({priority}).");
+        return new SessionCpuMutationResult
+        {
+            Success = true,
+            ErrorCode = "applied",
+            Message = "Temporary process priority applied.",
+            State = BuildSessionCpuState(state, snapshot)
+        };
+    }
+
+    /// <summary>
+    /// Restores the captured pre-override process priority. Idempotent; never guesses a
+    /// baseline and never restores against a process that exited, was reused, or was modified externally.
+    /// </summary>
+    public SessionCpuMutationResult ResetSessionPriorityOverride(Guid sessionToken)
+    {
+        if (!TryEnterOperation())
+        {
+            return SessionCpuError("coordinator_stopping", "Session Optimization is shutting down.");
+        }
+
+        try
+        {
+            if (!_mutationGate.Wait(0))
+            {
+                return SessionCpuError("operation_in_progress", "Another session optimization operation is in progress.");
+            }
+
+            IDisposable? benchmarkLease = null;
+            try
+            {
+                if (_benchmarkArbiter != null && !_benchmarkArbiter.TryAcquireExternalMutation(out benchmarkLease))
+                {
+                    return SessionCpuError("benchmark_active", "Process priority cannot change while a benchmark is active.");
+                }
+
+                if (_activeGameMonitor is null || _sessionCpuBackend is null)
+                {
+                    return SessionCpuError("session_cpu_unavailable", "Session CPU control is unavailable.");
+                }
+
+                ActiveGameSnapshot? snapshot = _activeGameMonitor.CurrentSnapshot;
+                if (snapshot is null)
+                {
+                    return SessionCpuError("no_game", "No active game detected.");
+                }
+
+                SessionCpuOverrideState state = ReconcileSessionCpuState(snapshot);
+                if (state.Token != sessionToken)
+                {
+                    return SessionCpuStale(state, snapshot);
+                }
+
+                lock (_sessionCpuLock)
+                {
+                    if (state.PriorityOverride is null)
+                    {
+                        return new SessionCpuMutationResult
+                        {
+                            Success = true,
+                            ErrorCode = "restored",
+                            Message = "Process priority already matches the session baseline.",
+                            State = BuildSessionCpuState(state, snapshot)
+                        };
+                    }
+
+                    if (IsProtectedActiveGame(snapshot))
+                    {
+                        return SessionCpuFailure(state, snapshot, "protected_game", "Priority control is unavailable for this protected game.");
+                    }
+
+                    if (_sessionCpuBackend.ResolveFreshIdentity(snapshot.Process) is null)
+                    {
+                        state.PriorityOverride = null;
+                        state.PriorityBaseline = null;
+                        return SessionCpuError("target_lost", "The game process exited or changed; no changes were made.");
+                    }
+
+                    ProcessPriorityClass baseline = state.PriorityBaseline
+                        ?? throw new InvalidOperationException("Session priority override without a captured baseline.");
+
+                    ProcessPriorityClass? currentPriority = _sessionCpuBackend.GetCurrentPriority(snapshot.Process);
+                    if (currentPriority == state.PriorityOverride)
+                    {
+                        if (!_sessionCpuBackend.ApplyPriority(snapshot.Process, baseline))
+                        {
+                            _logger.Warn($"Session priority restore failed for '{snapshot.LibraryItem.DisplayName}'.");
+                            return SessionCpuError("apply_failed", "The process priority could not be restored.");
+                        }
+                    }
+
+                    state.PriorityOverride = null;
+                }
+
+                _logger.Info($"Temporary session priority override restored for '{snapshot.LibraryItem.DisplayName}'.");
+                return new SessionCpuMutationResult
+                {
+                    Success = true,
+                    ErrorCode = "restored",
+                    Message = "Process priority restored.",
+                    State = BuildSessionCpuState(state, snapshot)
+                };
+            }
+            finally
+            {
+                benchmarkLease?.Dispose();
+                _mutationGate.Release();
+            }
+        }
+        finally
+        {
+            ExitOperation();
+        }
+    }
+
+    /// <summary>
     /// Observation-time reconciliation: when the authoritative active game ended or
     /// changed (different library item or process instance), any stale override state is
     /// discarded and a fresh opaque token is issued. No timer or watcher is involved.
@@ -762,6 +1005,15 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
             if (sameSession)
             {
                 return current!;
+            }
+
+            if (current is not null && current.PriorityOverride is not null && current.PriorityBaseline is not null && _sessionCpuBackend != null)
+            {
+                ProcessPriorityClass? cur = _sessionCpuBackend.GetCurrentPriority(current.Identity);
+                if (cur == current.PriorityOverride)
+                {
+                    _sessionCpuBackend.ApplyPriority(current.Identity, current.PriorityBaseline.Value);
+                }
             }
 
             _sessionCpuState = snapshot is null
@@ -784,6 +1036,9 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         SessionCpuSelection? current = snapshot is not null
             ? _sessionCpuBackend?.GetCurrentSelection(snapshot.Process.ProcessId)
             : null;
+        ProcessPriorityClass? currentPriority = snapshot is not null
+            ? _sessionCpuBackend?.GetCurrentPriority(snapshot.Process)
+            : null;
 
         return new SessionCpuStateResult
         {
@@ -794,10 +1049,13 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
             LibraryItemId = state?.LibraryItemId,
             GameDisplayName = snapshot?.LibraryItem.DisplayName,
             GameProcessName = state?.GameProcessName,
-            TemporaryOverrideActive = state?.Override is not null,
+            TemporaryOverrideActive = state?.Override is not null || state?.PriorityOverride is not null,
             CurrentSelection = current,
             OverrideSelection = state?.Override,
             BaselineSelection = state?.Baseline,
+            CurrentPriority = currentPriority,
+            OverridePriority = state?.PriorityOverride,
+            BaselinePriority = state?.PriorityBaseline,
             Topology = _sessionCpuBackend?.GetTopology()
         };
     }
@@ -846,6 +1104,8 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         public BenchmarkProcessIdentity Identity { get; init; } = new();
         public SessionCpuSelection? Baseline { get; set; }
         public SessionCpuSelection? Override { get; set; }
+        public ProcessPriorityClass? PriorityBaseline { get; set; }
+        public ProcessPriorityClass? PriorityOverride { get; set; }
     }
 
     private SessionOptimizationStartResult RollBackFailedStart(

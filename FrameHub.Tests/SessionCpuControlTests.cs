@@ -6,10 +6,13 @@ using FrameHub.Companion.Providers;
 using FrameHub.Core.Models;
 using FrameHub.Core.Models.Benchmarking;
 using FrameHub.Core.Models.Library;
+using FrameHub.Core.Models.SessionOptimization;
+using FrameHub.Core.Services;
 using FrameHub.Core.Services.Benchmarking;
 using FrameHub.Core.Services.Library;
 using FrameHub.Core.Services.SessionOptimization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace FrameHub.Tests;
@@ -389,6 +392,245 @@ public sealed class SessionCpuCoordinatorTests
         Assert.AreEqual("session_cpu_unavailable", coordinator.ApplySessionCpuOverride(Guid.NewGuid(), OptimizationMode.Affinity, 0x03).ErrorCode);
     }
 
+    [TestMethod]
+    public void ApplySessionPriorityOverride_CapturesBaselineAndAppliesPriority()
+    {
+        _monitor.Snapshot = Snapshot(pid: 4242);
+        _backend.CurrentPriority = ProcessPriorityClass.Normal;
+        SessionOptimizationCoordinator coordinator = CreateCoordinator();
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        SessionCpuMutationResult result = coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.AboveNormal);
+
+        Assert.IsTrue(result.Success, result.ErrorCode);
+        Assert.AreEqual(1, _backend.AppliedPriorityCalls.Count);
+        Assert.AreEqual(4242, _backend.AppliedPriorityCalls[0].ProcessId);
+        Assert.AreEqual(ProcessPriorityClass.AboveNormal, _backend.AppliedPriorityCalls[0].Priority);
+
+        SessionCpuStateResult state = coordinator.GetSessionCpuState();
+        Assert.IsTrue(state.TemporaryOverrideActive);
+        Assert.AreEqual(ProcessPriorityClass.AboveNormal, state.CurrentPriority);
+        Assert.AreEqual(ProcessPriorityClass.AboveNormal, state.OverridePriority);
+        Assert.AreEqual(ProcessPriorityClass.Normal, state.BaselinePriority);
+
+        // Repeated apply keeps the original baseline
+        _backend.CurrentPriority = ProcessPriorityClass.AboveNormal;
+        SessionCpuMutationResult result2 = coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.Normal);
+        Assert.IsTrue(result2.Success);
+        Assert.AreEqual(ProcessPriorityClass.Normal, result2.State?.BaselinePriority);
+    }
+
+    [TestMethod]
+    public void ApplySessionPriorityOverride_RejectsWhenBenchmarkActive()
+    {
+        _monitor.Snapshot = Snapshot();
+        SessionOptimizationCoordinator coordinator = CreateCoordinator(arbiter: new DenyingArbiter());
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        SessionCpuMutationResult result = coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.AboveNormal);
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual("benchmark_active", result.ErrorCode);
+        Assert.AreEqual(0, _backend.AppliedPriorityCalls.Count);
+    }
+
+    [TestMethod]
+    public void ApplySessionPriorityOverride_FailsClosedOnTargetLossOrIdentityMismatch()
+    {
+        _monitor.Snapshot = Snapshot();
+        _backend.FreshIdentityFails = true;
+        SessionOptimizationCoordinator coordinator = CreateCoordinator();
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        SessionCpuMutationResult result = coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.AboveNormal);
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual("target_lost", result.ErrorCode);
+        Assert.AreEqual(0, _backend.AppliedPriorityCalls.Count);
+    }
+
+    [TestMethod]
+    public void ApplySessionPriorityOverride_RejectsProtectedGames()
+    {
+        _monitor.Snapshot = RiotSnapshot();
+        SessionOptimizationCoordinator coordinator = CreateCoordinator();
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        SessionCpuMutationResult result = coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.AboveNormal);
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual("protected_game", result.ErrorCode);
+        Assert.AreEqual(0, _backend.AppliedPriorityCalls.Count);
+    }
+
+    [TestMethod]
+    public void ApplySessionPriorityOverride_RejectsUnsupportedPriorities()
+    {
+        _monitor.Snapshot = Snapshot();
+        SessionOptimizationCoordinator coordinator = CreateCoordinator();
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        Assert.AreEqual("invalid_priority", coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.High).ErrorCode);
+        Assert.AreEqual("invalid_priority", coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.RealTime).ErrorCode);
+        Assert.AreEqual("invalid_priority", coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.BelowNormal).ErrorCode);
+        Assert.AreEqual("invalid_priority", coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.Idle).ErrorCode);
+        Assert.AreEqual(0, _backend.AppliedPriorityCalls.Count);
+    }
+
+    [TestMethod]
+    public void ResetSessionPriorityOverride_RestoresBaselinePriority()
+    {
+        _monitor.Snapshot = Snapshot(pid: 4242);
+        _backend.CurrentPriority = ProcessPriorityClass.Normal;
+        SessionOptimizationCoordinator coordinator = CreateCoordinator();
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        Assert.IsTrue(coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.AboveNormal).Success);
+        Assert.AreEqual(ProcessPriorityClass.AboveNormal, _backend.CurrentPriority);
+
+        SessionCpuMutationResult resetResult = coordinator.ResetSessionPriorityOverride(token);
+        Assert.IsTrue(resetResult.Success);
+        Assert.AreEqual("restored", resetResult.ErrorCode);
+        Assert.AreEqual(ProcessPriorityClass.Normal, _backend.CurrentPriority);
+
+        SessionCpuStateResult state = coordinator.GetSessionCpuState();
+        Assert.IsNull(state.OverridePriority);
+
+        // Idempotent second reset
+        SessionCpuMutationResult resetResult2 = coordinator.ResetSessionPriorityOverride(token);
+        Assert.IsTrue(resetResult2.Success);
+        Assert.AreEqual("restored", resetResult2.ErrorCode);
+    }
+
+    [TestMethod]
+    public void ResetSessionPriorityOverride_DoesNotRestoreIfPriorityChangedExternally()
+    {
+        _monitor.Snapshot = Snapshot(pid: 4242);
+        _backend.CurrentPriority = ProcessPriorityClass.Normal;
+        SessionOptimizationCoordinator coordinator = CreateCoordinator();
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        Assert.IsTrue(coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.AboveNormal).Success);
+
+        // External tool / user changed priority to Idle
+        _backend.CurrentPriority = ProcessPriorityClass.Idle;
+
+        int callsBeforeReset = _backend.AppliedPriorityCalls.Count;
+        SessionCpuMutationResult resetResult = coordinator.ResetSessionPriorityOverride(token);
+        Assert.IsTrue(resetResult.Success);
+        // Did not overwrite the external priority change
+        Assert.AreEqual(callsBeforeReset, _backend.AppliedPriorityCalls.Count);
+        Assert.AreEqual(ProcessPriorityClass.Idle, _backend.CurrentPriority);
+    }
+
+    [TestMethod]
+    public void ReconcileSessionCpuState_DiscardsStalePriorityStateWhenGameExits()
+    {
+        _monitor.Snapshot = Snapshot(pid: 4242);
+        _backend.CurrentPriority = ProcessPriorityClass.Normal;
+        SessionOptimizationCoordinator coordinator = CreateCoordinator();
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        Assert.IsTrue(coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.AboveNormal).Success);
+
+        // Game exits
+        _monitor.Snapshot = null;
+        SessionCpuStateResult state = coordinator.GetSessionCpuState();
+
+        Assert.IsFalse(state.Available);
+        Assert.IsFalse(state.TemporaryOverrideActive);
+        Assert.IsNull(state.SessionToken);
+    }
+
+    [TestMethod]
+    public async Task StopSessionAsync_RestoresBaselinePriority()
+    {
+        _monitor.Snapshot = Snapshot(pid: 4242);
+        _backend.CurrentPriority = ProcessPriorityClass.Normal;
+        SessionOptimizationCoordinator coordinator = CreateCoordinator();
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        Assert.IsTrue(coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.AboveNormal).Success);
+        Assert.AreEqual(ProcessPriorityClass.AboveNormal, _backend.CurrentPriority);
+
+        var restoreResult = await coordinator.StopSessionAsync();
+        Assert.AreEqual(ProcessPriorityClass.Normal, _backend.CurrentPriority);
+    }
+
+    [TestMethod]
+    public void ApplySessionPriorityOverride_UsesIdentityAwareBackendMethods()
+    {
+        _monitor.Snapshot = Snapshot(pid: 4242);
+        _backend.CurrentPriority = ProcessPriorityClass.Normal;
+        SessionOptimizationCoordinator coordinator = CreateCoordinator();
+        Guid token = coordinator.GetSessionCpuState().SessionToken!.Value;
+
+        SessionCpuMutationResult result = coordinator.ApplySessionPriorityOverride(token, ProcessPriorityClass.AboveNormal);
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual(1, _backend.AppliedIdentityPriorityCalls.Count);
+        Assert.AreEqual(4242, _backend.AppliedIdentityPriorityCalls[0].Identity.ProcessId);
+        Assert.AreEqual(ProcessPriorityClass.AboveNormal, _backend.AppliedIdentityPriorityCalls[0].Priority);
+
+        SessionCpuMutationResult resetResult = coordinator.ResetSessionPriorityOverride(token);
+        Assert.IsTrue(resetResult.Success);
+        Assert.AreEqual(2, _backend.AppliedIdentityPriorityCalls.Count);
+        Assert.AreEqual(4242, _backend.AppliedIdentityPriorityCalls[1].Identity.ProcessId);
+        Assert.AreEqual(ProcessPriorityClass.Normal, _backend.AppliedIdentityPriorityCalls[1].Priority);
+    }
+
+    [TestMethod]
+    public async Task StartSessionAsync_AutomaticallyAppliesPriorityOverride_WhenGameSettingsOptIn()
+    {
+        _monitor.Snapshot = Snapshot(id: "game-1", pid: 4242);
+        _backend.CurrentPriority = ProcessPriorityClass.Normal;
+        var settingsService = new SessionOptimizationSettingsService(Path.Combine(_tempDir, "opt-settings.json"));
+        var settings = new SessionOptimizationSettings();
+        settings.GameSettings["game-1"] = new SessionGameSuspendSettings { ApplyPriorityOverride = true };
+        settingsService.Save(settings);
+
+        SessionOptimizationCoordinator coordinator = new(
+            stateService: _stateService,
+            settingsService: settingsService,
+            libraryService: new LibraryService(Path.Combine(_tempDir, "library.json")),
+            activeGameMonitor: _monitor,
+            sessionCpuBackend: _backend);
+
+        var gameItem = _monitor.Snapshot.LibraryItem;
+        var startResult = await coordinator.StartSessionAsync("Manual", gameItem);
+        Assert.IsTrue(startResult.Success);
+
+        Assert.AreEqual(ProcessPriorityClass.AboveNormal, _backend.CurrentPriority);
+        Assert.AreEqual(1, _backend.AppliedIdentityPriorityCalls.Count);
+
+        var stopResult = await coordinator.StopSessionAsync();
+        Assert.IsTrue(stopResult.Success);
+        Assert.AreEqual(ProcessPriorityClass.Normal, _backend.CurrentPriority);
+    }
+
+    [TestMethod]
+    public async Task StartSessionAsync_DoesNotApplyPriorityOverride_WhenDefaultOff()
+    {
+        _monitor.Snapshot = Snapshot(id: "game-1", pid: 4242);
+        _backend.CurrentPriority = ProcessPriorityClass.Normal;
+        var settingsService = new SessionOptimizationSettingsService(Path.Combine(_tempDir, "opt-settings.json"));
+        var settings = new SessionOptimizationSettings();
+        settingsService.Save(settings);
+
+        SessionOptimizationCoordinator coordinator = new(
+            stateService: _stateService,
+            settingsService: settingsService,
+            libraryService: new LibraryService(Path.Combine(_tempDir, "library.json")),
+            activeGameMonitor: _monitor,
+            sessionCpuBackend: _backend);
+
+        var gameItem = _monitor.Snapshot.LibraryItem;
+        var startResult = await coordinator.StartSessionAsync("Manual", gameItem);
+        Assert.IsTrue(startResult.Success);
+
+        Assert.AreEqual(ProcessPriorityClass.Normal, _backend.CurrentPriority);
+        Assert.AreEqual(0, _backend.AppliedIdentityPriorityCalls.Count);
+    }
+
     private sealed class FakeActiveGameMonitor : IActiveGameMonitor
     {
         public ActiveGameSnapshot? Snapshot { get; set; }
@@ -410,9 +652,13 @@ public sealed class SessionCpuCoordinatorTests
     private sealed class FakeSessionCpuBackend : ISessionCpuControlBackend
     {
         public SessionCpuSelection? CurrentSelection { get; set; } = new(OptimizationMode.Affinity, 0xFF);
+        public ProcessPriorityClass? CurrentPriority { get; set; } = ProcessPriorityClass.Normal;
         public bool FreshIdentityFails { get; set; }
+        public bool ApplyPrioritySucceeds { get; set; } = true;
 
         public List<(int ProcessId, SessionCpuSelection Selection)> AppliedCalls { get; } = new();
+        public List<(int ProcessId, ProcessPriorityClass Priority)> AppliedPriorityCalls { get; } = new();
+        public List<(BenchmarkProcessIdentity Identity, ProcessPriorityClass Priority)> AppliedIdentityPriorityCalls { get; } = new();
         public List<BenchmarkProcessIdentity> FreshIdentityCalls { get; } = new();
         public List<string> OperationOrder { get; } = new();
 
@@ -437,6 +683,27 @@ public sealed class SessionCpuCoordinatorTests
             AppliedCalls.Add((processId, selection));
             OperationOrder.Add("apply");
             return "OK_AFFINITY";
+        }
+
+        public ProcessPriorityClass? GetCurrentPriority(int processId) => CurrentPriority;
+
+        public ProcessPriorityClass? GetCurrentPriority(BenchmarkProcessIdentity expectedIdentity) =>
+            FreshIdentityFails ? null : CurrentPriority;
+
+        public bool ApplyPriority(int processId, ProcessPriorityClass priority) =>
+            ApplyPriority(new BenchmarkProcessIdentity { ProcessId = processId, ProcessName = "mock" }, priority);
+
+        public bool ApplyPriority(BenchmarkProcessIdentity expectedIdentity, ProcessPriorityClass priority)
+        {
+            AppliedPriorityCalls.Add((expectedIdentity.ProcessId, priority));
+            AppliedIdentityPriorityCalls.Add((expectedIdentity, priority));
+            OperationOrder.Add("apply_priority");
+            if (ApplyPrioritySucceeds && !FreshIdentityFails)
+            {
+                CurrentPriority = priority;
+                return true;
+            }
+            return false;
         }
     }
 }
@@ -697,6 +964,7 @@ public sealed class SessionCpuPermissionAndPresentationTests
     private sealed class StubCpuBackend : ISessionCpuControlBackend
     {
         public SessionCpuSelection? CurrentSelection { get; set; } = new(OptimizationMode.Affinity, 0xFF);
+        public ProcessPriorityClass? CurrentPriority { get; set; } = ProcessPriorityClass.Normal;
 
         public SessionCpuTopology GetTopology() => new(new[] { new SessionCpuLogicalProcessor(0, 0, 0, false, false, "[P]") });
 
@@ -707,6 +975,14 @@ public sealed class SessionCpuPermissionAndPresentationTests
         public SessionCpuSelection? GetCurrentSelection(int processId) => CurrentSelection;
 
         public string ApplySelection(int processId, SessionCpuSelection selection) => "OK_AFFINITY";
+
+        public ProcessPriorityClass? GetCurrentPriority(int processId) => CurrentPriority;
+
+        public ProcessPriorityClass? GetCurrentPriority(BenchmarkProcessIdentity expectedIdentity) => CurrentPriority;
+
+        public bool ApplyPriority(int processId, ProcessPriorityClass priority) => true;
+
+        public bool ApplyPriority(BenchmarkProcessIdentity expectedIdentity, ProcessPriorityClass priority) => true;
     }
 
     private sealed class StubBenchmarkCoordinator : IBenchmarkCaptureCoordinator
@@ -721,5 +997,327 @@ public sealed class SessionCpuPermissionAndPresentationTests
         public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         public void Dispose() { }
+    }
+}
+
+[TestClass]
+public sealed class ProcessServicePriorityIdentityTests
+{
+    private sealed class FakeProcessPriorityAccessor : IProcessPriorityAccessor
+    {
+        public ProcessPriorityClass? Priority { get; set; } = ProcessPriorityClass.Normal;
+        public int ProcessId { get; set; }
+        public DateTime StartTimeUtc { get; set; }
+        public string ProcessName { get; set; } = string.Empty;
+        public string? ExecutablePath { get; set; }
+
+        public bool MatchesIdentity(BenchmarkProcessIdentity expected) =>
+            ProcessService.MatchesIdentityCore(expected, ProcessId, ProcessName, StartTimeUtc, ExecutablePath);
+    }
+
+    [TestMethod]
+    public void ProcessService_Priority_MatchesExpectedIdentity_AllowsGetAndSet()
+    {
+        var service = new ProcessService();
+        var fake = new FakeProcessPriorityAccessor
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe",
+            Priority = ProcessPriorityClass.Normal
+        };
+        service.ProcessPriorityAccessorForTesting = pid => pid == 1234 ? fake : null;
+
+        var matchingIdentity = new BenchmarkProcessIdentity
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe"
+        };
+
+        Assert.AreEqual(ProcessPriorityClass.Normal, service.GetPriority(matchingIdentity));
+        Assert.IsTrue(service.SetPriority(matchingIdentity, ProcessPriorityClass.AboveNormal));
+        Assert.AreEqual(ProcessPriorityClass.AboveNormal, fake.Priority);
+    }
+
+    [TestMethod]
+    public void ProcessService_Priority_RejectsOnRecycledPid_StartTimeMismatch()
+    {
+        var service = new ProcessService();
+        var fake = new FakeProcessPriorityAccessor
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 13, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe",
+            Priority = ProcessPriorityClass.Normal
+        };
+        service.ProcessPriorityAccessorForTesting = pid => pid == 1234 ? fake : null;
+
+        var oldIdentity = new BenchmarkProcessIdentity
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe"
+        };
+
+        Assert.IsNull(service.GetPriority(oldIdentity));
+        Assert.IsFalse(service.SetPriority(oldIdentity, ProcessPriorityClass.AboveNormal));
+        Assert.AreEqual(ProcessPriorityClass.Normal, fake.Priority);
+    }
+
+    [TestMethod]
+    public void ProcessService_Priority_RejectsOnProcessNameMismatch()
+    {
+        var service = new ProcessService();
+        var fake = new FakeProcessPriorityAccessor
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "svchost.exe",
+            ExecutablePath = @"C:\Windows\System32\svchost.exe",
+            Priority = ProcessPriorityClass.Normal
+        };
+        service.ProcessPriorityAccessorForTesting = pid => pid == 1234 ? fake : null;
+
+        var expectedGameIdentity = new BenchmarkProcessIdentity
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe"
+        };
+
+        Assert.IsNull(service.GetPriority(expectedGameIdentity));
+        Assert.IsFalse(service.SetPriority(expectedGameIdentity, ProcessPriorityClass.AboveNormal));
+        Assert.AreEqual(ProcessPriorityClass.Normal, fake.Priority);
+    }
+
+    [TestMethod]
+    public void ProcessService_Priority_RejectsOnExecutablePathMismatch()
+    {
+        var service = new ProcessService();
+        var fake = new FakeProcessPriorityAccessor
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\OtherDir\game.exe",
+            Priority = ProcessPriorityClass.Normal
+        };
+        service.ProcessPriorityAccessorForTesting = pid => pid == 1234 ? fake : null;
+
+        var expectedIdentity = new BenchmarkProcessIdentity
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe"
+        };
+
+        Assert.IsNull(service.GetPriority(expectedIdentity));
+        Assert.IsFalse(service.SetPriority(expectedIdentity, ProcessPriorityClass.AboveNormal));
+        Assert.AreEqual(ProcessPriorityClass.Normal, fake.Priority);
+    }
+
+    [TestMethod]
+    public void ProcessService_Priority_RejectsWhenExpectedStartTimeIsDefault()
+    {
+        var service = new ProcessService();
+        var fake = new FakeProcessPriorityAccessor
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe",
+            Priority = ProcessPriorityClass.Normal
+        };
+        service.ProcessPriorityAccessorForTesting = pid => pid == 1234 ? fake : null;
+
+        var invalidIdentity = new BenchmarkProcessIdentity
+        {
+            ProcessId = 1234,
+            StartTimeUtc = default,
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe"
+        };
+
+        Assert.IsNull(service.GetPriority(invalidIdentity));
+        Assert.IsFalse(service.SetPriority(invalidIdentity, ProcessPriorityClass.AboveNormal));
+        Assert.AreEqual(ProcessPriorityClass.Normal, fake.Priority);
+    }
+
+    [TestMethod]
+    public void ProcessService_Priority_RejectsWhenActualStartTimeIsDefault()
+    {
+        var service = new ProcessService();
+        var fake = new FakeProcessPriorityAccessor
+        {
+            ProcessId = 1234,
+            StartTimeUtc = default,
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe",
+            Priority = ProcessPriorityClass.Normal
+        };
+        service.ProcessPriorityAccessorForTesting = pid => pid == 1234 ? fake : null;
+
+        var expected = new BenchmarkProcessIdentity
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe"
+        };
+
+        Assert.IsNull(service.GetPriority(expected));
+        Assert.IsFalse(service.SetPriority(expected, ProcessPriorityClass.AboveNormal));
+        Assert.AreEqual(ProcessPriorityClass.Normal, fake.Priority);
+    }
+
+    [TestMethod]
+    public void ProcessService_Priority_RejectsWhenExpectedPathSet_ButActualPathIsNull()
+    {
+        var service = new ProcessService();
+        var fake = new FakeProcessPriorityAccessor
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = null,
+            Priority = ProcessPriorityClass.Normal
+        };
+        service.ProcessPriorityAccessorForTesting = pid => pid == 1234 ? fake : null;
+
+        var expected = new BenchmarkProcessIdentity
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe"
+        };
+
+        Assert.IsNull(service.GetPriority(expected));
+        Assert.IsFalse(service.SetPriority(expected, ProcessPriorityClass.AboveNormal));
+        Assert.AreEqual(ProcessPriorityClass.Normal, fake.Priority);
+    }
+
+    [TestMethod]
+    public void ProcessService_Priority_RejectsWhenExpectedPathSet_ButActualPathIsEmpty()
+    {
+        var service = new ProcessService();
+        var fake = new FakeProcessPriorityAccessor
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = "   ",
+            Priority = ProcessPriorityClass.Normal
+        };
+        service.ProcessPriorityAccessorForTesting = pid => pid == 1234 ? fake : null;
+
+        var expected = new BenchmarkProcessIdentity
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe"
+        };
+
+        Assert.IsNull(service.GetPriority(expected));
+        Assert.IsFalse(service.SetPriority(expected, ProcessPriorityClass.AboveNormal));
+        Assert.AreEqual(ProcessPriorityClass.Normal, fake.Priority);
+    }
+
+    [TestMethod]
+    public void ProcessService_Priority_AllowsWhenExecutablePathNotExpected_AndRestMatches()
+    {
+        var service = new ProcessService();
+        var fake = new FakeProcessPriorityAccessor
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = @"C:\Games\game.exe",
+            Priority = ProcessPriorityClass.Normal
+        };
+        service.ProcessPriorityAccessorForTesting = pid => pid == 1234 ? fake : null;
+
+        var expectedWithoutPath = new BenchmarkProcessIdentity
+        {
+            ProcessId = 1234,
+            StartTimeUtc = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc),
+            ProcessName = "game.exe",
+            ExecutablePath = null
+        };
+
+        Assert.AreEqual(ProcessPriorityClass.Normal, service.GetPriority(expectedWithoutPath));
+        Assert.IsTrue(service.SetPriority(expectedWithoutPath, ProcessPriorityClass.AboveNormal));
+        Assert.AreEqual(ProcessPriorityClass.AboveNormal, fake.Priority);
+    }
+
+    [TestMethod]
+    public void MatchesExpectedIdentity_WithRealProcess_AcceptsMatchingIdentity()
+    {
+        using var current = System.Diagnostics.Process.GetCurrentProcess();
+        var expected = new BenchmarkProcessIdentity
+        {
+            ProcessId = current.Id,
+            StartTimeUtc = current.StartTime.ToUniversalTime(),
+            ProcessName = current.ProcessName,
+            ExecutablePath = current.MainModule?.FileName
+        };
+
+        Assert.IsTrue(ProcessService.MatchesExpectedIdentity(current, expected));
+    }
+
+    [TestMethod]
+    public void MatchesExpectedIdentity_WithRealProcess_RejectsDefaultStartTime()
+    {
+        using var current = System.Diagnostics.Process.GetCurrentProcess();
+        var expected = new BenchmarkProcessIdentity
+        {
+            ProcessId = current.Id,
+            StartTimeUtc = default,
+            ProcessName = current.ProcessName,
+            ExecutablePath = current.MainModule?.FileName
+        };
+
+        Assert.IsFalse(ProcessService.MatchesExpectedIdentity(current, expected));
+    }
+
+    [TestMethod]
+    public void MatchesExpectedIdentity_WithRealProcess_RejectsMismatchedPath()
+    {
+        using var current = System.Diagnostics.Process.GetCurrentProcess();
+        var expected = new BenchmarkProcessIdentity
+        {
+            ProcessId = current.Id,
+            StartTimeUtc = current.StartTime.ToUniversalTime(),
+            ProcessName = current.ProcessName,
+            ExecutablePath = @"C:\FrameHubTest\NonExistentPath\game.exe"
+        };
+
+        Assert.IsFalse(ProcessService.MatchesExpectedIdentity(current, expected));
+    }
+
+    [TestMethod]
+    public void ProcessService_GetPriority_WithRealProcess_ReadsWithoutTestingHook()
+    {
+        var service = new ProcessService();
+        using var current = System.Diagnostics.Process.GetCurrentProcess();
+        var expected = new BenchmarkProcessIdentity
+        {
+            ProcessId = current.Id,
+            StartTimeUtc = current.StartTime.ToUniversalTime(),
+            ProcessName = current.ProcessName,
+            ExecutablePath = current.MainModule?.FileName
+        };
+
+        ProcessPriorityClass? prio = service.GetPriority(current.Id, expected);
+        Assert.IsNotNull(prio);
+        Assert.AreEqual(current.PriorityClass, prio.Value);
     }
 }

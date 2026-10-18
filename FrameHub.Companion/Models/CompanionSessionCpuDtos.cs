@@ -56,6 +56,8 @@ public sealed record CompanionSessionCpuStateDto
     public bool TemporaryOverrideActive { get; init; }
     public CompanionSessionCpuSelectionDto? CurrentSelection { get; init; }
     public CompanionSessionCpuSelectionDto? OverrideSelection { get; init; }
+    public string? CurrentPriority { get; init; }
+    public string? OverridePriority { get; init; }
     public CompanionSessionCpuTopologyDto? Topology { get; init; }
 }
 

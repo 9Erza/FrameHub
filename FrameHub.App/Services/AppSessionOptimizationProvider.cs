@@ -244,6 +244,8 @@ public sealed class AppSessionOptimizationProvider : ICompanionSessionOptimizati
             TemporaryOverrideActive = state.TemporaryOverrideActive,
             CurrentSelection = ToSelectionDto(state.CurrentSelection),
             OverrideSelection = ToSelectionDto(state.OverrideSelection),
+            CurrentPriority = state.CurrentPriority?.ToString(),
+            OverridePriority = state.OverridePriority?.ToString(),
             Topology = state.Topology is null
                 ? null
                 : new CompanionSessionCpuTopologyDto
