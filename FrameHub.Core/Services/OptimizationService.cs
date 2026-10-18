@@ -152,11 +152,18 @@ namespace FrameHub.Core.Services
             }
 
             bool success = coreApplied || priorityApplied;
-            if (success)
+            bool allRequestedOperationsApplied = (!profile.ApplyCoreOptimization || coreApplied)
+                && (!profile.ApplyPriority || priorityApplied);
+            if (success && allRequestedOperationsApplied)
             {
                 _appliedProfileSignatures[key] = signature;
             }
             else
+            {
+                _appliedProfileSignatures.Remove(key);
+            }
+
+            if (!success)
             {
                 _logger.Debug($"Optimization failed for PID {key.ProcessId}: core={coreMessage}, priority={priorityMessage}");
             }

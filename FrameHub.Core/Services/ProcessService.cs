@@ -41,7 +41,7 @@ namespace FrameHub.Core.Services
             }
         }
 
-        public bool SetPriority(int pid, ProcessPriorityClass priority)
+        public virtual bool SetPriority(int pid, ProcessPriorityClass priority)
         {
             try
             {
@@ -159,7 +159,7 @@ namespace FrameHub.Core.Services
         }
 
 
-        public string ApplyCoreOptimization(int pid, long mask, OptimizationMode mode, Dictionary<int, uint> cpuSetMap)
+        public virtual string ApplyCoreOptimization(int pid, long mask, OptimizationMode mode, Dictionary<int, uint> cpuSetMap)
         {
             if (mask == 0) return "ERR_EMPTY_MASK";
 
