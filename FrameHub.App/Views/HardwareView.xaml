@@ -74,6 +74,18 @@
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <Border Style="{StaticResource SectionSurface}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="{Binding TimerResolutionTitle}" Style="{StaticResource SectionTitleText}" />
+                    <TextBlock Text="{Binding TimerResolutionDescription}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,6,0,8" />
+                    <TextBlock Text="{Binding TimerResolutionStatus}" Style="{StaticResource DataTitleText}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <Button Content="{Binding TimerResolutionRefreshText}"
+                            Command="{Binding RefreshTimerResolutionCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            HorizontalAlignment="Left" />
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

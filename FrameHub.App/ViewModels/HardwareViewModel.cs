@@ -10,6 +10,8 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
     private readonly Func<bool> _isElevatedProbe;
+    private readonly SystemTimerResolutionReader _timerResolutionReader;
+    private SystemTimerResolutionSnapshot? _timerResolutionSnapshot;
     private readonly DispatcherTimer _timer;
     private IHardwareMonitorLease? _hardwareLease;
     private bool _pageActive;
@@ -46,6 +48,29 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     public string StorageSensorsDescription => _localization.T("Hardware.StorageSensors.Description");
     public string RefreshModesTitle => _localization.T("Hardware.RefreshModes.Title");
     public string RefreshModesDescription => _localization.T("Hardware.RefreshModes.Description");
+    public string TimerResolutionTitle => _localization.T("Hardware.TimerResolution.Title");
+    public string TimerResolutionDescription => _localization.T("Hardware.TimerResolution.Description");
+    public string TimerResolutionRefreshText => _localization.T("Hardware.TimerResolution.Refresh");
+    public string TimerResolutionStatus => _timerResolutionSnapshot is null
+        ? _localization.T("Hardware.TimerResolution.NotRead")
+        : _timerResolutionSnapshot.Success
+            ? string.Format(System.Globalization.CultureInfo.CurrentCulture,
+                _localization.T("Hardware.TimerResolution.Values"),
+                _timerResolutionSnapshot.CurrentMilliseconds,
+                Math.Min(_timerResolutionSnapshot.MinimumMilliseconds, _timerResolutionSnapshot.MaximumMilliseconds),
+                Math.Max(_timerResolutionSnapshot.MinimumMilliseconds, _timerResolutionSnapshot.MaximumMilliseconds))
+            : string.Format(System.Globalization.CultureInfo.CurrentCulture,
+                _localization.T("Hardware.TimerResolution.Unavailable"),
+                _timerResolutionSnapshot.Error);
+    public RelayCommand RefreshTimerResolutionCommand { get; }
+
+    public void RefreshTimerResolution()
+    {
+        if (_disposed) return;
+        _timerResolutionSnapshot = _timerResolutionReader.Read();
+        OnPropertyChanged(nameof(TimerResolutionStatus));
+    }
+
 
     public bool IsProcessElevated { get; }
 
@@ -116,10 +141,12 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         if (changed) OnPropertyChanged(nameof(VramUsedTotalText));
     }
 
-    public HardwareViewModel(LocalizationService localization, AppRuntimeService runtime, Func<bool>? isElevatedProbe = null)
+    public HardwareViewModel(LocalizationService localization, AppRuntimeService runtime, Func<bool>? isElevatedProbe = null, SystemTimerResolutionReader? timerResolutionReader = null)
     {
         _localization = localization;
         _runtime = runtime;
+        _timerResolutionReader = timerResolutionReader ?? new SystemTimerResolutionReader();
+        RefreshTimerResolutionCommand = new RelayCommand(_ => RefreshTimerResolution());
         _isElevatedProbe = isElevatedProbe ?? runtime.SettingsService.IsRunAsAdmin;
         IsProcessElevated = _isElevatedProbe();
         _runtime.WatcherStateChanged += (_, _) => OnPropertyChanged(nameof(ProfileWatcherStatus));
@@ -162,6 +189,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
             _hardwareLease ??= _runtime.AcquireHardwareLease();
         }
         SyncPollingWithState();
+        RefreshTimerResolution();
     }
 
     /// <summary>
@@ -274,6 +302,10 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(StorageSensorsDescription));
         OnPropertyChanged(nameof(RefreshModesTitle));
         OnPropertyChanged(nameof(RefreshModesDescription));
+        OnPropertyChanged(nameof(TimerResolutionTitle));
+        OnPropertyChanged(nameof(TimerResolutionDescription));
+        OnPropertyChanged(nameof(TimerResolutionRefreshText));
+        OnPropertyChanged(nameof(TimerResolutionStatus));
     }
 
     public void Dispose()
