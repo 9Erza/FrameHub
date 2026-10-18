@@ -39,7 +39,7 @@ public static partial class ValveConfigParser
         });
 
         if (string.Equals(original, updated, StringComparison.Ordinal)) return false;
-        File.WriteAllText(filePath, updated);
+        AtomicFileService.WriteAllTextAtomic(filePath, updated);
         return true;
     }
 }

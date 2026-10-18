@@ -251,6 +251,7 @@
                                     <Button Style="{StaticResource SecondaryButton}" Content="{Binding ScanCs2Text}" Command="{Binding ScanCs2Command}" Margin="0,0,8,8" />
                                     <Button Style="{StaticResource SecondaryButton}" Content="{Binding BackupCs2Text}" Command="{Binding BackupCs2Command}" IsEnabled="{Binding CanEditCs2Config}" Margin="0,0,8,8" />
                                     <Button Style="{StaticResource PrimaryButton}" Content="{Binding ApplyCs2Text}" Command="{Binding ApplyCs2PresetCommand}" IsEnabled="{Binding CanEditCs2Config}" Margin="0,0,8,8" />
+                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding RestoreCs2Text}" Command="{Binding RestoreCs2BackupCommand}" IsEnabled="{Binding CanEditCs2Config}" Margin="0,0,8,8" />
                                 </WrapPanel>
                                 <TextBlock Text="{Binding Cs2StatusMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,6" />
                                 <TextBlock Text="{Binding Cs2EditLockMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{StaticResource BrushWarning}" />

@@ -15,9 +15,19 @@ namespace FrameHub.Core.Services
 
         public static void WriteAllTextAtomic(string filePath, string content)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
             ArgumentNullException.ThrowIfNull(content);
+            WriteAtomic(filePath, temporaryPath => File.WriteAllText(temporaryPath, content, Encoding.UTF8));
+        }
 
+        public static void WriteAllBytesAtomic(string filePath, byte[] content)
+        {
+            ArgumentNullException.ThrowIfNull(content);
+            WriteAtomic(filePath, temporaryPath => File.WriteAllBytes(temporaryPath, content));
+        }
+
+        private static void WriteAtomic(string filePath, Action<string> writeTemporaryFile)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
             string fullPath = Path.GetFullPath(filePath);
             lock (GetPathLock(fullPath))
             {
@@ -29,7 +39,7 @@ namespace FrameHub.Core.Services
 
                 try
                 {
-                    File.WriteAllText(tempPath, content, Encoding.UTF8);
+                    writeTemporaryFile(tempPath);
 
                     if (File.Exists(fullPath))
                     {

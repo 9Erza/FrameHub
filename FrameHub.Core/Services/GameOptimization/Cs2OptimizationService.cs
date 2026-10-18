@@ -2,6 +2,7 @@ using FrameHub.Core.Logging;
 using FrameHub.Core.Models.GameOptimization;
 using FrameHub.Core.Models.Library;
 using FrameHub.Core.Services;
+using FrameHub.Core.Services.Benchmarking;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -12,9 +13,17 @@ using System.Text;
 
 namespace FrameHub.Core.Services.GameOptimization;
 
-public sealed class Cs2OptimizationService
+public sealed partial class Cs2OptimizationService
 {
     private readonly ILogger _logger = LoggerService.Instance;
+    private readonly string _backupRoot;
+    private readonly IBenchmarkOperationArbiter? _arbiter;
+
+    public Cs2OptimizationService(string? backupRoot = null, IBenchmarkOperationArbiter? arbiter = null)
+    {
+        _backupRoot = backupRoot ?? Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2");
+        _arbiter = arbiter;
+    }
 
     public bool IsCs2LibraryItem(LibraryItem? item)
     {
@@ -83,14 +92,7 @@ public sealed class Cs2OptimizationService
                 return new GameConfigBackupResult { Success = false, Message = "Nie wykryto konfiguracji CS2." };
             }
 
-            string backupRoot = CreateUniqueBackupDirectory(GetAccountBackupRoot(analysis), DateTime.Now);
-            Directory.CreateDirectory(backupRoot);
-
-            CopyIfExists(analysis.Paths.VideoConfigPath, backupRoot);
-            CopyIfExists(analysis.Paths.MachineConvarsPath, backupRoot);
-            CopyIfExists(analysis.Paths.UserConvarsPath, backupRoot);
-            CopyIfExists(analysis.Paths.UserKeysPath, backupRoot);
-            CopyIfExists(GetAutoexecPath(analysis), backupRoot);
+            string backupRoot = CreateVerifiedBackup(analysis);
 
             return new GameConfigBackupResult
             {
@@ -108,19 +110,38 @@ public sealed class Cs2OptimizationService
 
     public GameConfigApplyResult ApplyPreset(Cs2ConfigAnalysis analysis, GameOptimizationPreset preset)
     {
+        if (!TryAcquireMutation(out IDisposable? lease))
+            return new GameConfigApplyResult { Message = "Configuration changes are blocked while a benchmark is reserved or running." };
+        using var mutationLease = lease;
+        List<GameSettingChange> effectiveChanges;
+        try
+        {
+            effectiveChanges = GetEffectiveChanges(analysis, preset);
+        }
+        catch (Exception ex)
+        {
+            return new GameConfigApplyResult { Success = false, Message = ex.Message };
+        }
+        if (effectiveChanges.Count == 0)
+        {
+            return new GameConfigApplyResult { Success = true, Message = "No configuration values need changing." };
+        }
+
         var backup = CreateBackup(analysis);
         if (!backup.Success)
         {
             return new GameConfigApplyResult { Success = false, Message = backup.Message };
         }
 
+        var originalFiles = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        var writtenFiles = new List<string>();
         try
         {
             int count = 0;
             var videoChanges = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var machineChanges = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var change in preset.Changes.Where(x => x.IsSelected && x.CanApply))
+            foreach (var change in effectiveChanges)
             {
                 if (change.Key.Equals("cs2.resolution", StringComparison.OrdinalIgnoreCase))
                 {
@@ -162,12 +183,16 @@ public sealed class Cs2OptimizationService
 
             if (!string.IsNullOrWhiteSpace(analysis.Paths.VideoConfigPath) && videoChanges.Count > 0)
             {
+                originalFiles[analysis.Paths.VideoConfigPath] = File.ReadAllBytes(analysis.Paths.VideoConfigPath);
                 ValveConfigParser.UpdateQuotedValueFile(analysis.Paths.VideoConfigPath, videoChanges);
+                writtenFiles.Add(analysis.Paths.VideoConfigPath);
             }
 
             if (!string.IsNullOrWhiteSpace(analysis.Paths.MachineConvarsPath) && machineChanges.Count > 0)
             {
+                originalFiles[analysis.Paths.MachineConvarsPath] = File.ReadAllBytes(analysis.Paths.MachineConvarsPath);
                 ValveConfigParser.UpdateQuotedValueFile(analysis.Paths.MachineConvarsPath, machineChanges);
+                writtenFiles.Add(analysis.Paths.MachineConvarsPath);
             }
 
             return new GameConfigApplyResult
@@ -181,8 +206,91 @@ public sealed class Cs2OptimizationService
         catch (Exception ex)
         {
             _logger.Error("Failed to apply CS2 preset", ex);
-            return new GameConfigApplyResult { Success = false, BackupFolder = backup.BackupFolder, Message = ex.Message };
+            bool restored = RollBackFiles(writtenFiles, originalFiles);
+            return new GameConfigApplyResult
+            {
+                Success = false,
+                BackupFolder = backup.BackupFolder,
+                Message = $"{ex.Message} Rollback: {(restored ? "completed" : "incomplete; restore the retained backup manually")}.",
+                RollbackAttempted = writtenFiles.Count > 0,
+                RollbackSucceeded = restored
+            };
         }
+    }
+
+    private bool RollBackFiles(List<string> writtenFiles, Dictionary<string, byte[]> originalFiles)
+    {
+        bool restored = true;
+        foreach (string path in writtenFiles.AsEnumerable().Reverse())
+        {
+            try
+            {
+                if (originalFiles.TryGetValue(path, out byte[]? original))
+                    AtomicFileService.WriteAllBytesAtomic(path, original);
+                else
+                    File.Delete(path);
+            }
+            catch (Exception ex)
+            {
+                restored = false;
+                _logger.Error("Failed to roll back a configuration file", ex);
+            }
+        }
+        return restored;
+    }
+
+    private static List<GameSettingChange> GetEffectiveChanges(Cs2ConfigAnalysis analysis, GameOptimizationPreset preset)
+    {
+        var effective = new List<GameSettingChange>();
+        var fileValues = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var change in preset.Changes.Where(x => x.IsSelected && x.CanApply))
+        {
+            string value = GetApplyValue(change);
+            if (value.IndexOfAny(['"', '\r', '\n', '\0']) >= 0
+                || (change.Options.Count > 0 && !change.Options.Any(x => string.Equals(x.Value, value, StringComparison.Ordinal))))
+                throw new InvalidDataException($"Invalid selected value for {change.Key}.");
+
+            var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (change.Key.Equals("cs2.resolution", StringComparison.OrdinalIgnoreCase))
+            {
+                string[] parts = value.Split('|');
+                string[] dimensions = parts[0].Split('x', 'X');
+                if (parts.Length != 2 || dimensions.Length != 2
+                    || !int.TryParse(dimensions[0], out int width) || width <= 0
+                    || !int.TryParse(dimensions[1], out int height) || height <= 0
+                    || !int.TryParse(parts[1], out int aspect) || aspect is < 0 or > 2)
+                    throw new InvalidDataException("Invalid resolution selection.");
+                ApplyResolutionValue(value, replacements);
+            }
+            else if (change.Key.Equals("cs2.display_mode", StringComparison.OrdinalIgnoreCase))
+            {
+                if (value is not ("fullscreen" or "borderless" or "windowed"))
+                    throw new InvalidDataException("Invalid display mode selection.");
+                ApplyDisplayModeValue(value, replacements);
+            }
+            else if (change.Key.Equals("cs2.msaa_mode", StringComparison.OrdinalIgnoreCase))
+            {
+                ApplyMsaaModeValue(value, replacements);
+            }
+            else if (!change.Key.StartsWith("cs2.", StringComparison.OrdinalIgnoreCase))
+            {
+                replacements[change.Key] = value;
+            }
+
+            if (replacements.Count == 0 || change.TargetFile is not (GameOptimizationTargetFile.VideoConfig or GameOptimizationTargetFile.MachineConvars))
+                throw new InvalidDataException($"Unsupported setting: {change.Key}");
+            string? path = change.TargetFile == GameOptimizationTargetFile.VideoConfig
+                ? analysis.Paths.VideoConfigPath : analysis.Paths.MachineConvarsPath;
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                throw new FileNotFoundException("The selected configuration file is missing.", path);
+            if (!fileValues.TryGetValue(path, out var current))
+                fileValues[path] = current = ValveConfigParser.ReadKeyValues(path);
+            foreach (string key in replacements.Keys)
+                if (!current.ContainsKey(key)) throw new InvalidDataException($"Selected setting was not found: {key}");
+            if (replacements.Any(x => !string.Equals(current[x.Key], x.Value, StringComparison.Ordinal)))
+                effective.Add(change);
+        }
+        return effective;
     }
 
     private static string GetApplyValue(GameSettingChange change)
@@ -192,6 +300,9 @@ public sealed class Cs2OptimizationService
 
     public GameConfigBackupResult RestoreLatestBackup(Cs2ConfigAnalysis analysis)
     {
+        if (!TryAcquireMutation(out IDisposable? lease))
+            return new GameConfigBackupResult { Message = "Configuration changes are blocked while a benchmark is reserved or running." };
+        using var mutationLease = lease;
         try
         {
             if (!analysis.UserdataResolution.IsResolved)
@@ -201,12 +312,7 @@ public sealed class Cs2OptimizationService
             string? latest = FindLatestBackupDirectory(analysis);
             if (latest == null) return new GameConfigBackupResult { Success = false, Message = "Nie znaleziono kopii zapasowej CS2." };
 
-            int restored = 0;
-            restored += RestoreIfAvailable(latest, analysis.Paths.VideoConfigPath);
-            restored += RestoreIfAvailable(latest, analysis.Paths.MachineConvarsPath);
-            restored += RestoreIfAvailable(latest, analysis.Paths.UserConvarsPath);
-            restored += RestoreIfAvailable(latest, analysis.Paths.UserKeysPath);
-            restored += RestoreIfAvailable(latest, GetAutoexecPath(analysis));
+            int restored = RestoreVerifiedBackup(analysis, latest);
 
             return new GameConfigBackupResult
             {
@@ -229,6 +335,10 @@ public sealed class Cs2OptimizationService
 
     public Cs2AutoexecResult LoadAutoexec(Cs2ConfigAnalysis analysis, bool createIfMissing)
     {
+        IDisposable? lease = null;
+        if (createIfMissing && !TryAcquireMutation(out lease))
+            return new Cs2AutoexecResult { Message = "Configuration changes are blocked while a benchmark is reserved or running." };
+        using var mutationLease = lease;
         try
         {
             if (!analysis.UserdataResolution.IsResolved)
@@ -260,7 +370,7 @@ public sealed class Cs2OptimizationService
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                File.WriteAllText(path, string.Empty);
+                AtomicFileService.WriteAllTextAtomic(path, string.Empty);
             }
 
             return new Cs2AutoexecResult
@@ -281,6 +391,9 @@ public sealed class Cs2OptimizationService
 
     public GameConfigApplyResult SaveAutoexec(Cs2ConfigAnalysis analysis, string content)
     {
+        if (!TryAcquireMutation(out IDisposable? lease))
+            return new GameConfigApplyResult { Message = "Configuration changes are blocked while a benchmark is reserved or running." };
+        using var mutationLease = lease;
         try
         {
             if (!analysis.UserdataResolution.IsResolved)
@@ -293,15 +406,12 @@ public sealed class Cs2OptimizationService
                 return new GameConfigApplyResult { Success = false, Message = "Nie wykryto folderu cfg gry CS2." };
             }
 
-            string backupFolder = string.Empty;
-            if (File.Exists(path))
-            {
-                backupFolder = CreateUniqueBackupDirectory(GetAccountBackupRoot(analysis), DateTime.Now, "_autoexec");
-                File.Copy(path, Path.Combine(backupFolder, "autoexec.cfg"), overwrite: true);
-            }
+            var backup = CreateBackup(analysis);
+            if (!backup.Success) return new GameConfigApplyResult { Success = false, Message = backup.Message };
+            string backupFolder = backup.BackupFolder;
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, NormalizeAutoexecContent(content));
+            AtomicFileService.WriteAllTextAtomic(path, NormalizeAutoexecContent(content));
 
             return new GameConfigApplyResult
             {
@@ -318,6 +428,12 @@ public sealed class Cs2OptimizationService
             _logger.Error("Failed to save CS2 autoexec.cfg", ex);
             return new GameConfigApplyResult { Success = false, Message = ex.Message };
         }
+    }
+
+    private bool TryAcquireMutation(out IDisposable? lease)
+    {
+        lease = null;
+        return _arbiter is null || _arbiter.TryAcquireExternalMutation(out lease);
     }
 
     private static string NormalizeAutoexecContent(string content)
@@ -338,15 +454,6 @@ public sealed class Cs2OptimizationService
         return candidate;
     }
 
-    private static int RestoreIfAvailable(string backupFolder, string? targetPath)
-    {
-        if (string.IsNullOrWhiteSpace(targetPath)) return 0;
-        string backupFile = Path.Combine(backupFolder, Path.GetFileName(targetPath));
-        if (!File.Exists(backupFile)) return 0;
-        Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-        File.Copy(backupFile, targetPath, overwrite: true);
-        return 1;
-    }
 
     private Cs2ConfigPaths DetectConfigPaths(LibraryItem item, SteamUserdataAccountCandidate? account)
     {
@@ -448,11 +555,6 @@ public sealed class Cs2OptimizationService
         }
     }
 
-    private static void CopyIfExists(string? source, string targetFolder)
-    {
-        if (string.IsNullOrWhiteSpace(source) || !File.Exists(source)) return;
-        File.Copy(source, Path.Combine(targetFolder, Path.GetFileName(source)), overwrite: true);
-    }
 
     private static string BuildSummary(IReadOnlyDictionary<string, string> video)
     {
@@ -748,7 +850,7 @@ public sealed class Cs2OptimizationService
         };
     }
 
-    private static Cs2BackupSettings? ReadLatestBackupSettings(Cs2ConfigAnalysis analysis)
+    private Cs2BackupSettings? ReadLatestBackupSettings(Cs2ConfigAnalysis analysis)
     {
         try
         {
@@ -773,16 +875,16 @@ public sealed class Cs2OptimizationService
         }
     }
 
-    private static string GetAccountBackupRoot(Cs2ConfigAnalysis analysis)
+    private string GetAccountBackupRoot(Cs2ConfigAnalysis analysis)
     {
         var account = analysis.UserdataResolution.Selected ?? throw new InvalidOperationException("Steam userdata account is unresolved.");
         string safeId = new string(account.UserdataId.Select(ch => char.IsLetterOrDigit(ch) ? ch : '_').ToArray());
         string normalizedPath = NormalizePath(account.DirectoryPath)?.ToUpperInvariant() ?? account.DirectoryPath;
         string pathHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedPath)))[..8];
-        return Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2", $"{safeId}_{pathHash}");
+        return Path.Combine(_backupRoot, $"{safeId}_{pathHash}");
     }
 
-    private static string? FindLatestBackupDirectory(Cs2ConfigAnalysis analysis)
+    private string? FindLatestBackupDirectory(Cs2ConfigAnalysis analysis)
     {
         var candidates = new List<string>();
         string accountRoot = GetAccountBackupRoot(analysis);
@@ -791,7 +893,7 @@ public sealed class Cs2OptimizationService
         // Old backups had no account identity. They are safe to offer only when one account is valid.
         if (analysis.UserdataResolution.Candidates.Count == 1)
         {
-            string legacyRoot = Path.Combine(AppPaths.UserDataDirectory, "Backups", "CS2");
+            string legacyRoot = _backupRoot;
             if (Directory.Exists(legacyRoot))
             {
                 candidates.AddRange(Directory.GetDirectories(legacyRoot)
@@ -799,7 +901,9 @@ public sealed class Cs2OptimizationService
             }
         }
 
-        return candidates.OrderByDescending(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+        return candidates.Where(path => !Path.GetFileName(path).StartsWith('.')
+                && File.Exists(Path.Combine(path, "cs2_video.txt")))
+            .OrderByDescending(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase).FirstOrDefault();
     }
 
     private static List<GameSettingOption> ResolutionOptions() => new()

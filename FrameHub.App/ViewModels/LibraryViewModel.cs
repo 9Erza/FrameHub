@@ -34,7 +34,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private readonly EpicLibraryScanner _epicScanner = new();
     private readonly RiotLibraryScanner _riotScanner = new();
     private readonly CustomFolderScanner _customScanner = new();
-    private readonly Cs2OptimizationService _cs2Service = new();
+    private readonly Cs2OptimizationService _cs2Service;
     private string _newDisplayName = string.Empty;
     private string _newExecutablePath = string.Empty;
     private LibraryItemType _newItemType = LibraryItemType.Game;
@@ -519,6 +519,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     {
         _localization = localization;
         _runtime = runtime;
+        _cs2Service = new Cs2OptimizationService(arbiter: runtime.BenchmarkCoordinator);
         _libraryService = libraryService ?? new LibraryService();
         _processScanner = processScanner ?? runtime.ProcessScanner;
         _launchService = launchService ?? runtime.LaunchService;
@@ -1782,8 +1783,10 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         foreach (var vm in Cs2SettingChanges) vm.Change.IsSelected = vm.IsSelected;
         var result = _cs2Service.ApplyPreset(_cs2Analysis, SelectedCs2Preset);
         string userMessage = result.Success
-            ? string.Format(_localization.T("CS2.Operation.ApplySuccess"), result.AppliedChanges, result.BackupFolder)
-            : _localization.T("CS2.Operation.ApplyFailed");
+            ? (result.AppliedChanges == 0
+                ? (IsPolish ? "Wybrane wartości są już ustawione. Nie zmieniono plików ani nie utworzono nowej kopii." : "The selected values are already set. No files were changed and no new backup was created.")
+                : string.Format(_localization.T("CS2.Operation.ApplySuccess"), result.AppliedChanges, result.BackupFolder))
+            : _localization.T("CS2.Operation.ApplyFailed") + Environment.NewLine + result.Message;
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
 
         if (result.Success && wasCustomPreset)
@@ -1802,10 +1805,16 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         if (!EnsureCs2CanEdit("restore CS2 backup")) return;
         if (_cs2Analysis == null) AnalyzeCs2IfSelected();
         if (_cs2Analysis == null) return;
+        if (System.Windows.MessageBox.Show(
+            IsPolish ? "Przywrócić ostatnią kopię konfiguracji dla wybranego konta? Zastąpi to bieżące pliki. Pliki nieobecne w kopii zostaną usunięte."
+                : "Restore the latest configuration snapshot for the selected account? This replaces current files. Files recorded as absent will be removed.",
+            RestoreCs2Text, System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning,
+            System.Windows.MessageBoxResult.No) != System.Windows.MessageBoxResult.Yes) return;
         var result = _cs2Service.RestoreLatestBackup(_cs2Analysis);
+        if (result.Success) AnalyzeCs2IfSelected();
         Cs2StatusMessage = result.Success
             ? _localization.T("CS2.Operation.RestoreSuccess")
-            : _localization.T("CS2.Operation.RestoreFailed");
+            : _localization.T("CS2.Operation.RestoreFailed") + Environment.NewLine + result.Message;
         _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
     }
 

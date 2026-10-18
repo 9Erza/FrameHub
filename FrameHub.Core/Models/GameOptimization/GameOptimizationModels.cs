@@ -113,6 +113,8 @@ public sealed class GameConfigApplyResult
     public bool Success { get; set; }
     public string BackupFolder { get; set; } = string.Empty;
     public int AppliedChanges { get; set; }
+    public bool RollbackAttempted { get; set; }
+    public bool RollbackSucceeded { get; set; }
     public string Message { get; set; } = string.Empty;
 }
 
