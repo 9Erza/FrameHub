@@ -129,7 +129,6 @@ public sealed class SessionOptimizationCoordinatorTests
         Assert.AreEqual(0, suspendService.SuspendCalls);
         Assert.AreEqual(0, suspendService.ResumeCalls);
         Assert.AreEqual(0, taskbarService.HideCalls);
-        Assert.AreEqual(0, taskbarService.ShowCalls);
         Assert.IsNull(coordinator.ActiveSession);
     }
 
@@ -311,7 +310,6 @@ public sealed class SessionOptimizationCoordinatorTests
         Assert.IsTrue(result.Success);
         Assert.AreEqual(1, taskbarService.RestoreCalls);
         Assert.IsTrue(taskbarService.LastRestoreState?.PrimaryTaskbarVisible);
-        Assert.AreEqual(0, taskbarService.ShowCalls);
         Assert.IsFalse(File.Exists(_stateFilePath));
     }
 
@@ -334,7 +332,6 @@ public sealed class SessionOptimizationCoordinatorTests
 
         Assert.IsTrue(result.Success);
         Assert.IsTrue(taskbarService.LastRestoreState?.PrimaryTaskbarVisible);
-        Assert.AreEqual(0, taskbarService.ShowCalls);
     }
 
     [TestMethod]
@@ -355,7 +352,6 @@ public sealed class SessionOptimizationCoordinatorTests
 
         Assert.IsTrue(result.Success);
         Assert.IsFalse(taskbarService.LastRestoreState?.PrimaryTaskbarVisible);
-        Assert.AreEqual(0, taskbarService.ShowCalls);
     }
 
     [TestMethod]
@@ -372,7 +368,6 @@ public sealed class SessionOptimizationCoordinatorTests
         Assert.AreEqual(1, taskbarService.HideCalls);
         Assert.AreEqual(1, taskbarService.RestoreCalls);
         Assert.IsFalse(taskbarService.LastRestoreState?.PrimaryTaskbarVisible);
-        Assert.AreEqual(0, taskbarService.ShowCalls);
     }
 
     [TestMethod]
@@ -710,10 +705,8 @@ public sealed class SessionOptimizationCoordinatorTests
     private sealed class TestTaskbarVisibilityService : TaskbarVisibilityService
     {
         public bool HideResult { get; init; } = true;
-        public bool ShowResult { get; init; } = true;
         public bool RestoreResult { get; init; } = true;
         public TaskbarVisibilityState? CaptureResult { get; init; } = VisibleTaskbarState();
-        public int ShowCalls { get; private set; }
         public int HideCalls { get; private set; }
         public int CaptureCalls { get; private set; }
         public int RestoreCalls { get; private set; }
@@ -729,11 +722,6 @@ public sealed class SessionOptimizationCoordinatorTests
         {
             HideCalls++;
             return HideResult;
-        }
-        public override bool ShowTaskbars()
-        {
-            ShowCalls++;
-            return ShowResult;
         }
 
         public override bool RestoreVisibilityState(TaskbarVisibilityState state)

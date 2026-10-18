@@ -17,8 +17,6 @@ public sealed class UpdateCheckSession
         _checkAsync = checkAsync ?? DefaultCheckAsync;
     }
 
-    public bool HasAutomaticCheckBegun => Volatile.Read(ref _automaticCheckBegun) == 1;
-
     /// <summary>
     /// Runs the automatic update check at most once per process lifetime.
     /// Returns null when updates are disabled, the check already ran, or the caller never presented a trigger.
@@ -29,9 +27,6 @@ public sealed class UpdateCheckSession
         if (Interlocked.Exchange(ref _automaticCheckBegun, 1) == 1) return null;
         return await _checkAsync();
     }
-
-    /// <summary>Manual checks are never gated by the automatic once-per-process rule.</summary>
-    public Task<UpdateCheckResult> RunManualCheckAsync() => _checkAsync();
 
     /// <summary>Automatic results are silent unless an update is actually available; errors and up-to-date results never present UI.</summary>
     public static bool ShouldPresentUpdateDialog(UpdateCheckResult? result)

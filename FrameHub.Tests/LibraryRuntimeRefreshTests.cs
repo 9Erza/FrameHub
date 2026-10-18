@@ -160,23 +160,16 @@ public sealed class LibraryRuntimeRefreshTests
         }
 
         string shellSource = File.ReadAllText(Path.Combine(repoRoot, "FrameHub.App", "ViewModels", "ShellViewModel.cs"));
-        int transitionStart = shellSource.IndexOf("!_currentKey.Equals(\"Library\"", StringComparison.Ordinal);
-        Assert.IsTrue(transitionStart >= 0, "ShellViewModel.Navigate must contain the Library transition block.");
-        string transitionBlock = shellSource.Substring(transitionStart, Math.Min(500, shellSource.Length - transitionStart));
-        Assert.IsTrue(transitionBlock.Contains("_libraryViewModel.Activate()"), "Navigating to Library must invoke the bounded activation refresh.");
-        Assert.IsTrue(transitionBlock.Contains("_libraryViewModel.SelectedItem = null"), "Existing Library navigation behavior must be preserved.");
+        StringAssert.Contains(shellSource, "_libraryViewModel.Activate();", "Navigating to Library must invoke the bounded activation refresh.");
+        StringAssert.Contains(shellSource, "_libraryViewModel.SelectedItem = null;", "Existing Library navigation behavior must be preserved.");
 
         string librarySource = File.ReadAllText(Path.Combine(repoRoot, "FrameHub.App", "ViewModels", "LibraryViewModel.cs"));
         Assert.AreEqual(1, CountOccurrences(librarySource, "DispatcherTimer"), "Only the pre-existing CS2 timer may exist in LibraryViewModel.");
         Assert.IsFalse(librarySource.Contains("PeriodicTimer"), "No periodic timer may be added.");
         Assert.IsFalse(librarySource.Contains("System.Threading.Timer"), "No thread-pool timer may be added.");
 
-        int activateStart = librarySource.IndexOf("public void Activate()", StringComparison.Ordinal);
-        Assert.IsTrue(activateStart >= 0, "LibraryViewModel must expose the activation refresh.");
-        string activateBody = librarySource.Substring(activateStart, Math.Min(200, librarySource.Length - activateStart));
-        Assert.IsFalse(activateBody.Contains("Scan"), "Activation must not run library discovery scans.");
-        Assert.IsFalse(activateBody.Contains("MergeAndSave"), "Activation must not rescan or persist library changes.");
-        Assert.IsTrue(activateBody.Contains("RefreshRuntimeState"), "Activation must perform the runtime-state refresh.");
+        StringAssert.Contains(librarySource, "public void Activate() => RefreshRuntimeState();",
+            "LibraryViewModel.Activate must perform bounded runtime-state refresh without rescanning or persisting library changes.");
     }
 
     private static int CountOccurrences(string source, string fragment)

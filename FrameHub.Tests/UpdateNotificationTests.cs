@@ -39,7 +39,6 @@ public sealed class UpdateCheckSessionTests
         Assert.IsNull(second, "Second presentation (e.g. reopening from tray) must not repeat the automatic check.");
         Assert.IsNull(third, "Later presentations must never repeat the automatic check.");
         Assert.AreEqual(1, calls, "The update service may be invoked at most once per process session.");
-        Assert.IsTrue(session.HasAutomaticCheckBegun);
     }
 
     [TestMethod]
@@ -52,22 +51,18 @@ public sealed class UpdateCheckSessionTests
 
         Assert.IsNull(result, "CheckForUpdates == false must never run an automatic check.");
         Assert.AreEqual(0, calls);
-        Assert.IsFalse(session.HasAutomaticCheckBegun, "A disabled automatic check must not consume the process opportunity.");
     }
 
     [TestMethod]
-    public async Task ManualCheck_RemainsAvailableAfterAutomaticCheck()
+    public async Task DisabledAttempt_DoesNotConsumeAutomaticCheckOpportunity()
     {
         int calls = 0;
         var session = new UpdateCheckSession(() => { calls++; return Task.FromResult(UpToDate()); });
 
-        await session.TryRunAutomaticCheckAsync(updatesEnabled: true);
-        var manualOne = await session.RunManualCheckAsync();
-        var manualTwo = await session.RunManualCheckAsync();
-
-        Assert.IsNotNull(manualOne);
-        Assert.IsNotNull(manualTwo);
-        Assert.AreEqual(3, calls, "Manual 'Check now' is never gated by the once-per-process automatic rule.");
+        Assert.IsNull(await session.TryRunAutomaticCheckAsync(updatesEnabled: false));
+        Assert.IsNotNull(await session.TryRunAutomaticCheckAsync(updatesEnabled: true));
+        Assert.IsNull(await session.TryRunAutomaticCheckAsync(updatesEnabled: true));
+        Assert.AreEqual(1, calls, "A disabled attempt must not consume the later enabled check opportunity.");
     }
 
     [TestMethod]
@@ -171,7 +166,16 @@ public sealed class UpdateNotificationPresentationTests
         if (repoRoot == null) Assert.Inconclusive("Repository source root was not discoverable from the test assembly location.");
 
         string code = File.ReadAllText(Path.Combine(repoRoot!, "FrameHub.App", "ViewModels", "SettingsViewModel.cs"));
-        StringAssert.Contains(code, "UpdateAvailableDialog.Present", "Manual 'Check now' must use the same styled modal as the automatic check.");
+        int methodStart = code.IndexOf("private async Task CheckUpdatesAsync()", StringComparison.Ordinal);
+        Assert.IsTrue(methodStart >= 0, "Settings must retain its manual update check entry point.");
+        int methodEnd = code.IndexOf("private static void OpenFolder", methodStart, StringComparison.Ordinal);
+        Assert.IsTrue(methodEnd > methodStart, "The manual update check source boundary must be discoverable.");
+        string manualFlow = code[methodStart..methodEnd];
+        StringAssert.Contains(manualFlow, "_updateService.CheckForUpdatesAsync(new AppInfo().Version)",
+            "Manual checks must call the existing update service directly.");
+        Assert.IsFalse(manualFlow.Contains("TryRunAutomaticCheckAsync", StringComparison.Ordinal),
+            "Manual checks must not consume or depend on the automatic session gate.");
+        StringAssert.Contains(manualFlow, "UpdateAvailableDialog.Present", "Manual 'Check now' must use the same styled modal as the automatic check.");
         Assert.IsFalse(code.Contains("OpenReleaseQuestion"), "The legacy MessageBox update question must be fully removed.");
     }
 

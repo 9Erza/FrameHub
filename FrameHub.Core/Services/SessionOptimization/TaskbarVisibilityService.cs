@@ -26,8 +26,6 @@ public class TaskbarVisibilityService
 
     public virtual bool HideTaskbars() => SetTaskbarVisibility(visible: false);
 
-    public virtual bool ShowTaskbars() => SetTaskbarVisibility(visible: true);
-
     public virtual TaskbarVisibilityState? CaptureVisibilityState()
     {
         try

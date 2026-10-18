@@ -159,7 +159,6 @@ public sealed class GamingQuickActionServiceTests
         };
 
         public override bool HideTaskbars() => true;
-        public override bool ShowTaskbars() => true;
         public override bool RestoreVisibilityState(TaskbarVisibilityState state) => true;
     }
 

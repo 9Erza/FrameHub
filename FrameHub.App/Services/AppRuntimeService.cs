@@ -244,20 +244,11 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         }
     }
 
-    public void StartProfileWatcher()
+    private void StartProfileWatcher()
     {
         if (!_profileWatcherTimer.IsEnabled)
         {
             _profileWatcherTimer.Start();
-            WatcherStateChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    public void StopProfileWatcher()
-    {
-        if (_profileWatcherTimer.IsEnabled)
-        {
-            _profileWatcherTimer.Stop();
             WatcherStateChanged?.Invoke(this, EventArgs.Empty);
         }
     }

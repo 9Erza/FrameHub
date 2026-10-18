@@ -301,7 +301,6 @@ public sealed class ConsolidatedPolicyStructureTests
             var settingsService = new SettingsService(Path.Combine(root, "settings.json"));
             settingsService.SaveSettings(new AppSettings { CompanionEnabled = false, ProfileWatcherSeconds = 30 });
             using var runtime = new AppRuntimeService(settingsService);
-            runtime.StopProfileWatcher();
 
             using Process current = Process.GetCurrentProcess();
             var request = new BenchmarkCaptureRequest

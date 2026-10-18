@@ -458,43 +458,53 @@ public sealed class SessionCpuPermissionAndPresentationTests
     }
 
     [TestMethod]
-    public void SessionCpuScopes_ExistButAreNeverGrantedByDefaultOrLegacyRecords()
+    public async Task SessionCpuScopes_ExistButAreNeverGrantedByDefaultOrLegacyRecords()
     {
         Assert.IsTrue(CompanionScopes.IsValidScope(CompanionScopes.ReadOptimizationCpu));
         Assert.IsTrue(CompanionScopes.IsValidScope(CompanionScopes.WriteOptimizationCpu));
 
-        // PairingEngine creates paired devices with only read:status (default pairing).
-        string? repoRoot = FindRepoRoot();
-        if (repoRoot == null)
-        {
-            Assert.Inconclusive("Repository source root was not discoverable from the test assembly location.");
-        }
-        string pairingEngineSource = File.ReadAllText(Path.Combine(repoRoot!, "FrameHub.Companion", "Pairing", "PairingEngine.cs"));
-        StringAssert.Contains(pairingEngineSource, "Scopes = new List<string> { CompanionScopes.ReadStatus }",
-            "Default pairing must keep granting only read:status.");
-
-        // A legacy device record never synthesizes the new scopes on load.
-        var legacyRecord = new FrameHub.Companion.Persistence.PairedDeviceRecord
-        {
-            Id = Guid.NewGuid(),
-            DisplayName = "Legacy Phone",
-            CredentialHash = "hash",
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            Scopes = new List<string> { CompanionScopes.ReadStatus, CompanionScopes.WriteOptimization }
-        };
-        string storePath = Path.Combine(Path.GetTempPath(), "FrameHubSessionCpuScopeTests", Guid.NewGuid().ToString("N"), "devices.json");
-        Directory.CreateDirectory(Path.GetDirectoryName(storePath)!);
-        File.WriteAllText(storePath, JsonSerializer.Serialize(new[] { legacyRecord }));
+        string tempDir = Path.Combine(Path.GetTempPath(), "FrameHubSessionCpuScopeTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        string storePath = Path.Combine(tempDir, "devices.json");
         try
         {
             var store = new FrameHub.Companion.Persistence.DeviceRecordStore(storePath);
-            var device = store.Devices.Single();
+            var pairingEngine = new FrameHub.Companion.Pairing.PairingEngine(store);
+
+            var status = pairingEngine.StartPairingSession("127.0.0.1", 5000);
+            var clientTask = pairingEngine.SubmitPairingRequestAsync(status.PairingToken!, "Test Phone", "127.0.0.1");
+            bool allowed = pairingEngine.AllowPendingRequest(out _, out var pairedRecord);
+            Assert.IsTrue(allowed);
+            var result = await clientTask;
+            Assert.AreEqual(FrameHub.Companion.Models.PairingResultStatus.Approved, result.Status);
+
+            Assert.IsNotNull(pairedRecord);
+            CollectionAssert.AreEqual(new[] { CompanionScopes.ReadStatus }, pairedRecord.Scopes.ToList(),
+                "Default pairing must grant only read:status.");
+            Assert.IsFalse(pairedRecord.Scopes.Contains(CompanionScopes.ReadOptimizationCpu));
+            Assert.IsFalse(pairedRecord.Scopes.Contains(CompanionScopes.WriteOptimizationCpu));
+
+            // A legacy device record loaded from disk also never synthesizes the new scopes
+            var legacyRecord = new FrameHub.Companion.Persistence.PairedDeviceRecord
+            {
+                Id = Guid.NewGuid(),
+                DisplayName = "Legacy Phone",
+                CredentialHash = "hash",
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                Scopes = new List<string> { CompanionScopes.ReadStatus, CompanionScopes.WriteOptimization }
+            };
+            File.WriteAllText(storePath, JsonSerializer.Serialize(new[] { legacyRecord }));
+            var reloadedStore = new FrameHub.Companion.Persistence.DeviceRecordStore(storePath);
+            var device = reloadedStore.Devices.Single();
             Assert.IsFalse(device.Scopes.Contains(CompanionScopes.ReadOptimizationCpu));
             Assert.IsFalse(device.Scopes.Contains(CompanionScopes.WriteOptimizationCpu));
         }
         finally
         {
-            Directory.Delete(Path.GetDirectoryName(storePath)!, true);
+            if (Directory.Exists(tempDir))
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
         }
     }
 

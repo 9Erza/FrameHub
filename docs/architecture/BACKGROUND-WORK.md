@@ -6,7 +6,7 @@ The Work/I/O and Cost/overlap columns identify process enumeration, native/hardw
 
 | Component | File | Interval | Start / stop | Work and I/O | Cost / overlap |
 |---|---|---:|---|---|---|
-| Profile watcher | `AppRuntimeService.cs` | configured 1–30 s, default 2 s | App runtime start / runtime dispose or manual stop | Targeted `GetProcessesByName`; profile identity checks; priority/affinity/CPU Set mutation if benchmark lease succeeds | Medium when profiles enabled; no full enumeration; skips during benchmark without queueing |
+| Profile watcher | `AppRuntimeService.cs` | configured 1–30 s, default 2 s | App runtime start / runtime dispose | Targeted `GetProcessesByName`; profile identity checks; priority/affinity/CPU Set mutation if benchmark lease succeeds | Medium when profiles enabled; no full enumeration; skips during benchmark without queueing |
 | Process page refresh | `ProcessesViewModel.cs` | configured 1–10 s | Processes page `Start` / `Stop` | Full enumeration, user-process filtering, working set and CPU delta sampling | Highest process-observation cost; sole CPU sampler |
 | Session auto detection | `SessionOptimizationViewModel.cs` | 3 s | Auto mode enabled / disabled or dispose | Batch running-game lookup through shared observation; may ask coordinator to start/restore | Full-snapshot request; can share short-TTL observation with nearby consumers |
 | Active Game monitor | `ActiveGameMonitor.cs` | 2 s | Companion server active / server stop or runtime dispose | Library load and game detection through shared observation | Full-snapshot request; overlaps Session/benchmark discovery but can share snapshot |
