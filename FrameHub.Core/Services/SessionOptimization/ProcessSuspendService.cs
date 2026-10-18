@@ -3,6 +3,7 @@ using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -14,15 +15,39 @@ namespace FrameHub.Core.Services.SessionOptimization;
 
 public class ProcessSuspendService
 {
+    public delegate uint WindowThreadProcessIdResolver(IntPtr hWnd, out uint processId);
+
     private const uint PROCESS_SUSPEND_RESUME = 0x0800;
     private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
     private readonly ILogger _logger = LoggerService.Instance;
     private readonly IProcessObservationSnapshotProvider _observationProvider;
+    private readonly Func<int?> _getForegroundProcessId;
+    private readonly Func<int, IntPtr> _openProcess;
+    private readonly Func<IntPtr, int> _ntSuspendProcess;
+    private readonly Action<IntPtr> _closeHandle;
+    private readonly Func<IntPtr, DateTime?> _getProcessStartTimeUtc;
+    private readonly Func<IntPtr> _getForegroundWindow;
+    private readonly WindowThreadProcessIdResolver _getWindowThreadProcessId;
 
-    public ProcessSuspendService(IProcessObservationSnapshotProvider? observationProvider = null)
+    public ProcessSuspendService(
+        IProcessObservationSnapshotProvider? observationProvider = null,
+        Func<int?>? getForegroundProcessId = null,
+        Func<int, IntPtr>? openProcess = null,
+        Func<IntPtr, int>? ntSuspendProcess = null,
+        Action<IntPtr>? closeHandle = null,
+        Func<IntPtr, DateTime?>? getProcessStartTimeUtc = null,
+        Func<IntPtr>? getForegroundWindow = null,
+        WindowThreadProcessIdResolver? getWindowThreadProcessId = null)
     {
         _observationProvider = observationProvider ?? new ProcessObservationSnapshotProvider();
+        _getForegroundWindow = getForegroundWindow ?? GetForegroundWindow;
+        _getWindowThreadProcessId = getWindowThreadProcessId ?? ((IntPtr h, out uint p) => GetWindowThreadProcessId(h, out p));
+        _getForegroundProcessId = getForegroundProcessId ?? GetCurrentForegroundProcessId;
+        _openProcess = openProcess ?? (pid => OpenProcess(PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION, false, pid));
+        _ntSuspendProcess = ntSuspendProcess ?? NtSuspendProcess;
+        _closeHandle = closeHandle ?? (h => CloseHandle(h));
+        _getProcessStartTimeUtc = getProcessStartTimeUtc ?? (h => TryGetProcessStartTimeUtc(h, out DateTime t) ? t : null);
     }
 
     private static readonly HashSet<string> CriticalProcessNames = new(StringComparer.OrdinalIgnoreCase)
@@ -49,6 +74,12 @@ public class ProcessSuspendService
         "steam", "steamservice", "steamclientservice", "steamwebhelper", "steamerrorreporter",
         "steamerrorreporter64", "gameoverlayui"
     };
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr OpenProcess(uint processAccess, bool bInheritHandle, int processId);
@@ -392,10 +423,72 @@ public class ProcessSuspendService
         return rule.PathContains.Any(hint => path.Contains(hint, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Checks whether the specified process ID is currently associated with the foreground window.
+    /// Operates fail-closed: if the foreground process ID cannot be determined due to an error,
+    /// it returns true (treated as foreground/unsafe to suspend) and provides an explanatory message.
+    /// If no window is in the foreground (e.g. desktop/transition, hwnd == IntPtr.Zero), returns false.
+    /// </summary>
+    private bool IsForegroundProcess(int processId, out string message)
+    {
+        message = string.Empty;
+        if (processId <= 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            int? foregroundPid = _getForegroundProcessId();
+            if (!foregroundPid.HasValue)
+            {
+                // No foreground window active (e.g. desktop, lock screen, window transition). Safe to proceed.
+                return false;
+            }
+
+            if (foregroundPid.Value == processId)
+            {
+                message = "Process currently owns the active foreground window; suspension blocked for safety.";
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // Fail-closed: if foreground window detection fails with an error/exception,
+            // assume it is unsafe to suspend to prevent freezing the active user application.
+            _logger.Warn($"Failed to inspect foreground window for PID {processId}: {ex.Message}");
+            message = $"Foreground window detection failed fail-closed: {ex.Message}";
+            return true;
+        }
+    }
+
+    private int? GetCurrentForegroundProcessId()
+    {
+        IntPtr hwnd = _getForegroundWindow();
+        if (hwnd == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        uint threadId = _getWindowThreadProcessId(hwnd, out uint pid);
+        if (threadId == 0 || pid == 0)
+        {
+            int error = Marshal.GetLastWin32Error();
+            throw error != 0
+                ? new Win32Exception(error, "Failed to determine process ID for active foreground window (lookup failed for non-zero HWND).")
+                : new Win32Exception("Failed to determine process ID for active foreground window (lookup failed for non-zero HWND).");
+        }
+
+        return checked((int)pid);
+    }
+
     private bool TrySuspend(SuspendCandidate candidate, out string message)
     {
         message = string.Empty;
-        IntPtr handle = OpenProcess(PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION, false, candidate.ProcessId);
+
+        IntPtr handle = _openProcess(candidate.ProcessId);
         if (handle == IntPtr.Zero)
         {
             message = $"OpenProcess failed: {Marshal.GetLastWin32Error()}";
@@ -404,14 +497,21 @@ public class ProcessSuspendService
 
         try
         {
-            if (!TryGetProcessStartTimeUtc(handle, out DateTime actualStartTimeUtc)
-                || actualStartTimeUtc != candidate.ProcessStartTimeUtc)
+            DateTime? actualStartTimeUtc = _getProcessStartTimeUtc(handle);
+            if (!actualStartTimeUtc.HasValue || actualStartTimeUtc.Value != candidate.ProcessStartTimeUtc)
             {
                 message = "Process identity changed before suspend.";
                 return false;
             }
 
-            int status = NtSuspendProcess(handle);
+            // Fresh check immediately before mutation to minimize race window
+            if (IsForegroundProcess(candidate.ProcessId, out string foregroundReason))
+            {
+                message = foregroundReason;
+                return false;
+            }
+
+            int status = _ntSuspendProcess(handle);
             if (status == 0)
             {
                 return true;
@@ -427,7 +527,7 @@ public class ProcessSuspendService
         }
         finally
         {
-            CloseHandle(handle);
+            _closeHandle(handle);
         }
     }
 
