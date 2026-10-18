@@ -372,6 +372,52 @@ public sealed class BenchmarkCaptureCoordinatorTests
         Assert.IsTrue(captureTask.IsCompleted, "Active capture task must be completed when StopAsync finishes.");
     }
 
+    [DataTestMethod]
+    [DataRow("request")]
+    [DataRow("request.Target")]
+    [DataRow("request.Process")]
+    public async Task TryStartCapture_MissingRequiredIdentity_LeavesCoordinatorIdleAndReusable(string missingParameter)
+    {
+        var storage = new BenchmarkStorageService(_tempDir);
+        int backendCalls = 0;
+        using var coordinator = new BenchmarkCaptureCoordinator(
+            storage,
+            () =>
+            {
+                Interlocked.Increment(ref backendCalls);
+                return new TestFakeBackend(storage, BackendMode.Success);
+            },
+            new TestFakeIdentityProvider());
+        var notifications = new ConcurrentQueue<BenchmarkCaptureStateSnapshot>();
+        coordinator.StateChanged += (_, snapshot) => notifications.Enqueue(snapshot);
+        BenchmarkCaptureRequest invalidRequest = missingParameter switch
+        {
+            "request.Target" => CreateSampleRequest() with { Target = null! },
+            "request.Process" => CreateSampleRequest() with { Process = null! },
+            _ => null!
+        };
+
+        ArgumentNullException error = Assert.ThrowsException<ArgumentNullException>(
+            () => coordinator.TryStartCapture(invalidRequest));
+
+        Assert.AreEqual(missingParameter, error.ParamName);
+        Assert.AreEqual(CoordinatorState.Idle, coordinator.CurrentState.State);
+        Assert.IsFalse(coordinator.IsActive);
+        Assert.IsTrue(notifications.IsEmpty, "Invalid input must not publish a capture state.");
+        Assert.AreEqual(0, backendCalls);
+        Assert.AreEqual(0, storage.EnumerateSessions().Sessions.Count);
+        Assert.IsTrue(coordinator.TryAcquireExternalMutation(out IDisposable? lease),
+            "Invalid input must not leave an orphaned capture reservation.");
+        lease!.Dispose();
+
+        BenchmarkCaptureStartHandle validHandle = coordinator.TryStartCapture(CreateSampleRequest());
+        Assert.IsTrue(validHandle.Accepted, "A valid request must remain usable after invalid input.");
+        Assert.IsTrue(validHandle.Start());
+        BenchmarkCaptureOutcome outcome = await validHandle.CompletionTask!.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.AreEqual(CoordinatorStatus.Completed, outcome.Status);
+        Assert.AreEqual(1, backendCalls);
+    }
+
     [TestMethod]
     public async Task TryStartCapture_WhenIdle_ReturnsAcceptedWithTask()
     {

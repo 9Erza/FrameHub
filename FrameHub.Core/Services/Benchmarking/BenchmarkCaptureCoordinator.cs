@@ -122,6 +122,8 @@ public sealed class BenchmarkCaptureCoordinator : IBenchmarkCaptureCoordinator, 
     public BenchmarkCaptureStartHandle TryStartCapture(BenchmarkCaptureRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Target);
+        ArgumentNullException.ThrowIfNull(request.Process);
 
         AcceptedCaptureReservation reservation;
         StateNotification waitingNotification;
