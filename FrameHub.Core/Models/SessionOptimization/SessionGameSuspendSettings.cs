@@ -23,6 +23,12 @@ public sealed class SessionGameSuspendSettings
     /// </summary>
     public bool ApplyPriorityOverride { get; set; }
 
+    /// <summary>
+    /// Enables temporary switching to the High Performance power plan during the session for this game.
+    /// When null, inherits the global SessionOptimizationSettings.ApplyPowerPlanOverride setting.
+    /// </summary>
+    public bool? ApplyPowerPlanOverride { get; set; }
+
     public Dictionary<string, bool> RuleEnabledStates { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, bool> CustomProcessEnabledStates { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
 }

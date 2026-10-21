@@ -34,6 +34,11 @@ public sealed class ActiveSessionState
     public bool TaskbarMutationPending { get; set; }
     public bool TaskbarHidden { get; set; }
     public TaskbarVisibilityState? OriginalTaskbarVisibility { get; set; }
+    public bool PowerPlanChangeRequested { get; set; }
+    public bool PowerPlanMutationPending { get; set; }
+    public bool PowerPlanChanged { get; set; }
+    public Guid? OriginalPowerPlanGuid { get; set; }
+    public Guid? AppliedPowerPlanGuid { get; set; }
     public bool IsRecoveryPending { get; set; }
     public List<SuspendedProcessRecord> PlannedProcesses { get; set; } = new();
     public SuspendedProcessRecord? PendingSuspension { get; set; }

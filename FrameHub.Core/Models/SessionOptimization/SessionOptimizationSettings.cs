@@ -10,6 +10,7 @@ public sealed class SessionOptimizationSettings
     public bool HideTaskbarDuringSession { get; set; }
     public bool ShowManualProcessList { get; set; }
     public bool ApplyGamePriorityOverride { get; set; }
+    public bool ApplyPowerPlanOverride { get; set; }
 
     // Kept for compatibility with earlier builds of the module.
     public bool ShowConfirmationBeforeManualStart { get; set; } = true;

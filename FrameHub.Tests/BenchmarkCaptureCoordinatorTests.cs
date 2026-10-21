@@ -224,20 +224,23 @@ public sealed class BenchmarkCaptureCoordinatorTests
     {
         var storage = new BenchmarkStorageService(_tempDir);
         var coordinator = new BenchmarkCaptureCoordinator(storage, () => new TestFakeBackend(storage, BackendMode.Success), new TestFakeIdentityProvider());
-        BenchmarkCaptureStateSnapshot? completed = null;
+        var completedTcs = new TaskCompletionSource<BenchmarkCaptureStateSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         coordinator.StateChanged += (_, _) => throw new InvalidOperationException("subscriber failure");
         coordinator.StateChanged += (_, snapshot) =>
         {
             if (snapshot.State == CoordinatorState.Completed)
             {
-                completed = snapshot;
+                completedTcs.TrySetResult(snapshot);
             }
         };
 
         BenchmarkCaptureOutcome outcome = await coordinator.StartCaptureAsync(CreateSampleRequest());
 
         Assert.AreEqual(CoordinatorStatus.Completed, outcome.Status);
+        var completed = await Task.WhenAny(completedTcs.Task, Task.Delay(3000)) == completedTcs.Task
+            ? await completedTcs.Task
+            : null;
         Assert.IsNotNull(completed, "One faulty observer must not prevent other state observers from receiving terminal state.");
     }
 
