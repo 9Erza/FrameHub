@@ -117,9 +117,13 @@ public sealed class SessionCpuCoordinatorTests
         }
     }
 
-    private SessionOptimizationCoordinator CreateCoordinator(IBenchmarkOperationArbiter? arbiter = null) => new(
+    private SessionOptimizationCoordinator CreateCoordinator(
+        IBenchmarkOperationArbiter? arbiter = null,
+        SessionOptimizationSettingsService? settingsService = null,
+        ProcessSuspendService? suspendService = null) => new(
         stateService: _stateService,
-        settingsService: new SessionOptimizationSettingsService(Path.Combine(_tempDir, "opt-settings.json")),
+        settingsService: settingsService ?? new SessionOptimizationSettingsService(Path.Combine(_tempDir, "opt-settings.json")),
+        suspendService: suspendService ?? new FakeProcessSuspendService(),
         libraryService: new LibraryService(Path.Combine(_tempDir, "library.json")),
         benchmarkArbiter: arbiter,
         activeGameMonitor: _monitor,
@@ -588,12 +592,7 @@ public sealed class SessionCpuCoordinatorTests
         settings.GameSettings["game-1"] = new SessionGameSuspendSettings { ApplyPriorityOverride = true };
         settingsService.Save(settings);
 
-        SessionOptimizationCoordinator coordinator = new(
-            stateService: _stateService,
-            settingsService: settingsService,
-            libraryService: new LibraryService(Path.Combine(_tempDir, "library.json")),
-            activeGameMonitor: _monitor,
-            sessionCpuBackend: _backend);
+        using SessionOptimizationCoordinator coordinator = CreateCoordinator(settingsService: settingsService);
 
         var gameItem = _monitor.Snapshot.LibraryItem;
         var startResult = await coordinator.StartSessionAsync("Manual", gameItem);
@@ -616,12 +615,7 @@ public sealed class SessionCpuCoordinatorTests
         var settings = new SessionOptimizationSettings();
         settingsService.Save(settings);
 
-        SessionOptimizationCoordinator coordinator = new(
-            stateService: _stateService,
-            settingsService: settingsService,
-            libraryService: new LibraryService(Path.Combine(_tempDir, "library.json")),
-            activeGameMonitor: _monitor,
-            sessionCpuBackend: _backend);
+        using SessionOptimizationCoordinator coordinator = CreateCoordinator(settingsService: settingsService);
 
         var gameItem = _monitor.Snapshot.LibraryItem;
         var startResult = await coordinator.StartSessionAsync("Manual", gameItem);
@@ -629,6 +623,49 @@ public sealed class SessionCpuCoordinatorTests
 
         Assert.AreEqual(ProcessPriorityClass.Normal, _backend.CurrentPriority);
         Assert.AreEqual(0, _backend.AppliedIdentityPriorityCalls.Count);
+    }
+
+    private sealed class FakeProcessSuspendService : ProcessSuspendService
+    {
+        private readonly SuspendedProcessRecord _record = new()
+        {
+            ProcessId = 9999,
+            ProcessName = "mock-background",
+            ProcessStartTimeUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+
+        public int SuspendCalls { get; private set; }
+        public int ResumeCalls { get; private set; }
+
+        public override Task<SessionProcessSnapshot> CaptureProcessSnapshotAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new SessionProcessSnapshot());
+
+        public override IReadOnlyList<SuspendCandidate> BuildCandidates(
+            SessionProcessSnapshot snapshot,
+            IEnumerable<BackgroundProcessRule> enabledRules,
+            IEnumerable<string> customProcessNames,
+            IEnumerable<string> protectedProcessNames) =>
+            [new SuspendCandidate { ProcessId = _record.ProcessId, ProcessName = _record.ProcessName, ProcessStartTimeUtc = _record.ProcessStartTimeUtc }];
+
+        public override SessionActionResult SuspendProcesses(IEnumerable<SuspendCandidate> candidates)
+        {
+            SuspendCalls++;
+            return new SessionActionResult
+            {
+                SuccessCount = 1,
+                Records = [_record]
+            };
+        }
+
+        public override SessionActionResult ResumeProcesses(IEnumerable<SuspendedProcessRecord> records)
+        {
+            ResumeCalls++;
+            return new SessionActionResult
+            {
+                SuccessCount = 1,
+                Records = [_record]
+            };
+        }
     }
 
     private sealed class FakeActiveGameMonitor : IActiveGameMonitor
