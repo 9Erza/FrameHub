@@ -44,7 +44,7 @@ public sealed class LibraryRuntimeRefreshTests
     [TestMethod]
     public async Task Activate_AfterLeagueProcessStarts_MarksLeagueRunning()
     {
-        using var host = CreateViewModelHost();
+        using var host = await CreateViewModelHostAsync();
         var league = host.ViewModel.Items.First(item => item.Id == "riot-lol");
         var cs2 = host.ViewModel.Items.First(item => item.Id == "cs2");
         Assert.IsFalse(league.IsRunning, "Initially no synthetic process is running.");
@@ -59,7 +59,7 @@ public sealed class LibraryRuntimeRefreshTests
     [TestMethod]
     public async Task Reactivate_AfterProcessExits_PerformsSecondFreshRefresh()
     {
-        using var host = CreateViewModelHost();
+        using var host = await CreateViewModelHostAsync();
         var league = host.ViewModel.Items.First(item => item.Id == "riot-lol");
         lock (_processes) _processes.Add(new ProcessObservation(4242, "League of Legends", LeaguePath, DateTime.UtcNow));
         host.ViewModel.Activate();
@@ -74,7 +74,7 @@ public sealed class LibraryRuntimeRefreshTests
     [TestMethod]
     public async Task Activate_DoesNotRescanLibraryOrPersistChanges()
     {
-        using var host = CreateViewModelHost();
+        using var host = await CreateViewModelHostAsync();
         string libraryPath = host.LibraryPath;
         string contentBefore = File.ReadAllText(libraryPath);
         int itemCountBefore = host.ViewModel.Items.Count;
@@ -90,7 +90,7 @@ public sealed class LibraryRuntimeRefreshTests
     [TestMethod]
     public async Task LaunchSelected_Success_SchedulesExactlyOneDelayedRefresh()
     {
-        using var host = CreateViewModelHost();
+        using var host = await CreateViewModelHostAsync();
         var league = host.ViewModel.Items.First(item => item.Id == "riot-lol");
         host.ViewModel.SelectedItem = league;
         host.Launcher.NextResult = LibraryLaunchResult.Ok();
@@ -113,7 +113,7 @@ public sealed class LibraryRuntimeRefreshTests
     [TestMethod]
     public async Task LaunchSelected_Failure_SchedulesNoRefresh()
     {
-        using var host = CreateViewModelHost();
+        using var host = await CreateViewModelHostAsync();
         var league = host.ViewModel.Items.First(item => item.Id == "riot-lol");
         host.ViewModel.SelectedItem = league;
         host.Launcher.NextResult = LibraryLaunchResult.Fail("executable_missing");
@@ -131,7 +131,7 @@ public sealed class LibraryRuntimeRefreshTests
     [TestMethod]
     public async Task RiotClientOrLeagueClientProcesses_Alone_NeverMarkLeagueRunning()
     {
-        using var host = CreateViewModelHost();
+        using var host = await CreateViewModelHostAsync();
         var league = host.ViewModel.Items.First(item => item.Id == "riot-lol");
         lock (_processes) _processes.AddRange(new[]
         {
@@ -334,7 +334,7 @@ public sealed class LibraryRuntimeRefreshTests
         Assert.IsTrue(condition(), "Expected runtime-state condition was not reached within the test timeout.");
     }
 
-    private ViewModelHost CreateViewModelHost()
+    private async Task<ViewModelHost> CreateViewModelHostAsync()
     {
         string libraryPath = Path.Combine(_tempDirectory, $"library-{Guid.NewGuid():N}.json");
         var libraryService = new LibraryService(libraryPath);
@@ -373,6 +373,21 @@ public sealed class LibraryRuntimeRefreshTests
         var runtime = new AppRuntimeService(settingsPath);
         var localization = new LocalizationService(runtime.SettingsService);
         var viewModel = new LibraryViewModel(localization, runtime, libraryService, scanner, launcher);
+
+        // The constructor starts an asynchronous process scan. Wait for that startup
+        // snapshot before a test mutates _processes: concurrent activations otherwise
+        // join the in-flight pre-mutation scan and can observe stale synthetic state.
+        try
+        {
+            await observationProvider.GetSnapshotAsync();
+        }
+        catch
+        {
+            viewModel.Dispose();
+            runtime.Dispose();
+            throw;
+        }
+
         return new ViewModelHost(viewModel, runtime, launcher, libraryPath);
     }
 
