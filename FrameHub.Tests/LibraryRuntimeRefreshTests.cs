@@ -364,7 +364,7 @@ public sealed class LibraryRuntimeRefreshTests
         // Monotonic clock so every snapshot request bypasses the observation TTL cache.
         var observationProvider = new ProcessObservationSnapshotProvider(
             timeToLive: TimeSpan.Zero,
-            enumerate: () => _processes.ToList(),
+            enumerate: () => { lock (_processes) return _processes.ToList(); },
             clock: () => new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero).AddTicks(Interlocked.Increment(ref _observationClockTicks)));
         var scanner = new ProcessScannerService(new ProcessService(), observationProvider);
         var launcher = new FakeLaunchService();
