@@ -49,7 +49,7 @@ public sealed class LibraryRuntimeRefreshTests
         var cs2 = host.ViewModel.Items.First(item => item.Id == "cs2");
         Assert.IsFalse(league.IsRunning, "Initially no synthetic process is running.");
 
-        _processes.Add(new ProcessObservation(4242, "League of Legends", LeaguePath, DateTime.UtcNow));
+        lock (_processes) _processes.Add(new ProcessObservation(4242, "League of Legends", LeaguePath, DateTime.UtcNow));
         host.ViewModel.Activate();
 
         await WaitUntilAsync(() => league.IsRunning);
@@ -61,11 +61,11 @@ public sealed class LibraryRuntimeRefreshTests
     {
         using var host = CreateViewModelHost();
         var league = host.ViewModel.Items.First(item => item.Id == "riot-lol");
-        _processes.Add(new ProcessObservation(4242, "League of Legends", LeaguePath, DateTime.UtcNow));
+        lock (_processes) _processes.Add(new ProcessObservation(4242, "League of Legends", LeaguePath, DateTime.UtcNow));
         host.ViewModel.Activate();
         await WaitUntilAsync(() => league.IsRunning);
 
-        _processes.Clear();
+        lock (_processes) _processes.Clear();
         host.ViewModel.Activate();
 
         await WaitUntilAsync(() => !league.IsRunning);
@@ -79,7 +79,7 @@ public sealed class LibraryRuntimeRefreshTests
         string contentBefore = File.ReadAllText(libraryPath);
         int itemCountBefore = host.ViewModel.Items.Count;
 
-        _processes.Add(new ProcessObservation(4242, "League of Legends", LeaguePath, DateTime.UtcNow));
+        lock (_processes) _processes.Add(new ProcessObservation(4242, "League of Legends", LeaguePath, DateTime.UtcNow));
         host.ViewModel.Activate();
         await WaitUntilAsync(() => host.ViewModel.Items.First(item => item.Id == "riot-lol").IsRunning);
 
@@ -99,7 +99,7 @@ public sealed class LibraryRuntimeRefreshTests
         {
             delayCalls++;
             // The game process appears during the delayed pulse window.
-            _processes.Add(new ProcessObservation(4242, "League of Legends", LeaguePath, DateTime.UtcNow));
+            lock (_processes) _processes.Add(new ProcessObservation(4242, "League of Legends", LeaguePath, DateTime.UtcNow));
             return Task.CompletedTask;
         };
 
@@ -133,7 +133,7 @@ public sealed class LibraryRuntimeRefreshTests
     {
         using var host = CreateViewModelHost();
         var league = host.ViewModel.Items.First(item => item.Id == "riot-lol");
-        _processes.AddRange(new[]
+        lock (_processes) _processes.AddRange(new[]
         {
             new ProcessObservation(900, "RiotClientServices", @"C:\Riot Games\Riot Client\RiotClientServices.exe", DateTime.UtcNow),
             new ProcessObservation(901, "LeagueClient", @"C:\Riot Games\League of Legends\LeagueClient.exe", DateTime.UtcNow),
@@ -364,7 +364,7 @@ public sealed class LibraryRuntimeRefreshTests
         // Monotonic clock so every snapshot request bypasses the observation TTL cache.
         var observationProvider = new ProcessObservationSnapshotProvider(
             timeToLive: TimeSpan.Zero,
-            enumerate: () => _processes.ToList(),
+            enumerate: () => { lock (_processes) return _processes.ToList(); },
             clock: () => new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero).AddTicks(Interlocked.Increment(ref _observationClockTicks)));
         var scanner = new ProcessScannerService(new ProcessService(), observationProvider);
         var launcher = new FakeLaunchService();

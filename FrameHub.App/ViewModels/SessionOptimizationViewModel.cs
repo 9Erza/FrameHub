@@ -85,6 +85,10 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     public string GamePriorityHint => IsPolish
         ? "Tymczasowo ustawia priorytet procesu gry na Powyżej normalnego (AboveNormal) na czas trwania sesji i przywraca go po zakończeniu."
         : "Temporarily sets game process priority to AboveNormal during the session and restores it when the session ends.";
+    public string PowerPlanLabel => IsPolish ? "Przełącz na plan Wysoka wydajność" : "Switch to High Performance power plan";
+    public string PowerPlanHint => IsPolish
+        ? "Tymczasowo przełącza aktywny schemat zasilania Windows na plan Wysoka wydajność na czas sesji i przywraca poprzedni plan po jej zakończeniu."
+        : "Temporarily switches active Windows power scheme to High Performance during the session and restores the previous scheme when finished.";
     public string WindowsInterfaceLabel => IsPolish ? "Interfejs Windows" : "Windows interface";
     public string WindowsInterfaceHint => IsPolish
         ? "Wstrzymuje explorer.exe. Może utrudnić Alt+Tab oraz korzystanie z paska zadań i menu Start do czasu przywrócenia sesji."
@@ -203,6 +207,37 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
                     }
                 }
             }
+        }
+    }
+
+    public bool PowerPlanOverrideEnabled
+    {
+        get
+        {
+            if (SelectedGame == null)
+            {
+                return _settings.ApplyPowerPlanOverride;
+            }
+
+            var gameSettings = GetSelectedGameSettings();
+            return gameSettings.ApplyPowerPlanOverride ?? _settings.ApplyPowerPlanOverride;
+        }
+        set
+        {
+            if (SelectedGame == null)
+            {
+                if (_settings.ApplyPowerPlanOverride == value) return;
+                _settings.ApplyPowerPlanOverride = value;
+            }
+            else
+            {
+                var gameSettings = GetSelectedGameSettings();
+                if (gameSettings.ApplyPowerPlanOverride == value) return;
+                gameSettings.ApplyPowerPlanOverride = value;
+            }
+
+            SaveSettings();
+            OnPropertyChanged();
         }
     }
 
@@ -476,6 +511,10 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ManualGameLabel));
         OnPropertyChanged(nameof(HideTaskbarLabel));
         OnPropertyChanged(nameof(HideTaskbarHint));
+        OnPropertyChanged(nameof(GamePriorityLabel));
+        OnPropertyChanged(nameof(GamePriorityHint));
+        OnPropertyChanged(nameof(PowerPlanLabel));
+        OnPropertyChanged(nameof(PowerPlanHint));
         OnPropertyChanged(nameof(WindowsInterfaceLabel));
         OnPropertyChanged(nameof(WindowsInterfaceHint));
         OnPropertyChanged(nameof(ShowManualProcessesLabel));
@@ -558,6 +597,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedManualGame));
         OnPropertyChanged(nameof(WindowsInterfaceEnabled));
         OnPropertyChanged(nameof(GamePriorityOverrideEnabled));
+        OnPropertyChanged(nameof(PowerPlanOverrideEnabled));
         CommandManager.InvalidateRequerySuggested();
     }
 

@@ -20,6 +20,7 @@ public sealed record SessionOptimizationStartResult
     public int SuspendedCount { get; init; }
     public int FailedCount { get; init; }
     public bool TaskbarHidden { get; init; }
+    public bool PowerPlanSwitched { get; init; }
     public string Message { get; init; } = string.Empty;
 }
 
@@ -31,6 +32,7 @@ public sealed record SessionOptimizationRestoreResult
     public int FailedCount { get; init; }
     public int RemainingCount { get; init; }
     public bool TaskbarRestored { get; init; }
+    public bool PowerPlanRestored { get; init; }
     public string Message { get; init; } = string.Empty;
 }
 
@@ -79,6 +81,7 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
     private readonly SessionOptimizationSettingsService _settingsService;
     private readonly ProcessSuspendService _suspendService;
     private readonly TaskbarVisibilityService _taskbarService;
+    private readonly PowerPlanService _powerPlanService;
     private readonly LibraryService _libraryService;
     private readonly IBenchmarkOperationArbiter? _benchmarkArbiter;
     private readonly IActiveGameMonitor? _activeGameMonitor;
@@ -133,13 +136,15 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         ILogger? logger = null,
         IBenchmarkOperationArbiter? benchmarkArbiter = null,
         IActiveGameMonitor? activeGameMonitor = null,
-        ISessionCpuControlBackend? sessionCpuBackend = null)
+        ISessionCpuControlBackend? sessionCpuBackend = null,
+        PowerPlanService? powerPlanService = null)
     {
         processScanner ??= new ProcessScannerService(new ProcessService());
         _stateService = stateService ?? new SessionStateService();
         _settingsService = settingsService ?? new SessionOptimizationSettingsService();
         _suspendService = suspendService ?? new ProcessSuspendService(processScanner.ObservationProvider);
         _taskbarService = taskbarService ?? new TaskbarVisibilityService();
+        _powerPlanService = powerPlanService ?? new PowerPlanService();
         _libraryService = libraryService ?? new LibraryService();
         _benchmarkArbiter = benchmarkArbiter;
         _activeGameMonitor = activeGameMonitor;
@@ -303,12 +308,34 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                 linkedCts.Token.ThrowIfCancellationRequested();
                 var candidates = BuildCandidates(snapshot, gameItem, settings).ToList();
 
+                var gameSettings = GetGameSettings(gameItem.Id, settings);
                 bool taskbarConfigured = settings.HideTaskbarDuringSession;
                 TaskbarVisibilityState? originalTaskbarVisibility = taskbarConfigured
                     ? _taskbarService.CaptureVisibilityState()
                     : null;
                 bool taskbarRequested = taskbarConfigured && originalTaskbarVisibility != null;
-                if (candidates.Count == 0 && !taskbarRequested)
+
+                bool powerPlanConfigured = gameSettings.ApplyPowerPlanOverride ?? settings.ApplyPowerPlanOverride;
+                Guid? originalPowerPlan = null;
+                if (powerPlanConfigured)
+                {
+                    originalPowerPlan = _powerPlanService.GetActivePowerScheme();
+                    if (!originalPowerPlan.HasValue)
+                    {
+                        return new SessionOptimizationStartResult
+                        {
+                            Success = false,
+                            ErrorCode = "power_plan_read_failed",
+                            Message = "Could not determine the active Windows power plan."
+                        };
+                    }
+                }
+
+                bool powerPlanRequested = powerPlanConfigured
+                    && originalPowerPlan.HasValue
+                    && originalPowerPlan.Value != PowerPlanService.HighPerformanceSchemeGuid;
+
+                if (candidates.Count == 0 && !taskbarRequested && !powerPlanRequested)
                 {
                     return new SessionOptimizationStartResult
                     {
@@ -331,6 +358,8 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                     RecoveryPhase = SessionRecoveryPhase.Prepared,
                     TaskbarHideRequested = taskbarRequested,
                     OriginalTaskbarVisibility = originalTaskbarVisibility,
+                    PowerPlanChangeRequested = powerPlanRequested,
+                    OriginalPowerPlanGuid = originalPowerPlan,
                     IsRecoveryPending = true,
                     PlannedProcesses = candidates.Select(CreatePlannedRecord).ToList()
                 };
@@ -391,15 +420,46 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                         return RollBackFailedStart(journal, failedCount);
                     }
 
-                    if (!hidden && journal.SuspendedProcesses.Count == 0)
+                    if (!hidden && journal.SuspendedProcesses.Count == 0 && !powerPlanRequested)
                     {
                         return RollBackFailedStart(journal, failedCount, "no_candidates");
+                    }
+                }
+
+                if (powerPlanRequested && originalPowerPlan.HasValue)
+                {
+                    linkedCts.Token.ThrowIfCancellationRequested();
+
+                    journal.PowerPlanMutationPending = true;
+                    journal.AppliedPowerPlanGuid = PowerPlanService.HighPerformanceSchemeGuid;
+                    if (!SaveJournal(journal))
+                    {
+                        journal.PowerPlanMutationPending = false;
+                        journal.AppliedPowerPlanGuid = null;
+                        return RollBackFailedStart(journal, failedCount);
+                    }
+
+                    bool switched = _powerPlanService.SetActivePowerScheme(PowerPlanService.HighPerformanceSchemeGuid);
+                    if (!switched)
+                    {
+                        journal.PowerPlanChanged = false;
+                        journal.PowerPlanMutationPending = false;
+                        journal.AppliedPowerPlanGuid = null;
+                        return RollBackFailedStart(journal, failedCount, "power_plan_set_failed");
+                    }
+
+                    journal.PowerPlanChanged = true;
+                    journal.PowerPlanMutationPending = false;
+                    if (!SaveJournal(journal))
+                    {
+                        return RollBackFailedStart(journal, failedCount);
                     }
                 }
 
                 journal.RecoveryPhase = SessionRecoveryPhase.Active;
                 journal.IsRecoveryPending = false;
                 journal.TaskbarHideRequested = false;
+                journal.PowerPlanChangeRequested = false;
                 if (!SaveJournal(journal))
                 {
                     return RollBackFailedStart(journal, failedCount);
@@ -407,9 +467,8 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
 
                 ActiveSession = journal;
                 _loadedStateRequiresConservativeRecovery = false;
-                _logger.Info($"Session optimization started ({trigger}) for '{gameItem.DisplayName}'. Suspended: {journal.SuspendedProcesses.Count}, Failed: {failedCount}, Taskbar: {journal.TaskbarHidden}.");
+                _logger.Info($"Session optimization started ({trigger}) for '{gameItem.DisplayName}'. Suspended: {journal.SuspendedProcesses.Count}, Failed: {failedCount}, Taskbar: {journal.TaskbarHidden}, PowerPlan: {journal.PowerPlanChanged}.");
 
-                var gameSettings = GetGameSettings(gameItem.Id, settings);
                 if (gameSettings.ApplyPriorityOverride || settings.ApplyGamePriorityOverride)
                 {
                     SessionCpuStateResult cpuState = GetSessionCpuState();
@@ -426,6 +485,7 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                     SuspendedCount = journal.SuspendedProcesses.Count,
                     FailedCount = failedCount,
                     TaskbarHidden = journal.TaskbarHidden,
+                    PowerPlanSwitched = journal.PowerPlanChanged,
                     Message = $"Session started. Suspended {journal.SuspendedProcesses.Count} processes."
                 };
             }
@@ -436,6 +496,19 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                     return RollBackFailedStart(journal, failedCount, "coordinator_stopping");
                 }
                 return CoordinatorStoppingStartResult();
+            }
+            catch (OperationCanceledException)
+            {
+                if (journal != null)
+                {
+                    return RollBackFailedStart(journal, failedCount, "cancelled");
+                }
+                return new SessionOptimizationStartResult
+                {
+                    Success = false,
+                    ErrorCode = "cancelled",
+                    Message = "Session start was cancelled."
+                };
             }
             catch (Exception ex)
             {
@@ -1123,13 +1196,20 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
             SuspendedCount = recoveryPending ? RecoveryProcessCount(ActiveSession!) : 0,
             FailedCount = failedCount + rollback.FailedCount,
             TaskbarHidden = recoveryPending && (ActiveSession!.TaskbarHidden || ActiveSession.TaskbarMutationPending),
+            PowerPlanSwitched = recoveryPending && (ActiveSession!.PowerPlanChanged || ActiveSession.PowerPlanMutationPending),
             Message = recoveryPending
                 ? "Session start failed and rollback is incomplete; durable recovery remains pending."
                 : errorCode == "no_candidates"
                     ? "No active background processes to suspend."
-                    : errorCode == "state_persist_failed"
-                        ? "Session state could not be persisted; applied changes were rolled back."
-                        : "Session start failed; applied changes were rolled back."
+                    : errorCode == "cancelled"
+                        ? "Session start was cancelled; applied changes were rolled back."
+                        : errorCode == "power_plan_read_failed"
+                        ? "Could not determine the active Windows power plan."
+                        : errorCode == "power_plan_set_failed"
+                            ? "Failed to switch Windows power plan; applied changes were rolled back."
+                            : errorCode == "state_persist_failed"
+                                ? "Session state could not be persisted; applied changes were rolled back."
+                                : "Session start failed; applied changes were rolled back."
         };
     }
 
@@ -1141,6 +1221,7 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         state.IsRecoveryPending = true;
         state.PlannedProcesses.Clear();
         state.TaskbarHideRequested = false;
+        state.PowerPlanChangeRequested = false;
 
         // A journal loaded after restart cannot prove whether a prior resume already happened.
         // Likewise, PendingSuspension and PendingResume straddle native calls. Move every such
@@ -1279,8 +1360,78 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
             }
         }
 
+        bool powerPlanRecoveryRequired = state.PowerPlanChanged || state.PowerPlanMutationPending;
+        bool powerPlanRestored = !powerPlanRecoveryRequired;
+        bool powerPlanManualRecoveryRequired = false;
+        if (powerPlanRecoveryRequired)
+        {
+            if (state.OriginalPowerPlanGuid == null || state.AppliedPowerPlanGuid == null)
+            {
+                _logger.Warn("Session recovery: power plan state is incomplete (missing original or target GUID). Failing closed to prevent accidental override.");
+                powerPlanRestored = false;
+                powerPlanManualRecoveryRequired = true;
+            }
+            else
+            {
+                Guid? currentScheme = _powerPlanService.GetActivePowerScheme();
+                if (!currentScheme.HasValue)
+                {
+                    _logger.Warn("Session recovery: unable to read current power scheme. Failing closed to prevent accidental override.");
+                    powerPlanRestored = false;
+                    powerPlanManualRecoveryRequired = true;
+                }
+                else if (currentScheme.Value == state.OriginalPowerPlanGuid.Value)
+                {
+                    _logger.Info($"Power plan is already restored to original scheme ({currentScheme.Value}).");
+                    powerPlanRestored = true;
+                }
+                else if (currentScheme.Value != state.AppliedPowerPlanGuid.Value)
+                {
+                    _logger.Info($"External power plan change detected ({currentScheme.Value}). Preserving user selection.");
+                    powerPlanRestored = true;
+                }
+                else
+                {
+                    try
+                    {
+                        powerPlanRestored = _powerPlanService.SetActivePowerScheme(state.OriginalPowerPlanGuid.Value);
+                        if (!powerPlanRestored)
+                        {
+                            _logger.Warn($"Failed to restore original power scheme ({state.OriginalPowerPlanGuid.Value}) during session recovery.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"Failed to restore original power scheme during session recovery: {ex.Message}", ex);
+                        powerPlanRestored = false;
+                    }
+                }
+            }
+        }
+        if (powerPlanRestored)
+        {
+            var prevPowerPlanChanged = state.PowerPlanChanged;
+            var prevPowerPlanMutationPending = state.PowerPlanMutationPending;
+            var prevOriginalGuid = state.OriginalPowerPlanGuid;
+            var prevAppliedGuid = state.AppliedPowerPlanGuid;
+
+            state.PowerPlanChanged = false;
+            state.PowerPlanMutationPending = false;
+            state.OriginalPowerPlanGuid = null;
+            state.AppliedPowerPlanGuid = null;
+            if (powerPlanRecoveryRequired && !SaveJournal(state))
+            {
+                state.PowerPlanChanged = prevPowerPlanChanged;
+                state.PowerPlanMutationPending = prevPowerPlanMutationPending;
+                state.OriginalPowerPlanGuid = prevOriginalGuid;
+                state.AppliedPowerPlanGuid = prevAppliedGuid;
+                ActiveSession = state;
+                return RecoveryProgressPersistFailed(state, result, taskbarRestored: taskbarRecoveryRequired && taskbarRestored, powerPlanRestored: false);
+            }
+        }
+
         int remainingCount = RecoveryProcessCount(state);
-        if (remainingCount > 0 || !taskbarRestored)
+        if (remainingCount > 0 || !taskbarRestored || !powerPlanRestored)
         {
             state.IsRecoveryPending = true;
             ActiveSession = state;
@@ -1294,15 +1445,17 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                     FailedCount = result.FailedCount,
                     RemainingCount = remainingCount,
                     TaskbarRestored = taskbarRecoveryRequired && taskbarRestored,
+                    PowerPlanRestored = powerPlanRecoveryRequired && powerPlanRestored,
                     Message = "Recovery remains pending and its updated state could not be persisted."
                 };
             }
 
-            _logger.Warn($"Session restoration partial. Resumed: {result.SuccessCount}, Remaining: {remainingCount}, Taskbar restored: {taskbarRestored}.");
+            _logger.Warn($"Session restoration partial. Resumed: {result.SuccessCount}, Remaining: {remainingCount}, Taskbar restored: {taskbarRestored}, PowerPlan restored: {powerPlanRestored}.");
             bool manualRecoveryRequired = state.AmbiguousProcesses.Count > 0
                 || state.PendingResume != null
                 || state.PendingSuspension != null
-                || taskbarManualRecoveryRequired;
+                || taskbarManualRecoveryRequired
+                || powerPlanManualRecoveryRequired;
             return new SessionOptimizationRestoreResult
             {
                 Success = false,
@@ -1311,8 +1464,9 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                 FailedCount = result.FailedCount,
                 RemainingCount = remainingCount,
                 TaskbarRestored = taskbarRecoveryRequired && taskbarRestored,
+                PowerPlanRestored = powerPlanRecoveryRequired && powerPlanRestored,
                 Message = manualRecoveryRequired
-                    ? "Automatic recovery stopped because prior OS-change ownership is ambiguous. End listed processes or restore taskbar state manually, then retry."
+                    ? "Automatic recovery stopped because prior OS-change ownership is ambiguous. End listed processes, restore taskbar state, or restore power plan manually, then retry."
                     : "Restore incomplete; durable recovery remains pending."
             };
         }
@@ -1323,7 +1477,7 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         if (!SaveJournal(state))
         {
             ActiveSession = state;
-            return RecoveryProgressPersistFailed(state, result, taskbarRecoveryRequired && taskbarRestored);
+            return RecoveryProgressPersistFailed(state, result, taskbarRecoveryRequired && taskbarRestored, powerPlanRecoveryRequired && powerPlanRestored);
         }
 
         if (!_stateService.Clear())
@@ -1338,12 +1492,13 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
                 FailedCount = result.FailedCount,
                 RemainingCount = 0,
                 TaskbarRestored = taskbarRecoveryRequired && taskbarRestored,
+                PowerPlanRestored = powerPlanRecoveryRequired && powerPlanRestored,
                 Message = "System state was restored, but persistent recovery metadata could not be cleared."
             };
         }
 
         ActiveSession = null;
-        _logger.Info($"Session optimization restored. Resumed: {result.SuccessCount}, Failed: {result.FailedCount}, Taskbar restored: {taskbarRecoveryRequired && taskbarRestored}.");
+        _logger.Info($"Session optimization restored. Resumed: {result.SuccessCount}, Failed: {result.FailedCount}, Taskbar restored: {taskbarRecoveryRequired && taskbarRestored}, PowerPlan restored: {powerPlanRecoveryRequired && powerPlanRestored}.");
         return new SessionOptimizationRestoreResult
         {
             Success = true,
@@ -1352,6 +1507,7 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
             FailedCount = result.FailedCount,
             RemainingCount = 0,
             TaskbarRestored = taskbarRecoveryRequired && taskbarRestored,
+            PowerPlanRestored = powerPlanRecoveryRequired && powerPlanRestored,
             Message = $"Session restored. Resumed {result.SuccessCount} processes."
         };
     }
@@ -1369,7 +1525,8 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
     private static SessionOptimizationRestoreResult RecoveryProgressPersistFailed(
         ActiveSessionState state,
         SessionActionResult result,
-        bool taskbarRestored) => new()
+        bool taskbarRestored,
+        bool powerPlanRestored = false) => new()
     {
         Success = false,
         ErrorCode = "state_persist_failed",
@@ -1377,6 +1534,7 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
         FailedCount = result.FailedCount,
         RemainingCount = RecoveryProcessCount(state),
         TaskbarRestored = taskbarRestored,
+        PowerPlanRestored = powerPlanRestored,
         Message = "Recovery progress could not be persisted; durable recovery remains retryable."
     };
 
