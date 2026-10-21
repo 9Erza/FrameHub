@@ -731,10 +731,14 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private async void RefreshRuntimeState()
     {
         int sequence = ++_runtimeRefreshSequence;
+        // Materialize on the UI thread before the first await: the scanner
+        // enumerates on a thread-pool thread after ConfigureAwait(false), so a
+        // deferred Items.Select(...) would race with Clear/Add from scans.
+        List<LibraryItem> itemsSnapshot = Items.Select(item => item.Item).ToList();
         try
         {
             IReadOnlySet<string> runningIds = await _processScanner
-                .FindRunningLibraryItemIdsAsync(Items.Select(item => item.Item));
+                .FindRunningLibraryItemIdsAsync(itemsSnapshot);
 
             // A newer refresh (manual, activation or post-launch pulse) superseded this one.
             if (sequence != _runtimeRefreshSequence) return;
