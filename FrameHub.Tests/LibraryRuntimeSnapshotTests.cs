@@ -70,11 +70,14 @@ public sealed class LibraryRuntimeSnapshotTests
 
         try
         {
-            // 1. Let the constructor's initial refresh complete with no processes running.
+            // 1. Let the constructor's initial refresh complete with base running.
             Assert.IsTrue(gate.Entered.Wait(TimeSpan.FromSeconds(5)), "Initial snapshot was not requested.");
-            gate.CompleteWith(new List<ProcessObservation>());
+            gate.CompleteWith(new List<ProcessObservation>
+            {
+                new ProcessObservation(4242, "basegame", @"C:\Games\Base\game.exe", DateTime.UtcNow)
+            });
             await SpinUntilAsync(
-                async () => await ui.RunAsync(() => host.ViewModel.Items.Count == 1 && !host.ViewModel.Items[0].IsRunning),
+                async () => await ui.RunAsync(() => host.ViewModel.Items.Count == 1 && host.ViewModel.Items.First(x => x.Id == "base-1").IsRunning),
                 TimeSpan.FromSeconds(5),
                 "Initial refresh did not settle.");
 
@@ -100,14 +103,17 @@ public sealed class LibraryRuntimeSnapshotTests
                 host.ViewModel.Items.Add(lateVm);
             });
 
-            // Snapshot observes the late game process as running.
+            // Snapshot observes only the late game; base disappears in this refresh.
             gate.CompleteWith(new List<ProcessObservation>
             {
                 new ProcessObservation(7777, "lategame", @"C:\Games\Late\game.exe", DateTime.UtcNow)
             });
 
-            // Give the in-flight refresh a bounded window to (incorrectly) mark the late item.
-            await Task.Delay(500);
+            // Completion signal of this exact refresh: base must flip to Not running.
+            await SpinUntilAsync(
+                async () => await ui.RunAsync(() => !host.ViewModel.Items.First(x => x.Id == "base-1").IsRunning),
+                TimeSpan.FromSeconds(5),
+                "In-flight refresh did not complete.");
 
             bool lateRunningAfterFirstRefresh = await ui.RunAsync(() =>
                 host.ViewModel.Items.First(x => x.Id == "late-1").IsRunning);
