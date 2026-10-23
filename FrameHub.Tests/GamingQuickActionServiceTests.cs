@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using FrameHub.App.Services;
 using FrameHub.Core.Models.Benchmarking;
 using FrameHub.Core.Models.Library;
@@ -259,6 +260,47 @@ public sealed class GamingQuickActionServiceTests
         Assert.AreEqual(dashboard.GamingGames.Count > 0, dashboard.HasGamingGames);
         Assert.AreEqual(dashboard.GamingGames.Count == 0, dashboard.HasNoGamingGames);
         Assert.AreEqual(!dashboard.IsGamingModeActive && dashboard.HasGamingGames, dashboard.ShowGamingSelector);
+    }
+
+    [TestMethod]
+    public void DashboardViewModel_Constructor_SubscribesToRuntimeAndCoordinatorEvents()
+    {
+        string settingsPath = Path.Combine(_tempDirectory, "dashboard_subscribe_settings.json");
+        var settingsService = new SettingsService(settingsPath);
+        var localization = new LocalizationService(settingsService);
+        using var runtime = new AppRuntimeService(settingsService);
+        var dashboard = new FrameHub.App.ViewModels.DashboardViewModel(localization, runtime);
+
+        Assert.IsTrue(IsEventSubscribed(runtime, nameof(AppRuntimeService.ProfilesChanged), dashboard));
+        Assert.IsTrue(IsEventSubscribed(runtime, nameof(AppRuntimeService.WatcherStateChanged), dashboard));
+        Assert.IsTrue(IsEventSubscribed(runtime, nameof(AppRuntimeService.RuntimeStateChanged), dashboard));
+        Assert.IsTrue(IsEventSubscribed(runtime.SessionOptimizationCoordinator, nameof(SessionOptimizationCoordinator.SessionStateChanged), dashboard));
+    }
+
+    [TestMethod]
+    public void DashboardViewModel_Dispose_UnsubscribesFromAllRuntimeEvents()
+    {
+        string settingsPath = Path.Combine(_tempDirectory, "dashboard_dispose_settings.json");
+        var settingsService = new SettingsService(settingsPath);
+        var localization = new LocalizationService(settingsService);
+        using var runtime = new AppRuntimeService(settingsService);
+        var dashboard = new FrameHub.App.ViewModels.DashboardViewModel(localization, runtime);
+
+        dashboard.Dispose();
+
+        Assert.IsFalse(IsEventSubscribed(runtime, nameof(AppRuntimeService.ProfilesChanged), dashboard));
+        Assert.IsFalse(IsEventSubscribed(runtime, nameof(AppRuntimeService.WatcherStateChanged), dashboard));
+        Assert.IsFalse(IsEventSubscribed(runtime, nameof(AppRuntimeService.RuntimeStateChanged), dashboard));
+        Assert.IsFalse(IsEventSubscribed(runtime.SessionOptimizationCoordinator, nameof(SessionOptimizationCoordinator.SessionStateChanged), dashboard));
+
+        dashboard.Dispose();
+    }
+
+    private static bool IsEventSubscribed(object source, string eventName, object subscriber)
+    {
+        var field = source.GetType().GetField(eventName, BindingFlags.Instance | BindingFlags.NonPublic);
+        var handler = field?.GetValue(source) as Delegate;
+        return handler?.GetInvocationList().Any(d => ReferenceEquals(d.Target, subscriber)) == true;
     }
 
     [TestMethod]
