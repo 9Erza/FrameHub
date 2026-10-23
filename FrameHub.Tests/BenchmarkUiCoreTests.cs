@@ -329,6 +329,24 @@ public sealed class BenchmarkViewModelWorkflowTests
     }
 
     [TestMethod]
+    public async Task CaptureFailure_RemainsTerminalUnderRepeatedCapture()
+    {
+        // Regression tripwire for the stale-event race: coordinator notifications
+        // drain asynchronously on the ThreadPool, so without the local-await guard
+        // in OnCoordinatorStateChanged a late Capturing snapshot could overwrite the
+        // Failed outcome state (baseline full-suite flake: Expected Failed, actual
+        // Capturing). Repeating the scenario under suite load widens the window.
+        for (int i = 0; i < 25; i++)
+        {
+            using BenchmarkViewModel vm = Create(BackendMode.Failure, out _);
+            await vm.RefreshGamesAsync(); vm.CountdownSeconds = 0; await vm.StartAsync();
+            Assert.AreEqual(BenchmarkUiState.Failed, vm.State, $"Iteration {i}: terminal failure state must survive late coordinator events.");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(vm.StatusMessage), $"Iteration {i}: failure must stay user-friendly.");
+            StringAssert.Contains(vm.TechnicalError, "capture_failed");
+        }
+    }
+
+    [TestMethod]
     public void DisposingViewModel_UnsubscribesFromCoordinatorStateChanged()
     {
         var coordinator = new BenchmarkCaptureCoordinator(new BenchmarkStorageService(_root));

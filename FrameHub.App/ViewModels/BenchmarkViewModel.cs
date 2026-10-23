@@ -261,6 +261,12 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         void Action()
         {
             if (_disposed) return;
+            // A locally awaited capture owns its state transition through the
+            // StartCaptureAsync outcome path. Coordinator notifications drain
+            // asynchronously on the ThreadPool, so a stale non-terminal snapshot
+            // (e.g. Capturing) can arrive after the terminal outcome state was
+            // already applied (e.g. Failed) and must not overwrite it.
+            if (_isLocallyAwaitingCapture) return;
 
             if (snapshot.State == CoordinatorState.Waiting)
             {
