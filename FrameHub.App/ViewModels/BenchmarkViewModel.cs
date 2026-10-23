@@ -255,18 +255,25 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     }
 
     private bool _isLocallyAwaitingCapture;
+    private bool _localTerminalApplied;
 
     private void OnCoordinatorStateChanged(object? sender, BenchmarkCaptureStateSnapshot snapshot)
     {
         void Action()
         {
             if (_disposed) return;
-            // A locally awaited capture owns its state transition through the
+            // A locally awaited capture owns its terminal transition through the
             // StartCaptureAsync outcome path. Coordinator notifications drain
             // asynchronously on the ThreadPool, so a stale non-terminal snapshot
             // (e.g. Capturing) can arrive after the terminal outcome state was
             // already applied (e.g. Failed) and must not overwrite it.
-            if (_isLocallyAwaitingCapture) return;
+            // In-order snapshots for the running capture are still applied so
+            // countdown/capture progress keeps working; only stale ones drop:
+            // - after the local outcome was applied, or
+            // - when the coordinator is no longer active (capture already ended
+            //   and the drain arrived after the await completed).
+            if (_isLocallyAwaitingCapture && _localTerminalApplied) return;
+            if (snapshot.IsActive && !_coordinator.IsActive) return;
 
             if (snapshot.State == CoordinatorState.Waiting)
             {
@@ -464,6 +471,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         if (notify) UserNotificationRequested?.Invoke(string.Format(_localization.T("Benchmark.Hotkey.Started"), running.LibraryItem.DisplayName));
 
         _isLocallyAwaitingCapture = true;
+        _localTerminalApplied = false;
         try
         {
             _captureClock.Restart();
@@ -485,6 +493,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
                 }
                 State = BenchmarkUiState.Completed;
                 StatusMessage = _localization.T("Benchmark.Message.Completed");
+                _localTerminalApplied = true;
                 _runtime.AddActivity(string.Format(_localization.T("Benchmark.Log.Completed"), running.LibraryItem.DisplayName));
                 if (notify) UserNotificationRequested?.Invoke(_localization.T("Benchmark.Hotkey.Completed"));
                 _ = ResetTerminalStateAsync(BenchmarkUiState.Completed);
@@ -493,6 +502,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
             {
                 State = BenchmarkUiState.Cancelled;
                 StatusMessage = _localization.T("Benchmark.Message.Cancelled");
+                _localTerminalApplied = true;
                 _runtime.AddActivity(_localization.T("Benchmark.Log.Cancelled"), "Warn");
                 await RefreshHistoryAsync();
                 _ = ResetTerminalStateAsync(BenchmarkUiState.Cancelled);
@@ -500,6 +510,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
             else if (outcome.Status == CoordinatorStatus.Failed)
             {
                 State = BenchmarkUiState.Failed;
+                _localTerminalApplied = true;
                 string code = outcome.ErrorCode ?? "capture_failed";
                 StatusMessage = FriendlyError(code);
                 TechnicalError = string.IsNullOrWhiteSpace(outcome.TechnicalDetail) ? $"[{code}]" : $"[{code}] {outcome.TechnicalDetail}";

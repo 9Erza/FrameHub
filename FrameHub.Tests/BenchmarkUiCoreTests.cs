@@ -6,6 +6,7 @@ using FrameHub.App.Services;
 using FrameHub.App.ViewModels;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Windows;
@@ -344,6 +345,56 @@ public sealed class BenchmarkViewModelWorkflowTests
             Assert.IsFalse(string.IsNullOrWhiteSpace(vm.StatusMessage), $"Iteration {i}: failure must stay user-friendly.");
             StringAssert.Contains(vm.TechnicalError, "capture_failed");
         }
+    }
+
+    [TestMethod]
+    public async Task LateCapturingSnapshot_AfterLocalTerminalOutcome_DoesNotOverwriteTerminalState()
+    {
+        // Deterministic reproduction of the baseline full-suite flake
+        // (Expected <Failed>, Actual <Capturing>): the coordinator drains state
+        // snapshots asynchronously on the ThreadPool, so a stale Capturing
+        // snapshot can be delivered AFTER the local outcome path already applied
+        // the terminal state and the await completed (coordinator inactive, guard
+        // flag cleared). Injecting that exact ordering must not move the VM out
+        // of its terminal state. Covers Failed, Completed and Cancelled — the
+        // same stale-active gate protects all three terminal outcomes.
+        using (BenchmarkViewModel failed = Create(BackendMode.Failure, out _))
+        {
+            await failed.RefreshGamesAsync(); failed.CountdownSeconds = 0; await failed.StartAsync();
+            Assert.AreEqual(BenchmarkUiState.Failed, failed.State);
+            InjectCoordinatorSnapshot(failed, CoordinatorState.Capturing, isActive: true);
+            Assert.AreEqual(BenchmarkUiState.Failed, failed.State, "Late Capturing must not overwrite local Failed.");
+        }
+
+        using (BenchmarkViewModel completed = Create(BackendMode.Success, out _))
+        {
+            await completed.RefreshGamesAsync(); completed.CountdownSeconds = 0; await completed.StartAsync();
+            Assert.AreEqual(BenchmarkUiState.Completed, completed.State);
+            InjectCoordinatorSnapshot(completed, CoordinatorState.Capturing, isActive: true);
+            Assert.AreEqual(BenchmarkUiState.Completed, completed.State, "Late Capturing must not overwrite local Completed.");
+        }
+
+        using (BenchmarkViewModel cancelled = Create(BackendMode.WaitForCancellation, out _))
+        {
+            await cancelled.RefreshGamesAsync(); cancelled.CountdownSeconds = 0;
+            Task capture = cancelled.StartAsync();
+            await Task.Delay(20); cancelled.Stop(); await capture;
+            Assert.AreEqual(BenchmarkUiState.Cancelled, cancelled.State);
+            InjectCoordinatorSnapshot(cancelled, CoordinatorState.Capturing, isActive: true);
+            Assert.AreEqual(BenchmarkUiState.Cancelled, cancelled.State, "Late Capturing must not overwrite local Cancelled.");
+        }
+    }
+
+    private static void InjectCoordinatorSnapshot(BenchmarkViewModel vm, CoordinatorState state, bool isActive)
+    {
+        // Invokes the private coordinator-event handler synchronously with a
+        // fabricated stale snapshot. In tests there is no WPF dispatcher, so
+        // the handler runs inline — the same ordering as a ThreadPool drain
+        // that lands after the local outcome.
+        MethodInfo? handler = typeof(BenchmarkViewModel).GetMethod(
+            "OnCoordinatorStateChanged", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(handler, "OnCoordinatorStateChanged handler must exist.");
+        handler.Invoke(vm, [null, new BenchmarkCaptureStateSnapshot { State = state, IsActive = isActive }]);
     }
 
     [TestMethod]
