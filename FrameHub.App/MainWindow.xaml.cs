@@ -501,7 +501,10 @@ public partial class MainWindow : Window
         SettingsService.RestartResult result = settingsService.TryStartSuccessorProcess(forwarded);
         if (result.Status != SettingsService.RestartStatus.Started)
         {
-            LoggerService.Instance.Warn($"Restart aborted: {result.Error ?? result.Status.ToString()}.");
+            string reason = result.Error ?? result.Status.ToString();
+            LoggerService.Instance.Warn($"Restart aborted: {reason}.");
+            try { ViewModel?.Runtime.AddActivity($"Restart aborted: {reason}. Running instance unchanged.", "Warn"); }
+            catch { }
             return;
         }
 
@@ -546,15 +549,38 @@ public partial class MainWindow : Window
             catch (OperationCanceledException)
             {
                 LoggerService.Instance.Warn("Graceful application shutdown deadline exceeded.");
+                RecoverRestartAfterFailedShutdown("shutdown deadline exceeded");
             }
             catch (Exception ex)
             {
                 LoggerService.Instance.Warn($"Error during application shutdown: {ex.Message}");
+                RecoverRestartAfterFailedShutdown(ex.Message);
             }
         }
 
         _shutdownState = ShutdownState.Completed;
         Close();
+    }
+
+    /// <summary>
+    /// QA P3.1: if a restart successor was started but this instance failed to
+    /// shut down (timeout/error above), the old instance keeps running — release
+    /// the restart single-flight so a retry is a fresh attempt instead of a
+    /// permanent <c>AlreadyInProgress</c>, and leave user-visible feedback.
+    /// Harmless on a plain exit (the process is going away anyway).
+    /// </summary>
+    private void RecoverRestartAfterFailedShutdown(string reason)
+    {
+        try
+        {
+            if (ViewModel?.Runtime.SettingsService is { } settingsService)
+            {
+                settingsService.ResetRestartState();
+            }
+            try { ViewModel?.Runtime.AddActivity($"Restart did not complete ({reason}). Previous instance still running — retry is available.", "Warn"); }
+            catch { }
+        }
+        catch { }
     }
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
