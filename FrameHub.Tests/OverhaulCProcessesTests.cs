@@ -15,17 +15,22 @@ namespace FrameHub.Tests;
 public sealed class OverhaulCProcessesTests
 {
     private string _tempDirectory = null!;
+    private string? _previousDataDir;
 
     [TestInitialize]
     public void Setup()
     {
         _tempDirectory = Path.Combine(Path.GetTempPath(), "FrameHub.EmberC1", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDirectory);
+        // Isolate ALL user-data paths (profiles.json, logs) from the real %APPDATA%.
+        _previousDataDir = Environment.GetEnvironmentVariable("FRAMEHUB_DATA_DIR");
+        Environment.SetEnvironmentVariable("FRAMEHUB_DATA_DIR", _tempDirectory);
     }
 
     [TestCleanup]
     public void TearDown()
     {
+        Environment.SetEnvironmentVariable("FRAMEHUB_DATA_DIR", _previousDataDir);
         if (Directory.Exists(_tempDirectory))
         {
             try { Directory.Delete(_tempDirectory, true); } catch { }

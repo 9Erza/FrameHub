@@ -207,6 +207,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             _benchmarkViewModel.Preselect(item);
             Navigate("Benchmarks");
         };
+        _profilesViewModel.CreateFirstProfileRequested += () => Navigate("Processes");
         _runtime.RuntimeStateChanged += (_, _) => _benchmarkViewModel.RefreshHotkeyStatus();
         _benchmarkViewModel.UserNotificationRequested += message => UserNotificationRequested?.Invoke(message);
         _dashboardViewModel.BenchmarkNavigationRequested = () => Navigate("Benchmarks");
