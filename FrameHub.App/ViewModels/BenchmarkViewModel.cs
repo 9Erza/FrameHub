@@ -18,6 +18,7 @@ using WpfMessageBox = System.Windows.MessageBox;
 using WpfMessageBoxButton = System.Windows.MessageBoxButton;
 using WpfMessageBoxImage = System.Windows.MessageBoxImage;
 using WpfMessageBoxResult = System.Windows.MessageBoxResult;
+using WinForms = System.Windows.Forms;
 
 namespace FrameHub.App.ViewModels;
 
@@ -74,6 +75,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public ICommand RefreshHistoryCommand { get; }
     public ICommand OpenSessionFolderCommand { get; }
     public ICommand DeleteSessionCommand { get; }
+    public ICommand ExportComparisonCommand { get; }
 
     public string Title => _localization.T("Benchmark.Title");
     public string Subtitle => _localization.T("Benchmark.Subtitle");
@@ -110,6 +112,13 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public bool HasEnvironmentDifferences => EnvironmentDifferenceRows.Count > 0;
     public string OpenFolderText => _localization.T("Benchmark.OpenFolder");
     public string DeleteText => _localization.T("Benchmark.Delete");
+    public string ExportComparisonCsvText => _localization.T("Benchmark.Export.ComparisonCsv");
+    public string ExportComparisonMarkdownText => _localization.T("Benchmark.Export.ComparisonMarkdown");
+    public bool CanExportComparison =>
+        ComparisonA?.IsCompleted == true
+        && ComparisonB?.IsCompleted == true
+        && ComparisonA.Entry.Metadata.SessionId != ComparisonB.Entry.Metadata.SessionId
+        && BenchmarkComparisonService.IsSameGame(ComparisonA.Entry.Metadata.Game, ComparisonB.Entry.Metadata.Game);
     public string ResultTitle => _localization.T("Benchmark.Result.Title");
     public string AdvancedDetailsText => _localization.T("Benchmark.AdvancedDetails");
     public string DiagnosticsText => _localization.T("Benchmark.Diagnostics");
@@ -249,6 +258,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         RefreshHistoryCommand = new AsyncRelayCommand(_ => RefreshHistoryAsync());
         OpenSessionFolderCommand = new RelayCommand(OpenSessionFolder, parameter => ResolveEntry(parameter) is not null);
         DeleteSessionCommand = new RelayCommand(DeleteSession, parameter => ResolveEntry(parameter) is not null);
+        ExportComparisonCommand = new RelayCommand(ExportComparison, _ => CanExportComparison);
 
         State = BenchmarkUiState.Idle;
         ProbeEngine();
@@ -696,6 +706,9 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
 
             OnPropertyChanged(nameof(HasEnvironmentDifferences));
         }
+
+        OnPropertyChanged(nameof(CanExportComparison));
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
     private string EnvironmentDifferenceLabel(string key) => key switch
@@ -782,6 +795,32 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
             _ = RefreshHistoryAsync();
         }
         catch (Exception ex) { StatusMessage = _localization.T("Benchmark.Error.Delete"); TechnicalError = ex.ToString(); _logger.Error("Benchmark session delete failed.", ex); }
+    }
+
+    private void ExportComparison(object? parameter)
+    {
+        if (ComparisonA?.Entry is not { } first || ComparisonB?.Entry is not { } second) return;
+        bool markdown = string.Equals(parameter as string, "md", StringComparison.OrdinalIgnoreCase);
+        var format = markdown
+            ? BenchmarkComparisonExportService.ReportFormat.Markdown
+            : BenchmarkComparisonExportService.ReportFormat.Csv;
+        string extension = markdown ? "md" : "csv";
+        try
+        {
+            string report = BenchmarkComparisonExportService.Export(first, second, format);
+            using var dialog = new WinForms.SaveFileDialog
+            {
+                Filter = markdown ? "Markdown (*.md)|*.md" : "CSV (*.csv)|*.csv",
+                DefaultExt = extension,
+                FileName = $"framehub-comparison-{DateTime.Now:yyyyMMdd-HHmmss}.{extension}",
+                OverwritePrompt = true
+            };
+            if (dialog.ShowDialog() != WinForms.DialogResult.OK) return;
+            File.WriteAllText(dialog.FileName, report, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            StatusMessage = string.Format(_localization.T("Benchmark.Export.Saved"), dialog.FileName);
+            _runtime.AddActivity(StatusMessage);
+        }
+        catch (Exception ex) { StatusMessage = _localization.T("Benchmark.Error.Export"); TechnicalError = ex.ToString(); _logger.Warn($"Comparison export failed: {ex.Message}"); }
     }
 
     private static BenchmarkHistoryEntry? ResolveEntry(object? parameter) => parameter switch
