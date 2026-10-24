@@ -7,7 +7,9 @@
     </UserControl.Resources>
 
     <!-- One owner for vertical page scrolling. Data grids only scroll their bounded data viewport. -->
-    <ScrollViewer x:Name="PageScrollViewer"
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+    <ScrollViewer x:Name="PageScrollViewer" Grid.Row="0"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled"
                   HorizontalContentAlignment="Stretch"
@@ -35,6 +37,78 @@
                         <Button Style="{StaticResource SuccessButton}" Content="{Binding StopButtonText}" Command="{Binding StopSessionCommand}" />
                     </StackPanel>
                 </Grid>
+            </Border>
+
+            <!-- 1. Automation -->
+            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="{Binding StepsTitle}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,10" />
+                    <UniformGrid Columns="4">
+                        <StackPanel HorizontalAlignment="Center">
+                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasSelectedGame}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding StepConfigureText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Center">
+                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasCandidates}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding StepPreviewText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Center">
+                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSessionActive}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding StepStartText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Center">
+                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsRecoveryPending}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource BrushWarning}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding HasSuspendedProcesses}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource BrushSuccess}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding StepRestoreText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                        </StackPanel>
+                    </UniformGrid>
+                </StackPanel>
             </Border>
 
             <!-- 1. Automation -->
@@ -145,6 +219,7 @@
                         <StackPanel><TextBlock Text="{Binding ManualGameLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><ComboBox ItemsSource="{Binding Games}" SelectedItem="{Binding SelectedGame, Mode=TwoWay}" DisplayMemberPath="DisplayName" MinWidth="320" HorizontalAlignment="Left" /></StackPanel>
                         <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="{Binding StartButtonText}" Command="{Binding StartManualSessionCommand}" MinWidth="160" VerticalAlignment="Bottom" Margin="24,0,0,0" />
                     </Grid>
+                    <TextBlock Text="{Binding StartNeedsGameText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{StaticResource BrushWarning}" Visibility="{Binding StartNeedsGameVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
                     <Expander Header="{Binding AdvancedOptionsTitle}" Margin="0,16,0,0">
                         <StackPanel Margin="0,8,0,0">
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding WindowsInterfaceLabel}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding WindowsInterfaceHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" /></StackPanel><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding WindowsInterfaceEnabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="16,0,0,0" /></Grid>
@@ -160,4 +235,17 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
+
+    <!-- Sticky restore: always visible, disabled with reason outside a session. -->
+    <Border Grid.Row="1" Background="{StaticResource BrushTitlebar}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,1,0,0" Padding="16,10">
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding SessionStateDisplay}" Style="{StaticResource DataTitleText}" />
+                <TextBlock Text="{Binding RestoreFooterHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+            </StackPanel>
+            <Button Grid.Column="1" Style="{StaticResource SuccessButton}" Content="{Binding StopButtonText}" Command="{Binding StopSessionCommand}" MinWidth="180" VerticalAlignment="Center" Margin="16,0,0,0" AutomationProperties.Name="{Binding StopButtonText}" ToolTip="{Binding RestoreFooterHint}" ToolTipService.ShowOnDisabled="True" />
+        </Grid>
+    </Border>
+    </Grid>
 </UserControl>

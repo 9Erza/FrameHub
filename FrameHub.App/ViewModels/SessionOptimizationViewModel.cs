@@ -308,6 +308,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
                 LoadSelectedGameConfiguration();
                 RefreshRunningProcesses();
                 RefreshCandidates();
+                OnPropertyChanged(nameof(HasSelectedGame));
+                OnPropertyChanged(nameof(StartNeedsGameVisible));
             }
         }
     }
@@ -322,6 +324,17 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     public bool IsSessionActive => _activeSession?.IsActive == true;
     public bool IsIdle => !IsSessionActive;
     public bool IsRecoveryPending => _activeSession?.IsRecoveryPending == true;
+    public bool HasSelectedGame => SelectedGame != null;
+    public string RestoreFooterHint => IsSessionActive || IsRecoveryPending
+        ? _localization.T("Session.Footer.RestoreReady")
+        : _localization.T("Session.Footer.RestoreIdle");
+    public string StepsTitle => _localization.T("Session.Steps.Title");
+    public string StepConfigureText => _localization.T("Session.Steps.Configure");
+    public string StepPreviewText => _localization.T("Session.Steps.Preview");
+    public string StepStartText => _localization.T("Session.Steps.Start");
+    public string StepRestoreText => _localization.T("Session.Steps.Restore");
+    public string StartNeedsGameText => _localization.T("Session.Start.NeedsGame");
+    public bool StartNeedsGameVisible => !HasSelectedGame && IsIdle;
     public string SessionStateDisplay => IsRecoveryPending
         ? _localization.T("Session.State.Recovery")
         : IsSessionActive
@@ -1221,6 +1234,9 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(HasSuspendedProcesses));
         OnPropertyChanged(nameof(NoSuspendedProcessesVisible));
         OnPropertyChanged(nameof(StopButtonText));
+        OnPropertyChanged(nameof(RestoreFooterHint));
+        OnPropertyChanged(nameof(StartNeedsGameVisible));
+        OnPropertyChanged(nameof(HasSelectedGame));
         OnPropertyChanged(nameof(GamePriorityOverrideEnabled));
         CommandManager.InvalidateRequerySuggested();
     }
