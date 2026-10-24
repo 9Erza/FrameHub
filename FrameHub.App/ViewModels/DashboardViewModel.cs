@@ -649,7 +649,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
     private void RefreshRecentActivity()
     {
-        var tail = _runtime.Activity.TakeLast(3).ToList();
+        // Activity is newest-first (Insert(0, …)), so Take(3) is the latest three.
+        var tail = _runtime.Activity.Take(3).ToList();
         RecentActivity.Clear();
         foreach (var item in tail)
         {
