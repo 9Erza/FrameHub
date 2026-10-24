@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "edition": "supporter",
+  "description": "PoC: Supporter extension build manifest. The public repo stays the single source of truth; the private extension repo (not created - see docs/supporter/EDITION-INTEGRATION.md) references it by pinned SHA only.",
+  "publicRepo": "https://github.com/9Erza/FrameHub",
+  "publicLicense": "MIT",
+  "pinnedPublicSha": "221da777ccb4dc5534049dcbddfc156c1800cf5f",
+  "pinnedPublicRef": "main",
+  "extensionModules": [],
+  "compatibility": {
+    "requiredSuites": [ "FrameHub.Tests", "FrameHub.Companion.Tests" ],
+    "editionSuite": "SupporterEditionTests",
+    "policy": "adopt-new-sha-only-after-green-compat"
+  },
+  "separation": {
+    "publicArtifactMustNotContain": [ "SupporterExtension", "LicenseServer", "DrmModule", "PaymentsSdk" ],
+    "privateRepoMustNeverContain": [ "full-public-clone", "private-user-data", "rea-materials", "secrets" ]
+  }
+}
