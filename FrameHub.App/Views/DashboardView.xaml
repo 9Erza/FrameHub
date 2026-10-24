@@ -4,8 +4,17 @@
              UseLayoutRounding="True">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
         <StackPanel Margin="0,0,0,24">
-            <!-- Operational answer: what FrameHub is doing now. -->
-            <Border Style="{StaticResource StateBanner}" Margin="0,0,0,16">
+            <!-- Operational answer: what FrameHub is doing now. Badge is LIVE only during a live session. -->
+            <Border Margin="0,0,0,16">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource StateBanner}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource BrushSuccessSoft}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <Border Width="48" Height="48" CornerRadius="8" Background="{StaticResource BrushAccentSoft}" Margin="0,0,16,0">
@@ -16,34 +25,92 @@
                         <TextBlock Text="{Binding SessionStateValue}" Style="{StaticResource MetricText}" Margin="0,4,0,0" />
                         <TextBlock Text="{Binding SessionStateDetail}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
-                    <Border Grid.Column="2" Background="{StaticResource BrushSuccessSoft}" CornerRadius="6" Padding="12,7" VerticalAlignment="Center" Margin="20,0,0,0">
-                        <StackPanel Orientation="Horizontal"><Ellipse Width="8" Height="8" Fill="{StaticResource BrushSuccess}" Margin="0,0,8,0" /><TextBlock Text="{Binding RecentActivityLiveText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushSuccess}" /></StackPanel>
+                    <Border Grid.Column="2" CornerRadius="6" Padding="12,7" VerticalAlignment="Center" Margin="20,0,0,0">
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource BadgeBorder}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource BrushSuccessSoft}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource BrushSuccess}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Margin="0,0,8,0">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource BrushTextMuted}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource BrushLive}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding ActivityLiveBadgeText}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource StatusText}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsLiveActive}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </Border>
 
+            <!-- First-run hero: exactly one primary action when the library is empty. -->
+            <Border Margin="0,0,0,16" Visibility="{Binding HasNoGamingGames, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource HeroCardBorder}">
+                        <Setter Property="BorderBrush" Value="{StaticResource BrushAccentPrimary}" />
+                        <Setter Property="BorderThickness" Value="1" />
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <Border Width="48" Height="48" CornerRadius="8" Background="{StaticResource BrushAccentSoft}" Margin="0,0,16,0">
+                        <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource BrushAccentPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding HeroNoGamesDetail}" Style="{StaticResource DataTitleText}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding GamingDescription}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
+                        <Button Style="{StaticResource PrimaryButton}" Content="{Binding HeroScanLibraryText}" Command="{Binding NavigateLibraryCommand}" Margin="0,0,8,0" AutomationProperties.Name="{Binding HeroScanLibraryText}" />
+                        <Button Style="{StaticResource GhostButton}" Content="{Binding HeroHowItWorksText}" Command="{Binding NavigateHowItWorksCommand}" AutomationProperties.Name="{Binding HeroHowItWorksText}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Clickable metric cards: each navigates to its owner view. -->
             <ItemsControl ItemsSource="{Binding Metrics}" Margin="0,0,0,4">
                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource MetricCardBorder}" Margin="0,0,8,12">
+                        <Button Style="{StaticResource MetricCardButton}" Command="{Binding DataContext.NavigateMetricCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding TargetKey}" AutomationProperties.Name="{Binding Title}">
                             <Grid>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding Title}" Style="{StaticResource CardTitleText}" /><Ellipse Grid.Column="1" Width="7" Height="7" Fill="{Binding Accent}" /></Grid>
                                 <TextBlock Grid.Row="1" Text="{Binding Value}" Style="{StaticResource CardValueText}" Margin="0,8,0,0" />
                                 <TextBlock Grid.Row="2" Text="{Binding Detail}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                             </Grid>
-                        </Border>
+                        </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
             <!-- Gaming Mode quick action: compact game selector + composed launch/optimize flow. -->
-            <Border Style="{StaticResource SectionSurface}" Margin="0,4,0,16">
+            <Border Style="{StaticResource SectionSurface}" Margin="0,4,0,16" Visibility="{Binding HasGamingGames, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel>
                     <TextBlock Text="{Binding GamingTitle}" Style="{StaticResource SectionTitleText}" />
                     <TextBlock Text="{Binding GamingDescription}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,12" />
-                    <TextBlock Text="{Binding GamingEmptyText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Visibility="{Binding HasNoGamingGames, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,4" />
 
                     <StackPanel Visibility="{Binding ShowGamingSelector, Converter={StaticResource BoolToVisibilityConverter}}">
                         <Grid>
@@ -81,35 +148,44 @@
             </Border>
 
             <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding LatestBenchmarkTitle}" Style="{StaticResource SectionTitleText}"/><TextBlock Text="{Binding LatestBenchmarkGame}" Style="{StaticResource DataTitleText}" Margin="0,6,0,0"/><TextBlock Text="{Binding LatestBenchmarkResult}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0"/></StackPanel><Button Grid.Column="1" Style="{StaticResource SubtleButton}" Content="{Binding OpenBenchmarksText}" Command="{Binding OpenBenchmarksCommand}" VerticalAlignment="Center" Margin="16,0,0,0"/></Grid>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding LatestBenchmarkTitle}" Style="{StaticResource SectionTitleText}"/><TextBlock Text="{Binding LatestBenchmarkGame}" Style="{StaticResource DataTitleText}" Margin="0,6,0,0"/><TextBlock Text="{Binding LatestBenchmarkResult}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0"/><StackPanel Orientation="Horizontal" Margin="0,8,0,0"><Ellipse Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,7,0"><Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="{StaticResource BrushSuccess}" /><Style.Triggers><DataTrigger Binding="{Binding IsBenchmarkEngineReady}" Value="False"><Setter Property="Fill" Value="{StaticResource BrushError}" /></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="{Binding BenchmarkEngineBadgeText}"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource StatusText}"><Style.Triggers><DataTrigger Binding="{Binding IsBenchmarkEngineReady}" Value="False"><Setter Property="Foreground" Value="{StaticResource BrushError}" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></StackPanel></StackPanel><Button Grid.Column="1" Style="{StaticResource SubtleButton}" Content="{Binding OpenBenchmarksText}" Command="{Binding OpenBenchmarksCommand}" VerticalAlignment="Center" Margin="16,0,0,0"/></Grid>
             </Border>
 
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="1.08*" /><ColumnDefinition Width="0.92*" /></Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Style="{StaticResource SectionSurface}" Margin="0,0,12,0">
                     <StackPanel>
-                        <TextBlock Text="{Binding MainStatusTitle}" Style="{StaticResource SectionTitleText}" />
-                        <TextBlock Text="{Binding MainStatusDescription}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,12" />
-
-                        <Border Style="{StaticResource InlineRow}">
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="36" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="&#xE7C3;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Foreground="{StaticResource BrushInformation}" VerticalAlignment="Center" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding ProfileMonitorTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding ProfileMonitorText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" /></StackPanel><Ellipse Grid.Column="2" Width="8" Height="8" Fill="{StaticResource BrushSuccess}" VerticalAlignment="Center" Margin="12,0,0,0" /></Grid>
-                        </Border>
-                        <Border Style="{StaticResource InlineRow}">
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="36" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="&#xEC4A;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Foreground="{StaticResource BrushAccentPrimary}" VerticalAlignment="Center" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding SessionOptimizationTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding SessionAutomationText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" /></StackPanel><Ellipse Grid.Column="2" Width="8" Height="8" Fill="{StaticResource BrushAccentPrimary}" VerticalAlignment="Center" Margin="12,0,0,0" /></Grid>
-                        </Border>
-                        <Border Style="{StaticResource InlineRow}">
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="36" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="&#xE8EF;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Center" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding LastProfileTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding LastProfileText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" /></StackPanel></Grid>
-                        </Border>
-                        <Border Style="{StaticResource InlineRow}" BorderThickness="0">
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="36" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="&#xE8A5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Foreground="{StaticResource BrushWarning}" VerticalAlignment="Center" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding LoggingTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding LoggingText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" /></StackPanel></Grid>
-                        </Border>
+                        <TextBlock Text="{Binding TopProcessesTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding TopProcessesHint}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,12" />
+                        <TextBlock Text="{Binding TopProcessesEmpty}" Style="{StaticResource CaptionText}" Visibility="{Binding HasTopProcesses, Converter={StaticResource InverseBoolToVisibilityConverter}}" Margin="0,0,0,8" />
+                        <ItemsControl ItemsSource="{Binding TopProcesses}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource InlineRow}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Detail}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                                                <ProgressBar Value="{Binding CpuRatio, Mode=OneWay}" Maximum="1" Height="4" Margin="0,6,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="12,0,0,0">
+                                                <TextBlock Text="{Binding CpuText}" Style="{StaticResource DataTitleText}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding MemoryText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Right" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Style="{StaticResource SubtleButton}" Content="{Binding TopProcessesOpenText}" Command="{Binding NavigateMetricCommand}" CommandParameter="Processes" HorizontalAlignment="Left" Margin="0,8,0,8" Visibility="{Binding HasTopProcesses, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
                 </Border>
 
                 <Border Grid.Column="1" Style="{StaticResource SectionSurface}" Margin="12,0,0,0">
                     <StackPanel>
-                        <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding RecentActivityTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Grid.Column="1" Text="{Binding RecentActivityLiveText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Center" /></Grid>
-                        <ItemsControl ItemsSource="{Binding Activity}">
+                        <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding RecentActivityTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Grid.Column="1" Text="{Binding RecentActivityCountText}" Style="{StaticResource StatusText}" VerticalAlignment="Center" /></Grid>
+                        <ItemsControl ItemsSource="{Binding RecentActivity}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource InlineRow}">
@@ -118,6 +194,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <Button Style="{StaticResource SubtleButton}" Content="{Binding OpenLogsText}" Command="{Binding NavigateLogsCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
             </Grid>

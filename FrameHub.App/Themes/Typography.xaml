@@ -1,5 +1,30 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    <!-- Type scale tokens (device-independent px). WPF scales DIPs with system DPI, so one
+         token set covers 100/125/150/200% with no per-DPI sizes; ClearType + Display formatting
+         below keep small sizes crisp. Change a token, not a literal, when the scale evolves. -->
+    <sys:Double x:Key="TypeSizeEyebrow">10.5</sys:Double>
+    <sys:Double x:Key="TypeSizePageTitle">31</sys:Double>
+    <sys:Double x:Key="TypeLinePageTitle">39</sys:Double>
+    <sys:Double x:Key="TypeSizeSubtitle">13.5</sys:Double>
+    <sys:Double x:Key="TypeLineSubtitle">21</sys:Double>
+    <sys:Double x:Key="TypeSizeSection">19</sys:Double>
+    <sys:Double x:Key="TypeLineSection">26</sys:Double>
+    <sys:Double x:Key="TypeSizeData">14</sys:Double>
+    <sys:Double x:Key="TypeLineData">21</sys:Double>
+    <sys:Double x:Key="TypeSizeBody">13.5</sys:Double>
+    <sys:Double x:Key="TypeLineBody">21</sys:Double>
+    <sys:Double x:Key="TypeSizeSecondary">12.5</sys:Double>
+    <sys:Double x:Key="TypeLineSecondary">19</sys:Double>
+    <sys:Double x:Key="TypeSizeCaption">11.5</sys:Double>
+    <sys:Double x:Key="TypeLineCaption">17</sys:Double>
+    <sys:Double x:Key="TypeSizeMetric">35</sys:Double>
+    <sys:Double x:Key="TypeLineMetric">40</sys:Double>
+    <sys:Double x:Key="TypeSizeMetricSecondary">21</sys:Double>
+    <sys:Double x:Key="TypeSizeStatus">11.5</sys:Double>
+    <sys:Double x:Key="TypeSizeCard">15</sys:Double>
+    <sys:Double x:Key="TypeSizeDefault">13</sys:Double>
     <!-- One standard Windows sans-serif family is used for all application text. -->
     <FontFamily x:Key="FrameHubFontFamily">Segoe UI</FontFamily>
     <FontFamily x:Key="FrameHubFontSemiBold">Segoe UI</FontFamily>
@@ -15,7 +40,7 @@
 
     <Style TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontFamily}" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeDefault}" />
         <Setter Property="FontWeight" Value="Normal" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
         <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
@@ -25,70 +50,70 @@
     <Style x:Key="PageEyebrowText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeEyebrow}" />
         <Setter Property="Foreground" Value="{StaticResource BrushAccentPrimary}" />
     </Style>
     <Style x:Key="PageTitleText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontExtraBold}" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="FontSize" Value="31" />
-        <Setter Property="LineHeight" Value="39" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizePageTitle}" />
+        <Setter Property="LineHeight" Value="{StaticResource TypeLinePageTitle}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
     </Style>
     <Style x:Key="PageSubtitleText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontFamily}" />
-        <Setter Property="FontSize" Value="13.5" />
-        <Setter Property="LineHeight" Value="21" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeSubtitle}" />
+        <Setter Property="LineHeight" Value="{StaticResource TypeLineSubtitle}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
     </Style>
     <Style x:Key="SectionTitleText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontBold}" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="FontSize" Value="19" />
-        <Setter Property="LineHeight" Value="26" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeSection}" />
+        <Setter Property="LineHeight" Value="{StaticResource TypeLineSection}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
     </Style>
     <Style x:Key="DataTitleText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="LineHeight" Value="21" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeData}" />
+        <Setter Property="LineHeight" Value="{StaticResource TypeLineData}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
     </Style>
     <Style x:Key="BodyText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontFamily}" />
-        <Setter Property="FontSize" Value="13.5" />
-        <Setter Property="LineHeight" Value="21" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeBody}" />
+        <Setter Property="LineHeight" Value="{StaticResource TypeLineBody}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
     </Style>
     <Style x:Key="SecondaryBodyText" TargetType="TextBlock" BasedOn="{StaticResource BodyText}">
-        <Setter Property="FontSize" Value="12.5" />
-        <Setter Property="LineHeight" Value="19" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeSecondary}" />
+        <Setter Property="LineHeight" Value="{StaticResource TypeLineSecondary}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
     </Style>
     <Style x:Key="CaptionText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontFamily}" />
-        <Setter Property="FontSize" Value="11.5" />
-        <Setter Property="LineHeight" Value="17" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeCaption}" />
+        <Setter Property="LineHeight" Value="{StaticResource TypeLineCaption}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
     </Style>
     <Style x:Key="MetricText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubMetricFontFamily}" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="FontSize" Value="35" />
-        <Setter Property="LineHeight" Value="40" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeMetric}" />
+        <Setter Property="LineHeight" Value="{StaticResource TypeLineMetric}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
     </Style>
     <Style x:Key="SecondaryMetricText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubMetricFontFamily}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="21" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeMetricSecondary}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
     </Style>
     <Style x:Key="MetricUnitText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeCaption}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
     </Style>
 
@@ -97,13 +122,13 @@
     <Style x:Key="StatusText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeStatus}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
     </Style>
     <Style x:Key="CardTitleText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeCard}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
     </Style>
     <Style x:Key="CardValueText" TargetType="TextBlock" BasedOn="{StaticResource MetricText}" />
@@ -111,13 +136,13 @@
     <Style x:Key="TinyCapsText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeEyebrow}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
     </Style>
     <Style x:Key="NavGroupText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeEyebrow}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
     </Style>
 </ResourceDictionary>

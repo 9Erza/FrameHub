@@ -169,7 +169,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            _runtime.AddActivity($"Process list refresh failed: {ex.Message}", "Warn");
+            _runtime.AddActivity(string.Format(_localization.T("Processes.Activity.RefreshFailed"), ex.Message), "Warn");
         }
         finally
         {
@@ -302,7 +302,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
 
         SelectedOptimizationMode = OptimizationMode.CpuSets;
         SetAllCores(true);
-        _runtime.AddActivity($"Nie udało się odczytać obecnego przypisania CPU dla '{SelectedProcess.Name}': {currentSelection.Message}", "Warn");
+        _runtime.AddActivity(string.Format(_localization.T("Processes.Activity.CpuReadFailed"), SelectedProcess.Name, currentSelection.Message), "Warn");
     }
 
     private void ApplySelectedOptimization()
@@ -310,9 +310,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         if (SelectedProcess == null) return;
         var profile = BuildProfileFromSelection(save: false);
         var result = _runtime.ApplyProfileNow(profile, force: true);
-        _runtime.AddActivity(result.HasAnySuccess
-            ? $"Applied temporary optimization for '{SelectedProcess.Name}'."
-            : $"Temporary optimization for '{SelectedProcess.Name}' did not apply.", result.HasAnySuccess ? "Info" : "Warn");
+        _runtime.AddActivity(string.Format(_localization.T(result.HasAnySuccess ? "Processes.Activity.TempApplied" : "Processes.Activity.TempNotApplied"), SelectedProcess.Name), result.HasAnySuccess ? "Info" : "Warn");
     }
 
     private void SaveSelectedProfile()
@@ -321,7 +319,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         var profile = BuildProfileFromSelection(save: true);
         _runtime.UpsertProfile(profile);
         _runtime.ApplyProfileNow(profile, force: true);
-        _runtime.AddActivity($"Saved profile for '{SelectedProcess.Name}'.");
+        _runtime.AddActivity(string.Format(_localization.T("Processes.Activity.ProfileSaved"), SelectedProcess.Name));
     }
 
     private ProcessProfile BuildProfileFromSelection(bool save)

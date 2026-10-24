@@ -65,6 +65,7 @@ public partial class MainWindow : Window
         DataContext = shellViewModel;
         shellViewModel.UiLanguageChanged += (_, _) => RefreshTrayTexts();
         shellViewModel.UserNotificationRequested += ShowBenchmarkNotification;
+        shellViewModel.AboutRequested += ShowAboutDialog;
         shellViewModel.UpdateAvailableRequested += ShowUpdateDialog;
         shellViewModel.Runtime.RuntimeStateChanged += (_, _) => ApplyBenchmarkHotkeyRegistration();
         Loaded += MainWindow_Loaded;
@@ -358,6 +359,11 @@ public partial class MainWindow : Window
         if (gesture is not null && !registered) shell.ReportBenchmarkHotkeyRegistrationFailure();
     }
 
+    private void ShowAboutDialog(string title, string message)
+    {
+        ModernDialogService.ShowInfo(this, title, message);
+    }
+
     private void ShowBenchmarkNotification(string message)
     {
         if (_trayIcon is null) InitializeTrayIcon();
@@ -366,13 +372,48 @@ public partial class MainWindow : Window
         _trayIcon.ShowBalloonTip(2500, "FrameHub", message, WinForms.ToolTipIcon.Info);
     }
 
+    private bool _isNavCollapsed;
+
+    /// <summary>
+    /// Responsive override: narrow windows (&lt;1080px) force the icon rail so all
+    /// destinations stay reachable; the user's manual toggle is restored at full width.
+    /// </summary>
+    private bool _autoCollapsed;
+
+    /// <summary>
+    /// True while the window is too short for brand footers (min-window 880x460).
+    /// Footer stacks collapse via style trigger; navigation and Settings stay visible.
+    /// </summary>
+    public static readonly DependencyProperty IsShortHeightProperty =
+        DependencyProperty.Register(nameof(IsShortHeight), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public bool IsShortHeight
+    {
+        get => (bool)GetValue(IsShortHeightProperty);
+        set => SetValue(IsShortHeightProperty, value);
+    }
+
+    private void ToggleNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isNavCollapsed = !_isNavCollapsed;
+        ApplyNavCollapseState();
+    }
+
+    private void ApplyNavCollapseState()
+    {
+        bool collapsed = _isNavCollapsed || _autoCollapsed;
+        NavigationColumn.Width = new GridLength(collapsed ? 64 : 224);
+        NavigationPane.Padding = collapsed ? new Thickness(8, 18, 8, 14) : new Thickness(12, 18, 12, 14);
+        Tag = !collapsed;
+    }
+
     private void UpdateResponsiveShell()
     {
         bool compact = ActualWidth > 0 && ActualWidth < 1080;
-        NavigationColumn.Width = new GridLength(224);
-        NavigationPane.Padding = new Thickness(12, 18, 12, 14);
         PageHost.Margin = compact ? new Thickness(18, 20, 18, 24) : new Thickness(28, 24, 28, 28);
-        Tag = true;
+        _autoCollapsed = compact;
+        IsShortHeight = ActualHeight > 0 && ActualHeight < 620;
+        ApplyNavCollapseState();
     }
 
     private void HideToTray()
@@ -503,7 +544,7 @@ public partial class MainWindow : Window
         {
             string reason = result.Error ?? result.Status.ToString();
             LoggerService.Instance.Warn($"Restart aborted: {reason}.");
-            try { ViewModel?.Runtime.AddActivity($"Restart aborted: {reason}. Running instance unchanged.", "Warn"); }
+            try { ViewModel?.Runtime.AddActivity(string.Format(ViewModel.Localization.T("Shell.Restart.Aborted"), reason), "Warn"); }
             catch { }
             return;
         }
@@ -577,7 +618,7 @@ public partial class MainWindow : Window
             {
                 settingsService.ResetRestartState();
             }
-            try { ViewModel?.Runtime.AddActivity($"Restart did not complete ({reason}). Previous instance still running — retry is available.", "Warn"); }
+            try { ViewModel?.Runtime.AddActivity(string.Format(ViewModel.Localization.T("Shell.Restart.Incomplete"), reason), "Warn"); }
             catch { }
         }
         catch { }
