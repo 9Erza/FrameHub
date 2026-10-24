@@ -237,13 +237,10 @@
     </ScrollViewer>
 
     <!-- Sticky restore: always visible, disabled with reason outside a session. -->
-    <Border Grid.Row="1" Background="{StaticResource BrushTitlebar}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,1,0,0" Padding="16,10">
+    <Border Grid.Row="1" Background="{StaticResource BrushTitlebar}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,1,0,0" Padding="16,7">
         <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-            <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="{Binding SessionStateDisplay}" Style="{StaticResource DataTitleText}" />
-                <TextBlock Text="{Binding RestoreFooterHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" />
-            </StackPanel>
+            <TextBlock VerticalAlignment="Center" Style="{StaticResource CaptionText}" TextWrapping="Wrap"><Run Text="{Binding SessionStateDisplay, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  ·  " /><Run Text="{Binding RestoreFooterHint, Mode=OneWay}" /></TextBlock>
             <Button Grid.Column="1" Style="{StaticResource SuccessButton}" Content="{Binding StopButtonText}" Command="{Binding StopSessionCommand}" MinWidth="180" VerticalAlignment="Center" Margin="16,0,0,0" AutomationProperties.Name="{Binding StopButtonText}" ToolTip="{Binding RestoreFooterHint}" ToolTipService.ShowOnDisabled="True" />
         </Grid>
     </Border>
