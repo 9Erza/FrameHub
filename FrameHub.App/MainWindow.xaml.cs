@@ -544,7 +544,7 @@ public partial class MainWindow : Window
         {
             string reason = result.Error ?? result.Status.ToString();
             LoggerService.Instance.Warn($"Restart aborted: {reason}.");
-            try { ViewModel?.Runtime.AddActivity($"Restart aborted: {reason}. Running instance unchanged.", "Warn"); }
+            try { ViewModel?.Runtime.AddActivity(string.Format(ViewModel.Localization.T("Shell.Restart.Aborted"), reason), "Warn"); }
             catch { }
             return;
         }
@@ -618,7 +618,7 @@ public partial class MainWindow : Window
             {
                 settingsService.ResetRestartState();
             }
-            try { ViewModel?.Runtime.AddActivity($"Restart did not complete ({reason}). Previous instance still running — retry is available.", "Warn"); }
+            try { ViewModel?.Runtime.AddActivity(string.Format(ViewModel.Localization.T("Shell.Restart.Incomplete"), reason), "Warn"); }
             catch { }
         }
         catch { }

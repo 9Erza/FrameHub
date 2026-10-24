@@ -295,7 +295,7 @@ public sealed class ProfilesViewModel : ViewModelBase
         var updated = BuildProfileFromEditor();
         string selectedId = updated.Id;
         _runtime.UpsertProfile(updated, replaceSameProcessName: false);
-        _runtime.AddActivity($"Zaktualizowano profil '{updated.ProcessName}'.");
+        _runtime.AddActivity(string.Format(_localization.T("Profiles.Activity.Updated"), updated.ProcessName));
 
         SelectedProfile = _runtime.Profiles.FirstOrDefault(p => p.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase));
         RefreshProfiles();

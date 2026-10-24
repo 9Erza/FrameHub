@@ -126,7 +126,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             LaunchReservations,
             SessionOptimizationCoordinator);
 
-        AddActivity("Działanie FrameHub uruchomione.");
+        AddActivity(ActivityText("Activity.Startup"));
         AddActivity(GetWatcherStartupText());
         StartProfileWatcher();
         _ = SyncCompanionServerStateAsync();
@@ -267,7 +267,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         ProfileService.SaveProfiles(Profiles);
         Profiles = ProfileService.LoadProfiles();
         ProfilesChanged?.Invoke(this, EventArgs.Empty);
-        AddActivity($"Zapisano profile: {Profiles.Count}.");
+        AddActivity(string.Format(ActivityText("Activity.ProfilesSaved"), Profiles.Count));
     }
 
     public void UpsertProfile(ProcessProfile profile, bool replaceSameProcessName = true)
@@ -291,14 +291,14 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         SaveProfiles(Profiles.Where(p => !p.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase)).ToList());
         Optimization.ClearProfileCacheForProcess(profile.ProcessName);
-        AddActivity($"Usunięto profil '{profile.ProcessName}'.");
+        AddActivity(string.Format(ActivityText("Activity.ProfileDeleted"), profile.ProcessName));
     }
 
     public OptimizationBatchResult ApplyProfileNow(ProcessProfile profile, bool force = true)
     {
         if (!TryAcquireProfileMutation(out IDisposable? benchmarkLease))
         {
-            AddActivity("Profile mutation blocked while benchmark capture is active or reserved.", "Warn");
+            AddActivity(ActivityText("Activity.MutationBlockedBenchmark"), "Warn");
             return CreateBenchmarkBlockedResult(profile.ProcessName);
         }
 
@@ -309,6 +309,14 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         return result;
         }
     }
+
+    /// <summary>
+    /// Localizes a runtime activity message against the CURRENT settings language on every
+    /// call (static lookup, no cached service instance), so a language switch applies to new
+    /// entries while already recorded history stays untouched. Callers pass values; technical
+    /// details (PIDs, exception text) are preserved as format arguments, never translated.
+    /// </summary>
+    private string ActivityText(string key) => LocalizationService.Translate(key, Settings.Language);
 
     public void AddActivity(string message, string level = "Info")
     {
@@ -416,7 +424,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
                     LastAppliedProfile = result.ProcessName;
                     OptimizedProcessCount = batch.Successful;
                     RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
-                    AddActivity($"Zastosowano profil '{result.ProcessName}' przez monitor w tle: PID={result.ProcessId}, tryb={result.Mode}, priorytet={result.Priority}.");
+                    AddActivity(string.Format(ActivityText("Activity.ProfileAppliedMonitor"), result.ProcessName, result.ProcessId, result.Mode, result.Priority));
                 }
                 else
                 {
@@ -426,7 +434,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         }
         catch (Exception ex)
         {
-            AddActivity($"Monitor profili w tle zgłosił błąd: {ex.Message}", "Warn");
+            AddActivity(string.Format(ActivityText("Activity.MonitorError"), ex.Message), "Warn");
         }
         finally
         {
@@ -441,15 +449,15 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             LastAppliedProfile = processName;
             OptimizedProcessCount = batch.Successful;
             RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
-            AddActivity($"Zastosowano profil '{processName}' ({source}): {batch.Successful}/{batch.Total} instancji.");
+            AddActivity(string.Format(ActivityText("Activity.ProfileAppliedSource"), processName, source, batch.Successful, batch.Total));
         }
         else if (batch.Total > 0)
         {
-            AddActivity($"Profil '{processName}' nie został zastosowany do żadnej uruchomionej instancji ({source}).", "Warn");
+            AddActivity(string.Format(ActivityText("Activity.ProfileNoInstance"), processName, source), "Warn");
         }
         else
         {
-            AddActivity($"Nie znaleziono uruchomionego procesu dla profilu '{processName}'.", "Warn");
+            AddActivity(string.Format(ActivityText("Activity.ProfileNoProcess"), processName), "Warn");
         }
     }
 
@@ -462,8 +470,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         }
 
         _failureLogThrottle[key] = DateTime.UtcNow;
-        string adminHint = result.RequiresAdmin ? " Może to wymagać uprawnień administratora albo proces jest chroniony." : string.Empty;
-        AddActivity($"Nie udało się zastosować profilu '{result.ProcessName}': PID={result.ProcessId}, powód={result.Message}.{adminHint}", "Warn");
+        string adminHint = result.RequiresAdmin ? ActivityText("Activity.ProfileApplyFailedAdminHint") : string.Empty;
+        AddActivity(string.Format(ActivityText("Activity.ProfileApplyFailed"), result.ProcessName, result.ProcessId, result.Message, adminHint), "Warn");
     }
 
     private void LogBenchmarkWatcherSkip()
@@ -476,7 +484,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         }
 
         _failureLogThrottle[key] = DateTime.UtcNow;
-        AddActivity("Automatic profile mutation skipped while benchmark capture is active or reserved.", "Warn");
+        AddActivity(ActivityText("Activity.AutoMutationSkippedBenchmark"), "Warn");
     }
 
     private static OptimizationBatchResult CreateBenchmarkBlockedResult(string processName) => new()
@@ -501,8 +509,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         var enabled = Profiles.Where(p => p.IsEnabled).Select(p => p.ProcessName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         return enabled.Count == 0
-            ? "Monitor profili w tle aktywny. Brak włączonych profili."
-            : $"Monitor profili w tle aktywny dla {enabled.Count} włączonych profili: {string.Join(", ", enabled)}.";
+            ? ActivityText("Activity.WatcherIdle")
+            : string.Format(ActivityText("Activity.WatcherActive"), enabled.Count, string.Join(", ", enabled));
     }
 
     private void ConfigureLoggerFromSettings()

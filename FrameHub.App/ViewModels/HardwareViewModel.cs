@@ -269,7 +269,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            if (!cancellation.IsCancellationRequested) _runtime.AddActivity($"Hardware monitor update failed: {ex.Message}", "Warn");
+            if (!cancellation.IsCancellationRequested) _runtime.AddActivity(string.Format(_localization.T("Hardware.Activity.UpdateFailed"), ex.Message), "Warn");
         }
         finally
         {

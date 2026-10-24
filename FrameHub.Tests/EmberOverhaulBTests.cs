@@ -156,6 +156,24 @@ public sealed class EmberOverhaulBTests
     }
 
     [TestMethod]
+    public void RuntimeActivity_FollowsSettingsLanguage()
+    {
+        string plPath = Path.Combine(_tempDirectory, "settings-activity-pl.json");
+        File.WriteAllText(plPath, "{\"Language\":\"pl\"}");
+        using var runtimePl = new AppRuntimeService(plPath);
+        Assert.IsTrue(runtimePl.Activity.Count >= 2, "Startup must record the launch + watcher entries.");
+        StringAssert.Contains(runtimePl.Activity[1].Message, "Dzia\u0142anie FrameHub uruchomione.");
+        StringAssert.Contains(runtimePl.Activity[0].Message, "Monitor profili w tle aktywny");
+
+        string enPath = Path.Combine(_tempDirectory, "settings-activity-en.json");
+        File.WriteAllText(enPath, "{\"Language\":\"en\"}");
+        using var runtimeEn = new AppRuntimeService(enPath);
+        Assert.IsTrue(runtimeEn.Activity.Count >= 2);
+        StringAssert.Contains(runtimeEn.Activity[1].Message, "FrameHub runtime started.");
+        StringAssert.Contains(runtimeEn.Activity[0].Message, "Background profile monitor active");
+    }
+
+    [TestMethod]
     public void Benchmark_SendToCompare_PresetsSelectedAndOpensCompareTab()
     {
         var storage = new BenchmarkStorageService(_tempDirectory);
@@ -205,7 +223,15 @@ public sealed class EmberOverhaulBTests
             "Session.Steps.Restore", "Session.Footer.RestoreReady", "Session.Footer.RestoreIdle", "Session.Start.NeedsGame",
             "Benchmark.Engine.ReadyHint", "Benchmark.Engine.NoService",
             "Benchmark.Steps.Title", "Benchmark.Steps.Game", "Benchmark.Steps.Engine", "Benchmark.Steps.Config",
-            "Benchmark.Steps.Start", "Benchmark.History.SendToCompare", "Benchmark.History.ExportNote"
+            "Benchmark.Steps.Start", "Benchmark.History.SendToCompare", "Benchmark.History.ExportNote",
+            "Activity.Startup", "Activity.WatcherIdle", "Activity.WatcherActive", "Activity.ProfilesSaved",
+            "Activity.ProfileDeleted", "Activity.MutationBlockedBenchmark", "Activity.ProfileAppliedMonitor",
+            "Activity.MonitorError", "Activity.ProfileAppliedSource", "Activity.ProfileNoInstance",
+            "Activity.ProfileNoProcess", "Activity.ProfileApplyFailed", "Activity.ProfileApplyFailedAdminHint",
+            "Activity.AutoMutationSkippedBenchmark", "Shell.Restart.Aborted", "Shell.Restart.Incomplete",
+            "Hardware.Activity.UpdateFailed", "Processes.Activity.RefreshFailed", "Processes.Activity.CpuReadFailed",
+            "Processes.Activity.TempApplied", "Processes.Activity.TempNotApplied", "Processes.Activity.ProfileSaved",
+            "Profiles.Activity.Updated",
         ];
         foreach (string key in keys)
         {

@@ -1194,7 +1194,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         string userMessage = result.Success
             ? string.Format(_localization.T("CS2.Operation.ApplySuccess"), result.AppliedChanges, result.BackupFolder)
             : _localization.T("CS2.Operation.ApplyFailed");
-        _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
+        _runtime.AddActivity(result.Success ? userMessage : userMessage + Environment.NewLine + result.Message, result.Success ? "Info" : "Warn");
         AnalyzeCs2IfSelected();
         Cs2StatusMessage = userMessage;
         message = userMessage;
@@ -1720,7 +1720,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         Cs2AutoexecStatusMessage = result.Success
             ? string.Format(_localization.T("CS2.Operation.AutoexecSaved"), _cs2Service.GetAutoexecPath(_cs2Analysis))
             : _localization.T("CS2.Operation.AutoexecSaveFailed");
-        _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
+        _runtime.AddActivity(result.Success ? Cs2AutoexecStatusMessage : Cs2AutoexecStatusMessage + Environment.NewLine + result.Message, result.Success ? "Info" : "Warn");
         OnPropertyChanged(nameof(Cs2AutoexecPath));
     }
 
@@ -1894,7 +1894,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         string userMessage = result.Success
             ? string.Format(_localization.T("CS2.Operation.BackupSuccess"), result.BackupFolder)
             : _localization.T("CS2.Operation.BackupFailed");
-        _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
+        _runtime.AddActivity(result.Success ? userMessage : userMessage + Environment.NewLine + result.Message, result.Success ? "Info" : "Warn");
         if (result.Success)
         {
             AnalyzeCs2IfSelected();
@@ -1920,7 +1920,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
                 ? (IsPolish ? "Wybrane wartości są już ustawione. Nie zmieniono plików ani nie utworzono nowej kopii." : "The selected values are already set. No files were changed and no new backup was created.")
                 : string.Format(_localization.T("CS2.Operation.ApplySuccess"), result.AppliedChanges, result.BackupFolder))
             : _localization.T("CS2.Operation.ApplyFailed") + Environment.NewLine + result.Message;
-        _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
+        _runtime.AddActivity(userMessage, result.Success ? "Info" : "Warn");
 
         if (result.Success && wasCustomPreset)
         {
@@ -1948,7 +1948,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         Cs2StatusMessage = result.Success
             ? _localization.T("CS2.Operation.RestoreSuccess")
             : _localization.T("CS2.Operation.RestoreFailed") + Environment.NewLine + result.Message;
-        _runtime.AddActivity(result.Message, result.Success ? "Info" : "Warn");
+        _runtime.AddActivity(Cs2StatusMessage, result.Success ? "Info" : "Warn");
     }
 
     private void OnCs2ProcessTimerTick(object? sender, EventArgs e) => RefreshCs2ProcessState();
