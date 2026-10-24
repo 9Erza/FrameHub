@@ -23,6 +23,22 @@ namespace FrameHub.Core.Services
         private readonly ITaskSchedulerQuery _taskSchedulerQuery = new TaskSchedulerComQuery();
         private readonly ILogger _logger = LoggerService.Instance;
         private bool _disposed;
+        private int _restartInFlight;
+
+        public enum RestartStatus { Started, AlreadyInProgress, InvalidExecutable, Failed }
+
+        public sealed record RestartResult(RestartStatus Status, int? ProcessId, string? Error);
+
+        /// <summary>
+        /// Startup flags safe to forward to a successor instance. Anything else is
+        /// dropped: the successor must start from an explicit, auditable argument
+        /// list, never from an opaque copy of the current command line.
+        /// </summary>
+        public static readonly HashSet<string> ForwardedRestartArguments = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "--tray",
+            "--minimized"
+        };
 
         public string SettingsFilePath => _filePath;
 
@@ -224,6 +240,81 @@ namespace FrameHub.Core.Services
             {
                 _logger.Warn($"Administrator restart cancelled or failed: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Starts a successor instance of this exact executable for a cooperative
+        /// restart (Researcher R1). The successor is started BEFORE the caller runs
+        /// graceful shutdown, so a failed start never costs the running instance:
+        /// any non-<c>Started</c> result means "do not exit". Only whitelisted
+        /// startup flags are forwarded, the executable path is verified (never a
+        /// composed shell command), and concurrent restart requests collapse into
+        /// <c>AlreadyInProgress</c> (single-flight). A timeout or shutdown failure
+        /// after <c>Started</c> is the caller's explicit error — never a blind kill.
+        /// </summary>
+        public RestartResult TryStartSuccessorProcess(IEnumerable<string>? forwardedArgs)
+        {
+            if (Interlocked.CompareExchange(ref _restartInFlight, 1, 0) != 0)
+            {
+                return new(RestartStatus.AlreadyInProgress, null, "A restart is already in progress.");
+            }
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_exePath) || !File.Exists(_exePath))
+                {
+                    ResetRestartState();
+                    _logger.Warn($"Restart rejected: current executable path is invalid ('{_exePath}').");
+                    return new(RestartStatus.InvalidExecutable, null, "Current executable path is invalid.");
+                }
+
+                string arguments = BuildSuccessorArguments(forwardedArgs);
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = _exePath,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var successor = Process.Start(startInfo);
+                if (successor == null)
+                {
+                    ResetRestartState();
+                    return new(RestartStatus.Failed, null, "Could not start the successor process.");
+                }
+
+                // Single-flight stays armed: the process is expected to exit via
+                // graceful shutdown next. ResetRestartState recovers if it does not.
+                _logger.Info($"Restart successor started (PID {successor.Id}, args '{arguments}').");
+                return new(RestartStatus.Started, successor.Id, null);
+            }
+            catch (Exception ex)
+            {
+                ResetRestartState();
+                _logger.Warn($"Restart successor failed to start: {ex.Message}");
+                return new(RestartStatus.Failed, null, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Releases the restart single-flight (shutdown failure recovery and tests).
+        /// </summary>
+        public void ResetRestartState() => Interlocked.Exchange(ref _restartInFlight, 0);
+
+        /// <summary>
+        /// Builds the successor command line from whitelisted flags only.
+        /// Unknown or missing flags are dropped, never passed through.
+        /// </summary>
+        public static string BuildSuccessorArguments(IEnumerable<string>? forwardedArgs)
+        {
+            if (forwardedArgs == null) return string.Empty;
+            var selected = forwardedArgs
+                .Where(arg => !string.IsNullOrWhiteSpace(arg) && ForwardedRestartArguments.Contains(arg.Trim()))
+                .Select(arg => arg.Trim().ToLowerInvariant())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            return string.Join(" ", selected);
         }
 
         private static AppSettings SanitizeSettings(AppSettings settings)

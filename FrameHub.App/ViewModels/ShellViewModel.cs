@@ -79,6 +79,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public string TrayBenchmarksText => _localization.T("Tray.Benchmarks");
     public string TrayHardwareText => _localization.T("Tray.Hardware");
     public string TraySettingsText => _localization.T("Tray.Settings");
+    public string TrayRestartText => _localization.T("Tray.Restart");
     public string TrayExitText => _localization.T("Tray.Exit");
     public string ProjectVersionLabel => $"FrameHub {AppVersion}";
 
@@ -216,6 +217,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(TrayBenchmarksText));
         OnPropertyChanged(nameof(TrayHardwareText));
         OnPropertyChanged(nameof(TraySettingsText));
+        OnPropertyChanged(nameof(TrayRestartText));
         OnPropertyChanged(nameof(TrayExitText));
     }
 

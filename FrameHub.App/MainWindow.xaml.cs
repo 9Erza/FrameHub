@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private WinForms.ToolStripMenuItem? _trayHardwareItem;
     private WinForms.ToolStripMenuItem? _traySettingsItem;
     private WinForms.ToolStripSeparator? _traySeparatorItem;
+    private WinForms.ToolStripMenuItem? _trayRestartItem;
     private WinForms.ToolStripMenuItem? _trayExitItem;
 
     private bool _isExitRequested;
@@ -177,12 +178,14 @@ public partial class MainWindow : Window
         });
 
         _traySeparatorItem = new WinForms.ToolStripSeparator();
+        _trayRestartItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayRestartText ?? "Restart FrameHub", null, (_, _) => RestartApplication());
         _trayExitItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayExitText ?? "Exit FrameHub", null, (_, _) => ExitApplication());
 
         menu.Items.Add(_trayHeaderItem);
         menu.Items.Add(_trayOpenItem);
         menu.Items.Add(_trayGoToItem);
         menu.Items.Add(_traySeparatorItem);
+        menu.Items.Add(_trayRestartItem);
         menu.Items.Add(_trayExitItem);
 
         _trayIcon = new WinForms.NotifyIcon
@@ -339,6 +342,7 @@ public partial class MainWindow : Window
         if (_trayBenchmarksItem != null) _trayBenchmarksItem.Text = ViewModel?.TrayBenchmarksText ?? "Benchmarks";
         if (_trayHardwareItem != null) _trayHardwareItem.Text = ViewModel?.TrayHardwareText ?? "Hardware Monitor";
         if (_traySettingsItem != null) _traySettingsItem.Text = ViewModel?.TraySettingsText ?? "Settings";
+        if (_trayRestartItem != null) _trayRestartItem.Text = ViewModel?.TrayRestartText ?? "Restart FrameHub";
         if (_trayExitItem != null) _trayExitItem.Text = ViewModel?.TrayExitText ?? "Exit FrameHub";
     }
 
@@ -469,6 +473,38 @@ public partial class MainWindow : Window
 
     private void ExitApplication()
     {
+        _isExitRequested = true;
+        if (_trayIcon != null)
+        {
+            _trayIcon.Visible = false;
+        }
+        _ = PerformGracefulShutdownAsync();
+    }
+
+    /// <summary>
+    /// Cooperative restart (Researcher R1): start the verified successor FIRST,
+    /// then run the standard graceful shutdown and exit. Any non-success start
+    /// result aborts the restart — the running instance is never exited on a
+    /// failed start, and a shutdown timeout is a loud error, never a blind kill.
+    /// </summary>
+    private void RestartApplication()
+    {
+        if (ViewModel?.Runtime.SettingsService is not { } settingsService)
+        {
+            LoggerService.Instance.Warn("Restart unavailable: settings service is not initialized.");
+            return;
+        }
+
+        string[] forwarded = Environment.GetCommandLineArgs()
+            .Where(arg => SettingsService.ForwardedRestartArguments.Contains(arg?.Trim() ?? string.Empty))
+            .ToArray();
+        SettingsService.RestartResult result = settingsService.TryStartSuccessorProcess(forwarded);
+        if (result.Status != SettingsService.RestartStatus.Started)
+        {
+            LoggerService.Instance.Warn($"Restart aborted: {result.Error ?? result.Status.ToString()}.");
+            return;
+        }
+
         _isExitRequested = true;
         if (_trayIcon != null)
         {
