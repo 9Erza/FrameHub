@@ -30,8 +30,14 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private readonly Dispatcher _uiDispatcher;
     private bool _disposed;
     public Action? BenchmarkNavigationRequested { get; set; }
+    public Action? LibraryNavigationRequested { get; set; }
+    public Action<string>? NavigationRequested { get; set; }
     public ICommand OpenBenchmarksCommand { get; }
     public ICommand StartGamingModeCommand { get; }
+    public ICommand NavigateLibraryCommand { get; }
+    public ICommand NavigateMetricCommand { get; }
+    public ICommand NavigateLogsCommand { get; }
+    public ICommand NavigateHowItWorksCommand { get; }
     public ICommand RestoreGamingModeCommand { get; }
 
     public string Title => _localization.T("Dashboard.Title");
@@ -61,8 +67,57 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public string LatestBenchmarkResult { get; private set; } = string.Empty;
     public string OpenBenchmarksText => _localization.T("Dashboard.Benchmark.Open");
 
+    private bool _isBenchmarkEngineReady = true;
+
+    /// <summary>
+    /// Pushed by the shell from the benchmark owner; dashboard never probes the engine itself.
+    /// </summary>
+    public bool IsBenchmarkEngineReady
+    {
+        get => _isBenchmarkEngineReady;
+        set
+        {
+            if (SetProperty(ref _isBenchmarkEngineReady, value))
+            {
+                OnPropertyChanged(nameof(BenchmarkEngineBadgeText));
+            }
+        }
+    }
+
+    public string BenchmarkEngineBadgeText => _isBenchmarkEngineReady
+        ? _localization.T("Benchmark.Engine.Ready")
+        : _localization.T("Dashboard.Benchmark.EngineDown");
+    public string HeroScanLibraryText => _localization.T("Dashboard.Hero.ScanLibrary");
+    public string HeroHowItWorksText => _localization.T("Dashboard.Hero.HowItWorks");
+    public string HeroNoGamesDetail => _localization.T("Dashboard.Hero.NoGamesDetail");
+    public string TopProcessesTitle => _localization.T("Dashboard.TopProcesses.Title");
+    public string TopProcessesHint => _localization.T("Dashboard.TopProcesses.Hint");
+    public string TopProcessesEmpty => _localization.T("Dashboard.TopProcesses.Empty");
+    public string OpenLogsText => _localization.T("Dashboard.OpenLogs");
+    public string RecentActivityCountText => string.Format(_localization.T("Dashboard.RecentActivity.Count"), Activity.Count);
+
+    public bool IsLiveActive => _gamingSession?.IsActive == true;
+    public string ActivityLiveBadgeText => IsLiveActive
+        ? _localization.T("Status.Live")
+        : string.Format(_localization.T("Dashboard.Monitor.IdleBadge"), _runtime.Profiles.Count(p => p.IsEnabled));
+
     public ObservableCollection<MetricCardViewModel> Metrics { get; } = new();
     public ObservableCollection<ActivityItemViewModel> Activity => _runtime.Activity;
+
+    /// <summary>
+    /// Display-only preview of the busiest processes (same sampler as Processes view, no mutation).
+    /// </summary>
+    public ObservableCollection<TopProcessRow> TopProcesses { get; } = new();
+    public bool HasTopProcesses => TopProcesses.Count > 0;
+
+    public sealed class TopProcessRow
+    {
+        public required string Name { get; init; }
+        public required string Detail { get; init; }
+        public required string CpuText { get; init; }
+        public required string MemoryText { get; init; }
+        public required double CpuRatio { get; init; }
+    }
 
     public IReadOnlyList<LibraryItem> GamingGames { get; private set; } = Array.Empty<LibraryItem>();
     public bool HasGamingGames => GamingGames.Count > 0;
@@ -140,6 +195,14 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         _runtime = runtime;
         _uiDispatcher = Dispatcher.CurrentDispatcher;
         OpenBenchmarksCommand = new RelayCommand(_ => BenchmarkNavigationRequested?.Invoke());
+        NavigateLibraryCommand = new RelayCommand(_ =>
+        {
+            if (NavigationRequested is not null) NavigationRequested("Library");
+            else LibraryNavigationRequested?.Invoke();
+        });
+        NavigateLogsCommand = new RelayCommand(key => NavigationRequested?.Invoke("Logs"));
+        NavigateHowItWorksCommand = new RelayCommand(key => NavigationRequested?.Invoke("Session"));
+        NavigateMetricCommand = new RelayCommand(key => NavigationRequested?.Invoke(key?.ToString() ?? "Dashboard"));
         StartGamingModeCommand = new RelayCommand(
             async _ => await StartGamingModeAsync(),
             _ => !_isGamingBusy && !_isRestoreBusy && SelectedGamingGame != null && !IsGamingModeActive);
@@ -158,6 +221,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public void ActivateGamingSection()
     {
         _ = RefreshGamingStateAsync();
+        _ = RefreshTopProcessesAsync();
     }
 
     private void OnCoordinatorSessionStateChanged(object? sender, ActiveSessionState? session)
@@ -170,6 +234,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(IsGamingModeActive));
             OnPropertyChanged(nameof(ShowGamingSelector));
             OnPropertyChanged(nameof(GamingModeDetail));
+            OnPropertyChanged(nameof(IsLiveActive));
+            OnPropertyChanged(nameof(ActivityLiveBadgeText));
         });
     }
 
@@ -239,11 +305,61 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(IsGamingModeActive));
             OnPropertyChanged(nameof(ShowGamingSelector));
             OnPropertyChanged(nameof(GamingModeDetail));
+            OnPropertyChanged(nameof(IsLiveActive));
+            OnPropertyChanged(nameof(ActivityLiveBadgeText));
         }
         catch
         {
             // Library load or observation unavailable; keep the last presented state.
         }
+    }
+
+    /// <summary>
+    /// One bounded observation snapshot for the Top-CPU preview. Display only — never a mutation input.
+    /// </summary>
+    public async Task RefreshTopProcessesAsync()
+    {
+        try
+        {
+            var snapshot = await _runtime.ProcessScanner.ScanUserProcessesAsync().ConfigureAwait(false);
+            var top = snapshot.Groups
+                .OrderByDescending(group => group.CpuUsagePercent)
+                .Take(3)
+                .Select(group => new TopProcessRow
+                {
+                    Name = group.Name,
+                    Detail = string.Format(
+                        CultureInfo.CurrentCulture,
+                        _localization.T("Dashboard.TopProcesses.RowDetail"),
+                        group.FirstProcessId,
+                        group.InstanceCount),
+                    CpuText = string.Format(CultureInfo.CurrentCulture, "{0:N1}%", group.CpuUsagePercent),
+                    MemoryText = FormatMegabytes(group.TotalMemoryBytes),
+                    CpuRatio = Math.Clamp(group.CpuUsagePercent / 100.0, 0.0, 1.0)
+                })
+                .ToList();
+            DispatchIfRequired(() =>
+            {
+                if (_disposed) return;
+                TopProcesses.Clear();
+                foreach (var row in top)
+                {
+                    TopProcesses.Add(row);
+                }
+
+                OnPropertyChanged(nameof(HasTopProcesses));
+            });
+        }
+        catch
+        {
+            // Observation unavailable; keep the last preview (possibly empty).
+        }
+    }
+
+    private static string FormatMegabytes(long bytes)
+    {
+        double megabytes = bytes / 1048576.0;
+        return string.Format(CultureInfo.CurrentCulture, "{0:N0} MB", megabytes);
     }
 
     private async Task RefreshSelectedGameRunningStateAsync()
@@ -421,7 +537,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             Title = _localization.T("Metric.BackgroundWatcher.Title"),
             Value = _runtime.IsProfileWatcherActive ? _localization.T("Metric.BackgroundWatcher.ValueActive") : _localization.T("Metric.BackgroundWatcher.ValueOff"),
             Detail = string.Format(_localization.T("Metric.BackgroundWatcher.Detail"), enabledProfiles, totalProfiles),
-            Accent = "#22C55E"
+            Accent = "#48C998",
+            TargetKey = "Profiles"
         });
         Metrics.Add(new MetricCardViewModel
         {
@@ -430,21 +547,24 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             Detail = sessionSettings.AutoModeEnabled
                 ? string.Format(_localization.T("Metric.SessionOptimization.DetailAuto"), autoGames)
                 : _localization.T("Metric.SessionOptimization.DetailManual"),
-            Accent = "#06B6D4"
+            Accent = "#F2A93B",
+            TargetKey = "Session"
         });
         Metrics.Add(new MetricCardViewModel
         {
             Title = _localization.T("Metric.Profiles.Title"),
-            Value = totalProfiles.ToString(),
+            Value = totalProfiles.ToString(CultureInfo.CurrentCulture),
             Detail = string.IsNullOrWhiteSpace(_runtime.LastAppliedProfile) ? _localization.T("Metric.Profiles.Detail") : _runtime.LastAppliedProfile,
-            Accent = "#3B82F6"
+            Accent = "#7FA8D9",
+            TargetKey = "Profiles"
         });
         Metrics.Add(new MetricCardViewModel
         {
             Title = _localization.T("Dashboard.LibraryMetric.Title"),
-            Value = libraryGames.ToString(),
+            Value = libraryGames.ToString(CultureInfo.CurrentCulture),
             Detail = _localization.T("Dashboard.LibraryMetric.Detail"),
-            Accent = "#F59E0B"
+            Accent = "#F2A93B",
+            TargetKey = "Library"
         });
 
         OnPropertyChanged(nameof(Title));
@@ -472,6 +592,17 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(LatestBenchmarkGame));
         OnPropertyChanged(nameof(LatestBenchmarkResult));
         OnPropertyChanged(nameof(OpenBenchmarksText));
+        OnPropertyChanged(nameof(BenchmarkEngineBadgeText));
+        OnPropertyChanged(nameof(HeroScanLibraryText));
+        OnPropertyChanged(nameof(HeroHowItWorksText));
+        OnPropertyChanged(nameof(HeroNoGamesDetail));
+        OnPropertyChanged(nameof(TopProcessesTitle));
+        OnPropertyChanged(nameof(TopProcessesHint));
+        OnPropertyChanged(nameof(TopProcessesEmpty));
+        OnPropertyChanged(nameof(OpenLogsText));
+        OnPropertyChanged(nameof(RecentActivityCountText));
+        OnPropertyChanged(nameof(IsLiveActive));
+        OnPropertyChanged(nameof(ActivityLiveBadgeText));
         OnPropertyChanged(nameof(GamingTitle));
         OnPropertyChanged(nameof(GamingDescription));
         OnPropertyChanged(nameof(GamingEmptyText));

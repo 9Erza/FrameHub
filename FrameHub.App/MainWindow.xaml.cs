@@ -65,6 +65,7 @@ public partial class MainWindow : Window
         DataContext = shellViewModel;
         shellViewModel.UiLanguageChanged += (_, _) => RefreshTrayTexts();
         shellViewModel.UserNotificationRequested += ShowBenchmarkNotification;
+        shellViewModel.AboutRequested += ShowAboutDialog;
         shellViewModel.UpdateAvailableRequested += ShowUpdateDialog;
         shellViewModel.Runtime.RuntimeStateChanged += (_, _) => ApplyBenchmarkHotkeyRegistration();
         Loaded += MainWindow_Loaded;
@@ -358,6 +359,11 @@ public partial class MainWindow : Window
         if (gesture is not null && !registered) shell.ReportBenchmarkHotkeyRegistrationFailure();
     }
 
+    private void ShowAboutDialog(string title, string message)
+    {
+        ModernDialogService.ShowInfo(this, title, message);
+    }
+
     private void ShowBenchmarkNotification(string message)
     {
         if (_trayIcon is null) InitializeTrayIcon();
@@ -366,13 +372,26 @@ public partial class MainWindow : Window
         _trayIcon.ShowBalloonTip(2500, "FrameHub", message, WinForms.ToolTipIcon.Info);
     }
 
+    private bool _isNavCollapsed;
+
+    private void ToggleNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isNavCollapsed = !_isNavCollapsed;
+        ApplyNavCollapseState();
+    }
+
+    private void ApplyNavCollapseState()
+    {
+        NavigationColumn.Width = new GridLength(_isNavCollapsed ? 64 : 224);
+        NavigationPane.Padding = _isNavCollapsed ? new Thickness(8, 18, 8, 14) : new Thickness(12, 18, 12, 14);
+        Tag = !_isNavCollapsed;
+    }
+
     private void UpdateResponsiveShell()
     {
         bool compact = ActualWidth > 0 && ActualWidth < 1080;
-        NavigationColumn.Width = new GridLength(224);
-        NavigationPane.Padding = new Thickness(12, 18, 12, 14);
         PageHost.Margin = compact ? new Thickness(18, 20, 18, 24) : new Thickness(28, 24, 28, 28);
-        Tag = true;
+        ApplyNavCollapseState();
     }
 
     private void HideToTray()

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,6 +20,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public event EventHandler? UiLanguageChanged;
     public event Action<string>? UserNotificationRequested;
     public event Action<UpdateCheckResult>? UpdateAvailableRequested;
+    public event Action<string, string>? AboutRequested;
+    public ICommand OpenAboutCommand { get; }
     private readonly LocalizationService _localization;
     private readonly SettingsService _settingsService;
     private readonly AppRuntimeService _runtime;
@@ -60,6 +63,20 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public string CoreFoundationStatus => _localization.T("Status.CoreMigrated");
     public bool IsWatcherActive => _runtime.IsProfileWatcherActive;
     public string WatcherStatus => _runtime.IsProfileWatcherActive ? _localization.T("Status.WatcherActive") : _localization.T("Status.WatcherInactive");
+    public bool IsSessionActive => _runtime.SessionOptimizationCoordinator.ActiveSession?.IsActive == true;
+    public bool IsRecoveryPending => _runtime.SessionOptimizationCoordinator.ActiveSession?.IsRecoveryPending == true;
+    public string SessionStatus => IsRecoveryPending
+        ? _localization.T("Session.State.Recovery")
+        : IsSessionActive
+            ? _localization.T("Session.State.Active")
+            : _localization.T("Session.State.Idle");
+    public string SessionPillText => string.Format(_localization.T("Shell.Session.Pill"), SessionStatus);
+    public string EngineFooterText => string.Format(
+        _localization.T("Shell.Footer.PresentMon"),
+        _benchmarkViewModel.EngineReady ? _localization.T("Benchmark.Engine.Ready") : _localization.T("Benchmark.Unavailable"));
+    public string FooterLicenseText => string.Format(_localization.T("Shell.Footer.License"), AppVersion);
+    public string ToggleNavTooltip => _localization.T("Shell.ToggleNav");
+    public string AboutTooltip => _localization.T("Shell.About");
     public string MinimizeTooltip => _localization.T("Window.Minimize");
     public string MaximizeRestoreTooltip => _localization.T("Window.MaximizeRestore");
     public string CloseTooltip => _localization.T("Window.Close");
@@ -127,12 +144,30 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         {
             OnPropertyChanged(nameof(IsWatcherActive));
             OnPropertyChanged(nameof(WatcherStatus));
+            UpdateProfilesBadge();
         };
         _runtime.ProfilesChanged += (_, _) =>
         {
             _dashboardViewModel.RefreshTexts();
             _libraryViewModel.RefreshTexts();
+            UpdateProfilesBadge();
         };
+        _runtime.SessionOptimizationCoordinator.SessionStateChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsSessionActive));
+            OnPropertyChanged(nameof(IsRecoveryPending));
+            OnPropertyChanged(nameof(SessionStatus));
+            OnPropertyChanged(nameof(SessionPillText));
+        };
+        _benchmarkViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(BenchmarkViewModel.EngineReady) or nameof(BenchmarkViewModel.EngineStatus))
+            {
+                OnPropertyChanged(nameof(EngineFooterText));
+                _dashboardViewModel.IsBenchmarkEngineReady = _benchmarkViewModel.EngineReady;
+            }
+        };
+        _libraryViewModel.Items.CollectionChanged += (_, _) => UpdateLibraryBadge();
 
         NavigationItems = new ObservableCollection<NavigationItemViewModel>
         {
@@ -165,6 +200,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OpenAuthorCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Author));
         OpenWebsiteCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Website));
         OpenSupportCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Support));
+        OpenAboutCommand = new RelayCommand(_ => ShowAbout());
 
         _libraryViewModel.BenchmarkRequested += item =>
         {
@@ -174,9 +210,48 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _runtime.RuntimeStateChanged += (_, _) => _benchmarkViewModel.RefreshHotkeyStatus();
         _benchmarkViewModel.UserNotificationRequested += message => UserNotificationRequested?.Invoke(message);
         _dashboardViewModel.BenchmarkNavigationRequested = () => Navigate("Benchmarks");
+        _dashboardViewModel.LibraryNavigationRequested = () => Navigate("Library");
+        _dashboardViewModel.NavigationRequested = key => Navigate(key);
+        _dashboardViewModel.IsBenchmarkEngineReady = _benchmarkViewModel.EngineReady;
 
         _currentViewModel = _dashboardViewModel;
+        UpdateLibraryBadge();
+        UpdateProfilesBadge();
         Navigate("Dashboard");
+    }
+
+    private void UpdateLibraryBadge()
+    {
+        var library = NavigationItems.FirstOrDefault(item => item.Key == "Library");
+        if (library is null)
+        {
+            return;
+        }
+
+        int count = _libraryViewModel.Items.Count;
+        library.CountBadge = count > 0 ? count.ToString(CultureInfo.CurrentCulture) : string.Empty;
+    }
+
+    private void UpdateProfilesBadge()
+    {
+        var profiles = NavigationItems.FirstOrDefault(item => item.Key == "Profiles");
+        if (profiles is null)
+        {
+            return;
+        }
+
+        int total = _runtime.Profiles.Count;
+        profiles.CountBadge = total > 0 ? total.ToString(CultureInfo.CurrentCulture) : string.Empty;
+    }
+
+    private void ShowAbout()
+    {
+        string message = string.Format(
+            _localization.T("Shell.About.Message"),
+            AppVersion,
+            _localization.T("Footer.AuthorLabel"),
+            _localization.T("Footer.Website"));
+        AboutRequested?.Invoke(_localization.T("Shell.About.Title"), message);
     }
 
     private void RefreshTexts()
@@ -198,6 +273,16 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CoreFoundationStatus));
         OnPropertyChanged(nameof(IsWatcherActive));
         OnPropertyChanged(nameof(WatcherStatus));
+        OnPropertyChanged(nameof(IsSessionActive));
+        OnPropertyChanged(nameof(IsRecoveryPending));
+        OnPropertyChanged(nameof(SessionStatus));
+        OnPropertyChanged(nameof(SessionPillText));
+        OnPropertyChanged(nameof(EngineFooterText));
+        OnPropertyChanged(nameof(FooterLicenseText));
+        OnPropertyChanged(nameof(ToggleNavTooltip));
+        OnPropertyChanged(nameof(AboutTooltip));
+        UpdateLibraryBadge();
+        UpdateProfilesBadge();
         OnPropertyChanged(nameof(MinimizeTooltip));
         OnPropertyChanged(nameof(MaximizeRestoreTooltip));
         OnPropertyChanged(nameof(CloseTooltip));
