@@ -303,6 +303,29 @@ namespace FrameHub.Core.Services
         public void ResetRestartState() => Interlocked.Exchange(ref _restartInFlight, 0);
 
         /// <summary>
+        /// Early-crash handshake for a just-started successor: waits up to
+        /// <paramref name="grace"/> for the process to exit. Returns true when it
+        /// is still alive afterwards (the normal case — the successor owns startup
+        /// from here), false when it already exited or cannot be observed.
+        /// Never kills anything and never reads a foreign exit code (unreliable
+        /// across runtimes); callers turn "gone too early" into user feedback
+        /// instead of a blind "restart started" claim.
+        /// </summary>
+        public static bool IsSuccessorAlive(int processId, TimeSpan grace)
+        {
+            try
+            {
+                using var process = Process.GetProcessById(processId);
+                int milliseconds = (int)Math.Min(Math.Max(grace.TotalMilliseconds, 0), 10000);
+                return !process.WaitForExit(milliseconds);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Builds the successor command line from whitelisted flags only.
         /// Unknown or missing flags are dropped, never passed through.
         /// </summary>

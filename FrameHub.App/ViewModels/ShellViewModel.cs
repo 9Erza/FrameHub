@@ -57,6 +57,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 
     public AppRuntimeService Runtime => _runtime;
     public LocalizationService Localization => _localization;
+    public SettingsViewModel Settings => _settingsViewModel;
 
     public string AppName { get; } = "FrameHub";
     public string AppVersion { get; } = new AppInfo().Version;

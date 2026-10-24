@@ -66,6 +66,7 @@ public partial class MainWindow : Window
         shellViewModel.UiLanguageChanged += (_, _) => RefreshTrayTexts();
         shellViewModel.UserNotificationRequested += ShowBenchmarkNotification;
         shellViewModel.AboutRequested += ShowAboutDialog;
+        shellViewModel.Settings.NormalRestartRequested += RestartApplication;
         shellViewModel.UpdateAvailableRequested += ShowUpdateDialog;
         shellViewModel.Runtime.RuntimeStateChanged += (_, _) => ApplyBenchmarkHotkeyRegistration();
         Loaded += MainWindow_Loaded;
@@ -547,6 +548,25 @@ public partial class MainWindow : Window
             try { ViewModel?.Runtime.AddActivity(string.Format(ViewModel.Localization.T("Shell.Restart.Aborted"), reason), "Warn"); }
             catch { }
             return;
+        }
+
+        // Early-crash handshake (P-C): watch the successor briefly on a background
+        // task. A fast non-zero exit means the restart never took off — surface it
+        // and release the single-flight so retry is a fresh attempt. A living
+        // process (or exit code 0) means the successor owns startup; the armed
+        // single-flight stays until graceful shutdown completes.
+        if (result.ProcessId is int successorPid)
+        {
+            _ = Task.Run(() =>
+            {
+                if (!SettingsService.IsSuccessorAlive(successorPid, TimeSpan.FromSeconds(3)))
+                {
+                    LoggerService.Instance.Warn($"Restart successor (PID {successorPid}) exited within seconds of launch.");
+                    try { settingsService.ResetRestartState(); } catch { }
+                    try { ViewModel?.Runtime.AddActivity(ViewModel.Localization.T("Shell.Restart.SuccessorDied"), "Warn"); }
+                    catch { }
+                }
+            });
         }
 
         _isExitRequested = true;

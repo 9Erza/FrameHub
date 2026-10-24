@@ -6,19 +6,22 @@
     <!-- The page title and description are owned by MainWindow/ShellViewModel. -->
     <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
         <Grid x:Name="ContentLayout" MaxWidth="1120" HorizontalAlignment="Stretch" Margin="0,0,0,24">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="Auto" /><RowDefinition Height="0" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="24" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="0" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+            <Border Style="{StaticResource SettingsSectionSurface}" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Padding="10">
+                <ListBox ItemsSource="{Binding SettingsCategories}" SelectedIndex="{Binding SelectedSettingsCategoryIndex, Mode=TwoWay}" BorderThickness="0" Background="Transparent" AutomationProperties.Name="{Binding Title}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                    <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Margin" Value="0,0,6,0" /><Setter Property="Padding" Value="0" /><Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /></Style></ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate><DataTemplate><Border Padding="12,7" CornerRadius="6"><TextBlock Text="{Binding}" Style="{StaticResource SettingTitleText}" /></Border></DataTemplate></ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
 
-            <StackPanel x:Name="LeftSettingsColumn" Grid.Column="0" Grid.Row="0">
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+            <StackPanel x:Name="LeftSettingsColumn" Grid.Column="0" Grid.Row="2">
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsLanguageVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding LanguageTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding LanguageDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
@@ -29,7 +32,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsStartupWindowVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding StartupTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12" />
                         <Grid Margin="0,0,0,12">
@@ -73,7 +76,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource SettingsSectionSurface}">
+                <Border Style="{StaticResource SettingsSectionSurface}" Visibility="{Binding IsGeneralVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding BehaviorTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding TrayDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
@@ -82,7 +85,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,16,0,0">
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,16,0,0" Visibility="{Binding IsCompanionNetworkVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding CompanionTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding CompanionDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,12" />
@@ -265,10 +268,80 @@
                         </ItemsControl>
                     </StackPanel>
                 </Border>
+
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,16,0,0" Visibility="{Binding IsCompanionNetworkVisible, Converter={StaticResource BoolToVisibilityConverter}}" DataContext="{Binding Dns}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding Description}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                        <Border Padding="10" CornerRadius="8" Background="{StaticResource BrushAccentSoft}" Margin="0,0,0,12">
+                            <TextBlock Text="{Binding ReadOnlyNotice}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" />
+                        </Border>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding AdaptersTitle}" Style="{StaticResource DataTitleText}" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshAdaptersText}" Command="{Binding RefreshAdaptersCommand}" AutomationProperties.Name="{Binding RefreshAdaptersText}" />
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding Adapters}" Margin="0,0,0,4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource InlineRow}" Padding="10" Margin="0,0,0,6">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Style="{StaticResource CaptionText}" Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="{Binding Status}" /><Run Text=" · " /><Run Text="{Binding Source}" /></TextBlock>
+                                            <TextBlock Text="{Binding DnsServers}" Style="{StaticResource CaptionText}" FontFamily="{StaticResource FontMono}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding NoAdaptersText}" Margin="0,0,0,8">
+                            <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Adapters.Count}" Value="0"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                        </TextBlock>
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,4,0,12" />
+                        <TextBlock Text="{Binding PresetsTitle}" Style="{StaticResource DataTitleText}" Margin="0,0,0,6" />
+                        <ItemsControl ItemsSource="{Binding Presets}" Margin="0,0,0,4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource InlineRow}" Padding="10" Margin="0,0,0,6">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}" />
+                                            <TextBlock Text="{Binding Servers}" Style="{StaticResource CaptionText}" FontFamily="{StaticResource FontMono}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                            <TextBlock Text="{Binding DohTemplate}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,4,0,12" />
+                        <TextBlock Text="{Binding CompareTitle}" Style="{StaticResource DataTitleText}" Margin="0,0,0,8" />
+                        <TextBlock Text="{Binding HostnameLabel}" Style="{StaticResource TinyCapsText}" />
+                        <TextBox Text="{Binding Hostname, UpdateSourceTrigger=PropertyChanged}" MinHeight="30" VerticalContentAlignment="Center" Margin="0,4,0,8" AutomationProperties.Name="{Binding HostnameLabel}" />
+                        <TextBlock Text="{Binding CustomResolverLabel}" Style="{StaticResource TinyCapsText}" />
+                        <TextBox Text="{Binding CustomResolver, UpdateSourceTrigger=PropertyChanged}" MinHeight="30" VerticalContentAlignment="Center" Margin="0,4,0,8" AutomationProperties.Name="{Binding CustomResolverLabel}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Style="{StaticResource SecondaryButton}" Content="{Binding CompareButtonText}" Command="{Binding CompareCommand}" IsEnabled="{Binding IsCompareIdle}" AutomationProperties.Name="{Binding CompareButtonText}" />
+                            <Button Style="{StaticResource SubtleButton}" Content="{Binding CancelButtonText}" Command="{Binding CancelCompareCommand}" IsEnabled="{Binding IsComparing}" Margin="8,0,0,0" AutomationProperties.Name="{Binding CancelButtonText}" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding Results}" Margin="0,0,0,4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource InlineRow}" Padding="10" Margin="0,0,0,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <StackPanel><TextBlock Text="{Binding Resolver}" Style="{StaticResource DataTitleText}" TextWrapping="Wrap" /><TextBlock Text="{Binding Outcome}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" /></StackPanel>
+                                            <Ellipse Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center" Margin="12,0,0,0"><Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="{StaticResource BrushError}" /><Style.Triggers><DataTrigger Binding="{Binding Success}" Value="True"><Setter Property="Fill" Value="{StaticResource BrushSuccess}" /></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
 
-            <StackPanel x:Name="RightSettingsColumn" Grid.Column="2" Grid.Row="0">
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+            <StackPanel x:Name="RightSettingsColumn" Grid.Column="2" Grid.Row="2">
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsBenchmarksVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding BenchmarkEngineTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding BenchmarkEngineDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,10" />
@@ -279,7 +352,7 @@
                         <StackPanel Orientation="Horizontal"><Button Style="{StaticResource SubtleButton}" Content="{Binding OpenThirdPartyNoticesText}" Command="{Binding OpenThirdPartyNoticesCommand}"/><Button Style="{StaticResource SubtleButton}" Content="{Binding OpenPresentMonProjectText}" Command="{Binding OpenPresentMonProjectCommand}" Margin="8,0,0,0"/></StackPanel>
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsBenchmarksVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding BenchmarkHotkeyTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding BenchmarkHotkeyDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
@@ -304,7 +377,7 @@
                         <TextBlock Text="{Binding BenchmarkHotkeyStatus}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,9,0,0"/>
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsGeneralVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding LoggingTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding UpdatesDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
@@ -314,7 +387,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsAdvancedDiagnosticsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding SafetyTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12" />
                         <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding AllowRealtimeLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AllowRealtimePriority, Mode=TwoWay}" /></Grid>
@@ -322,7 +395,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsAdvancedDiagnosticsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding DiagnosticsTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding DiagnosticsDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
@@ -333,10 +406,14 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource SettingsSectionSurface}">
+                <Border Style="{StaticResource SettingsSectionSurface}" Visibility="{Binding IsStartupWindowVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
-                        <TextBlock Text="{Binding RestartAsAdminText}" Style="{StaticResource SectionTitleText}" />
-                        <TextBlock Text="{Binding RestartAdminDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
+                        <TextBlock Text="{Binding RestartSectionTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding RestartNormalDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12"><Button Style="{StaticResource SecondaryButton}" Content="{Binding RestartNormalText}" Command="{Binding RestartCommand}" AutomationProperties.Name="{Binding RestartNormalText}" /></StackPanel>
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,0,0,12" />
+                        <TextBlock Text="{Binding RestartAsAdminText}" Style="{StaticResource SettingTitleText}" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding RestartAdminDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,0,0,12" />
                         <StackPanel Orientation="Horizontal"><Border Style="{StaticResource BadgeBorder}" VerticalAlignment="Center"><TextBlock Text="{Binding AdminStatus}" Style="{StaticResource StatusText}" /></Border><Button Style="{StaticResource SubtleButton}" Content="{Binding RestartAsAdminText}" Command="{Binding RestartAsAdminCommand}" Margin="12,0,0,0" /></StackPanel>
                     </StackPanel>
                 </Border>

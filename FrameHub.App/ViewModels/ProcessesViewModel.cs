@@ -17,6 +17,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     private readonly AppRuntimeService _runtime;
     private readonly DispatcherTimer _refreshTimer;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private readonly Dispatcher _uiDispatcher;
     private bool _refreshPending;
     private bool _disposed;
     private ProcessItem? _selectedProcess;
@@ -172,6 +173,10 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     {
         _localization = localization;
         _runtime = runtime;
+        // Captured on the UI thread: the tail-pass in RefreshAsync runs on the
+        // ThreadPool (ConfigureAwait(false)) and must marshal the filtered view
+        // updates back here — CollectionView rejects background-thread changes.
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
 
         foreach (var core in _runtime.Cores)
         {
@@ -249,7 +254,14 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
                 _refreshPending = false;
                 var scan = await _runtime.ScanFullProcessListAsync();
                 if (_disposed) return;
-                UpdateRows(scan.Groups);
+                if (_uiDispatcher.CheckAccess())
+                {
+                    UpdateRows(scan.Groups);
+                }
+                else
+                {
+                    await _uiDispatcher.InvokeAsync(() => UpdateRows(scan.Groups));
+                }
             } while (_refreshPending && !_disposed);
         }
         catch (Exception ex)

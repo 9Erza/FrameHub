@@ -51,8 +51,8 @@ public partial class SettingsView : WpfUserControl
         ContentLayout.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
         ContentLayout.ColumnDefinitions[1].Width = new GridLength(singleColumn ? 0 : 24);
         ContentLayout.ColumnDefinitions[2].Width = new GridLength(singleColumn ? 0 : 1, GridUnitType.Star);
-        ContentLayout.RowDefinitions[1].Height = new GridLength(singleColumn ? 16 : 0);
+        ContentLayout.RowDefinitions[3].Height = new GridLength(singleColumn ? 16 : 0);
         Grid.SetColumn(RightSettingsColumn, singleColumn ? 0 : 2);
-        Grid.SetRow(RightSettingsColumn, singleColumn ? 2 : 0);
+        Grid.SetRow(RightSettingsColumn, singleColumn ? 4 : 2);
     }
 }
