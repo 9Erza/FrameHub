@@ -197,6 +197,12 @@ public sealed class DnsDiagnosticsService
             await udp.SendAsync(query, cancellationToken).ConfigureAwait(false);
 
             Task<UdpReceiveResult> receiveTask = udp.ReceiveAsync(cancellationToken).AsTask();
+            // Observe any late fault after a timeout so it never surfaces as unobserved.
+            _ = receiveTask.ContinueWith(
+                task => _ = task.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
             Task completed = await Task.WhenAny(receiveTask, Task.Delay(timeout, cancellationToken)).ConfigureAwait(false);
             if (completed != receiveTask)
             {
