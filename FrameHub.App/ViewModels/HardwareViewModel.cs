@@ -26,6 +26,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     private double _ramUsedGb;
     private double _ramTotalGb;
     private double _vramUsage;
+    private string _storageInfo = string.Empty;
 
     public string Title => _localization.T("Hardware.Title");
     public string Subtitle => _localization.T("Hardware.Subtitle");
@@ -39,6 +40,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     public string GpuLoadLabel => _localization.T("Hardware.GpuLoad");
     public string RamLabel => _localization.T("Hardware.Ram");
     public string VramLabel => _localization.T("Hardware.Vram");
+    public string StorageLabel => _localization.T("Hardware.Storage");
     public string CpuElevationHintText => _localization.T("Hardware.CpuElevationHint");
     public string BackendStatusText => IsMonitorEnabled ? _localization.T("Hardware.BackendActive") : _localization.T("Hardware.BackendInactive");
     public string BackgroundBehaviorTitle => _localization.T("Hardware.BackgroundBehavior.Title");
@@ -116,6 +118,27 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     public string GpuTempText => IsMonitorEnabled && GpuTemp > 0 ? $"{GpuTemp:N1} °C" : "-- °C";
     public string GpuLoadText => FormatLoadPercent(IsMonitorEnabled, GpuLoad);
     public string RamUsageText => FormatLoadPercent(IsMonitorEnabled, RamUsage);
+    public static string FormatStorageInfo(bool isMonitorEnabled, string? storageInfo, string unavailableText)
+    {
+        if (!isMonitorEnabled) return "--";
+        return string.IsNullOrWhiteSpace(storageInfo) || storageInfo.Trim().Equals("No data", StringComparison.OrdinalIgnoreCase)
+            ? unavailableText
+            : storageInfo;
+    }
+
+    public string StorageInfoText => FormatStorageInfo(IsMonitorEnabled, StorageInfo, _localization.T("Hardware.StorageUnavailable"));
+
+    public string StorageInfo
+    {
+        get => _storageInfo;
+        set
+        {
+            if (SetProperty(ref _storageInfo, value ?? string.Empty))
+            {
+                OnPropertyChanged(nameof(StorageInfoText));
+            }
+        }
+    }
     public string RamUsedTotalText => FormatUsedTotalGb(IsMonitorEnabled, RamUsedGb, RamTotalGb);
     public string VramUsageText => FormatLoadPercent(IsMonitorEnabled, VramUsage);
     public string VramUsedTotalText => FormatVramUsedTotalGb(IsMonitorEnabled, VramUsedBytes, VramTotalBytes);
@@ -173,6 +196,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(RamUsedTotalText));
         OnPropertyChanged(nameof(VramUsageText));
         OnPropertyChanged(nameof(VramUsedTotalText));
+        OnPropertyChanged(nameof(StorageInfoText));
         SyncPollingWithState();
     }
 
@@ -266,6 +290,7 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
             RamTotalGb = Math.Round(metrics.RamUsedGB + metrics.RamAvailableGB, 1);
             VramUsage = Math.Round(metrics.VramUsagePct, 1);
             SetVramBytes(metrics.VramUsedBytes, metrics.VramTotalBytes);
+            StorageInfo = metrics.StorageInfo ?? string.Empty;
         }
         catch (Exception ex)
         {
@@ -297,6 +322,8 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(GpuLoadLabel));
         OnPropertyChanged(nameof(RamLabel));
         OnPropertyChanged(nameof(VramLabel));
+        OnPropertyChanged(nameof(StorageLabel));
+        OnPropertyChanged(nameof(StorageInfoText));
         OnPropertyChanged(nameof(CpuElevationHintText));
         OnPropertyChanged(nameof(BackendStatusText));
         OnPropertyChanged(nameof(BackgroundBehaviorTitle));
