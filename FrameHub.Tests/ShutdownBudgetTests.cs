@@ -99,7 +99,9 @@ public sealed class ShutdownBudgetTests
 
         // Hang-guard: Dispose must always return (fail-safe drain), governed by
         // the 8 s default envelope instead of the old ~12 s unbounded chain.
-        Assert.IsTrue(stopwatch.Elapsed < TimeSpan.FromSeconds(20),
+        // QA P3.7: bound (10 s) distinguishes the 8 s envelope from the old
+        // ~12 s behavior; the previous 20 s could not tell them apart.
+        Assert.IsTrue(stopwatch.Elapsed < TimeSpan.FromSeconds(10),
             $"Dispose must return promptly even with a stuck operation (took {stopwatch.Elapsed.TotalSeconds:F1} s).");
 
         ReleaseCoordinatorOperation(runtime.SessionOptimizationCoordinator);
