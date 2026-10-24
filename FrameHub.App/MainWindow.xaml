@@ -146,7 +146,7 @@
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Style="{StaticResource CaptionText}"><Run Text="{Binding SessionStatus}" /><Run Text="  ·  " /><Run Text="{Binding WatcherStatus}" /><Run Text="  ·  " /><Run Text="{Binding EngineFooterText}" /></TextBlock>
+                        <TextBlock Style="{StaticResource CaptionText}"><Run Text="{Binding SessionStatus, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding WatcherStatus, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding EngineFooterText, Mode=OneWay}" /></TextBlock>
                     </StackPanel>
                     <TextBlock Grid.Column="1" Text="{Binding FooterLicenseText}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" />
                 </Grid>
