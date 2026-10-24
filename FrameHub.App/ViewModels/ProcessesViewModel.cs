@@ -13,7 +13,8 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
     private readonly DispatcherTimer _refreshTimer;
-    private bool _isRefreshing;
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private bool _refreshPending;
     private bool _disposed;
     private ProcessItem? _selectedProcess;
     private string _selectedPriority = "Normal";
@@ -146,13 +147,25 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
 
     public async Task RefreshAsync(bool force = false)
     {
-        if (_isRefreshing && !force) return;
-        _isRefreshing = true;
+        if (_disposed) return;
+        if (!await _refreshGate.WaitAsync(0).ConfigureAwait(false))
+        {
+            // A refresh tick is already scanning: coalesce instead of overlapping.
+            // force:true no longer bypasses the guard (REA F3) — it keeps priority
+            // meaning by always scheduling one follow-up pass after the running one.
+            _refreshPending = true;
+            return;
+        }
 
         try
         {
-            var scan = await _runtime.ScanFullProcessListAsync();
-            UpdateRows(scan.Groups);
+            do
+            {
+                _refreshPending = false;
+                var scan = await _runtime.ScanFullProcessListAsync();
+                if (_disposed) return;
+                UpdateRows(scan.Groups);
+            } while (_refreshPending && !_disposed);
         }
         catch (Exception ex)
         {
@@ -160,7 +173,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         }
         finally
         {
-            _isRefreshing = false;
+            _refreshGate.Release();
         }
     }
 
