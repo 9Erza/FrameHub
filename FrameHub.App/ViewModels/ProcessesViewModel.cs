@@ -175,6 +175,16 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         {
             _refreshGate.Release();
         }
+
+        // QA P3.5: close the lost-wakeup window between the loop-exit check and
+        // Release(). A request that landed exactly there left _refreshPending set
+        // with no consumer; one tail pass honors it immediately instead of
+        // waiting for the next 1 s tick (force:true no longer returns unscanned).
+        // Single-level: the recursive call drains via its own loop.
+        if (_refreshPending && !_disposed)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+        }
     }
 
     public void RefreshTexts()
