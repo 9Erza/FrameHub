@@ -424,13 +424,27 @@ public sealed class BenchmarkViewModelWorkflowTests
 
         try
         {
-            var deadline = DateTime.UtcNow.AddSeconds(15);
+            var deadline = DateTime.UtcNow.AddSeconds(20);
             while (vm.State != BenchmarkUiState.Waiting && DateTime.UtcNow < deadline)
                 await Task.Delay(50);
             Assert.AreEqual(BenchmarkUiState.Waiting, vm.State,
                 "In-order Waiting snapshot must be applied while the capture is locally awaited (countdown/progress visible).");
             Assert.IsTrue(vm.RemainingCountdown > 0,
                 $"Countdown must stay visible during local await, but RemainingCountdown was {vm.RemainingCountdown}.");
+
+            // Wait until the real Capturing drain lands, so no coordinator event
+            // is still in flight when the probe below runs: after this point the
+            // only further real event is terminal (after Release).
+            while (vm.State != BenchmarkUiState.Capturing && DateTime.UtcNow < deadline)
+                await Task.Delay(50);
+            Assert.AreEqual(BenchmarkUiState.Capturing, vm.State,
+                "Real Capturing snapshot must be applied while the capture is locally awaited.");
+
+            // In-order probe while locally awaiting: must be applied, proving
+            // in-order snapshots are not suppressed (pre-fix blind guard fails here).
+            InjectCoordinatorSnapshot(vm, CoordinatorState.Waiting, isActive: true);
+            Assert.AreEqual(BenchmarkUiState.Waiting, vm.State,
+                "In-order Waiting injected during local await must be applied, not suppressed.");
         }
         finally
         {
