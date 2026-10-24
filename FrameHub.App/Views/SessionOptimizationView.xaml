@@ -14,7 +14,7 @@
                   HorizontalScrollBarVisibility="Disabled"
                   HorizontalContentAlignment="Stretch"
                   Loaded="PageScrollViewer_Loaded">
-        <StackPanel Margin="0,0,0,24">
+        <StackPanel Margin="0,0,0,96">
             <Border Margin="0,0,0,16">
                 <Border.Style>
                     <Style TargetType="Border" BasedOn="{StaticResource StateBanner}">
