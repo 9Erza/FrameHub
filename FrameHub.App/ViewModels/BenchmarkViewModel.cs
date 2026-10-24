@@ -377,6 +377,17 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
                     // Dispatcher was shut down or unavailable during invoke
                 }
             }
+            else
+            {
+                // No live UI thread to marshal to (dispatcher thread dead or
+                // application shutting down, e.g. a leftover Application from
+                // an earlier test). Dropping the update here would silently
+                // lose state transitions, so apply inline — the same graceful
+                // degradation as when there is no Application at all. The
+                // handler itself guards disposed instances.
+                action();
+            }
+
             return;
         }
 
