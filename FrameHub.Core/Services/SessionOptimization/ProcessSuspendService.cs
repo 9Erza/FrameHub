@@ -25,6 +25,7 @@ public class ProcessSuspendService
     private readonly Func<int?> _getForegroundProcessId;
     private readonly Func<int, IntPtr> _openProcess;
     private readonly Func<IntPtr, int> _ntSuspendProcess;
+    private readonly Func<IntPtr, int> _ntResumeProcess;
     private readonly Action<IntPtr> _closeHandle;
     private readonly Func<IntPtr, DateTime?> _getProcessStartTimeUtc;
     private readonly Func<IntPtr> _getForegroundWindow;
@@ -35,6 +36,7 @@ public class ProcessSuspendService
         Func<int?>? getForegroundProcessId = null,
         Func<int, IntPtr>? openProcess = null,
         Func<IntPtr, int>? ntSuspendProcess = null,
+        Func<IntPtr, int>? ntResumeProcess = null,
         Action<IntPtr>? closeHandle = null,
         Func<IntPtr, DateTime?>? getProcessStartTimeUtc = null,
         Func<IntPtr>? getForegroundWindow = null,
@@ -46,6 +48,7 @@ public class ProcessSuspendService
         _getForegroundProcessId = getForegroundProcessId ?? GetCurrentForegroundProcessId;
         _openProcess = openProcess ?? (pid => OpenProcess(PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION, false, pid));
         _ntSuspendProcess = ntSuspendProcess ?? NtSuspendProcess;
+        _ntResumeProcess = ntResumeProcess ?? NtResumeProcess;
         _closeHandle = closeHandle ?? (h => CloseHandle(h));
         _getProcessStartTimeUtc = getProcessStartTimeUtc ?? (h => TryGetProcessStartTimeUtc(h, out DateTime t) ? t : null);
     }
@@ -534,7 +537,7 @@ public class ProcessSuspendService
     private ResumeAttemptResult TryResume(SuspendedProcessRecord record, out string message)
     {
         message = string.Empty;
-        IntPtr handle = OpenProcess(PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION, false, record.ProcessId);
+        IntPtr handle = _openProcess(record.ProcessId);
         if (handle == IntPtr.Zero)
         {
             message = $"OpenProcess failed: {Marshal.GetLastWin32Error()}";
@@ -545,14 +548,15 @@ public class ProcessSuspendService
 
         try
         {
-            if (!TryGetProcessStartTimeUtc(handle, out DateTime actualStartTimeUtc)
-                || actualStartTimeUtc != record.ProcessStartTimeUtc)
+            DateTime? actualStartTimeUtc = _getProcessStartTimeUtc(handle);
+            if (!actualStartTimeUtc.HasValue
+                || actualStartTimeUtc.Value != record.ProcessStartTimeUtc)
             {
                 message = "Process identity changed before resume.";
                 return ResumeAttemptResult.DifferentProcess;
             }
 
-            int status = NtResumeProcess(handle);
+            int status = _ntResumeProcess(handle);
             if (status == 0)
             {
                 return ResumeAttemptResult.Resumed;
@@ -568,7 +572,7 @@ public class ProcessSuspendService
         }
         finally
         {
-            CloseHandle(handle);
+            _closeHandle(handle);
         }
     }
 
