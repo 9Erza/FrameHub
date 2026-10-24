@@ -5,6 +5,7 @@ using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services.SessionOptimization;
 using FrameHub.Core.Services.Library;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -93,6 +94,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public string TopProcessesTitle => _localization.T("Dashboard.TopProcesses.Title");
     public string TopProcessesHint => _localization.T("Dashboard.TopProcesses.Hint");
     public string TopProcessesEmpty => _localization.T("Dashboard.TopProcesses.Empty");
+    public string TopProcessesOpenText => _localization.T("Dashboard.TopProcesses.Open");
     public string OpenLogsText => _localization.T("Dashboard.OpenLogs");
     public string RecentActivityCountText => string.Format(_localization.T("Dashboard.RecentActivity.Count"), Activity.Count);
 
@@ -103,6 +105,11 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<MetricCardViewModel> Metrics { get; } = new();
     public ObservableCollection<ActivityItemViewModel> Activity => _runtime.Activity;
+
+    /// <summary>
+    /// Last three activity entries for the dashboard preview. Full log lives in Logs view.
+    /// </summary>
+    public ObservableCollection<ActivityItemViewModel> RecentActivity { get; } = new();
 
     /// <summary>
     /// Display-only preview of the busiest processes (same sampler as Processes view, no mutation).
@@ -212,6 +219,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         _runtime.WatcherStateChanged += OnRuntimePresentationChanged;
         _runtime.RuntimeStateChanged += OnRuntimePresentationChanged;
         _runtime.ProfilesChanged += OnRuntimePresentationChanged;
+        _runtime.Activity.CollectionChanged += OnActivityCollectionChanged;
+        RefreshRecentActivity();
         _runtime.SessionOptimizationCoordinator.SessionStateChanged += OnCoordinatorSessionStateChanged;
         _gamingSession = _runtime.SessionOptimizationCoordinator.ActiveSession;
         RefreshTexts();
@@ -599,6 +608,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(TopProcessesTitle));
         OnPropertyChanged(nameof(TopProcessesHint));
         OnPropertyChanged(nameof(TopProcessesEmpty));
+        OnPropertyChanged(nameof(TopProcessesOpenText));
         OnPropertyChanged(nameof(OpenLogsText));
         OnPropertyChanged(nameof(RecentActivityCountText));
         OnPropertyChanged(nameof(IsLiveActive));
@@ -621,6 +631,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         _runtime.WatcherStateChanged -= OnRuntimePresentationChanged;
         _runtime.RuntimeStateChanged -= OnRuntimePresentationChanged;
         _runtime.ProfilesChanged -= OnRuntimePresentationChanged;
+        _runtime.Activity.CollectionChanged -= OnActivityCollectionChanged;
         _runtime.SessionOptimizationCoordinator.SessionStateChanged -= OnCoordinatorSessionStateChanged;
     }
 
@@ -628,5 +639,23 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         RefreshTexts();
+    }
+
+    private void OnActivityCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_disposed) return;
+        DispatchIfRequired(RefreshRecentActivity);
+    }
+
+    private void RefreshRecentActivity()
+    {
+        var tail = _runtime.Activity.TakeLast(3).ToList();
+        RecentActivity.Clear();
+        foreach (var item in tail)
+        {
+            RecentActivity.Add(item);
+        }
+
+        OnPropertyChanged(nameof(RecentActivityCountText));
     }
 }
