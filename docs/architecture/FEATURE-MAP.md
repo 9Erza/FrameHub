@@ -31,6 +31,10 @@
 | Change WebSocket telemetry | `TelemetryWebSocketHandler` and `auth-transport.js` |
 | Change Companion dashboard rendering | `telemetry.js` |
 | Change Companion benchmark UI | `benchmarks.js` |
+| Export a benchmark A/B comparison to CSV/Markdown | `BenchmarkComparisonExportService` (static; deterministic, UTC ISO-8601) via Benchmark Compare tab (`SaveFileDialog` with main-window owner); math stays in `BenchmarkComparisonService`, data in `BenchmarkStorageService` |
+| Diagnose DNS resolvers / preview change commands | `DnsDiagnosticsService` — read-only, library-only (no production UI as of 24.10, no mutation API by design); system mutation explicitly deferred |
+| Restart FrameHub cooperatively (successor-first) | tray menu → `MainWindow.RestartApplication` → `SettingsService.TryStartSuccessorProcess` (verified `_exePath` only, argv whitelist `--tray`/`--minimized`, single-flight, timeout = explicit error + `ResetRestartState`) → existing graceful shutdown chain |
+| Isolate the user-data directory for tests/measurements | env `FRAMEHUB_DATA_DIR` / `FRAMEHUB_LOCAL_DATA_DIR` honored by `AppPaths` (default `%APPDATA%\FrameHub` unchanged) |
 | Change Companion Library/Background UI | `library.js` |
 | Change Companion Session UI | `session-optimization.js` |
 | Control active game CPU scheduling remotely | `SessionOptimizationCoordinator`, `ISessionCpuControlBackend`, `read:optimization-cpu` / `write:optimization-cpu` scopes |
