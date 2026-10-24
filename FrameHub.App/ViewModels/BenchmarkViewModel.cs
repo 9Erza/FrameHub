@@ -40,6 +40,8 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     private readonly SemaphoreSlim _historyRefreshGate = new(1, 1);
     private readonly Stopwatch _captureClock = new();
     private CancellationTokenSource? _visualResetCts;
+    private readonly object _backgroundWorkGate = new();
+    private readonly HashSet<Task> _backgroundWork = new();
     private bool _refreshingGames;
     private bool _disposed;
     private string? _preselectedLibraryItemId;
@@ -209,7 +211,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public BenchmarkHistoryItemViewModel? SelectedHistory
     {
         get => _selectedHistory;
-        set { if (SetProperty(ref _selectedHistory, value) && value is not null) _ = ShowHistoryResultAsync(value); }
+        set { if (SetProperty(ref _selectedHistory, value) && value is not null) _ = TrackBackgroundWork(ShowHistoryResultAsync(value)); }
     }
     public BenchmarkHistoryItemViewModel? ComparisonA { get => _comparisonA; set { if (SetProperty(ref _comparisonA, value)) RebuildComparison(); } }
     public BenchmarkHistoryItemViewModel? ComparisonB { get => _comparisonB; set { if (SetProperty(ref _comparisonB, value)) RebuildComparison(); } }
@@ -262,7 +264,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
 
         State = BenchmarkUiState.Idle;
         ProbeEngine();
-        _ = RefreshHistoryAsync();
+        _ = TrackBackgroundWork(RefreshHistoryAsync());
     }
 
     private bool _isLocallyAwaitingCapture;
@@ -320,7 +322,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
                         : _captureClock.Elapsed.TotalSeconds;
                     State = BenchmarkUiState.Completed;
                     StatusMessage = _localization.T("Benchmark.Message.Completed");
-                    _ = RefreshHistoryAsync();
+                    _ = TrackBackgroundWork(RefreshHistoryAsync());
                     _ = ResetTerminalStateAsync(BenchmarkUiState.Completed);
                 }
             }
@@ -333,7 +335,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
                 {
                     State = BenchmarkUiState.Cancelled;
                     StatusMessage = _localization.T("Benchmark.Message.Cancelled");
-                    _ = RefreshHistoryAsync();
+                    _ = TrackBackgroundWork(RefreshHistoryAsync());
                     _ = ResetTerminalStateAsync(BenchmarkUiState.Cancelled);
                 }
             }
@@ -348,7 +350,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
                     string code = snapshot.ErrorCode ?? "capture_failed";
                     StatusMessage = FriendlyError(code);
                     TechnicalError = $"[{code}]";
-                    _ = RefreshHistoryAsync();
+                    _ = TrackBackgroundWork(RefreshHistoryAsync());
                     _ = ResetTerminalStateAsync(BenchmarkUiState.Failed);
                 }
             }
@@ -792,7 +794,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         {
             _storage.DeleteSession(entry.SessionDirectory);
             _runtime.AddActivity(string.Format(_localization.T("Benchmark.Log.Deleted"), entry.Metadata.Game.DisplayName));
-            _ = RefreshHistoryAsync();
+            _ = TrackBackgroundWork(RefreshHistoryAsync());
         }
         catch (Exception ex) { StatusMessage = _localization.T("Benchmark.Error.Delete"); TechnicalError = ex.ToString(); _logger.Error("Benchmark session delete failed.", ex); }
     }
@@ -868,5 +870,58 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         _visualResetCts?.Dispose();
         _coordinator.StateChanged -= OnCoordinatorStateChanged;
         _detectionTimer.Stop(); _progressTimer.Stop();
+    }
+
+    /// <summary>
+    /// Registers a fire-and-forget background operation that touches benchmark
+    /// store files (history refresh, history-result load) so callers can drain
+    /// it deterministically through <see cref="WaitForBackgroundWorkAsync"/>.
+    /// Only file-bearing work is tracked: visual resets (2 s delay, no files),
+    /// game detection (no store I/O under the fake providers used in tests) and
+    /// coordinator stop signals stay untracked, keeping the handshake fast and
+    /// free of timing coupling.
+    /// </summary>
+    private Task TrackBackgroundWork(Task operation)
+    {
+        lock (_backgroundWorkGate) _backgroundWork.Add(operation);
+        _ = operation.ContinueWith(t =>
+        {
+            lock (_backgroundWorkGate) _backgroundWork.Remove(t);
+            if (t.IsFaulted) _logger.Warn($"Benchmark background work failed: {t.Exception?.InnerException?.Message}");
+        }, TaskScheduler.Default);
+        return operation;
+    }
+
+    internal bool HasPendingBackgroundWork
+    {
+        get { lock (_backgroundWorkGate) return _backgroundWork.Count > 0; }
+    }
+
+    /// <summary>
+    /// Test/lifecycle handshake: awaits all tracked file-bearing background work,
+    /// including work cascaded by completions (a refresh that auto-selects a
+    /// session queues a result load). Throws <see cref="TimeoutException"/> when
+    /// the drain does not finish in time instead of deleting the store
+    /// underneath a live reader (the former
+    /// <c>BenchmarkViewModelWorkflowTests.Cleanup</c> IOException flake).
+    /// Faulted background work surfaces its original exception here.
+    /// </summary>
+    internal async Task WaitForBackgroundWorkAsync(TimeSpan timeout)
+    {
+        DateTime deadline = DateTime.UtcNow + timeout;
+        while (true)
+        {
+            Task[] snapshot;
+            lock (_backgroundWorkGate)
+            {
+                _backgroundWork.RemoveWhere(t => t.IsCompleted);
+                if (_backgroundWork.Count == 0) return;
+                snapshot = _backgroundWork.ToArray();
+            }
+            TimeSpan remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+                throw new TimeoutException($"Benchmark background work did not drain within {timeout.TotalSeconds:F0} s.");
+            await Task.WhenAll(snapshot).WaitAsync(remaining).ConfigureAwait(false);
+        }
     }
 }

@@ -87,6 +87,9 @@ public sealed class ComparisonGateSerializationTests
         vm.ComparisonA = Item(CompletedEntry());
         vm.ComparisonB = Item(CompletedEntry());
         Assert.AreEqual(rows, vm.ComparisonRows.Count, "Repeated rebuilds must converge to the same row count.");
+
+        // P2-B: drain file-bearing background work before the isolated store is deleted.
+        await vm.WaitForBackgroundWorkAsync(TimeSpan.FromSeconds(30));
     }
 
     private BenchmarkViewModel CreateComparisonVm()
