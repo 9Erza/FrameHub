@@ -179,10 +179,6 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                         <Button Style="{StaticResource SubtleButton}" Content="{Binding TopProcessesOpenText}" Command="{Binding NavigateMetricCommand}" CommandParameter="Processes" HorizontalAlignment="Left" Margin="0,8,0,8" Visibility="{Binding HasTopProcesses, Converter={StaticResource BoolToVisibilityConverter}}" />
-
-
-
-
                     </StackPanel>
                 </Border>
 

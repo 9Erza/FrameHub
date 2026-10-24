@@ -285,6 +285,14 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public bool HasFilteredItems => FilteredItems.Count > 0;
     public bool HasNoFilteredItems => FilteredItems.Count == 0;
 
+    /// <summary>
+    /// True when the library itself holds at least one entry, regardless of the active
+    /// search/filter. The "empty library" panel keys off this; the "no matches" panel
+    /// keys off <see cref="HasNoFilteredItems"/> instead (QA B-R1: binding both panels
+    /// to ListBox.HasItems made the filtered state unreachable).
+    /// </summary>
+    public bool HasLibraryItems => Items.Count > 0;
+
     public bool ShowManageLibrary
     {
         get => _showManageLibrary;
@@ -309,6 +317,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
 
         OnPropertyChanged(nameof(HasFilteredItems));
         OnPropertyChanged(nameof(HasNoFilteredItems));
+        OnPropertyChanged(nameof(HasLibraryItems));
     }
 
     private bool MatchesFilter(LibraryItemViewModel item)

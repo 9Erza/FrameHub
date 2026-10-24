@@ -374,6 +374,25 @@ public partial class MainWindow : Window
 
     private bool _isNavCollapsed;
 
+    /// <summary>
+    /// Responsive override: narrow windows (&lt;1080px) force the icon rail so all
+    /// destinations stay reachable; the user's manual toggle is restored at full width.
+    /// </summary>
+    private bool _autoCollapsed;
+
+    /// <summary>
+    /// True while the window is too short for brand footers (min-window 880x460).
+    /// Footer stacks collapse via style trigger; navigation and Settings stay visible.
+    /// </summary>
+    public static readonly DependencyProperty IsShortHeightProperty =
+        DependencyProperty.Register(nameof(IsShortHeight), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public bool IsShortHeight
+    {
+        get => (bool)GetValue(IsShortHeightProperty);
+        set => SetValue(IsShortHeightProperty, value);
+    }
+
     private void ToggleNavButton_Click(object sender, RoutedEventArgs e)
     {
         _isNavCollapsed = !_isNavCollapsed;
@@ -382,15 +401,18 @@ public partial class MainWindow : Window
 
     private void ApplyNavCollapseState()
     {
-        NavigationColumn.Width = new GridLength(_isNavCollapsed ? 64 : 224);
-        NavigationPane.Padding = _isNavCollapsed ? new Thickness(8, 18, 8, 14) : new Thickness(12, 18, 12, 14);
-        Tag = !_isNavCollapsed;
+        bool collapsed = _isNavCollapsed || _autoCollapsed;
+        NavigationColumn.Width = new GridLength(collapsed ? 64 : 224);
+        NavigationPane.Padding = collapsed ? new Thickness(8, 18, 8, 14) : new Thickness(12, 18, 12, 14);
+        Tag = !collapsed;
     }
 
     private void UpdateResponsiveShell()
     {
         bool compact = ActualWidth > 0 && ActualWidth < 1080;
         PageHost.Margin = compact ? new Thickness(18, 20, 18, 24) : new Thickness(28, 24, 28, 28);
+        _autoCollapsed = compact;
+        IsShortHeight = ActualHeight > 0 && ActualHeight < 620;
         ApplyNavCollapseState();
     }
 

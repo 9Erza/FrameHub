@@ -111,7 +111,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- 1. Automation -->
+            <!-- 2. Automatic mode -->
             <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
                 <StackPanel>
                     <Grid>

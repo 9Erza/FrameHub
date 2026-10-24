@@ -111,6 +111,34 @@ public sealed class EmberOverhaulBTests
     }
 
     [TestMethod]
+    public void LibraryFilter_NoMatch_KeepsLibraryState_DistinctFromEmptyLibrary()
+    {
+        using var host = CreateLibraryHost();
+        var vm = host.ViewModel;
+        Assert.IsTrue(vm.HasLibraryItems, "Populated fixture must report a non-empty library.");
+
+        vm.SearchText = "zzzz-no-match-query";
+        Assert.AreEqual(0, vm.FilteredItems.Count);
+        Assert.IsTrue(vm.HasNoFilteredItems, "Filter with no hits must raise the filtered-empty state.");
+        Assert.IsTrue(vm.HasLibraryItems, "A no-match filter must NOT flip the library into the empty-library state.");
+        Assert.IsFalse(vm.HasFilteredItems);
+
+        vm.SearchText = string.Empty;
+        Assert.IsTrue(vm.HasFilteredItems);
+    }
+
+    [TestMethod]
+    public void LibraryFilter_EmptyLibrary_ReportsNoLibraryItems()
+    {
+        using var host = CreateLibraryHost();
+        var vm = host.ViewModel;
+        vm.Items.Clear();
+        Assert.AreEqual(0, vm.FilteredItems.Count);
+        Assert.IsFalse(vm.HasLibraryItems, "Clearing the library must report the empty-library state.");
+        Assert.IsTrue(vm.HasNoFilteredItems);
+    }
+
+    [TestMethod]
     public async Task Dashboard_TopProcesses_BoundedToThree()
     {
         string settingsPath = Path.Combine(_tempDirectory, "settings.json");
@@ -121,6 +149,10 @@ public sealed class EmberOverhaulBTests
         await vm.RefreshTopProcessesAsync();
         PumpDispatcher();
         Assert.IsTrue(vm.TopProcesses.Count <= 3, "Preview shows at most three rows; the full table lives in Processes & CPU.");
+        for (int i = 1; i < vm.TopProcesses.Count; i++)
+        {
+            Assert.IsTrue(vm.TopProcesses[i - 1].CpuRatio >= vm.TopProcesses[i].CpuRatio, "Top-CPU preview must stay sorted hottest-first (Take(3) of the descending scan).");
+        }
     }
 
     [TestMethod]

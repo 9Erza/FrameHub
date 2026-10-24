@@ -1,6 +1,11 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    <!-- Icon size tokens (DIPs, scale with DPI). Chrome 12, inline actions 16. -->
+    <sys:Double x:Key="IconSizeChrome">12</sys:Double>
+    <sys:Double x:Key="IconSizeInline">16</sys:Double>
     <!-- Filled geometries stay crisp and keep a consistent optical weight at fractional DPI. -->
+    <Geometry x:Key="IconChevronDown">F0 M2,4.5 L6,8.5 L10,4.5 L10,6 L6,10 L2,6 Z</Geometry>
     <Geometry x:Key="IconWindowMinimize">M2,7.5 H10 V8.5 H2 Z</Geometry>
     <Geometry x:Key="IconWindowMaximize">F0 M2,2 H10 V10 H2 Z M3.2,3.2 V8.8 H8.8 V3.2 Z</Geometry>
     <Geometry x:Key="IconWindowRestore">F0 M1,3 H8.5 V10.5 H1 Z M2.2,4.2 V9.3 H7.3 V4.2 Z M3.5,1 H11 V8.5 H9.8 V2.2 H3.5 Z</Geometry>
