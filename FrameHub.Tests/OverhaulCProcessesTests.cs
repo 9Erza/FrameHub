@@ -38,13 +38,13 @@ public sealed class OverhaulCProcessesTests
     }
 
     [TestMethod]
-    public void ResolveStatusKey_ProtectedWinsOverManaged()
+    public void ResolveStatusDisplay_ProtectedWinsOverManaged()
     {
-        Assert.AreEqual("Processes.StatusProtected", ProcessesViewModel.ResolveStatusKey("vgc", hasManagedProfile: true));
-        Assert.AreEqual("Processes.StatusProtected", ProcessesViewModel.ResolveStatusKey("League of Legends", hasManagedProfile: true));
-        Assert.AreEqual("Processes.StatusManaged", ProcessesViewModel.ResolveStatusKey("cs2", hasManagedProfile: true));
-        Assert.AreEqual("Processes.StatusAvailable", ProcessesViewModel.ResolveStatusKey("cs2", hasManagedProfile: false));
-        Assert.AreEqual("Processes.StatusAvailable", ProcessesViewModel.ResolveStatusKey(null, hasManagedProfile: false));
+        Assert.AreEqual("Protected", ProcessesViewModel.ResolveStatusDisplay("vgc", "MyProfile", "Protected", "Available"));
+        Assert.AreEqual("Protected", ProcessesViewModel.ResolveStatusDisplay("League of Legends", "MyProfile", "Protected", "Available"));
+        Assert.AreEqual("MyProfile", ProcessesViewModel.ResolveStatusDisplay("cs2", "MyProfile", "Protected", "Available"));
+        Assert.AreEqual("Available", ProcessesViewModel.ResolveStatusDisplay("cs2", null, "Protected", "Available"));
+        Assert.AreEqual("Available", ProcessesViewModel.ResolveStatusDisplay(null, null, "Protected", "Available"));
     }
 
     [TestMethod]

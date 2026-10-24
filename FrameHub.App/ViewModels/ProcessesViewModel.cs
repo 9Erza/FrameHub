@@ -50,6 +50,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     public string RefreshButtonText => _localization.T("Processes.Refresh");
     public string SearchPlaceholderText => _localization.T("Processes.SearchPlaceholder");
     public string StatusHeader => _localization.T("Processes.Status");
+    public string RuleHeader => _localization.T("Processes.Rule");
     public string DetailsTitle => _localization.T("Processes.DetailsTitle");
     public string ExecutableLabel => _localization.T("Processes.Executable");
     public string TopologyLabel => _localization.T("Processes.Topology");
@@ -107,11 +108,12 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Pure status classifier shared by the grid and the details panel.
     /// Protected (Riot/anti-cheat) wins over managed: such rows are never mutable.
+    /// Managed rows show the profile (rule) name; unmanaged rows are "Available".
     /// </summary>
-    public static string ResolveStatusKey(string? processName, bool hasManagedProfile)
+    public static string ResolveStatusDisplay(string? processName, string? profileName, string protectedText, string availableText)
     {
-        if (RiotGameProcesses.IsProtectedProcessName(processName)) return "Processes.StatusProtected";
-        return hasManagedProfile ? "Processes.StatusManaged" : "Processes.StatusAvailable";
+        if (RiotGameProcesses.IsProtectedProcessName(processName)) return protectedText;
+        return string.IsNullOrWhiteSpace(profileName) ? availableText : profileName;
     }
 
     public ObservableCollection<ProcessItem> Processes { get; } = new();
@@ -312,6 +314,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(RefreshButtonText));
         OnPropertyChanged(nameof(SearchPlaceholderText));
         OnPropertyChanged(nameof(StatusHeader));
+        OnPropertyChanged(nameof(RuleHeader));
         OnPropertyChanged(nameof(DetailsTitle));
         OnPropertyChanged(nameof(ExecutableLabel));
         OnPropertyChanged(nameof(TopologyLabel));
@@ -385,7 +388,11 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
             item.IsOptimized = profile != null;
             item.ModeTag = tag;
             item.IsProtected = RiotGameProcesses.IsProtectedProcessName(group.Name);
-            item.StatusDisplay = _localization.T(ResolveStatusKey(group.Name, profile != null));
+            item.StatusDisplay = ResolveStatusDisplay(
+                group.Name,
+                profile?.DisplayName,
+                _localization.T("Processes.StatusProtected"),
+                _localization.T("Processes.StatusAvailable"));
         }
 
         _processesView.Refresh();
@@ -396,10 +403,14 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     {
         foreach (var item in Processes)
         {
-            bool managed = _runtime.Profiles.Any(p => p.IsEnabled && ProfileService.MatchesIdentity(p, item.Name, item.ExecutablePath));
+            var managed = _runtime.Profiles.FirstOrDefault(p => p.IsEnabled && ProfileService.MatchesIdentity(p, item.Name, item.ExecutablePath));
             item.IsProtected = RiotGameProcesses.IsProtectedProcessName(item.Name);
-            item.IsOptimized = managed;
-            item.StatusDisplay = _localization.T(ResolveStatusKey(item.Name, managed));
+            item.IsOptimized = managed != null;
+            item.StatusDisplay = ResolveStatusDisplay(
+                item.Name,
+                managed?.DisplayName,
+                _localization.T("Processes.StatusProtected"),
+                _localization.T("Processes.StatusAvailable"));
         }
 
         _processesView.Refresh();

@@ -4,6 +4,8 @@ using FrameHub.Core.Models;
 using FrameHub.Core.Services;
 using FrameHub.Core.Services.Library;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 using System.Windows.Input;
 
 namespace FrameHub.App.ViewModels;
@@ -16,6 +18,8 @@ public sealed class ProfilesViewModel : ViewModelBase
     private string _selectedPriority = "Normal";
     private OptimizationModeOptionViewModel? _selectedOptimizationModeOption;
     private bool _isProfileEnabled = true;
+    private string _searchText = string.Empty;
+    private readonly ICollectionView _profilesView;
 
     public string Title => _localization.T("Profiles.Title");
     public string Subtitle => _localization.T("Profiles.Subtitle");
@@ -52,6 +56,21 @@ public sealed class ProfilesViewModel : ViewModelBase
     public string ConflictWarningText => BuildConflictWarning();
     public bool HasConflictWarning => FindConflictingGroups(_runtime.Profiles).Count != 0;
     public string ProfilesCountText => string.Format(_localization.T("Profiles.Count"), Profiles.Count);
+    public string SearchPlaceholderText => _localization.T("Profiles.Search");
+
+    /// <summary>Live search filter (process or display name). Bound via <see cref="ProfilesView"/>.</summary>
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (!SetProperty(ref _searchText, value ?? string.Empty)) return;
+            _profilesView.Refresh();
+            OnPropertyChanged(nameof(ProfilesCountText));
+        }
+    }
+
+    public ICollectionView ProfilesView => _profilesView;
     public string CreateFirstProfileText => _localization.T("Profiles.CreateFirst");
     public string FirstProfileHintText => _localization.T("Profiles.FirstProfileHint");
     public string EditorNoticeText => BuildEditorNotice();
@@ -155,6 +174,9 @@ public sealed class ProfilesViewModel : ViewModelBase
         RefreshOptimizationModes();
         RefreshPriorities();
 
+        _profilesView = CollectionViewSource.GetDefaultView(Profiles);
+        _profilesView.Filter = MatchesSearchFilter;
+
         ApplyProfileCommand = new RelayCommand(_ => ApplySelected(), _ => SelectedProfile != null);
         DeleteProfileCommand = new RelayCommand(_ => RequestDeleteSelected(), _ => SelectedProfile != null);
         SaveProfileChangesCommand = new RelayCommand(_ => SaveSelectedChanges(), _ => SelectedProfile != null);
@@ -194,6 +216,7 @@ public sealed class ProfilesViewModel : ViewModelBase
         OnPropertyChanged(nameof(ConflictWarningText));
         OnPropertyChanged(nameof(HasConflictWarning));
         OnPropertyChanged(nameof(ProfilesCountText));
+        _profilesView.Refresh();
     }
 
     /// <summary>
@@ -298,6 +321,8 @@ public sealed class ProfilesViewModel : ViewModelBase
         OnPropertyChanged(nameof(DeleteConfirmMessage));
         OnPropertyChanged(nameof(DeleteConfirmText));
         OnPropertyChanged(nameof(DeleteCancelText));
+        OnPropertyChanged(nameof(SearchPlaceholderText));
+        OnPropertyChanged(nameof(SearchText));
     }
 
     private void RefreshOptimizationModes()
@@ -411,6 +436,31 @@ public sealed class ProfilesViewModel : ViewModelBase
         var profile = SelectedProfile;
         SelectedProfile = null;
         _runtime.DeleteProfile(profile);
+    }
+
+    /// <summary>
+    /// Persists a per-row enable/disable toggle from the grid. The CheckBox binding
+    /// already flipped <see cref="ProcessProfile.IsEnabled"/>; this saves it through
+    /// the runtime owner (single persistence path) without auto-applying anything:
+    /// the watcher picks the new state up on its normal cadence with user consent
+    /// already recorded in the toggle itself.
+    /// </summary>
+    public void ToggleProfileEnabled(ProcessProfile profile)
+    {
+        if (profile == null) return;
+        _runtime.UpsertProfile(profile, replaceSameProcessName: false);
+        string stateText = _localization.T(profile.IsEnabled ? "Profiles.ToggledOn" : "Profiles.ToggledOff");
+        _runtime.AddActivity(string.Format(_localization.T("Profiles.Activity.Toggled"), profile.ProcessName, stateText));
+        RefreshProfiles();
+    }
+
+    private bool MatchesSearchFilter(object obj)
+    {
+        if (obj is not ProcessProfile profile) return false;
+        if (string.IsNullOrWhiteSpace(_searchText)) return true;
+        string needle = _searchText.Trim();
+        return profile.ProcessName.Contains(needle, StringComparison.OrdinalIgnoreCase)
+            || (profile.DisplayName ?? string.Empty).Contains(needle, StringComparison.OrdinalIgnoreCase);
     }
 
     private ProcessProfile BuildProfileFromEditor()

@@ -362,7 +362,15 @@ public partial class MainWindow : Window
 
     private void ShowAboutDialog(string title, string message)
     {
-        ModernDialogService.ShowInfo(this, title, message);
+        if (ViewModel == null) return;
+        ModernDialogService.ShowAbout(
+            this,
+            title,
+            message,
+            ViewModel.Localization.T("Footer.Support"),
+            ViewModel.Settings.OpenThirdPartyNoticesText,
+            () => ExternalLinkService.TryOpen(FrameHubExternalLink.Support),
+            () => ViewModel.Settings.OpenThirdPartyNoticesCommand.Execute(null));
     }
 
     private void ShowBenchmarkNotification(string message)

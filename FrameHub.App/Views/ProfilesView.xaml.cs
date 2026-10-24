@@ -1,5 +1,8 @@
 using FrameHub.App.Services;
 using FrameHub.App.ViewModels;
+using FrameHub.Core.Models;
+using WpfCheckBox = System.Windows.Controls.CheckBox;
+using WpfRoutedEventArgs = System.Windows.RoutedEventArgs;
 using WpfUserControl = System.Windows.Controls.UserControl;
 using WpfWindow = System.Windows.Window;
 
@@ -38,6 +41,15 @@ public partial class ProfilesView : WpfUserControl
         if (ModernDialogService.ShowConfirm(owner, _subscribed.DeleteConfirmTitle, message, _subscribed.DeleteConfirmText, _subscribed.DeleteCancelText))
         {
             _subscribed.ConfirmDeleteSelected();
+        }
+    }
+
+    private void ProfileEnabledCheckBox_Changed(object sender, WpfRoutedEventArgs e)
+    {
+        if (_subscribed == null) return;
+        if ((sender as WpfCheckBox)?.DataContext is ProcessProfile profile)
+        {
+            _subscribed.ToggleProfileEnabled(profile);
         }
     }
 }

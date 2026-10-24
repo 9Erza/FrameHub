@@ -252,7 +252,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             _localization.T("Shell.About.Message"),
             AppVersion,
             _localization.T("Footer.AuthorLabel"),
-            _localization.T("Footer.Website"));
+            _localization.T("Footer.Website"))
+            + "\n\n" + _localization.T("Shell.About.SupporterNote");
         AboutRequested?.Invoke(_localization.T("Shell.About.Title"), message);
     }
 

@@ -8,23 +8,30 @@
 
         <Border Grid.Column="0" Style="{StaticResource DataPanel}">
             <Grid>
-                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                <Grid Margin="16,14,14,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding SavedProfilesTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding ProfilesCountText}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" /></StackPanel><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" AutomationProperties.Name="{Binding RefreshText}" /></Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                <Grid Margin="16,14,14,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding SavedProfilesTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding ProfilesCountText}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" /></StackPanel><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" AutomationProperties.Name="{Binding RefreshText}" /></Grid>
+                <Grid Grid.Row="1" Margin="16,0,14,10">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" MinHeight="30" VerticalContentAlignment="Center" AutomationProperties.Name="{Binding SearchPlaceholderText}" ToolTip="{Binding SearchPlaceholderText}" />
+                    <TextBlock Grid.Column="0" Text="{Binding SearchPlaceholderText}" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                    </TextBlock>
+                </Grid>
 
-                <Border Grid.Row="1" Margin="16,0,14,10" Padding="10" CornerRadius="8" Background="{StaticResource BrushWarningSoft}" Visibility="{Binding HasConflictWarning, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Border Grid.Row="2" Margin="16,0,14,10" Padding="10" CornerRadius="8" Background="{StaticResource BrushWarningSoft}" Visibility="{Binding HasConflictWarning, Converter={StaticResource BoolToVisibilityConverter}}">
                     <TextBlock Text="{Binding ConflictWarningText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                 </Border>
 
-                <DataGrid x:Name="ProfilesGrid" Grid.Row="2" Margin="1" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" EnableRowVirtualization="True" EnableColumnVirtualization="True" CanUserSortColumns="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" AutomationProperties.Name="{Binding SavedProfilesTitle}">
+                <DataGrid x:Name="ProfilesGrid" Grid.Row="3" Margin="1" ItemsSource="{Binding ProfilesView}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" EnableRowVirtualization="True" EnableColumnVirtualization="True" CanUserSortColumns="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" AutomationProperties.Name="{Binding SavedProfilesTitle}">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ProcessName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="*" SortMemberPath="ProcessName"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ProcessName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                         <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding DisplayOptimizationMode}" Width="150" />
                         <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding DisplayPriority}" Width="105" />
-                        <DataGridCheckBoxColumn Header="{Binding Data.EnabledHeader, Source={StaticResource VmProxy}}" Binding="{Binding IsEnabled}" Width="76" />
+                        <DataGridTemplateColumn Header="{Binding Data.EnabledHeader, Source={StaticResource VmProxy}}" Width="76" SortMemberPath="IsEnabled"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Checked="ProfileEnabledCheckBox_Changed" Unchecked="ProfileEnabledCheckBox_Changed" AutomationProperties.Name="{Binding ProcessName}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <Border Grid.Row="2" Margin="16" Panel.ZIndex="2">
+                <Border Grid.Row="3" Margin="16" Panel.ZIndex="2">
                     <Border.Style>
                         <Style TargetType="Border" BasedOn="{StaticResource EmptyStateBorder}">
                             <Setter Property="Visibility" Value="Collapsed" />

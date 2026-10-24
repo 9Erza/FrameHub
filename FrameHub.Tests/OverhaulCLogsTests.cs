@@ -100,7 +100,9 @@ public sealed class OverhaulCLogsTests
         {
             "Logs.FilterLabel", "Logs.LevelAll", "Logs.LevelInfo", "Logs.LevelWarnings",
             "Logs.LevelErrors", "Logs.SearchPlaceholder", "Logs.Count", "Logs.BoundedNote",
-            "Logs.ClearConfirmTitle", "Logs.ClearConfirmMessage", "Logs.ClearConfirm"
+            "Logs.ClearConfirmTitle", "Logs.ClearConfirmMessage", "Logs.ClearConfirm", "Shell.About.SupporterNote",
+            "Settings.DiagnosticsLogFile", "Settings.DiagnosticsLogLevel",
+            "Processes.Rule"
         })
         {
             localization.SetLanguage("en");

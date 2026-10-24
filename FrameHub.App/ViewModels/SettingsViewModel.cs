@@ -83,6 +83,23 @@ public sealed class SettingsViewModel : ViewModelBase
     public string RestartNormalText => _localization.T("Settings.RestartNormalButton");
     public string RestartNormalDescription => _localization.T("Settings.RestartNormalDescription");
     public string RestartSectionTitle => _localization.T("Settings.RestartSectionTitle");
+    public string DiagnosticsLogFileLabel => _localization.T("Settings.DiagnosticsLogFile");
+    public string DiagnosticsLogLevelLabel => _localization.T("Settings.DiagnosticsLogLevel");
+
+    /// <summary>
+    /// Advanced file-logging internals surfaced read-only: the values already
+    /// load/save with settings; the UI shows but never edits them.
+    /// </summary>
+    public string DiagnosticsLogFileText => AppPaths.ResolveUserLogFilePath(_settings.LogFilePath);
+
+    public string DiagnosticsLogLevelText => _settings.LogLevelValue switch
+    {
+        <= 0 => "Debug",
+        1 => "Info",
+        2 => "Warn",
+        3 => "Error",
+        _ => "Fatal"
+    };
 
     /// <summary>
     /// Raised when the user clicks the normal (non-elevated) Restart button.
@@ -1122,6 +1139,8 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(CompanionEnabled));
         OnPropertyChanged(nameof(CompanionPortText));
         OnPropertyChanged(nameof(CompanionPort));
+        OnPropertyChanged(nameof(DiagnosticsLogFileText));
+        OnPropertyChanged(nameof(DiagnosticsLogLevelText));
         UpdateCompanionStatusProperties();
     }
 

@@ -118,6 +118,45 @@ public sealed class OverhaulCProfilesTests
     }
 
     [TestMethod]
+    public void SearchText_NarrowsProfilesByName()
+    {
+        RunOnSta(() =>
+        {
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var vm = new ProfilesViewModel(localization, runtime);
+            runtime.UpsertProfile(NewProfile("s1", "cs2", isEnabled: true));
+            runtime.UpsertProfile(NewProfile("s2", "notepad", isEnabled: true));
+
+            Assert.AreEqual(2, CountProfiles(vm));
+            vm.SearchText = "cs2";
+            Assert.AreEqual(1, CountProfiles(vm));
+            vm.SearchText = string.Empty;
+            Assert.AreEqual(2, CountProfiles(vm));
+        });
+    }
+
+    [TestMethod]
+    public void ToggleProfileEnabled_PersistsWithoutAutoApply()
+    {
+        RunOnSta(() =>
+        {
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var vm = new ProfilesViewModel(localization, runtime);
+            runtime.UpsertProfile(NewProfile("t1", "cs2", isEnabled: true));
+
+            var row = vm.Profiles.First(p => p.Id == "t1");
+            row.IsEnabled = false; // what the grid CheckBox binding does
+            vm.ToggleProfileEnabled(row);
+
+            var saved = runtime.Profiles.First(p => p.Id == "t1");
+            Assert.IsFalse(saved.IsEnabled, "Toggle must persist through the runtime owner.");
+            Assert.IsTrue(vm.Profiles.Any(p => p.Id == "t1"), "Row must survive the toggle refresh.");
+        });
+    }
+
+    [TestMethod]
     public void ProfilesKeys_HaveEnAndPlValues()
     {
         using var runtime = CreateRuntime();
@@ -127,7 +166,8 @@ public sealed class OverhaulCProfilesTests
             "Profiles.Count", "Profiles.ConflictWarning", "Profiles.CreateFirst",
             "Profiles.FirstProfileHint", "Profiles.ValidationNameEmpty", "Profiles.ValidationProtected",
             "Profiles.ValidationAllCores", "Profiles.DeleteConfirmTitle", "Profiles.DeleteConfirmMessage",
-            "Profiles.DeleteConfirm", "Profiles.Activity.ApplyBlocked", "Dialog.Cancel", "Dialog.Confirm"
+            "Profiles.DeleteConfirm", "Profiles.Activity.ApplyBlocked", "Profiles.Activity.Toggled",
+            "Profiles.ToggledOn", "Profiles.ToggledOff", "Profiles.Search", "Dialog.Cancel", "Dialog.Confirm"
         })
         {
             localization.SetLanguage("en");
@@ -199,6 +239,13 @@ public sealed class OverhaulCProfilesTests
             ApplyCoreOptimization = true,
             ApplyPriority = true
         };
+    }
+
+    private static int CountProfiles(ProfilesViewModel vm)
+    {
+        int count = 0;
+        foreach (var _ in vm.ProfilesView) count++;
+        return count;
     }
 
     private static void RunOnSta(Action action)

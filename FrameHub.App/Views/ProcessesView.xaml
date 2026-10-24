@@ -42,7 +42,7 @@
                         <DataGridTextColumn Header="{Binding Data.PidHeader, Source={StaticResource VmProxy}}" Binding="{Binding Id}" Width="64" />
                         <DataGridTextColumn Header="{Binding Data.InstancesHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="58" />
                         <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding ModeDisplay}" Width="95" />
-                        <DataGridTextColumn Header="{Binding Data.StatusHeader, Source={StaticResource VmProxy}}" Binding="{Binding StatusDisplay}" Width="100" />
+                        <DataGridTextColumn Header="{Binding Data.RuleHeader, Source={StaticResource VmProxy}}" Binding="{Binding StatusDisplay}" Width="100" />
                         <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding Priority}" Width="112" />
                         <DataGridTextColumn Header="{Binding Data.CpuHeader, Source={StaticResource VmProxy}}" Binding="{Binding CpuUsage}" ElementStyle="{StaticResource ProcessMetricCell}" Width="64" />
                         <DataGridTextColumn Header="{Binding Data.RamHeader, Source={StaticResource VmProxy}}" Binding="{Binding RamUsageMB}" ElementStyle="{StaticResource ProcessMetricCell}" Width="78" />
