@@ -63,7 +63,9 @@ Beyond the standalone process soak, feature-specific lifecycle mechanisms were e
 
 ## 5. Background Work & Timer Inventory
 
-Recurring background activities adhere to single-owner architecture and lease controls:
+Canonical inventory: `architecture/BACKGROUND-WORK.md` (18 rows, including frontend polling,
+WS reconnect, capture loop, progress and stale-marker loops). The list below is the runtime
+subset relevant to this audit — do not extend it here; update the canonical file instead.
 
 1. **Profile Watcher** (`AppRuntimeService`): Configurable interval (default 2 s); performs targeted name queries for enabled profiles only.
 2. **Processes Page Refresh** (`ProcessesViewModel`): Runs only while on the Processes page (`Start()` on navigation, `Stop()` on leaving); sole CPU delta sampler.

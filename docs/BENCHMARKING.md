@@ -1,6 +1,7 @@
-# Benchmarking architecture (FrameHub v0.6.0)
+# Benchmarking architecture (FrameHub v0.6.0–v0.7.1)
 
-This document is the implementation contract for the released v0.6.0 benchmarking subsystem and its WPF user workflow.
+This document is the implementation contract for the released benchmarking subsystem
+(introduced in v0.6.0, unchanged through v0.7.1 per `docs/ROADMAP.md`) and its WPF user workflow.
 
 ## Production capture architecture
 
@@ -91,7 +92,11 @@ dotnet run --project .\FrameHub.BenchmarkHarness --configuration Release -- `
   --seconds 30
 ```
 
-`--backend api` is accepted for explicitness; retired backend values are rejected. Other options are `--game-id`, `--presentmon-api-dll`, and `--output`. The harness prints API version, registered metric types, blob/buffer dimensions, consume-call counts, sample decode counts, analyzer results, quality, and storage location.
+`--backend api` is accepted for explicitness; retired backend values are rejected.
+("Retired backend values" is a forward-guard CLI sentinel: benchmarks were introduced
+as Service/API from the start and `PresentMonApiCaptureBackend` is the only
+`IBenchmarkCaptureBackend` implementation — there is no removed backend to restore.)
+Other options are `--game-id`, `--presentmon-api-dll`, and `--output`. The harness prints API version, registered metric types, blob/buffer dimensions, consume-call counts, sample decode counts, analyzer results, quality, and storage location.
 
 ## Packaging contract
 
@@ -99,6 +104,10 @@ FrameHub Setup is an offline-capable single installer. During a distributable in
 
 ## Known limitations
 
+- Absent PresentMon is a supported degradation, not a failure: when
+  `PresentMonSharedService` / `PresentMonAPI2.dll` is unavailable, the engine reports
+  unavailable and the application starts and runs normally (observed on a dev machine,
+  2026-10-24). End-to-end capture requires the installed service plus a game.
 - OS, GPU/driver support, overlays, variable refresh, frame generation, and application behavior can affect PresentMon data.
 - Analysis version 1 does not segment scenes, warm-up, pauses, loading screens, or frame types.
 - Raw QPC timestamps are retained but are not used for continuity without frequency metadata.

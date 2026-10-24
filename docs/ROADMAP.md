@@ -17,6 +17,21 @@
 
 ## Planned Near-Term Backlog
 
+> NOC 2026-10-24 annotations (branch `noc/t_2e7bd27e-0c6efc2`, QA PASS WITH WARNINGS —
+> plans, not implementations; details in `docs/audits/`):
+> - **Before merge:** harden `LateCapturingSnapshot_…` with a positive injection control
+>   (open P2: possible vacuous PASS depending on test order). Acceptance: 10 consecutive
+>   full-suite runs green incl. first run after build.
+> - **PresentMon v2.6.0 pilot (gated, not scheduled):** only after ABI validation
+>   (`PresentMonIntrospectionTests` + harness `--presentmon-api-dll`), then pin + SHA-256
+>   + QA regression. Native ETW backend rejected; static-link core research-only.
+> - **GameData adopt-vs-remove** (P3, dormant confirmed, separate reviewed change).
+> - **Follow-up cards (proposed):** data-directory isolation (`AppPaths.cs:10-13`, F-2),
+>   JS logic-test harness (F-3), update-signature threat model, remaining lambda-subscription
+>   leaks (`HardwareViewModel`, `ProfilesViewModel`, `ShellViewModel`, `MainWindow`).
+> - NOC measurements: before-values in `docs/audits/2026-10-24-noc-performance.md`
+>   (after = NOT RUN: handler-only change, no hot path + F-2 contamination risk).
+
 1. **Session Optimization & Game CPU Assignment Follow-ups**:
    - Maintain clear separation between Session Optimization (background process suspension/recovery) and Game CPU Assignment (active game affinity / CPU Sets scheduling).
    - Continue promoting CPU Sets as recommended where supported by platform topology.
