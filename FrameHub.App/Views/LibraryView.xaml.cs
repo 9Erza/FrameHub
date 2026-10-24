@@ -46,4 +46,15 @@ public partial class LibraryView : WpfUserControl
     {
         ModernDialogService.ShowInfo(Window.GetWindow(this), title, message);
     }
+
+    private void ScanMenuButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button button && button.ContextMenu != null)
+        {
+            button.ContextMenu.PlacementTarget = button;
+            button.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            button.ContextMenu.IsOpen = true;
+            e.Handled = true;
+        }
+    }
 }

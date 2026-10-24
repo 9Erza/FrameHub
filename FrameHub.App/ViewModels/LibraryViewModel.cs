@@ -10,6 +10,7 @@ using FrameHub.Core.Services;
 using FrameHub.Core.Services.GameOptimization;
 using FrameHub.Core.Services.Library;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -247,6 +248,110 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<LibraryItemViewModel> Items { get; } = new();
     public ObservableCollection<string> CustomFolders { get; } = new();
+
+    private string _searchText = string.Empty;
+    private int _selectedFilterIndex;
+    private bool _showManageLibrary;
+
+    /// <summary>
+    /// List filter: 0 all, 1 ready, 2 running, 3 CS2, 4 missing executable.
+    /// </summary>
+    public int SelectedFilterIndex
+    {
+        get => _selectedFilterIndex;
+        set
+        {
+            if (SetProperty(ref _selectedFilterIndex, value))
+            {
+                RefreshFilteredItems();
+            }
+        }
+    }
+
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (SetProperty(ref _searchText, value ?? string.Empty))
+            {
+                RefreshFilteredItems();
+            }
+        }
+    }
+
+    public ObservableCollection<string> FilterLabels { get; } = new();
+    public ObservableCollection<LibraryItemViewModel> FilteredItems { get; } = new();
+    public bool HasFilteredItems => FilteredItems.Count > 0;
+    public bool HasNoFilteredItems => FilteredItems.Count == 0;
+
+    public bool ShowManageLibrary
+    {
+        get => _showManageLibrary;
+        set => SetProperty(ref _showManageLibrary, value);
+    }
+
+    public string SearchPlaceholder => _localization.T("Library.SearchPlaceholder");
+    public string FilterLabel => _localization.T("Library.FilterLabel");
+    public string AddManuallyText => _localization.T("Library.AddManually");
+    public string ScanMenuText => _localization.T("Library.ScanMenu");
+    public string EmptyFilteredText => _localization.T("Library.EmptyFiltered");
+    public string SourcesNoteText => _localization.T("Library.SourcesNote");
+
+    public void RefreshFilteredItems()
+    {
+        var filtered = Items.Where(MatchesFilter).ToList();
+        FilteredItems.Clear();
+        foreach (var item in filtered)
+        {
+            FilteredItems.Add(item);
+        }
+
+        OnPropertyChanged(nameof(HasFilteredItems));
+        OnPropertyChanged(nameof(HasNoFilteredItems));
+    }
+
+    private bool MatchesFilter(LibraryItemViewModel item)
+    {
+        switch (_selectedFilterIndex)
+        {
+            case 1:
+                if (!item.IsReady) return false;
+                break;
+            case 2:
+                if (!item.IsRunning) return false;
+                break;
+            case 3:
+                if (!_cs2Service.IsCs2LibraryItem(item.Item)) return false;
+                break;
+            case 4:
+                if (!item.IsExecutableMissing) return false;
+                break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            string query = _searchText.Trim();
+            if (!item.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                && !item.ProcessName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                && !item.ExecutablePath.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void RebuildFilterLabels()
+    {
+        string[] keys = ["Library.Filter.All", "Library.Filter.Ready", "Library.Filter.Running", "Library.Filter.Cs2", "Library.Filter.MissingExe"];
+        FilterLabels.Clear();
+        foreach (string key in keys)
+        {
+            FilterLabels.Add(_localization.T(key));
+        }
+    }
     public ObservableCollection<LibraryItemType> AvailableTypes { get; } = new()
     {
         LibraryItemType.Game,
@@ -274,6 +379,8 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public ICommand AddFolderCommand { get; }
     public ICommand ScanCustomCommand { get; }
     public ICommand RefreshStatusCommand { get; }
+    public ICommand ToggleManageLibraryCommand { get; }
+    public ICommand OpenManageLibraryCommand { get; }
     public ICommand RemoveItemCommand { get; }
     public ICommand SelectItemCommand { get; }
     public ICommand LaunchSelectedCommand { get; }
@@ -540,6 +647,8 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         AddFolderCommand = new RelayCommand(_ => AddCustomFolder());
         ScanCustomCommand = new RelayCommand(_ => ScanCustom(), _ => !IsBusy);
         RefreshStatusCommand = new RelayCommand(_ => RefreshRuntimeState());
+        ToggleManageLibraryCommand = new RelayCommand(_ => ShowManageLibrary = !ShowManageLibrary);
+        OpenManageLibraryCommand = new RelayCommand(_ => ShowManageLibrary = true);
         RemoveItemCommand = new RelayCommand(parameter => RemoveItem(parameter as LibraryItemViewModel));
         SelectItemCommand = new RelayCommand(parameter => SelectedItem = parameter as LibraryItemViewModel);
         LaunchSelectedCommand = new RelayCommand(_ => LaunchSelected(), _ => SelectedItem != null && IsSelectedItemLaunchable());
@@ -576,7 +685,15 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
 
         _cs2ProcessTimer.Tick += OnCs2ProcessTimerTick;
 
+        Items.CollectionChanged += OnLibraryItemsChanged;
+        RebuildFilterLabels();
         Reload();
+        RefreshFilteredItems();
+    }
+
+    private void OnLibraryItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        RefreshFilteredItems();
     }
 
     public void RefreshTexts()
@@ -586,6 +703,8 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         foreach (var mode in AvailableOptimizationModes) mode.RefreshTexts();
         RefreshOptimizationModes();
         RefreshPriorities();
+        RebuildFilterLabels();
+        RefreshFilteredItems();
         OnPropertyChanged(string.Empty);
     }
 
@@ -749,6 +868,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
             }
 
             OnPropertyChanged(nameof(ReadyCountText));
+            RefreshFilteredItems();
         }
         catch (Exception ex)
         {
@@ -1830,6 +1950,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         _disposed = true;
         _cs2ProcessTimer.Stop();
         _cs2ProcessTimer.Tick -= OnCs2ProcessTimerTick;
+        Items.CollectionChanged -= OnLibraryItemsChanged;
         _postLaunchRefreshCts?.Cancel();
         _postLaunchRefreshCts?.Dispose();
         _postLaunchRefreshCts = null;

@@ -14,18 +14,30 @@
                         <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                     <WrapPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="16,0,0,0">
-                        <Button Style="{StaticResource PrimaryButton}" Content="{Binding ScanAllText}" Command="{Binding ScanAllCommand}" Margin="0,0,8,0" />
-                        <Button Style="{StaticResource ToolbarButton}" Content="{Binding ScanSteamText}" Command="{Binding ScanSteamCommand}" Margin="0,0,4,0" />
-                        <Button Style="{StaticResource ToolbarButton}" Content="{Binding ScanEpicText}" Command="{Binding ScanEpicCommand}" Margin="0,0,4,0" />
-                        <Button Style="{StaticResource ToolbarButton}" Content="{Binding ScanRiotText}" Command="{Binding ScanRiotCommand}" Margin="0,0,4,0" />
-                        <Button Style="{StaticResource ToolbarButton}" Content="{Binding ScanCustomText}" Command="{Binding ScanCustomCommand}" Margin="0,0,4,0" />
-                        <Button Style="{StaticResource ToolbarButton}" Content="{Binding RefreshStatusText}" Command="{Binding RefreshStatusCommand}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                            <Button Style="{StaticResource PrimaryButton}" Content="{Binding ScanMenuText}" Command="{Binding ScanAllCommand}" AutomationProperties.Name="{Binding ScanAllText}" Padding="14,8,10,8" />
+                            <Button x:Name="ScanMenuButton" Style="{StaticResource PrimaryButton}" Content="▾" Click="ScanMenuButton_Click" AutomationProperties.Name="{Binding ScanMenuText}" Margin="2,0,0,0" Padding="10,8">
+                                <Button.ContextMenu>
+                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                        <MenuItem Header="{Binding ScanAllText}" Command="{Binding ScanAllCommand}" />
+                                        <MenuItem Header="{Binding ScanSteamText}" Command="{Binding ScanSteamCommand}" />
+                                        <MenuItem Header="{Binding ScanEpicText}" Command="{Binding ScanEpicCommand}" />
+                                        <MenuItem Header="{Binding ScanRiotText}" Command="{Binding ScanRiotCommand}" />
+                                        <MenuItem Header="{Binding ScanCustomText}" Command="{Binding ScanCustomCommand}" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                        </StackPanel>
+                        <Button Style="{StaticResource SecondaryButton}" Content="{Binding RefreshStatusText}" Command="{Binding RefreshStatusCommand}" Margin="0,0,8,0" />
+                        <Button Style="{StaticResource GhostButton}" Content="{Binding AddManuallyText}" Command="{Binding ToggleManageLibraryCommand}" />
                     </WrapPanel>
                 </Grid>
 
-                <Expander Header="{Binding ManageLibraryTitle}" Margin="0,0,0,16">
+                <Expander Header="{Binding ManageLibraryTitle}" Margin="0,0,0,16" IsExpanded="{Binding ShowManageLibrary, Mode=TwoWay}">
                     <Border Style="{StaticResource SectionSurface}" Margin="0,8,0,0">
-                        <Grid>
+                        <StackPanel>
+                            <TextBlock Text="{Binding SourcesNoteText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,0,0,12" />
+                            <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="1.25*" /><ColumnDefinition Width="1" /><ColumnDefinition Width="0.75*" /></Grid.ColumnDefinitions>
                             <StackPanel>
                                 <TextBlock Text="{Binding ManualTitle}" Style="{StaticResource SectionTitleText}" />
@@ -44,29 +56,70 @@
                                 <Button Style="{StaticResource SecondaryButton}" Content="{Binding AddFolderText}" Command="{Binding AddFolderCommand}" HorizontalAlignment="Left" />
                             </StackPanel>
                         </Grid>
+                        </StackPanel>
                     </Border>
                 </Expander>
 
                 <Border Style="{StaticResource DataPanel}" Padding="0">
                     <StackPanel>
                         <Grid Margin="20,16,16,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Grid.Column="1" Text="{Binding ReadyBadgeText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Center" /></Grid>
-                        <ItemsControl x:Name="LibraryItems" ItemsSource="{Binding Items}" Margin="12,0,12,12">
-                            <ItemsControl.ItemTemplate>
+                        <Grid Margin="20,0,16,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBox Style="{StaticResource HintTextBox}" Tag="{Binding SearchPlaceholder}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding SearchPlaceholder}" />
+                            <TextBlock Grid.Column="1" Text="{Binding FilterLabel}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" Margin="12,0,8,0" />
+                            <ComboBox Grid.Column="2" ItemsSource="{Binding FilterLabels}" SelectedIndex="{Binding SelectedFilterIndex, Mode=TwoWay}" MinWidth="160" AutomationProperties.Name="{Binding FilterLabel}" />
+                        </Grid>
+                        <ListBox x:Name="LibraryItems" ItemsSource="{Binding FilteredItems}" Margin="12,0,12,12" MaxHeight="420" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
+                            <ListBox.ItemTemplate>
                                 <DataTemplate DataType="{x:Type lib:LibraryItemViewModel}">
                                     <Border x:Name="GameRow" Style="{StaticResource InlineRow}" Padding="8,10">
                                         <Grid>
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="1.1*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                             <Border Width="40" Height="40" CornerRadius="8" Background="{StaticResource BrushSurfaceInteractive}" Margin="0,0,12,0"><Grid><Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="26" Height="26" Opacity="0.2" RenderOptions.BitmapScalingMode="HighQuality" /><Image Source="{Binding IconSource}" Width="28" Height="28" RenderOptions.BitmapScalingMode="HighQuality" /></Grid></Border>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /><StackPanel Orientation="Horizontal" Margin="0,3,0,0"><TextBlock Text="{Binding SourceText}" Style="{StaticResource CaptionText}" /><TextBlock Text="  ·  " Style="{StaticResource CaptionText}" /><TextBlock Text="{Binding TypeText}" Style="{StaticResource CaptionText}" /></StackPanel></StackPanel>
-                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="16,0"><TextBlock Text="{Binding StatusText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushSuccess}" /><TextBlock Text="{Binding ProfileText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" /></StackPanel>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="16,0">
+                                                <TextBlock Text="{Binding StatusText}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource StatusText}">
+                                                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsExecutableMissing}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding ProfileText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding ExeMissingText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushWarning}" Margin="0,2,0,0" Visibility="{Binding IsExecutableMissing, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                            </StackPanel>
                                             <Button Grid.Column="3" Style="{StaticResource ToolbarButton}" Content="{Binding DataContext.DetailsOptimizeText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Command="{Binding DataContext.SelectItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Margin="0,0,4,0" />
                                             <Button Grid.Column="4" AutomationProperties.Name="{Binding DataContext.RemoveText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" ToolTip="{Binding DataContext.RemoveText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Opacity="0.35"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource IconButton}"><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=GameRow}" Value="True"><Setter Property="Opacity" Value="1" /></DataTrigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Opacity" Value="1" /></Trigger></Style.Triggers></Style></Button.Style><Path Data="{StaticResource IconTrash}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="15" Height="15" Stretch="Uniform" /></Button>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Border Margin="20,8,20,24"><Border.Style><Style TargetType="Border" BasedOn="{StaticResource EmptyStateBorder}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=LibraryItems}" Value="False"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Border.Style><StackPanel HorizontalAlignment="Center" MaxWidth="480"><TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" HorizontalAlignment="Center" /><TextBlock Text="{Binding EmptyText}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0" /><Button Style="{StaticResource PrimaryButton}" Content="{Binding ScanAllText}" Command="{Binding ScanAllCommand}" HorizontalAlignment="Center" Margin="0,16,0,0" /></StackPanel></Border>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <Border Margin="20,8,20,24"><Border.Style><Style TargetType="Border" BasedOn="{StaticResource EmptyStateBorder}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding HasFilteredItems}" Value="False"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Border.Style>
+                            <StackPanel HorizontalAlignment="Center" MaxWidth="480">
+                            <StackPanel HorizontalAlignment="Center" Visibility="{Binding HasItems, ElementName=LibraryItems, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                <TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding EmptyText}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                <WrapPanel HorizontalAlignment="Center" Margin="0,16,0,0">
+                                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding ScanAllText}" Command="{Binding ScanAllCommand}" Margin="0,0,8,8" />
+                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding AddFolderText}" Command="{Binding AddFolderCommand}" Margin="0,0,8,8" />
+                                    <Button Style="{StaticResource SubtleButton}" Content="{Binding AddManuallyText}" Command="{Binding OpenManageLibraryCommand}" Margin="0,0,0,8" />
+                                </WrapPanel>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center" Visibility="{Binding HasItems, ElementName=LibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding EmptyFilteredText}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
             </StackPanel>
