@@ -64,6 +64,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public ObservableCollection<BenchmarkHistoryItemViewModel> History { get; } = new();
     public ObservableCollection<BenchmarkComparisonRowViewModel> ComparisonRows { get; } = new();
     public ObservableCollection<BenchmarkEnvironmentDifferenceRowViewModel> EnvironmentDifferenceRows { get; } = new();
+    private readonly object _comparisonGate = new();
     public IReadOnlyList<int> DurationOptions { get; } = [30, 60, 120];
     public IReadOnlyList<int> CountdownOptions { get; } = [0, 3, 5];
 
@@ -666,27 +667,35 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
 
     private void RebuildComparison()
     {
-        ComparisonRows.Clear();
-        EnvironmentDifferenceRows.Clear();
-        OnPropertyChanged(nameof(CompareValidationText));
-        OnPropertyChanged(nameof(HasEnvironmentDifferences));
-        if (ComparisonA?.IsCompleted != true || ComparisonB?.IsCompleted != true
-            || ComparisonA.Entry.Metadata.SessionId == ComparisonB.Entry.Metadata.SessionId
-            || !BenchmarkComparisonService.IsSameGame(ComparisonA.Entry.Metadata.Game, ComparisonB.Entry.Metadata.Game)) return;
-        foreach (BenchmarkComparisonMetric metric in BenchmarkComparisonService.Compare(ComparisonA.Entry, ComparisonB.Entry))
+        // ComparisonRows/EnvironmentDifferenceRows are rebuilt from the UI/test thread
+        // (ComparisonA/B setters) and from ThreadPool history refreshes
+        // (RefreshHistoryAsync fire-and-forget). ObservableCollection is not thread-safe:
+        // concurrent Clear/Add corrupted the list and threw ArgumentOutOfRangeException
+        // out of List.Insert. Serialize whole rebuilds through one gate.
+        lock (_comparisonGate)
         {
-            ComparisonRows.Add(new BenchmarkComparisonRowViewModel(metric, _localization.T($"Benchmark.Metric.{metric.Key}"), _localization.CurrentLanguage));
-        }
+            ComparisonRows.Clear();
+            EnvironmentDifferenceRows.Clear();
+            OnPropertyChanged(nameof(CompareValidationText));
+            OnPropertyChanged(nameof(HasEnvironmentDifferences));
+            if (ComparisonA?.IsCompleted != true || ComparisonB?.IsCompleted != true
+                || ComparisonA.Entry.Metadata.SessionId == ComparisonB.Entry.Metadata.SessionId
+                || !BenchmarkComparisonService.IsSameGame(ComparisonA.Entry.Metadata.Game, ComparisonB.Entry.Metadata.Game)) return;
+            foreach (BenchmarkComparisonMetric metric in BenchmarkComparisonService.Compare(ComparisonA.Entry, ComparisonB.Entry))
+            {
+                ComparisonRows.Add(new BenchmarkComparisonRowViewModel(metric, _localization.T($"Benchmark.Metric.{metric.Key}"), _localization.CurrentLanguage));
+            }
 
-        foreach (BenchmarkEnvironmentDifference difference in BenchmarkComparisonService.CompareEnvironments(ComparisonA.Entry, ComparisonB.Entry))
-        {
-            EnvironmentDifferenceRows.Add(new BenchmarkEnvironmentDifferenceRowViewModel(
-                EnvironmentDifferenceLabel(difference.Key),
-                difference.FirstValue,
-                difference.SecondValue));
-        }
+            foreach (BenchmarkEnvironmentDifference difference in BenchmarkComparisonService.CompareEnvironments(ComparisonA.Entry, ComparisonB.Entry))
+            {
+                EnvironmentDifferenceRows.Add(new BenchmarkEnvironmentDifferenceRowViewModel(
+                    EnvironmentDifferenceLabel(difference.Key),
+                    difference.FirstValue,
+                    difference.SecondValue));
+            }
 
-        OnPropertyChanged(nameof(HasEnvironmentDifferences));
+            OnPropertyChanged(nameof(HasEnvironmentDifferences));
+        }
     }
 
     private string EnvironmentDifferenceLabel(string key) => key switch

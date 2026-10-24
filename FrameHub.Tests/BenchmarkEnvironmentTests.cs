@@ -6,6 +6,7 @@ using FrameHub.Core.Models.Benchmarking;
 using FrameHub.Core.Services;
 using FrameHub.Core.Services.Benchmarking;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Collections.Concurrent;
 
 namespace FrameHub.Tests;
 
@@ -456,6 +457,36 @@ public sealed class BenchmarkEnvironmentPresentationTests
 
         Assert.IsFalse(vm.HasEnvironmentDifferences);
         Assert.AreEqual(0, vm.EnvironmentDifferenceRows.Count);
+    }
+
+    [TestMethod]
+    public void ComparisonRebuild_ConcurrentRefreshAndSelection_DoesNotCorruptRows()
+    {
+        // Regression: RebuildComparison mutates ComparisonRows/EnvironmentDifferenceRows from
+        // both the UI/test thread (ComparisonA/B setters) and ThreadPool history refreshes
+        // (constructor + RefreshHistoryAsync fire-and-forget). ObservableCollection is not
+        // thread-safe, so unsynchronized rebuilds intermittently threw ArgumentOutOfRangeException
+        // out of List.Insert (CI: ComparisonIdenticalEnvironments_HasNoEnvironmentDifferenceState).
+        using var vm = CreateComparisonVm();
+        List<BenchmarkHistoryEntry> entries = Enumerable.Range(0, 8).Select(_ => CompletedEntry(Environment())).ToList();
+        var errors = new ConcurrentQueue<Exception>();
+        Parallel.For(0, 64, _ =>
+        {
+            try
+            {
+                for (int i = 0; i < 25; i++)
+                {
+                    vm.ComparisonA = Item(entries[i % entries.Count]);
+                    vm.ComparisonB = Item(entries[(i + 1) % entries.Count]);
+                }
+            }
+            catch (Exception ex) { errors.Enqueue(ex); }
+        });
+        Assert.AreEqual(0, errors.Count, "Concurrent comparison rebuilds must not throw. First: " + errors.FirstOrDefault()?.ToString());
+
+        vm.ComparisonA = Item(entries[0]);
+        vm.ComparisonB = Item(entries[1]);
+        Assert.IsNotNull(vm.ComparisonRows);
     }
 
     [TestMethod]
