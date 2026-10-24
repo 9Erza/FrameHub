@@ -477,6 +477,14 @@ public partial class MainWindow : Window
         _ = PerformGracefulShutdownAsync();
     }
 
+    /// <summary>
+    /// Total wall-clock envelope for cooperative shutdown, shared with
+    /// <see cref="ShellViewModel.ShutdownAsync(CancellationToken, TimeSpan)"/>.
+    /// When the deadline expires the window closes regardless (fail-safe: session
+    /// WAL and recovery are protected); background disposal keeps draining.
+    /// </summary>
+    private static readonly TimeSpan ShutdownBudget = AppRuntimeService.DefaultShutdownBudget;
+
     private async Task PerformGracefulShutdownAsync()
     {
         if (_shutdownState != ShutdownState.NotStarted) return;
@@ -494,10 +502,10 @@ public partial class MainWindow : Window
 
         if (ViewModel is ShellViewModel shell)
         {
-            using var shutdownCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            using var shutdownCts = new CancellationTokenSource(ShutdownBudget);
             try
             {
-                await Task.Run(async () => await shell.ShutdownAsync(shutdownCts.Token).ConfigureAwait(false), shutdownCts.Token);
+                await Task.Run(async () => await shell.ShutdownAsync(shutdownCts.Token, ShutdownBudget).ConfigureAwait(false), shutdownCts.Token);
             }
             catch (OperationCanceledException)
             {
