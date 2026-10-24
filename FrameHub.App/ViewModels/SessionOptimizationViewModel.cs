@@ -764,8 +764,10 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         var cancellation = new CancellationTokenSource();
         _processRefreshCancellation = cancellation;
         // Cancel first so superseded work observes cancellation promptly, then
-        // release the abandoned source: token polling on the old instance stays
-        // valid after Dispose (only the source object itself becomes unusable).
+        // release the abandoned source. The superseded task already captured a
+        // CancellationToken struct (see RefreshProcessViewsAsync), which stays
+        // valid after Dispose — only reads of the source's .Token property
+        // would throw ObjectDisposedException, so none happen after an await.
         previous?.Cancel();
         previous?.Dispose();
         _ = RefreshProcessViewsAsync(forceScan, cancellation);
@@ -773,15 +775,30 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private async Task RefreshProcessViewsAsync(bool forceScan, CancellationTokenSource cancellation)
     {
+        // Capture the token BEFORE the first await: this refresh's source can
+        // be disposed at any moment by a newer StartProcessRefresh rotation
+        // (QA-P2-3), and CancellationTokenSource.Token throws
+        // ObjectDisposedException after Dispose. The struct itself stays usable.
+        CancellationToken token;
+        try
+        {
+            token = cancellation.Token;
+        }
+        catch (ObjectDisposedException)
+        {
+            // Superseded and disposed before entry — yield quietly like a cancel.
+            return;
+        }
+
         try
         {
             SessionProcessSnapshot snapshot = _cachedProcessSnapshot != null
                 && !forceScan
                 && DateTime.UtcNow - _cachedProcessSnapshotUtc < TimeSpan.FromSeconds(1)
                 ? _cachedProcessSnapshot
-                : await CaptureSessionProcessSnapshotAsync(cancellation.Token);
+                : await CaptureSessionProcessSnapshotAsync(token);
 
-            cancellation.Token.ThrowIfCancellationRequested();
+            token.ThrowIfCancellationRequested();
             _cachedProcessSnapshot = snapshot;
             _cachedProcessSnapshotUtc = snapshot.CapturedAtUtc;
 
@@ -789,11 +806,12 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             var allGames = Games.Select(option => option.Item).ToList();
             var groups = await Task.Run(
                 () => _coordinator.GetRunningProcessGroups(snapshot, game?.Item, allGames),
-                cancellation.Token);
+                token);
             var candidates = BuildCandidatesForGame(game, snapshot);
-            // Token (not source) polling: the source may already be disposed by a
-            // newer StartProcessRefresh rotation (dispose-before-replace, REA F4).
-            if (cancellation.Token.IsCancellationRequested || !ReferenceEquals(_processRefreshCancellation, cancellation)) return;
+            // Token (struct captured on entry, not the source) polling: the source
+            // may already be disposed by a newer StartProcessRefresh rotation
+            // (dispose-before-replace, REA F4; QA-P2-3). Never read .Token here.
+            if (token.IsCancellationRequested || !ReferenceEquals(_processRefreshCancellation, cancellation)) return;
 
             ApplyRunningProcesses(groups);
             ReplaceCandidatePreview(candidates);
