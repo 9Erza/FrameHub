@@ -27,6 +27,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         public string DesktopLanguage => _owner.Settings?.Language ?? "en";
     }
     private readonly DispatcherTimer _profileWatcherTimer;
+    private readonly Dispatcher _uiDispatcher;
     private readonly Dictionary<string, DateTime> _failureLogThrottle = new(StringComparer.OrdinalIgnoreCase);
     private bool _watcherBusy;
     private bool _disposed;
@@ -70,6 +71,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public AppRuntimeService(SettingsService settingsService, IHardwareMonitorBackend? hardwareMonitor = null)
     {
         SettingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
         _hardwareMonitor = hardwareMonitor ?? new HardwareMonitorService();
         Settings = SettingsService.LoadSettings();
         ConfigureLoggerFromSettings();
@@ -309,17 +311,24 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
     public void AddActivity(string message, string level = "Info")
     {
-        Activity.Insert(0, new ActivityItemViewModel
+        // Activity is a WPF-bound ObservableCollection. Most callers run on the UI
+        // thread, but timer/task continuations and future Companion paths may call
+        // from the ThreadPool (see REA F12). Marshal the mutation to the creating
+        // thread's dispatcher; logging below stays synchronous and thread-safe.
+        DispatchActivityIfRequired(() =>
         {
-            Time = DateTime.Now.ToString("HH:mm"),
-            Message = message,
-            Level = level
-        });
+            Activity.Insert(0, new ActivityItemViewModel
+            {
+                Time = DateTime.Now.ToString("HH:mm"),
+                Message = message,
+                Level = level
+            });
 
-        while (Activity.Count > 200)
-        {
-            Activity.RemoveAt(Activity.Count - 1);
-        }
+            while (Activity.Count > 200)
+            {
+                Activity.RemoveAt(Activity.Count - 1);
+            }
+        });
 
         switch (level)
         {
@@ -327,6 +336,40 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             case "Error": LoggerService.Instance.Error(message); break;
             default: LoggerService.Instance.Info(message); break;
         }
+    }
+
+    private void DispatchActivityIfRequired(Action action)
+    {
+        Dispatcher? target = null;
+        if (_uiDispatcher.Thread.IsAlive && !_uiDispatcher.HasShutdownStarted && !_uiDispatcher.HasShutdownFinished)
+        {
+            target = _uiDispatcher;
+        }
+        else if (System.Windows.Application.Current?.Dispatcher is { } appDispatcher)
+        {
+            target = appDispatcher;
+        }
+
+        if (target is null || target.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        if (target.Thread.IsAlive && !target.HasShutdownStarted && !target.HasShutdownFinished)
+        {
+            try
+            {
+                target.BeginInvoke(action);
+                return;
+            }
+            catch (InvalidOperationException)
+            {
+                // Dispatcher was shut down or unavailable during invoke.
+            }
+        }
+
+        action();
     }
 
     private async Task RunProfileWatcherOnceAsync()

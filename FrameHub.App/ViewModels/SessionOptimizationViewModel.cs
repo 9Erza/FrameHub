@@ -24,6 +24,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private SessionOptimizationSettings _settings;
     private ActiveSessionState? _activeSession;
+    private readonly Dispatcher _uiDispatcher;
     private SessionGameOptionViewModel? _selectedGame;
     private string _statusText = string.Empty;
     private string _statusLevel = "Info";
@@ -387,6 +388,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     {
         _localization = localization;
         _runtime = runtime;
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
         _coordinator = coordinator ?? runtime.SessionOptimizationCoordinator;
         _settings = _coordinator.LoadSettings();
         MigrateSessionSettingsForSafeSuspend();
@@ -416,10 +418,60 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private void OnCoordinatorSessionStateChanged(object? sender, ActiveSessionState? session)
     {
-        _activeSession = session;
-        RebuildSuspendedList();
-        RefreshRunningProcesses();
-        OnStateChanged();
+        if (_disposed) return;
+        DispatchIfRequired(() =>
+        {
+            if (_disposed) return;
+            _activeSession = session;
+            RebuildSuspendedList();
+            RefreshRunningProcesses();
+            OnStateChanged();
+        });
+    }
+
+    /// <summary>
+    /// Marshals coordinator callbacks onto the thread that created this view-model.
+    /// <see cref="SessionOptimizationCoordinator.SessionStateChanged"/> fires synchronously
+    /// on the caller's thread: after <c>ConfigureAwait(false)</c> continuations and on the
+    /// Companion Kestrel threads that thread is a ThreadPool thread, so mutating the
+    /// WPF-bound <c>ObservableCollection</c>s inline throws or corrupts bindings.
+    /// The dispatcher is captured at construction (the UI thread in production) instead of
+    /// relying on the process-global <c>Application.Current</c>, which is order-dependent
+    /// and unusable in tests. When no live dispatcher exists the update is applied inline
+    /// (documented graceful degradation, same as <c>BenchmarkViewModel</c>).
+    /// </summary>
+    private void DispatchIfRequired(Action action)
+    {
+        Dispatcher? target = null;
+        if (_uiDispatcher.Thread.IsAlive && !_uiDispatcher.HasShutdownStarted && !_uiDispatcher.HasShutdownFinished)
+        {
+            target = _uiDispatcher;
+        }
+        else if (System.Windows.Application.Current?.Dispatcher is { } appDispatcher)
+        {
+            target = appDispatcher;
+        }
+
+        if (target is null || target.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        if (target.Thread.IsAlive && !target.HasShutdownStarted && !target.HasShutdownFinished)
+        {
+            try
+            {
+                target.BeginInvoke(action);
+                return;
+            }
+            catch (InvalidOperationException)
+            {
+                // Dispatcher was shut down or unavailable during invoke.
+            }
+        }
+
+        action();
     }
 
     private void MigrateSessionSettingsForSafeSuspend()
