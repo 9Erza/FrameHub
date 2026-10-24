@@ -760,9 +760,14 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     private void StartProcessRefresh(bool forceScan)
     {
 
-        _processRefreshCancellation?.Cancel();
+        CancellationTokenSource? previous = _processRefreshCancellation;
         var cancellation = new CancellationTokenSource();
         _processRefreshCancellation = cancellation;
+        // Cancel first so superseded work observes cancellation promptly, then
+        // release the abandoned source: token polling on the old instance stays
+        // valid after Dispose (only the source object itself becomes unusable).
+        previous?.Cancel();
+        previous?.Dispose();
         _ = RefreshProcessViewsAsync(forceScan, cancellation);
     }
 
@@ -786,7 +791,9 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
                 () => _coordinator.GetRunningProcessGroups(snapshot, game?.Item, allGames),
                 cancellation.Token);
             var candidates = BuildCandidatesForGame(game, snapshot);
-            if (cancellation.IsCancellationRequested || !ReferenceEquals(_processRefreshCancellation, cancellation)) return;
+            // Token (not source) polling: the source may already be disposed by a
+            // newer StartProcessRefresh rotation (dispose-before-replace, REA F4).
+            if (cancellation.Token.IsCancellationRequested || !ReferenceEquals(_processRefreshCancellation, cancellation)) return;
 
             ApplyRunningProcesses(groups);
             ReplaceCandidatePreview(candidates);
@@ -1205,7 +1212,10 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         if (_disposed) return;
         _disposed = true;
         _coordinator.SessionStateChanged -= OnCoordinatorSessionStateChanged;
-        _processRefreshCancellation?.Cancel();
+        CancellationTokenSource? refreshCancellation = _processRefreshCancellation;
+        _processRefreshCancellation = null;
+        refreshCancellation?.Cancel();
+        refreshCancellation?.Dispose();
         _autoTimer.Stop();
     }
 }
