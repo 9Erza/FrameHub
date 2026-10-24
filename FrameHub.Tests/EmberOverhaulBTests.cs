@@ -139,6 +139,52 @@ public sealed class EmberOverhaulBTests
     }
 
     [TestMethod]
+    public void LibraryEmptyStates_BindToViewModel_NotListBoxItems()
+    {
+        // QA B-R2: the R1 defect lived in LibraryView.xaml, not the VM — both empty-state
+        // panels bound ListBox.HasItems via ElementName=LibraryItems, so Library.EmptyFiltered
+        // and HasNoFilteredItems were dead while every VM-only test stayed green.
+        // This test reads the shipped XAML, so a binding repeat fails here.
+        string? repoRoot = FindRepoRoot();
+        if (repoRoot == null)
+        {
+            Assert.Inconclusive("Repository source root was not discoverable from the test assembly location.");
+        }
+
+        string xaml = File.ReadAllText(Path.Combine(repoRoot, "FrameHub.App", "Views", "LibraryView.xaml"));
+        AssertLibraryEmptyStateBindings(xaml);
+    }
+
+    private static void AssertLibraryEmptyStateBindings(string xaml)
+    {
+        // The empty-state panel as a whole is gated by the filtered-empty state.
+        StringAssert.Contains(xaml, "Binding=\"{Binding HasFilteredItems}\" Value=\"False\"",
+            "LibraryView must gate the empty-state panel on the filtered-empty state.");
+        // The onboarding (empty library) vs no-match (filter without hits) split keys off
+        // the unfiltered library count, not the ListBox item count.
+        StringAssert.Contains(xaml, "Visibility=\"{Binding HasLibraryItems, Converter={StaticResource InverseBoolToVisibilityConverter}}\"",
+            "LibraryView must show onboarding only when the library itself is empty.");
+        StringAssert.Contains(xaml, "Visibility=\"{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}\"",
+            "LibraryView must show the no-match state when the library is populated but the filter has no hits.");
+        StringAssert.Contains(xaml, "{Binding EmptyFilteredText}",
+            "LibraryView must keep the Library.EmptyFiltered message bound in the no-match branch.");
+        // Regression guard: neither panel may bind ListBox.HasItems again.
+        Assert.IsFalse(xaml.Contains("ElementName=LibraryItems", StringComparison.Ordinal),
+            "LibraryView empty states must not bind ListBox.HasItems (QA B-R1 defect: wrong empty state on no-match filter).");
+    }
+
+    private static string? FindRepoRoot()
+    {
+        string? directory = Path.GetDirectoryName(typeof(EmberOverhaulBTests).Assembly.Location);
+        while (directory != null && !Directory.Exists(Path.Combine(directory, "FrameHub.App")))
+        {
+            directory = Path.GetDirectoryName(directory);
+        }
+
+        return directory;
+    }
+
+    [TestMethod]
     public async Task Dashboard_TopProcesses_BoundedToThree()
     {
         string settingsPath = Path.Combine(_tempDirectory, "settings.json");
