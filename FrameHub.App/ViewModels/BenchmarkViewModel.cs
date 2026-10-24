@@ -18,7 +18,7 @@ using WpfMessageBox = System.Windows.MessageBox;
 using WpfMessageBoxButton = System.Windows.MessageBoxButton;
 using WpfMessageBoxImage = System.Windows.MessageBoxImage;
 using WpfMessageBoxResult = System.Windows.MessageBoxResult;
-using WinForms = System.Windows.Forms;
+using WpfSaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace FrameHub.App.ViewModels;
 
@@ -808,14 +808,20 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         try
         {
             string report = BenchmarkComparisonExportService.Export(first, second, format);
-            using var dialog = new WinForms.SaveFileDialog
+            var dialog = new WpfSaveFileDialog
             {
                 Filter = markdown ? "Markdown (*.md)|*.md" : "CSV (*.csv)|*.csv",
                 DefaultExt = extension,
                 FileName = $"framehub-comparison-{DateTime.Now:yyyyMMdd-HHmmss}.{extension}",
-                OverwritePrompt = true
+                OverwritePrompt = true,
+                AddExtension = true
             };
-            if (dialog.ShowDialog() != WinForms.DialogResult.OK) return;
+            // QA P3.2: WPF-native dialog with the main window as owner, so the
+            // prompt can never hide behind the app window (WinForms ownerless
+            // dialogs could). Falls back to ownerless only in headless tests.
+            System.Windows.Window? owner = System.Windows.Application.Current?.MainWindow;
+            bool? picked = owner != null ? dialog.ShowDialog(owner) : dialog.ShowDialog();
+            if (picked != true) return;
             File.WriteAllText(dialog.FileName, report, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             StatusMessage = string.Format(_localization.T("Benchmark.Export.Saved"), dialog.FileName);
             _runtime.AddActivity(StatusMessage);
