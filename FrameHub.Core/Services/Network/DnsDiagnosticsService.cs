@@ -132,16 +132,30 @@ public sealed class DnsDiagnosticsService
             throw new ArgumentException("Interface alias must not be empty.", nameof(interfaceAlias));
         }
 
+        if (validatedAlias.Any(char.IsControl))
+        {
+            throw new ArgumentException("Interface alias must not contain control characters.", nameof(interfaceAlias));
+        }
+
+        // QA P3.4: escape for PowerShell double-quoted strings NOW, while these
+        // are preview-only. If Faza 2 ever executes them, an alias like
+        // 'Foo"; Remove-Item C:\ -Recurse' stays inert text instead of a vector.
+        // Backtick first (it is the escape character itself), then the rest.
+        string escapedAlias = validatedAlias
+            .Replace("`", "``", StringComparison.Ordinal)
+            .Replace("\"", "`\"", StringComparison.Ordinal)
+            .Replace("$", "`$", StringComparison.Ordinal);
+
         ArgumentNullException.ThrowIfNull(preset);
         var commands = new List<string>();
         if (preset.Ipv4Servers.Length > 0)
         {
-            commands.Add($"Set-DnsClientServerAddress -InterfaceAlias \"{validatedAlias}\" -ServerAddresses (\"{string.Join("\", \"", preset.Ipv4Servers)}\")  # IPv4, overwrites DHCP");
+            commands.Add($"Set-DnsClientServerAddress -InterfaceAlias \"{escapedAlias}\" -ServerAddresses (\"{string.Join("\", \"", preset.Ipv4Servers)}\")  # IPv4, overwrites DHCP");
         }
 
         if (preset.Ipv6Servers.Length > 0)
         {
-            commands.Add($"# IPv6 via netsh (per-interface, validated alias): netsh interface ipv6 set dnsservers \"{validatedAlias}\" static {preset.Ipv6Servers[0]} primary");
+            commands.Add($"# IPv6 via netsh (per-interface, validated alias): netsh interface ipv6 set dnsservers \"{escapedAlias}\" static {preset.Ipv6Servers[0]} primary");
         }
 
         if (!string.IsNullOrWhiteSpace(preset.DohTemplate) && preset.Ipv4Servers.Length > 0)
@@ -152,7 +166,7 @@ public sealed class DnsDiagnosticsService
             }
         }
 
-        commands.Add($"# Rollback to automatic (DHCP): Set-DnsClientServerAddress -InterfaceAlias \"{validatedAlias}\" -ResetServerAddresses");
+        commands.Add($"# Rollback to automatic (DHCP): Set-DnsClientServerAddress -InterfaceAlias \"{escapedAlias}\" -ResetServerAddresses");
         return commands;
     }
 
@@ -203,11 +217,23 @@ public sealed class DnsDiagnosticsService
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted,
                 TaskScheduler.Default);
-            Task completed = await Task.WhenAny(receiveTask, Task.Delay(timeout, cancellationToken)).ConfigureAwait(false);
+            // QA P3.3: dedicated delay source so the timeout timer is released
+            // the moment the response wins the race (instead of living until
+            // <paramref name="timeout"/> on every probe).
+            using var delayCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            Task delayTask = Task.Delay(timeout, delayCts.Token);
+            Task completed = await Task.WhenAny(receiveTask, delayTask).ConfigureAwait(false);
             if (completed != receiveTask)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return new ResolverLatencyResult(resolverIp, hostname, false, stopwatch.Elapsed.TotalMilliseconds, "Operation was cancelled.");
+                }
+
                 return new ResolverLatencyResult(resolverIp, hostname, false, stopwatch.Elapsed.TotalMilliseconds, "Timed out waiting for a DNS response.");
             }
+
+            delayCts.Cancel();
 
             byte[] response = receiveTask.GetAwaiter().GetResult().Buffer;
             string? error = ValidateResponse(response, transactionId);

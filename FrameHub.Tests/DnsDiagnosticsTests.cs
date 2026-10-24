@@ -95,6 +95,32 @@ public sealed class DnsDiagnosticsTests
     }
 
     [TestMethod]
+    public void BuildPreviewCommands_EscapesPowerShellMetacharacters()
+    {
+        var preset = DnsDiagnosticsService.Presets.Single(p => p.Id == "cloudflare");
+        var commands = DnsDiagnosticsService.BuildPreviewCommands("Foo\"; $x", preset);
+
+        // The raw break-out sequence must not survive into the preview text.
+        Assert.IsFalse(commands.Any(c => c.Contains("Foo\";")),
+            "An unescaped quote would terminate the PowerShell string early.");
+        var aliasCommands = commands.Where(c => c.Contains("Foo")).ToList();
+        Assert.IsTrue(aliasCommands.Count >= 3, "Alias-bearing commands must still be present.");
+        Assert.IsTrue(aliasCommands.All(c => c.Contains("Foo`\"; `$x")),
+            "Quotes and $ must be backtick-escaped for PowerShell double-quoted strings.");
+
+        // Plain aliases are byte-identical to before (no behavior change).
+        var plain = DnsDiagnosticsService.BuildPreviewCommands("Ethernet", preset);
+        Assert.IsTrue(plain.Any(c => c.Contains("\"Ethernet\"") && c.Contains("1.1.1.1")));
+    }
+
+    [TestMethod]
+    public void BuildPreviewCommands_RejectsControlCharacters()
+    {
+        var preset = DnsDiagnosticsService.Presets.Single(p => p.Id == "cloudflare");
+        Assert.ThrowsException<ArgumentException>(() => DnsDiagnosticsService.BuildPreviewCommands("Eth\r\nernet", preset));
+    }
+
+    [TestMethod]
     public void GetAdapters_DoesNotThrow_ReturnsNamedEntries()
     {
         var service = new DnsDiagnosticsService();
