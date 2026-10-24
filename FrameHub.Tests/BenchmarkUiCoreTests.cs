@@ -172,8 +172,20 @@ public sealed class BenchmarkHistoryStorageTests
 public sealed class BenchmarkViewModelWorkflowTests
 {
     private string _root = null!;
+    private readonly List<BenchmarkViewModel> _liveVms = [];
     [TestInitialize] public void Initialize() => _root = Path.Combine(Path.GetTempPath(), "FrameHubVmTests", Guid.NewGuid().ToString("N"));
-    [TestCleanup] public void Cleanup() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
+    [TestCleanup]
+    public async Task Cleanup()
+    {
+        // Deterministic P2-B handshake: drain every tracked file-bearing
+        // background read (history refresh / result load, including work
+        // cascaded by auto-selection) BEFORE deleting the store directory.
+        // A stuck drain fails loudly via TimeoutException — never a retry,
+        // never a swallowed IOException.
+        foreach (BenchmarkViewModel vm in _liveVms) await vm.WaitForBackgroundWorkAsync(TimeSpan.FromSeconds(30));
+        _liveVms.Clear();
+        if (Directory.Exists(_root)) Directory.Delete(_root, true);
+    }
 
     [TestMethod]
     public async Task InitialRefresh_AutoSelectsExactlyOneRunningGameAndEnablesStart()
@@ -303,6 +315,7 @@ public sealed class BenchmarkViewModelWorkflowTests
             new(101, "alpha", first.ExecutablePath, DateTime.UtcNow),
             new(202, "beta", second.ExecutablePath, DateTime.UtcNow)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [first, second], () => backend, () => false, engineProbe: () => (true, "2.5.1", null));
+        _liveVms.Add(vm);
         await vm.RefreshGamesAsync();
         await vm.HandleGlobalHotkeyAsync();
         Assert.AreEqual(0, backend.CallCount);
@@ -417,6 +430,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(123, "g1", @"C:\Games\g1.exe", startTime)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => backend, () => false, engineProbe: () => (true, "2.5.1", null), coordinator: coordinator);
+        _liveVms.Add(vm);
 
         await vm.RefreshGamesAsync();
         vm.CountdownSeconds = 6;
@@ -475,6 +489,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         var game = new LibraryItem { Id = "game", DisplayName = "Game", Source = LibrarySource.Manual, ExecutablePath = @"C:\Games\game.exe", ProcessName = "game", IsEnabled = true };
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(123, "game", @"C:\Games\game.exe", DateTime.UtcNow)]));
         var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), new BenchmarkStorageService(_root), detector, () => [game], () => new FakeBackend(new BenchmarkStorageService(_root), BackendMode.Success), () => false, engineProbe: () => (true, "2.5.1", null), coordinator: coordinator);
+        _liveVms.Add(vm);
 
         vm.Dispose();
 
@@ -491,6 +506,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         var startTime = DateTime.UtcNow;
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, startTime)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => controllableBackend, () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+        _liveVms.Add(vm);
         var completedNotification = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         coordinator.StateChanged += (_, snapshot) =>
         {
@@ -547,6 +563,7 @@ public sealed class BenchmarkViewModelWorkflowTests
 
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, startTime)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Success), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+        _liveVms.Add(vm);
         var cancelledNotification = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         coordinator.StateChanged += (_, snapshot) =>
         {
@@ -590,6 +607,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         var startTime = DateTime.UtcNow;
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, startTime)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Failure), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+        _liveVms.Add(vm);
         var failedNotification = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         coordinator.StateChanged += (_, snapshot) =>
         {
@@ -627,6 +645,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), fakeRuntime, storage, detector, () => [game], () => createdBackend, () => false, engineProbe: () => (true, "1.0", null));
+        _liveVms.Add(vm);
 
         await vm.RefreshGamesAsync();
         vm.CountdownSeconds = 0;
@@ -646,6 +665,7 @@ public sealed class BenchmarkViewModelWorkflowTests
         var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(101, "g1", game.ExecutablePath, DateTime.UtcNow)]));
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => new FakeBackend(storage, BackendMode.Success), () => false, engineProbe: () => (true, "1.0", null), coordinator: coordinator);
+        _liveVms.Add(vm);
         var completedNotification = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         coordinator.StateChanged += (_, snapshot) =>
         {
@@ -688,7 +708,9 @@ public sealed class BenchmarkViewModelWorkflowTests
         backend = createdBackend;
         var game = new LibraryItem { Id = "game", DisplayName = "Game", Source = LibrarySource.Manual, ExecutablePath = @"C:\Games\game.exe", ProcessName = "game", IsEnabled = true };
         var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(123, "game", @"C:\Games\game.exe", DateTime.UtcNow)]));
-        return new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => createdBackend, () => false, engineProbe: () => (true, "2.5.1", null));
+        var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => createdBackend, () => false, engineProbe: () => (true, "2.5.1", null));
+        _liveVms.Add(vm);
+        return vm;
     }
 
     private static BenchmarkSession SaveCompleted(BenchmarkStorageService storage, string gameId, DateTime startUtc, double averageFps)
