@@ -6,11 +6,15 @@ Canonical owners remain `docs/architecture/FEATURE-MAP.md` (routing),
 `docs/architecture/BACKGROUND-WORK.md` (timers) and `docs/ROADMAP.md` (plans).
 
 - Baseline: `main` @ `0c6efc24` (= BASE), v0.7.1.
-- Head: `noc/t_2e7bd27e-0c6efc2` @ `2bd22cb` (3 local commits, no push).
+- Head: `noc/t_2e7bd27e-0c6efc2` — HEAD kodu `f53e91e` (5 local code commits,
+  no push); HEAD gałęzi = niniejszy commit dokumentacyjny (tip gałęzi,
+  treść kodu bez zmian względem `f53e91e`).
 - Classification: VERIFIED = inspected in code; REPORTED = teammate finding taken as input
   without re-audit; test-execution numbers are REPORTED from QA reports
   (`QA_REVIEW.md`, `BASELINE-REPORT.md`), not re-run here.
-- QA execution (REPORTED): Desktop **655/655** (was 651 at BASE, +4 new tests),
+- QA execution (REPORTED for NOC scope; etap-0 reruns in `docs/audits/2026-10-24-etap0-report.md`):
+  Desktop **655/655** at NOC review (was 651 at BASE, +4 new tests), **656/656**
+  after the etap-0 P2 round (+1 countdown-visibility test),
   Companion **140/140**, Release build 0 warnings / 0 errors, `node --check` 7/7 JS.
 
 ## 1. User functions (12)
@@ -24,7 +28,7 @@ Canonical owners remain `docs/architecture/FEATURE-MAP.md` (routing),
 | U-5 | Game CPU Assignment (Affinity / CPU Sets, active game) | `ProcessService` (sole native scheduling owner) + `OptimizationService` | Desktop card + Companion card, scopes `read:optimization-cpu` / `write:optimization-cpu` | `SessionCpuApiTests`, `OptimizationRetryTests`, `PowerPlanTests` |
 | U-6 | Processes & CPU view | `ProcessScannerService` (sole CPU delta sampler), `ProcessObservationSnapshotProvider` (250 ms TTL, no timer) | `ProcessesViewModel` (page-scoped refresh) | `ProcessScanner*Tests` (REPORTED green) |
 | U-7 | CPU profiles + profile watcher | `ProfileService`, `AppRuntimeService.cs:29,86-90` (1–30 s, default 2 s) | Settings / profiles UI | Profile-related tests (REPORTED green) |
-| U-8 | CS2 configuration workflow | `Cs2OptimizationService` + `LibraryViewModel` (~1700 lines, P1 refactor candidate — untouched) | Library item detail | `Cs2ConfigWorkflowTests` |
+| U-8 | CS2 configuration workflow | `Cs2OptimizationService` + `LibraryViewModel` (~1800 lines, P1 refactor candidate — untouched) | Library item detail | `Cs2ConfigWorkflowTests` |
 | U-9 | Hardware monitoring (opt-in, lease-controlled) | `HardwareMonitorService` (sole sensor backend) | `HardwareViewModel` (lease-backed refresh) | `HardwareMonitorRuntimeStateTests`, `SensorReaderTests` |
 | U-10 | Benchmarks: Capture / History / Compare (PresentMon Service/API only) | `BenchmarkCaptureCoordinator` (sole lifecycle), `PresentMonApiCaptureBackend`, `BenchmarkAnalyzer`, `BenchmarkStorageService` | `BenchmarkViewModel` + `BenchmarkView.xaml`, Companion `benchmarks.js` | `BenchmarkUiCoreTests` incl. 2 new regression tests, `BenchmarkCaptureCoordinatorTests`, `PresentMon*Tests` (REPORTED green) |
 | U-11 | Update check (HTTPS version.txt, 5 s timeout, silent fail; P2: no signature verification — threat-model note, not a blocker) | `UpdateService.cs` (57 lines) | Update dialog (automatic + manual) | `UpdateNotificationTests` |
@@ -45,8 +49,11 @@ Canonical owners remain `docs/architecture/FEATURE-MAP.md` (routing),
 - Persistence: `AtomicFileService` (general), `DeviceRecordStore` (deliberately separate writer,
   publish-after-persist — P3, do not touch).
 - Companion: 7 controllers (`api/v1/*`), `PairingEngine`, `CompanionAuthMiddleware`,
-  `CompanionScopes` (16 constants), `CompanionServer`, `TelemetryWebSocketHandler`
-  (ticket + generation guards, 3 s / 30 s retry), vanilla-JS frontend (7 modules, `textContent` only).
+  `CompanionScopes` (13 constants), `CompanionServer`, `TelemetryWebSocketHandler`
+  (ticket + generation guards, 3 s / 30 s retry), vanilla-JS frontend (7 modules;
+  DOM writes predominantly via `textContent`; 9 `innerHTML` uses limited to
+  clearing containers and static/localized markup — `benchmarks.js:124,137,416,444,490,508,583`,
+  `library.js:46,55` — no DTO data interpolated, spot check, not a full XSS audit).
 - Developer-only: `FrameHub.BenchmarkHarness` (not referenced by App or installer — VERIFIED).
 
 ## 3. Experimental / research (not product commitments)
@@ -70,7 +77,7 @@ Canonical owners remain `docs/architecture/FEATURE-MAP.md` (routing),
 
 ## 5. Dead (0 confirmed)
 
-- No confirmed dead production code. `BENCHMARKING.md:94` "retired backend values" is a
+- No confirmed dead production code. `BENCHMARKING.md:95` "retired backend values" is a
   future-guard CLI sentinel (`BenchmarkHarnessOptions.cs:65`); benchmarks were born as
   Service/API (`f477ba3`, 2026-08-09) and `PresentMonApiCaptureBackend` is the only
   `IBenchmarkCaptureBackend` implementation. Nothing to remove.
@@ -79,9 +86,14 @@ Canonical owners remain `docs/architecture/FEATURE-MAP.md` (routing),
 
 - `e70e967` + `2bd22cb` — `BenchmarkViewModel.OnCoordinatorStateChanged`: stale-snapshot guards
   (`BenchmarkViewModel.cs:275-276`) close the late-Capturing-overwrites-terminal-state race.
+- `f53e91e` (etap-0, ta karta) — `DispatchIfRequired`: dead/shutdown dispatcher falls back
+  to inline apply instead of silently dropping; positive injection control in
+  `LateCapturingSnapshot_…` + new `InOrderWaitingSnapshot_DuringLocalAwait_KeepsCountdownVisible`
+  proving countdown/progress stays visible during local await.
 - `d9bfc39` — `DashboardViewModel : IDisposable` (`DashboardViewModel.cs:439-446`),
   first-disposed from `ShellViewModel.Dispose` (`ShellViewModel.cs:314-322`),
   production path `MainWindow.OnClosed` → `DataContext as IDisposable` (`MainWindow.xaml.cs:548-550`).
-- 4 new tests (651 → 655): `LateCapturingSnapshot_…`, `CaptureFailure_RemainsTerminalUnderRepeatedCapture`,
-  `DashboardViewModel_Constructor_Subscribes…`, `DashboardViewModel_Dispose_Unsubscribes…`.
+- 5 new tests (651 → 656): `LateCapturingSnapshot_…`, `CaptureFailure_RemainsTerminalUnderRepeatedCapture`,
+  `DashboardViewModel_Constructor_Subscribes…`, `DashboardViewModel_Dispose_Unsubscribes…`,
+  `InOrderWaitingSnapshot_DuringLocalAwait_KeepsCountdownVisible` (etap-0).
 - No new services, owners, timers, or polling loops (REUSE-FIRST clean).

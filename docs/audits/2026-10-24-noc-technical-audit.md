@@ -4,7 +4,9 @@ Status: point-in-time. Canonical follow-ups belong in
 `docs/architecture/REFACTOR-CANDIDATES.md`, `docs/architecture/SERVICE-CATALOG.md`
 and `docs/ROADMAP.md` — this file records the NOC state with evidence links.
 
-- Baseline: `main` @ `0c6efc24` (= BASE), v0.7.1. Head: `noc/t_2e7bd27e-0c6efc2` @ `2bd22cb`.
+- Baseline: `main` @ `0c6efc24` (= BASE), v0.7.1. Head: `noc/t_2e7bd27e-0c6efc2` —
+  HEAD kodu `f53e91e` (5 local code commits, no push); HEAD gałęzi = niniejszy commit
+  dokumentacyjny (treść kodu bez zmian względem `f53e91e`).
 - Severity rubric: `docs/agents/REVIEW.md` (P0–P3). QA verdict: **PASS WITH WARNINGS** (REPORTED,
   `QA_REVIEW.md`); acceptance is administrative (independent QA run outside crashed Kanban worker).
 - VERIFIED = inspected in the worktree diff/code during this task; REPORTED = taken from
@@ -24,11 +26,11 @@ or hardware backends; Companion adapters still delegate only.
 
 | ID | Sev | Location | Statement + required action |
 |---|---|---|---|
-| OPEN-P2-1 | P2 | `FrameHub.Tests/BenchmarkUiCoreTests.cs:351`, `FrameHub.App/ViewModels/BenchmarkViewModel.cs:382-402` (`DispatchIfRequired`) | Deterministic `LateCapturingSnapshot_…` test can become a **vacuous PASS** depending on in-process test order: if `Application.Current != null` with a dead dispatcher (left by WPF STA tests), the injected snapshot is silently dropped and the assertion passes trivially. REPORTED probe: `ApplicationCurrentNull=False, dispatcherAlive=False` → `afterInject=Failed` on BASE code. Fix (test-side, one narrow round): add a **positive injection control** (fresh VM in `Idle`, inject `Capturing`, assert `State == Capturing`) before the terminal-state scenario. Alternative (production change, team decision): `action()` fallback in `DispatchIfRequired` when the dispatcher cannot accept work |
+| OPEN-P2-1 | P2 → FIXED (etap-0, `f53e91e`) | `FrameHub.Tests/BenchmarkUiCoreTests.cs:351`, `FrameHub.App/ViewModels/BenchmarkViewModel.cs:382-402` (`DispatchIfRequired`) | Deterministic `LateCapturingSnapshot_…` test **could** become a **vacuous PASS** depending on in-process test order (REPORTED probe). Fixed two-sided: (1) test-side **positive injection control** (fresh VM in `Idle`, inject `Capturing`, assert `State == Capturing`) fails loudly instead of passing vacuously; (2) production-side `action()` fallback in `DispatchIfRequired` when the dispatcher is dead/shutting down (same graceful degradation as no-`Application`; handler guards disposed VMs), making delivery order-independent. Negative controls on `e70e967` code: LateCapturing fails with the baseline signature `Expected <Failed>, Actual <Capturing>`; countdown test fails `Expected <Waiting>, Actual <Idle>`. Full evidence in etap-0 report. |
 | OPEN-P3-1 | P3 | `GamingQuickActionServiceTests.cs:266` | Constructor-subscription test never calls `Dispose` — leaves subscriptions to end of test process (test hygiene) |
 | OPEN-P3-2 | P3 | `BenchmarkUiCoreTests.cs:333` | 25× `CaptureFailure_RemainsTerminalUnderRepeatedCapture` tripwire is **not decisive** (passes 3/3 on BASE — narrow race window); the deterministic test is the real guard; note it in a comment so the team does not rely on the tripwire |
-| OPEN-P3-3 | P3 | `BenchmarkViewModel.cs:474-515` | No test for countdown/capture-progress visibility during local await (fix `2bd22cb` restored it; QA verified only with an out-of-repo probe) — add a cheap sampling test |
-| OPEN-P3-4 | P3 | `BenchmarkViewModel.cs:258` (flags) | `_isLocallyAwaitingCapture` / `_localTerminalApplied` lack `volatile`; safe in production (UI-thread gates) but formally unsynchronised on the no-`Application` test path |
+| OPEN-P3-3 | P3 → FIXED (etap-0, `f53e91e`) | `BenchmarkViewModel.cs:474-515` | No test for countdown/capture-progress visibility during local await (fix `2bd22cb` restored it; QA verified only with an out-of-repo probe) — added `InOrderWaitingSnapshot_DuringLocalAwait_KeepsCountdownVisible` (real coordinator + controllable backend, countdown 6 s): in-order `Waiting` applied during local await with `RemainingCountdown > 0`. Fails on `e70e967` blind-guard code (`Expected <Waiting>, Actual <Idle>`). |
+| OPEN-P3-4 | P3 | `BenchmarkViewModel.cs:257-258` (flags) | `_isLocallyAwaitingCapture` / `_localTerminalApplied` lack `volatile`; safe in production (UI-thread gates) but formally unsynchronised on the no-`Application` test path |
 | F-2 | P3 | `FrameHub.Core/Services/AppPaths.cs:10-13` | No data-directory override: `SpecialFolder.ApplicationData` ignores `APPDATA` redirection, so tests/dev builds write to the shared `%APPDATA%\FrameHub\FrameHub.log` (REPORTED: +34 661 B of concurrent-test noise during the 240 s idle soak). Contaminates before/after measurements; fix needs a reviewed change — **not done this NOC** |
 | F-3 | P3 | `FrameHub.Companion/wwwroot/js/*.js` (3003 LOC) | Zero JS logic tests (no `package.json`, no `*.test.js`); frontend tests assert static content only. JS untouched this NOC (change without a harness would be unprotected) |
 | GAME-DATA | P3 | `FrameHub.GameData/`, `GameDataService.cs`, `GameDataModels.cs` | Dormant, zero consumers (see inventory). Adopt-or-remove needs a separate reviewed decision — nothing deleted this NOC |
@@ -43,7 +45,7 @@ P0: **none**. P1: **none open** (PM-2.6.0 is a gated pilot, not an accepted defe
 - **PresentMon A+B**: keep proven Service/API v2.5.1; v2.6.0 only as validated pilot. Variant C (own ETW backend) rejected; D research-only. Rationale: correctness risk, per-capture elevation, multi-vendor telemetry cost, anticheat exposure.
 - **GameData**: dormant confirmed; no deletion without adopt-vs-remove review.
 - **"Retired backends"**: negative — CLI sentinel only, nothing to remove.
-- **Timers**: `BACKGROUND-WORK.md` (18 rows) is the canonical inventory; `RUNTIME-OVERHEAD.md` §5 is a subset. Pointer added this NOC; no third inventory created.
+- **Timers**: `BACKGROUND-WORK.md` (17 rows) is the canonical inventory; `RUNTIME-OVERHEAD.md` §5 is a subset. Pointer added this NOC; no third inventory created.
 - **Target web architecture** (plan only, not implemented): LAN-only + pairing/scopes unchanged; PWA = manifest + SW cache of UI assets only (never `/api/*`); remote access only via user tunnel, never direct Kestrel exposure; future `v2` = versioned DTOs + contract tests.
 
 ## 4. Scope not investigated (NOT RUN, with cause)

@@ -63,7 +63,7 @@ Beyond the standalone process soak, feature-specific lifecycle mechanisms were e
 
 ## 5. Background Work & Timer Inventory
 
-Canonical inventory: `architecture/BACKGROUND-WORK.md` (18 rows, including frontend polling,
+Canonical inventory: `architecture/BACKGROUND-WORK.md` (17 rows, including frontend polling,
 WS reconnect, capture loop, progress and stale-marker loops). The list below is the runtime
 subset relevant to this audit — do not extend it here; update the canonical file instead.
 

@@ -22,6 +22,12 @@
 > - **Before merge:** harden `LateCapturingSnapshot_…` with a positive injection control
 >   (open P2: possible vacuous PASS depending on test order). Acceptance: 10 consecutive
 >   full-suite runs green incl. first run after build.
+> - **Etap-0 2026-10-24 (`t_eb7d4587`, commit `f53e91e`): P2 FIXED** — positive injection
+>   control + `action()` fallback in `DispatchIfRequired` (dead/shutdown dispatcher
+>   applies inline instead of dropping); new `InOrderWaitingSnapshot_…` proves
+>   countdown/progress stays visible during local await. Negative controls on `e70e967`
+>   FAIL as expected (`Expected <Failed>, Actual <Capturing>`; `Expected <Waiting>,
+>   Actual <Idle>`). Merge gate now depends only on independent same-card QA of `t_eb7d4587`.
 > - **PresentMon v2.6.0 pilot (gated, not scheduled):** only after ABI validation
 >   (`PresentMonIntrospectionTests` + harness `--presentmon-api-dll`), then pin + SHA-256
 >   + QA regression. Native ETW backend rejected; static-link core research-only.
