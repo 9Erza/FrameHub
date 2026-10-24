@@ -15,6 +15,30 @@
 - Runtime Resource & Overhead Audit: comprehensive background work inventory, memory working set characterization and stabilization analysis, 10-minute idle soak verification showing stable plateau (<0.15 MB/min slope, ~0.25% idle CPU), verified lease-controlled hardware monitor shutdown and zero duplicate background loops.
 - FrameHub v0.7.1 Mobile Companion Polish & Update UX: desktop update notification reworked (once-per-process automatic check gated on real window presentation, silent no-update/error results, shared FrameHub-styled update dialog for automatic and manual checks); Companion browser identity (favicon, Apple touch icon, theme color from the official logo); Companion mobile app-shell rework (fixed header, single scrolling content region with footer, layout-anchored bottom navigation, iOS safe-area/`100dvh` handling, root horizontal-overflow prevention, compact phone density, inline SVG navigation icons, user-facing footer copy).
 
+## 24.10 — modernizacja po Etapie 0 (zaakceptowana 2026-10-24, `main` = `f3114fe`)
+
+Zakres: PR #7 (`coder/t_f091ff98-24-10` @ `205c265` → merge `f3114fe`), 17 commitów, 26 plików, +2662/−73 od bazy `a175a25`. CI exact-head 3× success. Walidacja AGENTS na scaleniu: build 0/0, Desktop 700/700, Companion 140/140, JS 7/7. F-DOC-1…8 z review Etapu 0 pozostają naprawione (13 scopes, 17 wierszy, 9× `innerHTML` nadal celowo, `BENCHMARKING.md:95`, `~1800` linii, flagi `_isLocallyAwaitingCapture`/`_localTerminalApplied`); nowa dokumentacja nie zmienia tych liczb.
+
+### Wdrożono (potwierdzone kodem + testami + niezależnym QA, werdykt PASS WITH WARNINGS)
+- Stabilność P0/P1: marshal `SessionStateChanged` na dispatcher UI (`SessionStateChangedMarshalingTests`, deterministyczne STA red/green); budżetowany shutdown `MainWindow → Shell.ShutdownAsync(budget) → AppRuntimeService.ShutdownAsync` (koperta 8 s, timeout = jawny błąd, nie blind kill; `ShutdownBudgetTests`); serializacja `ProcessesViewModel.RefreshAsync` + lokalny `CancellationToken` (QA-P2-3, RED 2/2 `ObjectDisposedException` → GREEN); dispose-before-replace rotowanych CTS; serializacja `ComparisonRebuild` (`_comparisonGate`); `TryResume` przez wstrzykiwane delegaty.
+- Restart kooperacyjny (dyrektywa §B, R1): `SettingsService.TryStartSuccessorProcess` — tylko zweryfikowany `_exePath`, whitelist argv (`--tray`, `--minimized`), single-flight, successor-first, timeout = jawny błąd + `ResetRestartState`; wyzwalany z tray-menu (`MainWindow.RestartApplication`); 13 testów (`RestartSuccessorTests`). E2E restartu przez tray = NOT RUN (brak automatyzacji zasobnika).
+- DNS diagnostyka Faza 1 (dyrektywa §C, R2-F1): `DnsDiagnosticsService` **read-only, library-only** — enumeracja adapterów, serwery per-interface (DHCP/statyczne), latencja per-resolver, podgląd komend; celowo ZERO API mutacji; brak konsumentów produkcyjnych (Desktop UI odłożone). 8 testów. Mutacja systemowa (Faza 2) NIE istnieje — jawnie odłożona do czasu udowodnienia rollbacku.
+- Premium PAKIET A1 (dyrektywa §D, R3-A1): eksport porównania benchmarków do CSV/Markdown (`BenchmarkComparisonExportService`, statyczny konsument `BenchmarkStorageService` + `BenchmarkComparisonService`, bez zmian matematyki; determinizm bajt-identyczny, daty UTC ISO-8601); wpięty w zakładkę Compare (WPF `SaveFileDialog` z ownerem). W pełni addytywny: zero gatingu istniejących funkcji, zero licencji/DRM/paywalla/serwera. 8 testów + golden.
+- F-2 izolacja danych (QA-P2-2): `AppPaths` honoruje `FRAMEHUB_DATA_DIR` / `FRAMEHUB_LOCAL_DATA_DIR` (override katalogu danych użytkownika/lokalnego + migracja legacy); 5 testów. Domyślna ścieżka bez zmian (`%APPDATA%\FrameHub`); pomiary QA wykonywano w izolowanym katalogu.
+- Pomiary na HEAD (QA, Release, 2026-10-24): warm start 1224 ms (bramka ≤1522 ms); WM_CLOSE→exit 128–134 ms, kod 0; soak 300 s WS +1,2%, uchwyty 756→708, idle CPU 0,002–0,065% (bramka ≤0,12%). Baseline Etapu 0 (`a175a25`, 2026-10-24): warm 1303/1384 ms, pierwszy po buildzie 4224 ms, soak 1800 s WS 210,3 MB / Private 102,5 MB / CPU 0,102%, REST p50 2,09 ms / p95 7,95 ms, UI p50 4,6–5,8 ms. NOC (2026-10-24, `t_602bd1b8`) ma już tylko wartość historyczną. Kadencje chronione bez zmian (200 ms progress, 250 ms live, 500 ms WS, 1 s poll, 3 s auto, 4 s session-poll).
+
+### Jawnie odłożone (decyzje z dyrektywy, nie luki implementacyjne)
+- HUD: 0 kodu (warunek antycheat niespełnialny do udowodnienia) — WSTRZYMANE.
+- WinUI 3 / migracja UI: odłożone z powodem (brak dowodu zysku; WPF wspierany w .NET 10) — bez PoC w tej fazie.
+- Auto-updater/hosting/backend aktualizacji: PÓŹNIEJ (tylko check `version.txt`).
+- Zdalny serwer/VPS/public API/przebudowa Companion: PÓŹNIEJ.
+- Mutacja DNS (Faza 2) i DNS-UI: odłożone (warunek: udowodniony rollback + akceptacja UX).
+- `LibraryViewModel` split (1837 linii), `GameData` adopt/remove, trendy benchmarków (A2), reguły Session per-gra: odłożone z powodem (wpisane w REFACTOR-CANDIDATES / Experimental).
+- `Module.Toolkit.*` (20 kluczy lokalizacyjnych): rezerwacja pod ewentualny moduł Toolkit, nie ślad usuniętego kodu; decyzja Toolkit TAK/NIE wisi.
+
+### NOT RUN na HEAD (przyczyny w raporcie QA; status niezmieniony przez ten zakres)
+Capture e2e/live telemetry/preempcja (brak PresentMon i gry), sensory i lease Hardware, nawigacja/render/scroll, tray→Exit i pełny budżet 8 s wall-clock, parowanie Companion/scopes 403/WS z biletem, GC/alloc, DNS/registry/schtasks/restart-admin/mutacje procesów. Otwarte: QA-P2-1 (test regresji `ComparisonRebuild` nie czerwienieje na pre-fix — brak niezależnego dowodu red/green dla fixu wyścigu z CI).
+
 ## Planned Near-Term Backlog
 
 > NOC 2026-10-24 annotations (branch `noc/t_2e7bd27e-0c6efc2`, QA PASS WITH WARNINGS —

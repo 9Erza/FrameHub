@@ -208,6 +208,35 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 - **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** locked item/timestamp dictionary; no native work and no timer.
 - **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** same-item launches are rejected during cooldown while different items remain independent; never duplicate the runtime owner.
 
+## Diagnostics and reporting (24.10, additive)
+
+### DnsDiagnosticsService
+
+- **NAME:** `DnsDiagnosticsService`
+- **PATH / PROJECT:** `FrameHub.Core/Services/Network/DnsDiagnosticsService.cs` / Core
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** read-only DNS diagnostics: adapter enumeration, current per-interface DNS servers (DHCP vs static), per-resolver latency, and exact change-command preview.
+- **LIFETIME / MAJOR CONSUMERS:** library-only (2026-10-24): unit tests are the only consumers; no production UI or service calls it. Desktop diagnostics UI explicitly deferred.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** no mutation API by design (no registry/netsh/adapter writes); one-shot `Task.Delay` on a linked CTS only; no timer, no recurring loop.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** acceptance for this phase is "no system change after use". System-wide mutation (Phase 2) requires explicit user action, elevation, verified per-interface rollback, and connectivity self-checks; do not add mutation without those. Never claim DNS changes improve FPS or game ping.
+
+### BenchmarkComparisonExportService
+
+- **NAME:** `BenchmarkComparisonExportService`
+- **PATH / PROJECT:** `FrameHub.Core/Services/Benchmarking/BenchmarkComparisonExportService.cs` / Core
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** additive benchmark A/B comparison export to CSV/Markdown (Premium PAKIET A1, dyrektywa §D).
+- **LIFETIME / MAJOR CONSUMERS:** static, stateless; called from `BenchmarkViewModel` Compare tab via WPF `SaveFileDialog` with the main window as owner.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** pure consumer of `BenchmarkStorageService` (data) and `BenchmarkComparisonService` (math); no storage or math changes; byte-identical re-export (InvariantCulture, UTC ISO-8601 dates); no timer.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** fully additive — no existing feature is gated, no license/DRM/paywall/server. Keep new reporting read-only on the existing storage owner.
+
+### AppPaths data-directory override
+
+- **NAME:** `AppPaths` (`FRAMEHUB_DATA_DIR` / `FRAMEHUB_LOCAL_DATA_DIR`)
+- **PATH / PROJECT:** `FrameHub.Core/Services/AppPaths.cs` / Core
+- **RESPONSIBILITY / AUTHORITATIVE FOR:** optional environment-variable override of the user-data and local-data directories (plus legacy file migration), used to isolate tests/measurements from `%APPDATA%\FrameHub`.
+- **LIFETIME / MAJOR CONSUMERS:** process-wide path resolution; QA measurements run with an isolated directory.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** path resolution only; no timer.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** default user path is unchanged; do not relocate user data silently.
+
 ## Runtime, hardware, Companion, persistence
 
 ### AppRuntimeService
