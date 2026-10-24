@@ -12,7 +12,7 @@ using FrameHub.Core.Services.Benchmarking;
 
 namespace FrameHub.App.ViewModels;
 
-public sealed class DashboardViewModel : ViewModelBase
+public sealed class DashboardViewModel : ViewModelBase, IDisposable
 {
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
@@ -26,6 +26,7 @@ public sealed class DashboardViewModel : ViewModelBase
     private bool _isSelectedGamingGameRunning;
     private string _gamingStatusMessage = string.Empty;
     private ActiveSessionState? _gamingSession;
+    private bool _disposed;
     public Action? BenchmarkNavigationRequested { get; set; }
     public ICommand OpenBenchmarksCommand { get; }
     public ICommand StartGamingModeCommand { get; }
@@ -142,9 +143,9 @@ public sealed class DashboardViewModel : ViewModelBase
         RestoreGamingModeCommand = new RelayCommand(
             async _ => await RestoreGamingModeAsync(),
             _ => !_isRestoreBusy && !_isGamingBusy && IsGamingModeActive);
-        _runtime.WatcherStateChanged += (_, _) => RefreshTexts();
-        _runtime.RuntimeStateChanged += (_, _) => RefreshTexts();
-        _runtime.ProfilesChanged += (_, _) => RefreshTexts();
+        _runtime.WatcherStateChanged += OnRuntimePresentationChanged;
+        _runtime.RuntimeStateChanged += OnRuntimePresentationChanged;
+        _runtime.ProfilesChanged += OnRuntimePresentationChanged;
         _runtime.SessionOptimizationCoordinator.SessionStateChanged += OnCoordinatorSessionStateChanged;
         _gamingSession = _runtime.SessionOptimizationCoordinator.ActiveSession;
         RefreshTexts();
@@ -158,6 +159,7 @@ public sealed class DashboardViewModel : ViewModelBase
 
     private void OnCoordinatorSessionStateChanged(object? sender, ActiveSessionState? session)
     {
+        if (_disposed) return;
         _gamingSession = session;
         OnPropertyChanged(nameof(IsGamingModeActive));
         OnPropertyChanged(nameof(ShowGamingSelector));
@@ -432,5 +434,21 @@ public sealed class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(GamingRestoreText));
         OnPropertyChanged(nameof(GamingModeDetail));
         OnPropertyChanged(nameof(ShowGamingSelector));
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _runtime.WatcherStateChanged -= OnRuntimePresentationChanged;
+        _runtime.RuntimeStateChanged -= OnRuntimePresentationChanged;
+        _runtime.ProfilesChanged -= OnRuntimePresentationChanged;
+        _runtime.SessionOptimizationCoordinator.SessionStateChanged -= OnCoordinatorSessionStateChanged;
+    }
+
+    private void OnRuntimePresentationChanged(object? sender, EventArgs e)
+    {
+        if (_disposed) return;
+        RefreshTexts();
     }
 }

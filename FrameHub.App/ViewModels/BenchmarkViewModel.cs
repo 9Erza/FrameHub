@@ -64,6 +64,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public ObservableCollection<BenchmarkHistoryItemViewModel> History { get; } = new();
     public ObservableCollection<BenchmarkComparisonRowViewModel> ComparisonRows { get; } = new();
     public ObservableCollection<BenchmarkEnvironmentDifferenceRowViewModel> EnvironmentDifferenceRows { get; } = new();
+    private readonly object _comparisonGate = new();
     public IReadOnlyList<int> DurationOptions { get; } = [30, 60, 120];
     public IReadOnlyList<int> CountdownOptions { get; } = [0, 3, 5];
 
@@ -255,12 +256,25 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     }
 
     private bool _isLocallyAwaitingCapture;
+    private bool _localTerminalApplied;
 
     private void OnCoordinatorStateChanged(object? sender, BenchmarkCaptureStateSnapshot snapshot)
     {
         void Action()
         {
             if (_disposed) return;
+            // A locally awaited capture owns its terminal transition through the
+            // StartCaptureAsync outcome path. Coordinator notifications drain
+            // asynchronously on the ThreadPool, so a stale non-terminal snapshot
+            // (e.g. Capturing) can arrive after the terminal outcome state was
+            // already applied (e.g. Failed) and must not overwrite it.
+            // In-order snapshots for the running capture are still applied so
+            // countdown/capture progress keeps working; only stale ones drop:
+            // - after the local outcome was applied, or
+            // - when the coordinator is no longer active (capture already ended
+            //   and the drain arrived after the await completed).
+            if (_isLocallyAwaitingCapture && _localTerminalApplied) return;
+            if (snapshot.IsActive && !_coordinator.IsActive) return;
 
             if (snapshot.State == CoordinatorState.Waiting)
             {
@@ -364,6 +378,17 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
                     // Dispatcher was shut down or unavailable during invoke
                 }
             }
+            else
+            {
+                // No live UI thread to marshal to (dispatcher thread dead or
+                // application shutting down, e.g. a leftover Application from
+                // an earlier test). Dropping the update here would silently
+                // lose state transitions, so apply inline — the same graceful
+                // degradation as when there is no Application at all. The
+                // handler itself guards disposed instances.
+                action();
+            }
+
             return;
         }
 
@@ -458,6 +483,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         if (notify) UserNotificationRequested?.Invoke(string.Format(_localization.T("Benchmark.Hotkey.Started"), running.LibraryItem.DisplayName));
 
         _isLocallyAwaitingCapture = true;
+        _localTerminalApplied = false;
         try
         {
             _captureClock.Restart();
@@ -479,6 +505,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
                 }
                 State = BenchmarkUiState.Completed;
                 StatusMessage = _localization.T("Benchmark.Message.Completed");
+                _localTerminalApplied = true;
                 _runtime.AddActivity(string.Format(_localization.T("Benchmark.Log.Completed"), running.LibraryItem.DisplayName));
                 if (notify) UserNotificationRequested?.Invoke(_localization.T("Benchmark.Hotkey.Completed"));
                 _ = ResetTerminalStateAsync(BenchmarkUiState.Completed);
@@ -487,6 +514,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
             {
                 State = BenchmarkUiState.Cancelled;
                 StatusMessage = _localization.T("Benchmark.Message.Cancelled");
+                _localTerminalApplied = true;
                 _runtime.AddActivity(_localization.T("Benchmark.Log.Cancelled"), "Warn");
                 await RefreshHistoryAsync();
                 _ = ResetTerminalStateAsync(BenchmarkUiState.Cancelled);
@@ -494,6 +522,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
             else if (outcome.Status == CoordinatorStatus.Failed)
             {
                 State = BenchmarkUiState.Failed;
+                _localTerminalApplied = true;
                 string code = outcome.ErrorCode ?? "capture_failed";
                 StatusMessage = FriendlyError(code);
                 TechnicalError = string.IsNullOrWhiteSpace(outcome.TechnicalDetail) ? $"[{code}]" : $"[{code}] {outcome.TechnicalDetail}";
@@ -638,27 +667,35 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
 
     private void RebuildComparison()
     {
-        ComparisonRows.Clear();
-        EnvironmentDifferenceRows.Clear();
-        OnPropertyChanged(nameof(CompareValidationText));
-        OnPropertyChanged(nameof(HasEnvironmentDifferences));
-        if (ComparisonA?.IsCompleted != true || ComparisonB?.IsCompleted != true
-            || ComparisonA.Entry.Metadata.SessionId == ComparisonB.Entry.Metadata.SessionId
-            || !BenchmarkComparisonService.IsSameGame(ComparisonA.Entry.Metadata.Game, ComparisonB.Entry.Metadata.Game)) return;
-        foreach (BenchmarkComparisonMetric metric in BenchmarkComparisonService.Compare(ComparisonA.Entry, ComparisonB.Entry))
+        // ComparisonRows/EnvironmentDifferenceRows are rebuilt from the UI/test thread
+        // (ComparisonA/B setters) and from ThreadPool history refreshes
+        // (RefreshHistoryAsync fire-and-forget). ObservableCollection is not thread-safe:
+        // concurrent Clear/Add corrupted the list and threw ArgumentOutOfRangeException
+        // out of List.Insert. Serialize whole rebuilds through one gate.
+        lock (_comparisonGate)
         {
-            ComparisonRows.Add(new BenchmarkComparisonRowViewModel(metric, _localization.T($"Benchmark.Metric.{metric.Key}"), _localization.CurrentLanguage));
-        }
+            ComparisonRows.Clear();
+            EnvironmentDifferenceRows.Clear();
+            OnPropertyChanged(nameof(CompareValidationText));
+            OnPropertyChanged(nameof(HasEnvironmentDifferences));
+            if (ComparisonA?.IsCompleted != true || ComparisonB?.IsCompleted != true
+                || ComparisonA.Entry.Metadata.SessionId == ComparisonB.Entry.Metadata.SessionId
+                || !BenchmarkComparisonService.IsSameGame(ComparisonA.Entry.Metadata.Game, ComparisonB.Entry.Metadata.Game)) return;
+            foreach (BenchmarkComparisonMetric metric in BenchmarkComparisonService.Compare(ComparisonA.Entry, ComparisonB.Entry))
+            {
+                ComparisonRows.Add(new BenchmarkComparisonRowViewModel(metric, _localization.T($"Benchmark.Metric.{metric.Key}"), _localization.CurrentLanguage));
+            }
 
-        foreach (BenchmarkEnvironmentDifference difference in BenchmarkComparisonService.CompareEnvironments(ComparisonA.Entry, ComparisonB.Entry))
-        {
-            EnvironmentDifferenceRows.Add(new BenchmarkEnvironmentDifferenceRowViewModel(
-                EnvironmentDifferenceLabel(difference.Key),
-                difference.FirstValue,
-                difference.SecondValue));
-        }
+            foreach (BenchmarkEnvironmentDifference difference in BenchmarkComparisonService.CompareEnvironments(ComparisonA.Entry, ComparisonB.Entry))
+            {
+                EnvironmentDifferenceRows.Add(new BenchmarkEnvironmentDifferenceRowViewModel(
+                    EnvironmentDifferenceLabel(difference.Key),
+                    difference.FirstValue,
+                    difference.SecondValue));
+            }
 
-        OnPropertyChanged(nameof(HasEnvironmentDifferences));
+            OnPropertyChanged(nameof(HasEnvironmentDifferences));
+        }
     }
 
     private string EnvironmentDifferenceLabel(string key) => key switch

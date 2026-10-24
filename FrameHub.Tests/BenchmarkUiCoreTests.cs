@@ -6,6 +6,7 @@ using FrameHub.App.Services;
 using FrameHub.App.ViewModels;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Windows;
@@ -326,6 +327,145 @@ public sealed class BenchmarkViewModelWorkflowTests
         Assert.AreEqual(FrameHub.App.ViewModels.Benchmark.BenchmarkUiState.Failed, vm.State);
         Assert.IsFalse(string.IsNullOrWhiteSpace(vm.StatusMessage));
         StringAssert.Contains(vm.TechnicalError, "capture_failed");
+    }
+
+    [TestMethod]
+    public async Task CaptureFailure_RemainsTerminalUnderRepeatedCapture()
+    {
+        // Regression tripwire for the stale-event race: coordinator notifications
+        // drain asynchronously on the ThreadPool, so without the local-await guard
+        // in OnCoordinatorStateChanged a late Capturing snapshot could overwrite the
+        // Failed outcome state (baseline full-suite flake: Expected Failed, actual
+        // Capturing). Repeating the scenario under suite load widens the window.
+        for (int i = 0; i < 25; i++)
+        {
+            using BenchmarkViewModel vm = Create(BackendMode.Failure, out _);
+            await vm.RefreshGamesAsync(); vm.CountdownSeconds = 0; await vm.StartAsync();
+            Assert.AreEqual(BenchmarkUiState.Failed, vm.State, $"Iteration {i}: terminal failure state must survive late coordinator events.");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(vm.StatusMessage), $"Iteration {i}: failure must stay user-friendly.");
+            StringAssert.Contains(vm.TechnicalError, "capture_failed");
+        }
+    }
+
+    [TestMethod]
+    public async Task LateCapturingSnapshot_AfterLocalTerminalOutcome_DoesNotOverwriteTerminalState()
+    {
+        // Positive control: injection delivery itself must work. A fresh VM in
+        // Idle applies an injected Capturing snapshot. If this fails, the
+        // delivery path (DispatchIfRequired) silently dropped the event —
+        // e.g. a leftover Application.Current with a dead dispatcher from an
+        // earlier test — and every assertion below would pass vacuously.
+        using (BenchmarkViewModel fresh = Create(BackendMode.Success, out _))
+        {
+            await fresh.RefreshGamesAsync();
+            Assert.AreEqual(BenchmarkUiState.Idle, fresh.State);
+            InjectCoordinatorSnapshot(fresh, CoordinatorState.Capturing, isActive: false);
+            Assert.AreEqual(BenchmarkUiState.Capturing, fresh.State,
+                "Positive control FAILED: injected Capturing was not delivered to a fresh VM. " +
+                "The event path silently dropped the snapshot (dead Application dispatcher or test ordering); " +
+                "terminal assertions below would be vacuous.");
+        }
+
+        // Deterministic reproduction of the baseline full-suite flake
+        // (Expected <Failed>, Actual <Capturing>): the coordinator drains state
+        // snapshots asynchronously on the ThreadPool, so a stale Capturing
+        // snapshot can be delivered AFTER the local outcome path already applied
+        // the terminal state and the await completed (coordinator inactive, guard
+        // flag cleared). Injecting that exact ordering must not move the VM out
+        // of its terminal state. Covers Failed, Completed and Cancelled — the
+        // same stale-active gate protects all three terminal outcomes.
+        using (BenchmarkViewModel failed = Create(BackendMode.Failure, out _))
+        {
+            await failed.RefreshGamesAsync(); failed.CountdownSeconds = 0; await failed.StartAsync();
+            Assert.AreEqual(BenchmarkUiState.Failed, failed.State);
+            InjectCoordinatorSnapshot(failed, CoordinatorState.Capturing, isActive: true);
+            Assert.AreEqual(BenchmarkUiState.Failed, failed.State, "Late Capturing must not overwrite local Failed.");
+        }
+
+        using (BenchmarkViewModel completed = Create(BackendMode.Success, out _))
+        {
+            await completed.RefreshGamesAsync(); completed.CountdownSeconds = 0; await completed.StartAsync();
+            Assert.AreEqual(BenchmarkUiState.Completed, completed.State);
+            InjectCoordinatorSnapshot(completed, CoordinatorState.Capturing, isActive: true);
+            Assert.AreEqual(BenchmarkUiState.Completed, completed.State, "Late Capturing must not overwrite local Completed.");
+        }
+
+        using (BenchmarkViewModel cancelled = Create(BackendMode.WaitForCancellation, out _))
+        {
+            await cancelled.RefreshGamesAsync(); cancelled.CountdownSeconds = 0;
+            Task capture = cancelled.StartAsync();
+            await Task.Delay(20); cancelled.Stop(); await capture;
+            Assert.AreEqual(BenchmarkUiState.Cancelled, cancelled.State);
+            InjectCoordinatorSnapshot(cancelled, CoordinatorState.Capturing, isActive: true);
+            Assert.AreEqual(BenchmarkUiState.Cancelled, cancelled.State, "Late Capturing must not overwrite local Cancelled.");
+        }
+    }
+
+    [TestMethod]
+    public async Task InOrderWaitingSnapshot_DuringLocalAwait_KeepsCountdownVisible()
+    {
+        // Progress must stay visible while a capture is locally awaited: the
+        // stale-snapshot guard may only drop snapshots that arrived after the
+        // local terminal outcome (or from an inactive coordinator), never the
+        // in-order Waiting/countdown of the running capture. On the pre-fix
+        // blind guard (drop every event while awaiting) the VM stays Idle here
+        // and the poll below times out.
+        var storage = new BenchmarkStorageService(_root);
+        var backend = new ControllableFakeBackend(storage);
+        var startTime = DateTime.UtcNow;
+        var coordinator = new BenchmarkCaptureCoordinator(storage, () => backend, new SimpleTestIdentityProvider(startTime));
+        var game = Game("g1", "Game 1", @"C:\Games\g1.exe", "g1");
+        var detector = new BenchmarkGameDetectionService(new FixedProcesses([new(123, "g1", @"C:\Games\g1.exe", startTime)]));
+        using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new FakeRuntime(), storage, detector, () => [game], () => backend, () => false, engineProbe: () => (true, "2.5.1", null), coordinator: coordinator);
+
+        await vm.RefreshGamesAsync();
+        vm.CountdownSeconds = 6;
+        Task capture = vm.StartAsync();
+
+        try
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(20);
+            while (vm.State != BenchmarkUiState.Waiting && DateTime.UtcNow < deadline)
+                await Task.Delay(50);
+            Assert.AreEqual(BenchmarkUiState.Waiting, vm.State,
+                "In-order Waiting snapshot must be applied while the capture is locally awaited (countdown/progress visible).");
+            Assert.IsTrue(vm.RemainingCountdown > 0,
+                $"Countdown must stay visible during local await, but RemainingCountdown was {vm.RemainingCountdown}.");
+
+            // Wait until the real Capturing drain lands, so no coordinator event
+            // is still in flight when the probe below runs: after this point the
+            // only further real event is terminal (after Release).
+            while (vm.State != BenchmarkUiState.Capturing && DateTime.UtcNow < deadline)
+                await Task.Delay(50);
+            Assert.AreEqual(BenchmarkUiState.Capturing, vm.State,
+                "Real Capturing snapshot must be applied while the capture is locally awaited.");
+
+            // In-order probe while locally awaiting: must be applied, proving
+            // in-order snapshots are not suppressed (pre-fix blind guard fails here).
+            InjectCoordinatorSnapshot(vm, CoordinatorState.Waiting, isActive: true);
+            Assert.AreEqual(BenchmarkUiState.Waiting, vm.State,
+                "In-order Waiting injected during local await must be applied, not suppressed.");
+        }
+        finally
+        {
+            backend.Release();
+        }
+
+        await capture;
+        Assert.AreEqual(BenchmarkUiState.Completed, vm.State);
+    }
+
+    private static void InjectCoordinatorSnapshot(BenchmarkViewModel vm, CoordinatorState state, bool isActive)
+    {
+        // Invokes the private coordinator-event handler synchronously with a
+        // fabricated stale snapshot. Without a live WPF dispatcher the handler
+        // runs inline (directly, or via the dead-dispatcher fallback in
+        // DispatchIfRequired) — the same ordering as a ThreadPool drain
+        // that lands after the local outcome.
+        MethodInfo? handler = typeof(BenchmarkViewModel).GetMethod(
+            "OnCoordinatorStateChanged", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(handler, "OnCoordinatorStateChanged handler must exist.");
+        handler.Invoke(vm, [null, new BenchmarkCaptureStateSnapshot { State = state, IsActive = isActive }]);
     }
 
     [TestMethod]

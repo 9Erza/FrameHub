@@ -315,6 +315,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _dashboardViewModel.Dispose();
         _sessionOptimizationViewModel.Dispose();
         _benchmarkViewModel.Dispose();
         _processesViewModel.Dispose();
