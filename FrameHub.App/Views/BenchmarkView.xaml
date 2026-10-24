@@ -150,6 +150,73 @@
         <TabItem Style="{StaticResource FrameHubTabItem}" Header="{Binding CaptureTabText}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="0,0,0,24">
+                    <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,18">
+                        <StackPanel>
+                            <TextBlock Text="{Binding StepsTitle}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,10" />
+                            <UniformGrid Columns="4">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasSelectedGame}" Value="True">
+                                                        <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding StepGameText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="{StaticResource BrushError}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding EngineReady}" Value="True">
+                                                        <Setter Property="Fill" Value="{StaticResource BrushSuccess}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding StepEngineText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasSelectedGame}" Value="True">
+                                                        <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding StepConfigText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsCaptureActive}" Value="True">
+                                                        <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding StepStartText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
                     <Grid x:Name="CaptureWorkspace" Margin="0,0,0,18">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="1.7*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="0"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -189,7 +256,7 @@
 
                         <StackPanel x:Name="CaptureStatusPanel" Grid.Column="2">
                             <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,14">
-                                <StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding EngineLabel}" Style="{StaticResource TinyCapsText}"/><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshGamesCommand}" Margin="8,-5,-5,-5"/></Grid><StackPanel Orientation="Horizontal" Margin="0,8,0,0"><Ellipse Width="7" Height="7" Margin="0,0,7,0"><Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="{StaticResource BrushError}"/><Style.Triggers><DataTrigger Binding="{Binding EngineReady}" Value="True"><Setter Property="Fill" Value="{StaticResource BrushSuccess}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="{Binding EngineStatus}" Style="{StaticResource DataTitleText}"/></StackPanel><TextBlock Text="{Binding EngineVersionText, StringFormat=PresentMon {0}}" Style="{StaticResource CaptionText}" Margin="14,1,0,0"/></StackPanel>
+                                <StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding EngineLabel}" Style="{StaticResource TinyCapsText}"/><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshGamesCommand}" Margin="8,-5,-5,-5"/></Grid><StackPanel Orientation="Horizontal" Margin="0,8,0,0"><Ellipse Width="7" Height="7" Margin="0,0,7,0"><Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="{StaticResource BrushError}"/><Style.Triggers><DataTrigger Binding="{Binding EngineReady}" Value="True"><Setter Property="Fill" Value="{StaticResource BrushSuccess}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="{Binding EngineStatus}" Style="{StaticResource DataTitleText}"/></StackPanel><TextBlock Text="{Binding EngineVersionText, StringFormat=PresentMon {0}}" Style="{StaticResource CaptionText}" Margin="14,1,0,0"/><TextBlock Text="{Binding EngineHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="14,6,0,0" /></StackPanel>
                             </Border>
                             <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,14">
                                 <StackPanel><TextBlock Text="{Binding HotkeyStatusText}" Style="{StaticResource TinyCapsText}"/><ItemsControl ItemsSource="{Binding HotkeyTokens}" Margin="0,9,0,0"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Style="{StaticResource KeyCap}"><TextBlock Text="{Binding}" Style="{StaticResource StatusText}"/></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
@@ -215,7 +282,7 @@
                     <Border x:Name="HistoryListPanel" Style="{StaticResource SectionSurface}">
                         <DockPanel><Grid DockPanel.Dock="Top" Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding HistoryTabText}" Style="{StaticResource SectionTitleText}"/><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshHistoryCommand}"/></Grid><ListBox ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistory, Mode=TwoWay}" ItemContainerStyle="{StaticResource BenchmarkHistoryListItem}" Background="Transparent" BorderThickness="0"><ListBox.ItemTemplate><DataTemplate><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding GameName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="1" Text="{Binding QualityText}" Style="{StaticResource BenchmarkQualityText}"/></Grid><TextBlock Text="{Binding DateText}" Style="{StaticResource CaptionText}" Margin="0,2,0,8"/><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding AverageLabel}" Style="{StaticResource TinyCapsText}"/><TextBlock Text="{Binding AverageFpsText, StringFormat={}{0} FPS}" Style="{StaticResource SecondaryMetricText}"/></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="{Binding OneLowLabel}" Style="{StaticResource TinyCapsText}"/><TextBlock Text="{Binding OnePercentLowText, StringFormat={}{0} FPS}" Style="{StaticResource SecondaryMetricText}"/></StackPanel></Grid><TextBlock Text="{Binding CpuProfileText}" Style="{StaticResource CaptionText}" Margin="0,7,0,0"/></StackPanel></DataTemplate></ListBox.ItemTemplate></ListBox></DockPanel>
                     </Border>
-                    <ScrollViewer x:Name="HistoryDetailPanel" Grid.Column="2" VerticalScrollBarVisibility="Auto"><StackPanel><StackPanel Orientation="Horizontal" Margin="0,0,0,10"><Button Style="{StaticResource SubtleButton}" Content="{Binding OpenFolderText}" Command="{Binding OpenSessionFolderCommand}" CommandParameter="{Binding SelectedHistory}"/><Button Style="{StaticResource DangerSubtleButton}" Content="{Binding DeleteText}" Command="{Binding DeleteSessionCommand}" CommandParameter="{Binding SelectedHistory}" Margin="8,0,0,0"/></StackPanel><ContentControl Content="{Binding CurrentResult}"/></StackPanel></ScrollViewer>
+                    <ScrollViewer x:Name="HistoryDetailPanel" Grid.Column="2" VerticalScrollBarVisibility="Auto"><StackPanel><StackPanel Orientation="Horizontal" Margin="0,0,0,10"><Button Style="{StaticResource SubtleButton}" Content="{Binding OpenFolderText}" Command="{Binding OpenSessionFolderCommand}" CommandParameter="{Binding SelectedHistory}"/><Button Style="{StaticResource DangerSubtleButton}" Content="{Binding DeleteText}" Command="{Binding DeleteSessionCommand}" CommandParameter="{Binding SelectedHistory}" Margin="8,0,0,0"/><Button Style="{StaticResource SecondaryButton}" Content="{Binding SendToCompareText}" Command="{Binding SendToCompareCommand}" Margin="8,0,0,0"/></StackPanel><TextBlock Text="{Binding ExportNoteText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,0,0,10"/><ContentControl Content="{Binding CurrentResult}"/></StackPanel></ScrollViewer>
                 </Grid>
             </Grid>
         </TabItem>
@@ -235,7 +302,7 @@
                         <Border Style="{StaticResource SectionSurface}">
                             <StackPanel><Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="{Binding CompareMetricHeader}" Style="{StaticResource TinyCapsText}"/><TextBlock Grid.Column="1" Text="{Binding CompareSessionAHeader}" Style="{StaticResource TinyCapsText}"/><TextBlock Grid.Column="2" Text="{Binding CompareSessionBHeader}" Style="{StaticResource TinyCapsText}"/><TextBlock Grid.Column="3" Text="{Binding CompareDeltaHeader}" Style="{StaticResource TinyCapsText}"/><TextBlock Grid.Column="4" Text="{Binding CompareChangeHeader}" Style="{StaticResource TinyCapsText}"/></Grid><ItemsControl ItemsSource="{Binding ComparisonRows}"><ItemsControl.ItemTemplate><DataTemplate><Border Style="{StaticResource InlineRow}"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Name}" Style="{StaticResource DataTitleText}"/><TextBlock Grid.Column="1" Text="{Binding SessionA}" Style="{StaticResource BodyText}"/><TextBlock Grid.Column="2" Text="{Binding SessionB}" Style="{StaticResource BodyText}"/><TextBlock Grid.Column="3" Text="{Binding Delta}" Style="{StaticResource BodyText}"/><TextBlock Grid.Column="4" Text="{Binding Percentage}" Style="{StaticResource DataTitleText}"/></Grid></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
                         </Border>
-                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0" HorizontalAlignment="Right"><Button Style="{StaticResource SubtleButton}" Content="{Binding ExportComparisonCsvText}" Command="{Binding ExportComparisonCommand}" CommandParameter="csv"/><Button Style="{StaticResource SubtleButton}" Content="{Binding ExportComparisonMarkdownText}" Command="{Binding ExportComparisonCommand}" CommandParameter="md" Margin="8,0,0,0"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0" HorizontalAlignment="Right"><Button Style="{StaticResource SecondaryButton}" Content="{Binding ExportComparisonCsvText}" Command="{Binding ExportComparisonCommand}" CommandParameter="csv"/><Button Style="{StaticResource SecondaryButton}" Content="{Binding ExportComparisonMarkdownText}" Command="{Binding ExportComparisonCommand}" CommandParameter="md" Margin="8,0,0,0"/></StackPanel>
                         <Border Style="{StaticResource SectionSurface}" Margin="0,12,0,0" Visibility="{Binding HasEnvironmentDifferences, Converter={StaticResource BoolToVisibilityConverter}}">
                             <StackPanel>
                                 <TextBlock Text="{Binding EnvironmentDifferencesTitle}" Style="{StaticResource DataTitleText}"/>

@@ -86,6 +86,16 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public string CompareTabText => _localization.T("Benchmark.Tab.Compare");
     public string EngineLabel => _localization.T("Benchmark.Engine.Label");
     public string EngineStatus => _engineReady ? _localization.T("Benchmark.Engine.Ready") : _localization.T("Benchmark.Engine.Unavailable");
+    public string EngineHint => _engineReady ? _localization.T("Benchmark.Engine.ReadyHint") : _localization.T("Benchmark.Engine.NoService");
+    public string StepsTitle => _localization.T("Benchmark.Steps.Title");
+    public string StepGameText => _localization.T("Benchmark.Steps.Game");
+    public string StepEngineText => _localization.T("Benchmark.Steps.Engine");
+    public string StepConfigText => _localization.T("Benchmark.Steps.Config");
+    public string StepStartText => _localization.T("Benchmark.Steps.Start");
+    public string SendToCompareText => _localization.T("Benchmark.History.SendToCompare");
+    public string ExportNoteText => _localization.T("Benchmark.History.ExportNote");
+    public bool CanSendToCompare => SelectedHistory is not null;
+    public ICommand SendToCompareCommand { get; }
     public string EngineVersionText => _engineVersion ?? _localization.T("Benchmark.Unavailable");
     public string EmptyGamesText => _localization.T("Benchmark.Games.Empty");
     public string GameLabel => _localization.T("Benchmark.Game");
@@ -179,7 +189,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     }
     public bool HasInsufficientComparisonSessions => !HasEnoughComparisonSessions;
     public bool CanStart => !IsCaptureActive && EngineReady && SelectedGame?.IsRunning == true;
-    public bool EngineReady { get => _engineReady; private set { if (SetProperty(ref _engineReady, value)) { OnPropertyChanged(nameof(EngineStatus)); OnPropertyChanged(nameof(CanStart)); RaiseCommandStates(); } } }
+    public bool EngineReady { get => _engineReady; private set { if (SetProperty(ref _engineReady, value)) { OnPropertyChanged(nameof(EngineStatus)); OnPropertyChanged(nameof(EngineHint)); OnPropertyChanged(nameof(CanStart)); RaiseCommandStates(); } } }
     public int RequestedDurationSeconds => UseCustomDuration ? Math.Clamp(CustomDuration, 10, 600) : SelectedDuration;
     public double ProgressValue => RequestedDurationSeconds <= 0 ? 0 : Math.Clamp(ElapsedSeconds / RequestedDurationSeconds * 100, 0, 100);
 
@@ -211,7 +221,15 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public BenchmarkHistoryItemViewModel? SelectedHistory
     {
         get => _selectedHistory;
-        set { if (SetProperty(ref _selectedHistory, value) && value is not null) _ = TrackBackgroundWork(ShowHistoryResultAsync(value)); }
+        set
+        {
+            if (SetProperty(ref _selectedHistory, value))
+            {
+                if (value is not null) _ = TrackBackgroundWork(ShowHistoryResultAsync(value));
+                OnPropertyChanged(nameof(CanSendToCompare));
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            }
+        }
     }
     public BenchmarkHistoryItemViewModel? ComparisonA { get => _comparisonA; set { if (SetProperty(ref _comparisonA, value)) RebuildComparison(); } }
     public BenchmarkHistoryItemViewModel? ComparisonB { get => _comparisonB; set { if (SetProperty(ref _comparisonB, value)) RebuildComparison(); } }
@@ -261,6 +279,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
         OpenSessionFolderCommand = new RelayCommand(OpenSessionFolder, parameter => ResolveEntry(parameter) is not null);
         DeleteSessionCommand = new RelayCommand(DeleteSession, parameter => ResolveEntry(parameter) is not null);
         ExportComparisonCommand = new RelayCommand(ExportComparison, _ => CanExportComparison);
+        SendToCompareCommand = new RelayCommand(_ => SendToCompare(), _ => CanSendToCompare);
 
         State = BenchmarkUiState.Idle;
         ProbeEngine();
@@ -797,6 +816,18 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
             _ = TrackBackgroundWork(RefreshHistoryAsync());
         }
         catch (Exception ex) { StatusMessage = _localization.T("Benchmark.Error.Delete"); TechnicalError = ex.ToString(); _logger.Error("Benchmark session delete failed.", ex); }
+    }
+
+    private void SendToCompare()
+    {
+        if (SelectedHistory is null) return;
+        ComparisonA = SelectedHistory;
+        if (ComparisonB is null || Equals(ComparisonB, ComparisonA))
+        {
+            ComparisonB = History.FirstOrDefault(item => !Equals(item, ComparisonA));
+        }
+
+        SelectedTabIndex = 2;
     }
 
     private void ExportComparison(object? parameter)
