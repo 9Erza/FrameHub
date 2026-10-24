@@ -6,6 +6,7 @@ using FrameHub.Core.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -78,6 +79,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public string TrayBenchmarksText => _localization.T("Tray.Benchmarks");
     public string TrayHardwareText => _localization.T("Tray.Hardware");
     public string TraySettingsText => _localization.T("Tray.Settings");
+    public string TrayRestartText => _localization.T("Tray.Restart");
     public string TrayExitText => _localization.T("Tray.Exit");
     public string ProjectVersionLabel => $"FrameHub {AppVersion}";
 
@@ -215,6 +217,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(TrayBenchmarksText));
         OnPropertyChanged(nameof(TrayHardwareText));
         OnPropertyChanged(nameof(TraySettingsText));
+        OnPropertyChanged(nameof(TrayRestartText));
         OnPropertyChanged(nameof(TrayExitText));
     }
 
@@ -315,18 +318,37 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        DisposeViewModels();
+        _runtime.Dispose();
+    }
+
+    private void DisposeViewModels()
+    {
         _dashboardViewModel.Dispose();
         _sessionOptimizationViewModel.Dispose();
         _benchmarkViewModel.Dispose();
         _processesViewModel.Dispose();
         _hardwareViewModel.Dispose();
         _libraryViewModel.Dispose();
-        _runtime.Dispose();
     }
 
     public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
+        await ShutdownAsync(cancellationToken, AppRuntimeService.DefaultShutdownBudget).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Cooperative shutdown under a total wall-clock <paramref name="totalBudget"/>
+    /// shared with the window deadline. The benchmark phase observes
+    /// <paramref name="cancellationToken"/>; the remaining budget is then handed
+    /// to the runtime shutdown so a stuck session drain cannot silently exceed
+    /// the deadline (REA F2). The window is closed by the caller when the
+    /// deadline expires regardless — fail-safe, never a blind kill.
+    /// </summary>
+    public async Task ShutdownAsync(CancellationToken cancellationToken, TimeSpan totalBudget)
+    {
         LoggerService.Instance.Info("Shell shutdown initiated.");
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             await _benchmarkViewModel.CancelAndWaitForCleanupAsync(cancellationToken).ConfigureAwait(false);
@@ -339,7 +361,11 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 
         try
         {
-            Dispose();
+            DisposeViewModels();
+
+            TimeSpan remaining = totalBudget - stopwatch.Elapsed;
+            await _runtime.ShutdownAsync(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, cancellationToken).ConfigureAwait(false);
+            _disposed = true;
             LoggerService.Instance.Info("Shell disposal completed.");
         }
         catch (Exception ex)

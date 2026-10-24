@@ -54,6 +54,7 @@ public sealed class TrayAndShutdownTests
             "Tray.Benchmarks",
             "Tray.Hardware",
             "Tray.Settings",
+            "Tray.Restart",
             "Tray.Exit"
         ];
 
@@ -74,6 +75,8 @@ public sealed class TrayAndShutdownTests
         Assert.AreEqual("Przejdź do", LocalizationService.Translate("Tray.GoTo", "pl"));
         Assert.AreEqual("Exit FrameHub", LocalizationService.Translate("Tray.Exit", "en"));
         Assert.AreEqual("Zakończ FrameHub", LocalizationService.Translate("Tray.Exit", "pl"));
+        Assert.AreEqual("Restart FrameHub", LocalizationService.Translate("Tray.Restart", "en"));
+        Assert.AreEqual("Uruchom ponownie FrameHub", LocalizationService.Translate("Tray.Restart", "pl"));
     }
 
     [TestMethod]
@@ -87,6 +90,7 @@ public sealed class TrayAndShutdownTests
         Assert.IsNotNull(shell.TrayBenchmarksText);
         Assert.IsNotNull(shell.TrayHardwareText);
         Assert.IsNotNull(shell.TraySettingsText);
+        Assert.IsNotNull(shell.TrayRestartText);
         Assert.IsNotNull(shell.TrayExitText);
     }
 

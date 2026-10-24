@@ -7,6 +7,7 @@ using FrameHub.Core.Services.Library;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using System.Windows.Threading;
 using FrameHub.Core.Models.Benchmarking;
 using FrameHub.Core.Services.Benchmarking;
 
@@ -26,6 +27,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private bool _isSelectedGamingGameRunning;
     private string _gamingStatusMessage = string.Empty;
     private ActiveSessionState? _gamingSession;
+    private readonly Dispatcher _uiDispatcher;
     private bool _disposed;
     public Action? BenchmarkNavigationRequested { get; set; }
     public ICommand OpenBenchmarksCommand { get; }
@@ -136,6 +138,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     {
         _localization = localization;
         _runtime = runtime;
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
         OpenBenchmarksCommand = new RelayCommand(_ => BenchmarkNavigationRequested?.Invoke());
         StartGamingModeCommand = new RelayCommand(
             async _ => await StartGamingModeAsync(),
@@ -160,10 +163,54 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private void OnCoordinatorSessionStateChanged(object? sender, ActiveSessionState? session)
     {
         if (_disposed) return;
-        _gamingSession = session;
-        OnPropertyChanged(nameof(IsGamingModeActive));
-        OnPropertyChanged(nameof(ShowGamingSelector));
-        OnPropertyChanged(nameof(GamingModeDetail));
+        DispatchIfRequired(() =>
+        {
+            if (_disposed) return;
+            _gamingSession = session;
+            OnPropertyChanged(nameof(IsGamingModeActive));
+            OnPropertyChanged(nameof(ShowGamingSelector));
+            OnPropertyChanged(nameof(GamingModeDetail));
+        });
+    }
+
+    /// <summary>
+    /// Marshals coordinator callbacks onto the thread that created this view-model.
+    /// Same contract as <c>SessionOptimizationViewModel</c>: the event fires on the
+    /// caller's thread (ThreadPool after <c>ConfigureAwait(false)</c> or Companion
+    /// Kestrel threads), while the bound WPF controls require UI-thread updates.
+    /// </summary>
+    private void DispatchIfRequired(Action action)
+    {
+        Dispatcher? target = null;
+        if (_uiDispatcher.Thread.IsAlive && !_uiDispatcher.HasShutdownStarted && !_uiDispatcher.HasShutdownFinished)
+        {
+            target = _uiDispatcher;
+        }
+        else if (System.Windows.Application.Current?.Dispatcher is { } appDispatcher)
+        {
+            target = appDispatcher;
+        }
+
+        if (target is null || target.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        if (target.Thread.IsAlive && !target.HasShutdownStarted && !target.HasShutdownFinished)
+        {
+            try
+            {
+                target.BeginInvoke(action);
+                return;
+            }
+            catch (InvalidOperationException)
+            {
+                // Dispatcher was shut down or unavailable during invoke.
+            }
+        }
+
+        action();
     }
 
     public async Task RefreshGamingStateAsync()

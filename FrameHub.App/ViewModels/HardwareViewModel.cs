@@ -245,8 +245,12 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         var lease = _hardwareLease;
         if (lease == null || !_pageActive || !IsMonitorEnabled || _pollInProgress || _disposed) return;
         _pollInProgress = true;
-        _pollCancellation?.Cancel();
+        CancellationTokenSource? previousPoll = _pollCancellation;
         _pollCancellation = new CancellationTokenSource();
+        // Cancel first, then release: the in-flight poll captured the old token
+        // (dispose-safe for polling), so rotation no longer abandons sources.
+        previousPoll?.Cancel();
+        previousPoll?.Dispose();
         var cancellation = _pollCancellation.Token;
 
         try

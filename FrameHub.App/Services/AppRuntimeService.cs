@@ -9,6 +9,7 @@ using FrameHub.Core.Services.Benchmarking;
 using FrameHub.Core.Services.Library;
 using FrameHub.Core.Services.SessionOptimization;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows.Threading;
 
@@ -27,6 +28,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         public string DesktopLanguage => _owner.Settings?.Language ?? "en";
     }
     private readonly DispatcherTimer _profileWatcherTimer;
+    private readonly Dispatcher _uiDispatcher;
     private readonly Dictionary<string, DateTime> _failureLogThrottle = new(StringComparer.OrdinalIgnoreCase);
     private bool _watcherBusy;
     private bool _disposed;
@@ -70,6 +72,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public AppRuntimeService(SettingsService settingsService, IHardwareMonitorBackend? hardwareMonitor = null)
     {
         SettingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
         _hardwareMonitor = hardwareMonitor ?? new HardwareMonitorService();
         Settings = SettingsService.LoadSettings();
         ConfigureLoggerFromSettings();
@@ -309,17 +312,24 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
     public void AddActivity(string message, string level = "Info")
     {
-        Activity.Insert(0, new ActivityItemViewModel
+        // Activity is a WPF-bound ObservableCollection. Most callers run on the UI
+        // thread, but timer/task continuations and future Companion paths may call
+        // from the ThreadPool (see REA F12). Marshal the mutation to the creating
+        // thread's dispatcher; logging below stays synchronous and thread-safe.
+        DispatchActivityIfRequired(() =>
         {
-            Time = DateTime.Now.ToString("HH:mm"),
-            Message = message,
-            Level = level
-        });
+            Activity.Insert(0, new ActivityItemViewModel
+            {
+                Time = DateTime.Now.ToString("HH:mm"),
+                Message = message,
+                Level = level
+            });
 
-        while (Activity.Count > 200)
-        {
-            Activity.RemoveAt(Activity.Count - 1);
-        }
+            while (Activity.Count > 200)
+            {
+                Activity.RemoveAt(Activity.Count - 1);
+            }
+        });
 
         switch (level)
         {
@@ -327,6 +337,40 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             case "Error": LoggerService.Instance.Error(message); break;
             default: LoggerService.Instance.Info(message); break;
         }
+    }
+
+    private void DispatchActivityIfRequired(Action action)
+    {
+        Dispatcher? target = null;
+        if (_uiDispatcher.Thread.IsAlive && !_uiDispatcher.HasShutdownStarted && !_uiDispatcher.HasShutdownFinished)
+        {
+            target = _uiDispatcher;
+        }
+        else if (System.Windows.Application.Current?.Dispatcher is { } appDispatcher)
+        {
+            target = appDispatcher;
+        }
+
+        if (target is null || target.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        if (target.Thread.IsAlive && !target.HasShutdownStarted && !target.HasShutdownFinished)
+        {
+            try
+            {
+                target.BeginInvoke(action);
+                return;
+            }
+            catch (InvalidOperationException)
+            {
+                // Dispatcher was shut down or unavailable during invoke.
+            }
+        }
+
+        action();
     }
 
     private async Task RunProfileWatcherOnceAsync()
@@ -612,45 +656,117 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         if (_disposed) return;
         _disposed = true;
+        // Synchronous wrapper over the budgeted async core. Runs on a pool thread
+        // so no UI-thread SynchronizationContext can deadlock the inner awaits
+        // (same sync-over-async pattern the coordinator shutdown already used).
+        try
+        {
+            Task.Run(() => ShutdownCoreAsync(DefaultShutdownBudget, CancellationToken.None)).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"Application shutdown encountered an error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Total wall-clock envelope shared with the window shutdown deadline
+    /// (<c>MainWindow.PerformGracefulShutdownAsync</c>, 8 s). The window closes
+    /// when the deadline expires even if background disposal is still draining —
+    /// fail-safe (WAL/recovery protected), never a blind kill.
+    /// </summary>
+    public static readonly TimeSpan DefaultShutdownBudget = TimeSpan.FromSeconds(8);
+
+    /// <summary>
+    /// Bounded cooperative shutdown. Every phase observes <paramref name="budget"/>:
+    /// the session coordinator drain (the only phase able to hang indefinitely on
+    /// a stuck native operation) receives the remaining budget explicitly instead
+    /// of its 10 s default; companion phases keep their own small internal bounds.
+    /// Returns <c>true</c> when the coordinator drained cleanly within budget.
+    /// Cancellation is observed between phases, never by aborting a disposal.
+    /// </summary>
+    public async Task<bool> ShutdownAsync(TimeSpan budget, CancellationToken cancellationToken = default)
+    {
+        if (_disposed) return true;
+        _disposed = true;
+        return await ShutdownCoreAsync(budget, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<bool> ShutdownCoreAsync(TimeSpan budget, CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        TimeSpan Remaining() => budget - stopwatch.Elapsed;
+
         _profileWatcherTimer.Stop();
 
         bool gateAcquired = false;
         try
         {
-            gateAcquired = _companionSyncGate.Wait(TimeSpan.FromSeconds(3));
-        }
-        catch { }
+            try
+            {
+                TimeSpan gateWait = Remaining();
+                if (gateWait > TimeSpan.Zero)
+                {
+                    gateAcquired = await _companionSyncGate
+                        .WaitAsync(gateWait > TimeSpan.FromSeconds(3) ? TimeSpan.FromSeconds(3) : gateWait, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch { }
 
-        try
-        {
-            // Stop external consumers before disposing the providers and state authorities they call.
-            CompanionServer.Dispose();
-            TelemetryProvider.Dispose();
-            LiveTelemetryService.Dispose();
-            ActiveGameMonitor.Dispose();
-            BenchmarkCoordinator.Dispose();
-            bool sessionCoordinatorStopped = Task.Run(
-                async () => await SessionOptimizationCoordinator.ShutdownAsync().ConfigureAwait(false))
-                .GetAwaiter()
-                .GetResult();
-            if (!sessionCoordinatorStopped)
+            try
             {
-                LoggerService.Instance.Warn("Session Optimization shutdown timed out; synchronization resources will be released when the active operation exits.");
+                // Stop external consumers before disposing the providers and state authorities they call.
+                await CompanionServer.DisposeAsync().ConfigureAwait(false);
+                TelemetryProvider.Dispose();
+                LiveTelemetryService.Dispose();
+                ActiveGameMonitor.Dispose();
+                BenchmarkCoordinator.Dispose();
+
+                TimeSpan coordinatorBudget = Remaining();
+                if (coordinatorBudget < TimeSpan.FromSeconds(1))
+                {
+                    coordinatorBudget = TimeSpan.FromSeconds(1);
+                }
+
+                bool sessionCoordinatorStopped = await SessionOptimizationCoordinator
+                    .ShutdownAsync(coordinatorBudget)
+                    .ConfigureAwait(false);
+                if (!sessionCoordinatorStopped)
+                {
+                    LoggerService.Instance.Warn("Session Optimization shutdown timed out; synchronization resources will be released when the active operation exits.");
+                }
+
+                using var stopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                TimeSpan stopRemaining = Remaining();
+                stopCts.CancelAfter(stopRemaining > TimeSpan.Zero ? stopRemaining : TimeSpan.Zero);
+                try
+                {
+                    await CompanionServer.StopAsync(stopCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { }
+
+                lock (_hardwareLock)
+                {
+                    _hardwareConsumerCount = 0;
+                    _hardwareSnapshot = null;
+                    _hardwareMonitor.Dispose();
+                }
+                SettingsService.Dispose();
+                return sessionCoordinatorStopped;
             }
-            lock (_hardwareLock)
+            finally
             {
-                _hardwareConsumerCount = 0;
-                _hardwareSnapshot = null;
-                _hardwareMonitor.Dispose();
+                if (gateAcquired)
+                {
+                    _companionSyncGate.Release();
+                }
             }
-            SettingsService.Dispose();
         }
-        finally
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            if (gateAcquired)
-            {
-                _companionSyncGate.Release();
-            }
+            LoggerService.Instance.Warn($"Application shutdown encountered an error: {ex.Message}");
+            return false;
         }
     }
 }

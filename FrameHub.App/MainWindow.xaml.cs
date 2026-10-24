@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private WinForms.ToolStripMenuItem? _trayHardwareItem;
     private WinForms.ToolStripMenuItem? _traySettingsItem;
     private WinForms.ToolStripSeparator? _traySeparatorItem;
+    private WinForms.ToolStripMenuItem? _trayRestartItem;
     private WinForms.ToolStripMenuItem? _trayExitItem;
 
     private bool _isExitRequested;
@@ -177,12 +178,14 @@ public partial class MainWindow : Window
         });
 
         _traySeparatorItem = new WinForms.ToolStripSeparator();
+        _trayRestartItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayRestartText ?? "Restart FrameHub", null, (_, _) => RestartApplication());
         _trayExitItem = new WinForms.ToolStripMenuItem(ViewModel?.TrayExitText ?? "Exit FrameHub", null, (_, _) => ExitApplication());
 
         menu.Items.Add(_trayHeaderItem);
         menu.Items.Add(_trayOpenItem);
         menu.Items.Add(_trayGoToItem);
         menu.Items.Add(_traySeparatorItem);
+        menu.Items.Add(_trayRestartItem);
         menu.Items.Add(_trayExitItem);
 
         _trayIcon = new WinForms.NotifyIcon
@@ -339,6 +342,7 @@ public partial class MainWindow : Window
         if (_trayBenchmarksItem != null) _trayBenchmarksItem.Text = ViewModel?.TrayBenchmarksText ?? "Benchmarks";
         if (_trayHardwareItem != null) _trayHardwareItem.Text = ViewModel?.TrayHardwareText ?? "Hardware Monitor";
         if (_traySettingsItem != null) _traySettingsItem.Text = ViewModel?.TraySettingsText ?? "Settings";
+        if (_trayRestartItem != null) _trayRestartItem.Text = ViewModel?.TrayRestartText ?? "Restart FrameHub";
         if (_trayExitItem != null) _trayExitItem.Text = ViewModel?.TrayExitText ?? "Exit FrameHub";
     }
 
@@ -477,6 +481,49 @@ public partial class MainWindow : Window
         _ = PerformGracefulShutdownAsync();
     }
 
+    /// <summary>
+    /// Cooperative restart (Researcher R1): start the verified successor FIRST,
+    /// then run the standard graceful shutdown and exit. Any non-success start
+    /// result aborts the restart — the running instance is never exited on a
+    /// failed start, and a shutdown timeout is a loud error, never a blind kill.
+    /// </summary>
+    private void RestartApplication()
+    {
+        if (ViewModel?.Runtime.SettingsService is not { } settingsService)
+        {
+            LoggerService.Instance.Warn("Restart unavailable: settings service is not initialized.");
+            return;
+        }
+
+        string[] forwarded = Environment.GetCommandLineArgs()
+            .Where(arg => SettingsService.ForwardedRestartArguments.Contains(arg?.Trim() ?? string.Empty))
+            .ToArray();
+        SettingsService.RestartResult result = settingsService.TryStartSuccessorProcess(forwarded);
+        if (result.Status != SettingsService.RestartStatus.Started)
+        {
+            string reason = result.Error ?? result.Status.ToString();
+            LoggerService.Instance.Warn($"Restart aborted: {reason}.");
+            try { ViewModel?.Runtime.AddActivity($"Restart aborted: {reason}. Running instance unchanged.", "Warn"); }
+            catch { }
+            return;
+        }
+
+        _isExitRequested = true;
+        if (_trayIcon != null)
+        {
+            _trayIcon.Visible = false;
+        }
+        _ = PerformGracefulShutdownAsync();
+    }
+
+    /// <summary>
+    /// Total wall-clock envelope for cooperative shutdown, shared with
+    /// <see cref="ShellViewModel.ShutdownAsync(CancellationToken, TimeSpan)"/>.
+    /// When the deadline expires the window closes regardless (fail-safe: session
+    /// WAL and recovery are protected); background disposal keeps draining.
+    /// </summary>
+    private static readonly TimeSpan ShutdownBudget = AppRuntimeService.DefaultShutdownBudget;
+
     private async Task PerformGracefulShutdownAsync()
     {
         if (_shutdownState != ShutdownState.NotStarted) return;
@@ -494,23 +541,46 @@ public partial class MainWindow : Window
 
         if (ViewModel is ShellViewModel shell)
         {
-            using var shutdownCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            using var shutdownCts = new CancellationTokenSource(ShutdownBudget);
             try
             {
-                await Task.Run(async () => await shell.ShutdownAsync(shutdownCts.Token).ConfigureAwait(false), shutdownCts.Token);
+                await Task.Run(async () => await shell.ShutdownAsync(shutdownCts.Token, ShutdownBudget).ConfigureAwait(false), shutdownCts.Token);
             }
             catch (OperationCanceledException)
             {
                 LoggerService.Instance.Warn("Graceful application shutdown deadline exceeded.");
+                RecoverRestartAfterFailedShutdown("shutdown deadline exceeded");
             }
             catch (Exception ex)
             {
                 LoggerService.Instance.Warn($"Error during application shutdown: {ex.Message}");
+                RecoverRestartAfterFailedShutdown(ex.Message);
             }
         }
 
         _shutdownState = ShutdownState.Completed;
         Close();
+    }
+
+    /// <summary>
+    /// QA P3.1: if a restart successor was started but this instance failed to
+    /// shut down (timeout/error above), the old instance keeps running — release
+    /// the restart single-flight so a retry is a fresh attempt instead of a
+    /// permanent <c>AlreadyInProgress</c>, and leave user-visible feedback.
+    /// Harmless on a plain exit (the process is going away anyway).
+    /// </summary>
+    private void RecoverRestartAfterFailedShutdown(string reason)
+    {
+        try
+        {
+            if (ViewModel?.Runtime.SettingsService is { } settingsService)
+            {
+                settingsService.ResetRestartState();
+            }
+            try { ViewModel?.Runtime.AddActivity($"Restart did not complete ({reason}). Previous instance still running — retry is available.", "Warn"); }
+            catch { }
+        }
+        catch { }
     }
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)

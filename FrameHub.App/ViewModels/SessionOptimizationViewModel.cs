@@ -24,6 +24,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private SessionOptimizationSettings _settings;
     private ActiveSessionState? _activeSession;
+    private readonly Dispatcher _uiDispatcher;
     private SessionGameOptionViewModel? _selectedGame;
     private string _statusText = string.Empty;
     private string _statusLevel = "Info";
@@ -387,6 +388,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     {
         _localization = localization;
         _runtime = runtime;
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
         _coordinator = coordinator ?? runtime.SessionOptimizationCoordinator;
         _settings = _coordinator.LoadSettings();
         MigrateSessionSettingsForSafeSuspend();
@@ -416,10 +418,60 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
 
     private void OnCoordinatorSessionStateChanged(object? sender, ActiveSessionState? session)
     {
-        _activeSession = session;
-        RebuildSuspendedList();
-        RefreshRunningProcesses();
-        OnStateChanged();
+        if (_disposed) return;
+        DispatchIfRequired(() =>
+        {
+            if (_disposed) return;
+            _activeSession = session;
+            RebuildSuspendedList();
+            RefreshRunningProcesses();
+            OnStateChanged();
+        });
+    }
+
+    /// <summary>
+    /// Marshals coordinator callbacks onto the thread that created this view-model.
+    /// <see cref="SessionOptimizationCoordinator.SessionStateChanged"/> fires synchronously
+    /// on the caller's thread: after <c>ConfigureAwait(false)</c> continuations and on the
+    /// Companion Kestrel threads that thread is a ThreadPool thread, so mutating the
+    /// WPF-bound <c>ObservableCollection</c>s inline throws or corrupts bindings.
+    /// The dispatcher is captured at construction (the UI thread in production) instead of
+    /// relying on the process-global <c>Application.Current</c>, which is order-dependent
+    /// and unusable in tests. When no live dispatcher exists the update is applied inline
+    /// (documented graceful degradation, same as <c>BenchmarkViewModel</c>).
+    /// </summary>
+    private void DispatchIfRequired(Action action)
+    {
+        Dispatcher? target = null;
+        if (_uiDispatcher.Thread.IsAlive && !_uiDispatcher.HasShutdownStarted && !_uiDispatcher.HasShutdownFinished)
+        {
+            target = _uiDispatcher;
+        }
+        else if (System.Windows.Application.Current?.Dispatcher is { } appDispatcher)
+        {
+            target = appDispatcher;
+        }
+
+        if (target is null || target.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        if (target.Thread.IsAlive && !target.HasShutdownStarted && !target.HasShutdownFinished)
+        {
+            try
+            {
+                target.BeginInvoke(action);
+                return;
+            }
+            catch (InvalidOperationException)
+            {
+                // Dispatcher was shut down or unavailable during invoke.
+            }
+        }
+
+        action();
     }
 
     private void MigrateSessionSettingsForSafeSuspend()
@@ -708,23 +760,45 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     private void StartProcessRefresh(bool forceScan)
     {
 
-        _processRefreshCancellation?.Cancel();
+        CancellationTokenSource? previous = _processRefreshCancellation;
         var cancellation = new CancellationTokenSource();
         _processRefreshCancellation = cancellation;
+        // Cancel first so superseded work observes cancellation promptly, then
+        // release the abandoned source. The superseded task already captured a
+        // CancellationToken struct (see RefreshProcessViewsAsync), which stays
+        // valid after Dispose — only reads of the source's .Token property
+        // would throw ObjectDisposedException, so none happen after an await.
+        previous?.Cancel();
+        previous?.Dispose();
         _ = RefreshProcessViewsAsync(forceScan, cancellation);
     }
 
     private async Task RefreshProcessViewsAsync(bool forceScan, CancellationTokenSource cancellation)
     {
+        // Capture the token BEFORE the first await: this refresh's source can
+        // be disposed at any moment by a newer StartProcessRefresh rotation
+        // (QA-P2-3), and CancellationTokenSource.Token throws
+        // ObjectDisposedException after Dispose. The struct itself stays usable.
+        CancellationToken token;
+        try
+        {
+            token = cancellation.Token;
+        }
+        catch (ObjectDisposedException)
+        {
+            // Superseded and disposed before entry — yield quietly like a cancel.
+            return;
+        }
+
         try
         {
             SessionProcessSnapshot snapshot = _cachedProcessSnapshot != null
                 && !forceScan
                 && DateTime.UtcNow - _cachedProcessSnapshotUtc < TimeSpan.FromSeconds(1)
                 ? _cachedProcessSnapshot
-                : await CaptureSessionProcessSnapshotAsync(cancellation.Token);
+                : await CaptureSessionProcessSnapshotAsync(token);
 
-            cancellation.Token.ThrowIfCancellationRequested();
+            token.ThrowIfCancellationRequested();
             _cachedProcessSnapshot = snapshot;
             _cachedProcessSnapshotUtc = snapshot.CapturedAtUtc;
 
@@ -732,9 +806,12 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             var allGames = Games.Select(option => option.Item).ToList();
             var groups = await Task.Run(
                 () => _coordinator.GetRunningProcessGroups(snapshot, game?.Item, allGames),
-                cancellation.Token);
+                token);
             var candidates = BuildCandidatesForGame(game, snapshot);
-            if (cancellation.IsCancellationRequested || !ReferenceEquals(_processRefreshCancellation, cancellation)) return;
+            // Token (struct captured on entry, not the source) polling: the source
+            // may already be disposed by a newer StartProcessRefresh rotation
+            // (dispose-before-replace, REA F4; QA-P2-3). Never read .Token here.
+            if (token.IsCancellationRequested || !ReferenceEquals(_processRefreshCancellation, cancellation)) return;
 
             ApplyRunningProcesses(groups);
             ReplaceCandidatePreview(candidates);
@@ -1153,7 +1230,10 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         if (_disposed) return;
         _disposed = true;
         _coordinator.SessionStateChanged -= OnCoordinatorSessionStateChanged;
-        _processRefreshCancellation?.Cancel();
+        CancellationTokenSource? refreshCancellation = _processRefreshCancellation;
+        _processRefreshCancellation = null;
+        refreshCancellation?.Cancel();
+        refreshCancellation?.Dispose();
         _autoTimer.Stop();
     }
 }

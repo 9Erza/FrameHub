@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services.SessionOptimization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -380,4 +381,131 @@ public class ProcessSuspendServiceTests
         RuleName = "Test Rule",
         ExecutablePath = @"C:\Program Files\Worker\worker.exe"
     };
+
+    // REA F9: TryResume previously called the static OpenProcess/NtResumeProcess/
+    // CloseHandle directly, so the resume path could not be tested through the
+    // injected seams. The tests below use the real current test process for the
+    // read-only identity pre-check (no OS mutation: every mutating native call is
+    // faked) and prove the resume decision matrix through the delegates.
+
+    private static SuspendedProcessRecord CreateResumeRecord(int pid, string name, DateTime startTimeUtc) => new()
+    {
+        ProcessId = pid,
+        ProcessName = name,
+        ProcessStartTimeUtc = startTimeUtc,
+        RuleId = "test-rule",
+        RuleName = "Test Rule"
+    };
+
+    private static (int CurrentPid, string CurrentName, DateTime CurrentStartUtc) CurrentProcessIdentity()
+    {
+        using var current = Process.GetCurrentProcess();
+        return (current.Id, current.ProcessName, current.StartTime.ToUniversalTime());
+    }
+
+    [TestMethod]
+    public void ResumeProcesses_WhenIdentityMatches_ResumesThroughInjectedDelegates()
+    {
+        // Arrange
+        var (pid, name, startUtc) = CurrentProcessIdentity();
+        var resumedHandles = new List<int>();
+        var closedHandles = new List<int>();
+
+        var service = new ProcessSuspendService(
+            observationProvider: null,
+            openProcess: _ => new IntPtr(0xCAFE),
+            ntResumeProcess: handle =>
+            {
+                resumedHandles.Add(handle.ToInt32());
+                return 0;
+            },
+            closeHandle: handle => closedHandles.Add(handle.ToInt32()),
+            getProcessStartTimeUtc: _ => startUtc);
+
+        // Act
+        SessionActionResult result = service.ResumeProcesses([CreateResumeRecord(pid, name, startUtc)]);
+
+        // Assert
+        Assert.AreEqual(1, result.SuccessCount);
+        Assert.AreEqual(0, result.FailedCount);
+        Assert.AreEqual(1, resumedHandles.Count);
+        Assert.AreEqual(0xCAFE, resumedHandles[0]);
+        Assert.AreEqual(1, closedHandles.Count, "The resume handle must always be released.");
+        Assert.AreEqual(0xCAFE, closedHandles[0]);
+    }
+
+    [TestMethod]
+    public void ResumeProcesses_WhenHandleStartTimeDiffers_DoesNotResumeFailClosed()
+    {
+        // Arrange: pre-check passes on the real identity, but the handle recheck
+        // sees a different instance -> fail closed without calling NtResumeProcess.
+        var (pid, name, startUtc) = CurrentProcessIdentity();
+        var resumedHandles = new List<int>();
+        DateTime staleStartUtc = startUtc.AddSeconds(-30);
+
+        var service = new ProcessSuspendService(
+            observationProvider: null,
+            openProcess: _ => new IntPtr(0xCAFE),
+            ntResumeProcess: handle =>
+            {
+                resumedHandles.Add(handle.ToInt32());
+                return 0;
+            },
+            closeHandle: _ => { },
+            getProcessStartTimeUtc: _ => staleStartUtc);
+
+        // Act
+        SessionActionResult result = service.ResumeProcesses([CreateResumeRecord(pid, name, startUtc)]);
+
+        // Assert
+        Assert.AreEqual(0, result.SuccessCount);
+        Assert.AreEqual(0, resumedHandles.Count, "NtResumeProcess must not run after an identity mismatch.");
+        Assert.AreEqual(1, result.StaleProcessCount);
+    }
+
+    [TestMethod]
+    public void ResumeProcesses_WhenNtResumeFails_ReportsFailureWithStatusCode()
+    {
+        // Arrange
+        var (pid, name, startUtc) = CurrentProcessIdentity();
+        const int denied = unchecked((int)0xC0000022);
+
+        var service = new ProcessSuspendService(
+            observationProvider: null,
+            openProcess: _ => new IntPtr(0xCAFE),
+            ntResumeProcess: _ => denied,
+            closeHandle: _ => { },
+            getProcessStartTimeUtc: _ => startUtc);
+
+        // Act
+        SessionActionResult result = service.ResumeProcesses([CreateResumeRecord(pid, name, startUtc)]);
+
+        // Assert
+        Assert.AreEqual(0, result.SuccessCount);
+        Assert.AreEqual(1, result.FailedCount);
+        StringAssert.Contains(result.Messages[0], "C0000022");
+    }
+
+    [TestMethod]
+    public void ResumeProcesses_WhenOpenFailsButProcessExists_ReportsFailureNotNotFound()
+    {
+        // Arrange: OpenProcess denied, but the read-only identity probe still sees
+        // the live current process -> Failed (not ProcessNotFound).
+        var (pid, name, startUtc) = CurrentProcessIdentity();
+
+        var service = new ProcessSuspendService(
+            observationProvider: null,
+            openProcess: _ => IntPtr.Zero,
+            ntResumeProcess: _ => 0,
+            closeHandle: _ => { },
+            getProcessStartTimeUtc: _ => startUtc);
+
+        // Act
+        SessionActionResult result = service.ResumeProcesses([CreateResumeRecord(pid, name, startUtc)]);
+
+        // Assert
+        Assert.AreEqual(0, result.SuccessCount);
+        Assert.AreEqual(1, result.FailedCount);
+        Assert.AreEqual(0, result.ResolvedCount);
+    }
 }
