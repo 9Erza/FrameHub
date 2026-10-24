@@ -123,7 +123,7 @@
     <Style x:Key="PrimaryButton" TargetType="Button">
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Background" Value="{StaticResource BrushPrimaryGradient}" />
-        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Foreground" Value="{StaticResource BrushAccentInk}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="14,8" />
         <Setter Property="FontFamily" Value="{StaticResource FontUi}" />
