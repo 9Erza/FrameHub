@@ -17,7 +17,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     private readonly AppRuntimeService _runtime;
     private readonly DispatcherTimer _refreshTimer;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
-    private readonly Dispatcher _uiDispatcher;
+    private readonly SynchronizationContext? _uiSyncContext;
     private bool _refreshPending;
     private bool _disposed;
     private ProcessItem? _selectedProcess;
@@ -175,10 +175,13 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     {
         _localization = localization;
         _runtime = runtime;
-        // Captured on the UI thread: the tail-pass in RefreshAsync runs on the
-        // ThreadPool (ConfigureAwait(false)) and must marshal the filtered view
-        // updates back here — CollectionView rejects background-thread changes.
-        _uiDispatcher = Dispatcher.CurrentDispatcher;
+        // Captured on the UI thread in production (DispatcherSynchronizationContext).
+        // The tail-pass in RefreshAsync runs on the ThreadPool (ConfigureAwait(false))
+        // and must marshal the filtered-view updates back here — CollectionView
+        // rejects background-thread changes. Null in tests/headless hosts means
+        // "already on the right thread": update inline instead of InvokeAsync,
+        // which would hang forever on a dispatcher without a message loop.
+        _uiSyncContext = SynchronizationContext.Current;
 
         foreach (var core in _runtime.Cores)
         {
@@ -256,14 +259,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
                 _refreshPending = false;
                 var scan = await _runtime.ScanFullProcessListAsync();
                 if (_disposed) return;
-                if (_uiDispatcher.CheckAccess())
-                {
-                    UpdateRows(scan.Groups);
-                }
-                else
-                {
-                    await _uiDispatcher.InvokeAsync(() => UpdateRows(scan.Groups));
-                }
+                MarshalToUi(() => UpdateRows(scan.Groups));
             } while (_refreshPending && !_disposed);
         }
         catch (Exception ex)
@@ -330,6 +326,20 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedProcessTopologyText));
         OnPropertyChanged(nameof(SelectedProcessStatusText));
         RefreshRowStatuses();
+    }
+
+    private void MarshalToUi(Action action)
+    {
+        var ui = _uiSyncContext;
+        if (ui == null || ReferenceEquals(SynchronizationContext.Current, ui))
+        {
+            action();
+            return;
+        }
+
+        // Synchronous Send: the worker must not outrun the UI update, and the UI
+        // thread never blocks on the refresh gate, so no deadlock cycle exists.
+        ui.Send(_ => action(), null);
     }
 
     private void RefreshOptimizationModes()

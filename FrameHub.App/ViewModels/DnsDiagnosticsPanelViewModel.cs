@@ -16,7 +16,7 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
 {
     private readonly LocalizationService _localization;
     private readonly DnsDiagnosticsService _service = new();
-    private readonly System.Windows.Threading.Dispatcher _dispatcher;
+    private readonly SynchronizationContext? _uiSyncContext;
     private string _hostname = "example.com";
     private string _customResolver = string.Empty;
     private bool _isComparing;
@@ -71,8 +71,10 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
         _localization = localization;
         // Captured on the UI thread (composition root creates VMs on the UI thread):
         // CompareAsync awaits with ConfigureAwait(false) and must marshal bound
-        // collection/property updates back here.
-        _dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+        // collection/property updates back here. Null in tests/headless hosts means
+        // "already on the right thread": update inline instead of Invoke, which
+        // would hang forever on a dispatcher without a message loop.
+        _uiSyncContext = SynchronizationContext.Current;
         RefreshAdaptersCommand = new RelayCommand(_ => LoadAdapters());
         CompareCommand = new RelayCommand(_ => _ = CompareAsync(), _ => !IsComparing);
         CancelCompareCommand = new RelayCommand(_ => _compareCts?.Cancel(), _ => IsComparing);
@@ -218,14 +220,14 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
 
     private void PostToUi(Action action)
     {
-        if (_dispatcher.CheckAccess())
+        var ui = _uiSyncContext;
+        if (ui == null || ReferenceEquals(SynchronizationContext.Current, ui))
         {
             action();
+            return;
         }
-        else
-        {
-            _dispatcher.Invoke(action);
-        }
+
+        ui.Send(_ => action(), null);
     }
 
     private void SetComparing(bool comparing)
