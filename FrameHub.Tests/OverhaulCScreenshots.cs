@@ -103,7 +103,13 @@ public sealed class OverhaulCScreenshots
 
     private void RenderAll(string language)
     {
-        using var runtime = CreateRuntime();
+        // QA R2 F3: the runtime MUST be born in the shot language. Its
+        // constructor records startup Activity entries via Settings.Language,
+        // and LocalizationService loads a separate settings snapshot — so
+        // creating the runtime first and calling SetLanguage afterwards left
+        // stale English history ("Recent activity", log lines) on PL shots
+        // while the live app was correctly Polish.
+        using var runtime = CreateRuntime(language);
         var localization = new LocalizationService(runtime.SettingsService);
         localization.SetLanguage(language);
 
@@ -199,30 +205,36 @@ public sealed class OverhaulCScreenshots
             Shoot(language, "07-hardware", new HardwareView { DataContext = vm });
         }
 
-        // E08 Logs with synthetic activity.
+        // E08 Logs with synthetic activity (localized templates — the live app
+        // localizes new entries at insert time, so fixtures must do the same;
+        // hardcoded English strings leaked onto PL shots in R2).
         {
             var vm = new LogsViewModel(localization, runtime);
             runtime.Activity.Clear();
-            runtime.Activity.Add(new ActivityItemViewModel { Time = "10:00", Message = "Applied profile for 'cs2'.", Level = "Info" });
-            runtime.Activity.Add(new ActivityItemViewModel { Time = "10:01", Message = "Temporary optimization for 'cs2' did not apply.", Level = "Warn" });
-            runtime.Activity.Add(new ActivityItemViewModel { Time = "10:02", Message = "Capture failed: device lost.", Level = "Error" });
-            runtime.Activity.Add(new ActivityItemViewModel { Time = "10:03", Message = "Ready.", Level = "Info" });
+            runtime.Activity.Add(new ActivityItemViewModel { Time = "10:00", Message = string.Format(localization.T("Library.ProfileApplied"), "cs2"), Level = "Info" });
+            runtime.Activity.Add(new ActivityItemViewModel { Time = "10:01", Message = string.Format(localization.T("Activity.ProfileNoProcess"), "cs2"), Level = "Warn" });
+            runtime.Activity.Add(new ActivityItemViewModel { Time = "10:02", Message = string.Format(localization.T("Activity.MonitorError"), "device lost"), Level = "Error" });
+            runtime.Activity.Add(new ActivityItemViewModel { Time = "10:03", Message = localization.T("Library.Ready"), Level = "Info" });
             vm.RefreshTexts();
             Shoot(language, "08-logs", new LogsView { DataContext = vm });
         }
 
         // E09 Settings/General + E10 Settings/Companion&Network (with DNS panel).
+        // QA R2 F3: the DNS presets/compare block sits below the 910px fold,
+        // so the network shot never evidenced the new read-only QOL panel.
+        // Scroll the shot viewport to the DNS section before rendering — the
+        // visual tree is unchanged, only the viewport moves.
         {
             var vm = new SettingsViewModel(localization, runtime);
             vm.SelectedSettingsCategoryIndex = 0;
             vm.RefreshTexts();
             Shoot(language, "09-settings-general", new SettingsView { DataContext = vm });
             vm.SelectedSettingsCategoryIndex = 3;
-            Shoot(language, "10-settings-network", new SettingsView { DataContext = vm });
+            Shoot(language, "10-settings-network", new SettingsView { DataContext = vm }, scrollToBottom: true);
         }
     }
 
-    private void Shoot(string language, string name, System.Windows.Controls.UserControl view)
+    private void Shoot(string language, string name, System.Windows.Controls.UserControl view, bool scrollToBottom = false)
     {
         // QA R1 P2: a bare UserControl has no Background, so RenderTargetBitmap
         // leaves every unpainted pixel at alpha=0 (up to ~95% transparent) and the
@@ -243,6 +255,11 @@ public sealed class OverhaulCScreenshots
         // synchronously here. (Do NOT pump: pending async previews must stay empty
         // so no real process names leak into the synthetic evidence.)
         view.UpdateLayout();
+        if (scrollToBottom && FindScrollViewer(view) is System.Windows.Controls.ScrollViewer scroller)
+        {
+            scroller.ScrollToBottom();
+            view.UpdateLayout();
+        }
         long layoutMs = sw.ElapsedMilliseconds;
 
         int texts = 0;
@@ -263,6 +280,18 @@ public sealed class OverhaulCScreenshots
         File.AppendAllText(
             Path.Combine(_shotDirectory, "timings.log"),
             $"{DateTime.Now:HH:mm:ss} {language}-{name} layout={layoutMs}ms total={sw.ElapsedMilliseconds}ms{Environment.NewLine}");
+    }
+
+    private static System.Windows.Controls.ScrollViewer? FindScrollViewer(System.Windows.DependencyObject root)
+    {
+        if (root is System.Windows.Controls.ScrollViewer viewer) return viewer;
+        int children = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < children; i++)
+        {
+            var found = FindScrollViewer(System.Windows.Media.VisualTreeHelper.GetChild(root, i));
+            if (found is not null) return found;
+        }
+        return null;
     }
 
     private static void CountTexts(System.Windows.DependencyObject root, ref int count)
@@ -316,9 +345,15 @@ public sealed class OverhaulCScreenshots
         public LibraryLaunchResult Launch(LibraryItem? item) => LibraryLaunchResult.Ok();
     }
 
-    private AppRuntimeService CreateRuntime()
+    private AppRuntimeService CreateRuntime(string? language = null)
     {
         string settingsPath = Path.Combine(_tempDirectory, $"settings-{Guid.NewGuid():N}.json");
+        if (!string.IsNullOrEmpty(language))
+        {
+            // Pre-seed so the runtime is born in the shot language (startup
+            // Activity entries are recorded from Settings.Language at ctor).
+            File.WriteAllText(settingsPath, $"{{\"Language\":\"{language}\"}}");
+        }
         return new AppRuntimeService(settingsPath);
     }
 }

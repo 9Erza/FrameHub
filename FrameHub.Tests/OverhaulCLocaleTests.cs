@@ -1,4 +1,7 @@
 using FrameHub.App.Services;
+using FrameHub.App.ViewModels.Library;
+using FrameHub.Core.Models;
+using FrameHub.Core.Models.Library;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Globalization;
 
@@ -118,6 +121,64 @@ public sealed class OverhaulCLocaleTests
     {
         string settingsPath = Path.Combine(_tempDirectory, $"settings-{Guid.NewGuid():N}.json");
         return new AppRuntimeService(settingsPath);
+    }
+
+    [TestMethod]
+    public void LibrarySourceText_IsLocalized_NoRawEnumInPl()
+    {
+        // QA R2 F1: LibraryItemViewModel.SourceText rendered raw enum names
+        // ("Manual", "CustomFolder") in the PL UI. Every LibrarySource must
+        // resolve through Library.Source.* in both languages.
+        using var runtime = CreateRuntime();
+        var localization = new LocalizationService(runtime.SettingsService);
+
+        localization.SetLanguage("pl");
+        var expectedPl = new Dictionary<LibrarySource, string>
+        {
+            [LibrarySource.Manual] = "Dodana ręcznie",
+            [LibrarySource.Steam] = "Steam",
+            [LibrarySource.Epic] = "Epic Games",
+            [LibrarySource.Riot] = "Riot Games",
+            [LibrarySource.CustomFolder] = "Folder niestandardowy",
+        };
+        foreach (LibrarySource source in Enum.GetValues<LibrarySource>())
+        {
+            var item = new LibraryItem
+            {
+                Id = "src-" + source,
+                DisplayName = "Shot Game",
+                Type = LibraryItemType.Game,
+                Source = source
+            };
+            var vm = new LibraryItemViewModel(
+                item, localization, () => new List<ProcessProfile>());
+            string text = vm.SourceText;
+            Assert.IsFalse(string.IsNullOrWhiteSpace(text), $"PL source {source}");
+            // Proper nouns (Steam, Epic, Riot) are legitimately identical in
+            // both languages — assert the exact glossary winner instead of a
+            // blanket not-equal, so the test stays green for the right reason.
+            Assert.AreEqual(expectedPl[source], text, $"PL source {source}");
+            Assert.AreNotEqual($"Library.Source.{source}", text, $"PL source {source}");
+        }
+
+        var manualPl = new LibraryItemViewModel(
+            new LibraryItem { Id = "m", DisplayName = "G", Type = LibraryItemType.Game, Source = LibrarySource.Manual },
+            localization, () => new List<ProcessProfile>());
+        Assert.AreEqual("Dodana ręcznie", manualPl.SourceText);
+        var folderPl = new LibraryItemViewModel(
+            new LibraryItem { Id = "c", DisplayName = "G", Type = LibraryItemType.Game, Source = LibrarySource.CustomFolder },
+            localization, () => new List<ProcessProfile>());
+        Assert.AreEqual("Folder niestandardowy", folderPl.SourceText);
+
+        localization.SetLanguage("en");
+        var manualEn = new LibraryItemViewModel(
+            new LibraryItem { Id = "m", DisplayName = "G", Type = LibraryItemType.Game, Source = LibrarySource.Manual },
+            localization, () => new List<ProcessProfile>());
+        Assert.AreEqual("Manual", manualEn.SourceText);
+        var folderEn = new LibraryItemViewModel(
+            new LibraryItem { Id = "c", DisplayName = "G", Type = LibraryItemType.Game, Source = LibrarySource.CustomFolder },
+            localization, () => new List<ProcessProfile>());
+        Assert.AreEqual("Custom folder", folderEn.SourceText);
     }
 
     [TestMethod]

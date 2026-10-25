@@ -175,6 +175,18 @@ public sealed class OverhaulCProfilesTests
             // Memory and disk agree, so the guard must skip the persist+refresh
             // (this is what kept the black-list loop away).
             var row = vm.Profiles.First(p => p.Id == "t2");
+            // QA R2 F2: byte-equality alone cannot catch a regressed (removed)
+            // guard — SaveProfiles is deterministic, so the file is identical
+            // either way. These two assertions DO discriminate: without the
+            // guard, ToggleProfileEnabled appends activity entries (Upsert +
+            // Toggled) and resets the grid collection mid-layout.
+            int activityBefore = runtime.Activity.Count;
+            int collectionResets = 0;
+            vm.Profiles.CollectionChanged += (_, e) =>
+            {
+                if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+                    collectionResets++;
+            };
             byte[] before = File.ReadAllBytes(
                 Path.Combine(_tempDirectory, "profiles.json"));
             vm.ToggleProfileEnabled(row);
@@ -183,6 +195,10 @@ public sealed class OverhaulCProfilesTests
             CollectionAssert.AreEqual(before, File.ReadAllBytes(
                 Path.Combine(_tempDirectory, "profiles.json")),
                 "Bind echo must not rewrite the profiles file.");
+            Assert.AreEqual(activityBefore, runtime.Activity.Count,
+                "Bind echo must not append a toggle activity entry (no persist happened).");
+            Assert.AreEqual(0, collectionResets,
+                "Bind echo must not reset the grid collection (no RefreshProfiles).");
         });
     }
 

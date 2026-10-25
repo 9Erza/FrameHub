@@ -21,7 +21,19 @@ public sealed class LibraryItemViewModel : ViewModelBase
 
     public string Id => Item.Id;
     public string DisplayName => Item.DisplayName;
-    public string SourceText => Item.Source.ToString();
+    public string SourceText
+    {
+        get
+        {
+            // QA R2 F1: raw enum names ("Manual", "CustomFolder") leaked into the
+            // PL UI. Localize via Library.Source.* (glossary-aligned with
+            // Benchmark.Source.*); fall back to the enum name only for unknown
+            // future values so the badge never renders empty.
+            string key = $"Library.Source.{Item.Source}";
+            string value = _localization.T(key);
+            return value == key ? Item.Source.ToString() : value;
+        }
+    }
     public string TypeText => _localization.T($"Library.Type.{Item.Type}");
     public string ProcessName => string.IsNullOrWhiteSpace(Item.ProcessName) ? _localization.T("Library.NotConfigured") : Item.ProcessName!;
     public string ExecutablePath => string.IsNullOrWhiteSpace(Item.ExecutablePath) ? _localization.T("Library.ExeMissing") : Item.ExecutablePath!;
@@ -133,6 +145,7 @@ public sealed class LibraryItemViewModel : ViewModelBase
 
     public void RefreshTexts()
     {
+        OnPropertyChanged(nameof(SourceText));
         OnPropertyChanged(nameof(TypeText));
         OnPropertyChanged(nameof(ProcessName));
         OnPropertyChanged(nameof(ExecutablePath));
