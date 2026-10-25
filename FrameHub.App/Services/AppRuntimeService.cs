@@ -268,7 +268,9 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
                 // No new timer/owner: a plain awaited delay inside the existing
                 // sync gate; failures keep the previous Failed-status reporting.
                 var (started, attempts) = await StartCompanionWithRetryAsync(
-                    () => CompanionServer.StartAsync(options),
+                    async () => _disposed
+                        ? false
+                        : await CompanionServer.StartAsync(options).ConfigureAwait(false),
                     CompanionStartMaxAttempts,
                     CompanionStartRetryDelay).ConfigureAwait(false);
                 if (attempts > 1)
