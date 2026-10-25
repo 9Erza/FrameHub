@@ -267,4 +267,53 @@ public sealed class OverhaulCProfilesTests
         string settingsPath = Path.Combine(_tempDirectory, $"settings-{Guid.NewGuid():N}.json");
         return new AppRuntimeService(settingsPath);
     }
+
+    [TestMethod]
+    public void ProfilesGrid_RealizesRowsFor50SyntheticProfiles()
+    {
+        RunOnSta(() =>
+        {
+            if (System.Windows.Application.Current == null)
+            {
+                var application = new FrameHub.App.App();
+                application.InitializeComponent();
+            }
+
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            localization.SetLanguage("en");
+            var vm = new ProfilesViewModel(localization, runtime);
+            for (int i = 0; i < 50; i++)
+            {
+                runtime.UpsertProfile(NewProfile("probe-" + i, "game-" + (i % 20), isEnabled: i % 2 == 0), replaceSameProcessName: false);
+            }
+            vm.RefreshProfiles();
+            Assert.AreEqual(50, vm.Profiles.Count);
+            Assert.AreEqual(50, CountProfiles(vm));
+
+            var view = new ProfilesView { DataContext = vm };
+            view.Measure(new System.Windows.Size(1552, 910));
+            view.Arrange(new System.Windows.Rect(0, 0, 1552, 910));
+            view.UpdateLayout();
+
+            var grid = (System.Windows.Controls.DataGrid)view.FindName("ProfilesGrid");
+            Assert.IsNotNull(grid, "ProfilesGrid must exist.");
+            Assert.AreEqual(50, grid.Items.Count, "Grid must see 50 logical items.");
+            // Guards the bind-echo loop: with enabled rows, CheckBox Checked events
+            // used to reset the grid mid-generation and no row ever materialized.
+            int rows = CountVisualsOfType<System.Windows.Controls.DataGridRow>(view);
+            Assert.IsTrue(rows > 0, "Zero DataGridRow containers realized for 50 items.");
+        });
+    }
+
+    private static int CountVisualsOfType<T>(System.Windows.DependencyObject root) where T : System.Windows.DependencyObject
+    {
+        int count = root is T ? 1 : 0;
+        int children = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < children; i++)
+        {
+            count += CountVisualsOfType<T>(System.Windows.Media.VisualTreeHelper.GetChild(root, i));
+        }
+        return count;
+    }
 }
