@@ -14,6 +14,8 @@ namespace FrameHub.Core.Models
         private string _priority = "Normal";
         private string _modeTag = string.Empty;
         private int _instanceCount = 1;
+        private bool _isProtected;
+        private string _statusDisplay = "-";
 
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
@@ -62,6 +64,25 @@ namespace FrameHub.Core.Models
         {
             get => _isOptimized;
             set => SetProperty(ref _isOptimized, value);
+        }
+
+        /// <summary>
+        /// True when the process must never be mutated (Riot games/clients,
+        /// Vanguard, etc.). Computed by the UI layer from
+        /// <see cref="FrameHub.Core.Services.Library.RiotGameProcesses"/>; kept on the
+        /// item so the grid can bind it without per-row service lookups.
+        /// </summary>
+        public bool IsProtected
+        {
+            get => _isProtected;
+            set => SetProperty(ref _isProtected, value);
+        }
+
+        /// <summary>Localized one-word status for the grid (set by the ViewModel).</summary>
+        public string StatusDisplay
+        {
+            get => _statusDisplay;
+            set => SetProperty(ref _statusDisplay, value);
         }
     }
 }

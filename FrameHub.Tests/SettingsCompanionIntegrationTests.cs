@@ -284,7 +284,16 @@ public sealed class SettingsCompanionIntegrationTests
 
             vm.CompanionPort = occupiedPort;
             vm.CompanionEnabled = true;
-            await Task.Delay(200);
+
+            // QA R1 P2: startup now retries a colliding bind for a bounded
+            // window (restart successor vs exiting predecessor), so Failed
+            // arrives after the retry budget, not after 200 ms. Poll for it.
+            bool failed = false;
+            for (int i = 0; i < 75 && !failed; i++)
+            {
+                await Task.Delay(200);
+                failed = runtime.CompanionServer.Status.State == CompanionServiceState.Failed;
+            }
 
             Assert.AreEqual(CompanionServiceState.Failed, runtime.CompanionServer.Status.State);
             Assert.IsTrue(vm.IsCompanionFailed);
@@ -295,7 +304,12 @@ public sealed class SettingsCompanionIntegrationTests
 
             // Recover by changing to free port
             vm.CompanionPort = freePort;
-            await Task.Delay(200);
+            bool running = false;
+            for (int i = 0; i < 75 && !running; i++)
+            {
+                await Task.Delay(200);
+                running = runtime.CompanionServer.Status.State == CompanionServiceState.Running;
+            }
 
             Assert.AreEqual(CompanionServiceState.Running, runtime.CompanionServer.Status.State);
             Assert.IsTrue(vm.IsCompanionRunning);

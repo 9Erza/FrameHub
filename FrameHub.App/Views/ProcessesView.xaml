@@ -16,24 +16,33 @@
 
         <Border Grid.Column="0" Style="{StaticResource DataPanel}">
             <Grid>
-                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                <Grid Margin="16,14,14,12">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                <Grid Margin="16,14,14,8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding ProcessListTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" /></StackPanel>
-                    <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Command="{Binding RefreshCommand}" Content="{Binding RefreshButtonText}" VerticalAlignment="Center" />
+                    <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding ProcessListTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding FilteredCountText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" /></StackPanel>
+                    <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Command="{Binding RefreshCommand}" Content="{Binding RefreshButtonText}" VerticalAlignment="Center" AutomationProperties.Name="{Binding RefreshButtonText}" />
+                </Grid>
+                <Grid Grid.Row="1" Margin="16,0,14,10">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" MinHeight="30" VerticalContentAlignment="Center" AutomationProperties.Name="{Binding SearchPlaceholderText}" ToolTip="{Binding SearchPlaceholderText}" />
+                    <TextBlock Grid.Column="0" Text="{Binding SearchPlaceholderText}" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                    </TextBlock>
                 </Grid>
 
-                <DataGrid x:Name="ProcessGrid" Grid.Row="1" Margin="1"
-                          ItemsSource="{Binding Processes}" SelectedItem="{Binding SelectedProcess, Mode=TwoWay}"
+                <DataGrid x:Name="ProcessGrid" Grid.Row="2" Margin="1"
+                          ItemsSource="{Binding ProcessesView}" SelectedItem="{Binding SelectedProcess, Mode=TwoWay}"
                           AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
-                          HeadersVisibility="Column" SelectionMode="Single" EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                          HeadersVisibility="Column" SelectionMode="Single" EnableRowVirtualization="True" EnableColumnVirtualization="True" CanUserSortColumns="True"
                           VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
-                          ScrollViewer.CanContentScroll="True" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                          ScrollViewer.CanContentScroll="True" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          AutomationProperties.Name="{Binding ProcessListTitle}">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="2.5*" MinWidth="220"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontWeight="SemiBold" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="2.2*" MinWidth="200" SortMemberPath="Name"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontWeight="SemiBold" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                         <DataGridTextColumn Header="{Binding Data.PidHeader, Source={StaticResource VmProxy}}" Binding="{Binding Id}" Width="64" />
                         <DataGridTextColumn Header="{Binding Data.InstancesHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="58" />
                         <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding ModeDisplay}" Width="95" />
+                        <DataGridTextColumn Header="{Binding Data.RuleHeader, Source={StaticResource VmProxy}}" Binding="{Binding StatusDisplay}" Width="100" />
                         <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding Priority}" Width="112" />
                         <DataGridTextColumn Header="{Binding Data.CpuHeader, Source={StaticResource VmProxy}}" Binding="{Binding CpuUsage}" ElementStyle="{StaticResource ProcessMetricCell}" Width="64" />
                         <DataGridTextColumn Header="{Binding Data.RamHeader, Source={StaticResource VmProxy}}" Binding="{Binding RamUsageMB}" ElementStyle="{StaticResource ProcessMetricCell}" Width="78" />
@@ -45,6 +54,21 @@
         <Border Grid.Column="2" Style="{StaticResource SectionSurface}" Padding="20">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="{Binding DetailsTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                        <Border Style="{StaticResource InlineRow}" Margin="0,10,0,0" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="{Binding ExecutableLabel}" Style="{StaticResource TinyCapsText}" />
+                                <TextBlock Text="{Binding SelectedProcessExecutableText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                <TextBlock Text="{Binding TopologyLabel}" Style="{StaticResource TinyCapsText}" Margin="0,10,0,0" />
+                                <TextBlock Text="{Binding SelectedProcessTopologyText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="0,10,0,0" Padding="10" CornerRadius="8" Background="{StaticResource BrushWarningSoft}" Visibility="{Binding IsApplyDisabledReasonVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Text="{Binding ApplyDisabledReason}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                        </Border>
+                    </StackPanel>
                     <StackPanel Margin="0,0,0,16">
                         <TextBlock Text="{Binding SettingsTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding SettingsSubtitle}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,0" />
@@ -71,8 +95,8 @@
                     </Grid>
 
                     <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="0,24,0,16" />
-                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding ApplyButtonText}" Command="{Binding ApplyCommand}" Margin="0,0,0,8" />
-                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding SaveProfileButtonText}" Command="{Binding SaveProfileCommand}" />
+                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding ApplyButtonText}" Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApplyToSelection}" Margin="0,0,0,8" AutomationProperties.Name="{Binding ApplyButtonText}" />
+                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding SaveProfileButtonText}" Command="{Binding SaveProfileCommand}" IsEnabled="{Binding CanApplyToSelection}" AutomationProperties.Name="{Binding SaveProfileButtonText}" />
                 </StackPanel>
             </ScrollViewer>
         </Border>

@@ -220,10 +220,15 @@ public sealed class EmberOverhaulBTests
     }
 
     [TestMethod]
-    public void Benchmark_SendToCompare_PresetsSelectedAndOpensCompareTab()
+    public async Task Benchmark_SendToCompare_PresetsSelectedAndOpensCompareTab()
     {
         var storage = new BenchmarkStorageService(_tempDirectory);
         using var vm = new BenchmarkViewModel(new LocalizationService(new SettingsService()), new EmberFakeRuntime(), storage, engineProbe: () => (false, null, "synthetic"));
+        // The VM fires RefreshHistoryAsync fire-and-forget from its ctor; it reassigns
+        // SelectedHistory from storage when it lands. Awaiting an explicit refresh here
+        // drains the ctor's in-flight refresh through the shared gate, so the selection
+        // below cannot be clobbered mid-test (load-dependent flake: CanExecute/AreSame).
+        await vm.RefreshHistoryAsync();
         var first = new BenchmarkHistoryItemViewModel(CompletedEntry("game", "Game", 100), new LocalizationService(new SettingsService()));
         var second = new BenchmarkHistoryItemViewModel(CompletedEntry("game", "Game", 110), new LocalizationService(new SettingsService()));
         vm.History.Add(first);

@@ -33,12 +33,22 @@ namespace FrameHub.Core.Services
         /// Startup flags safe to forward to a successor instance. Anything else is
         /// dropped: the successor must start from an explicit, auditable argument
         /// list, never from an opaque copy of the current command line.
+        /// <see cref="RestartedFlag"/> is always forwarded so the successor can
+        /// signal readiness back (see <see cref="WaitForSuccessorReady"/>).
         /// </summary>
         public static readonly HashSet<string> ForwardedRestartArguments = new(StringComparer.OrdinalIgnoreCase)
         {
             "--tray",
-            "--minimized"
+            "--minimized",
+            "--restarted"
         };
+
+        /// <summary>
+        /// Flag appended to every cooperative-restart successor command line.
+        /// The successor writes its readiness marker when it reaches the loaded
+        /// state with this flag present; anything else ignores the flag.
+        /// </summary>
+        public const string RestartedFlag = "--restarted";
 
         public string SettingsFilePath => _filePath;
 
@@ -303,6 +313,29 @@ namespace FrameHub.Core.Services
         public void ResetRestartState() => Interlocked.Exchange(ref _restartInFlight, 0);
 
         /// <summary>
+        /// Early-crash handshake for a just-started successor: waits up to
+        /// <paramref name="grace"/> for the process to exit. Returns true when it
+        /// is still alive afterwards (the normal case — the successor owns startup
+        /// from here), false when it already exited or cannot be observed.
+        /// Never kills anything and never reads a foreign exit code (unreliable
+        /// across runtimes); callers turn "gone too early" into user feedback
+        /// instead of a blind "restart started" claim.
+        /// </summary>
+        public static bool IsSuccessorAlive(int processId, TimeSpan grace)
+        {
+            try
+            {
+                using var process = Process.GetProcessById(processId);
+                int milliseconds = (int)Math.Min(Math.Max(grace.TotalMilliseconds, 0), 10000);
+                return !process.WaitForExit(milliseconds);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Builds the successor command line from whitelisted flags only.
         /// Unknown or missing flags are dropped, never passed through.
         /// </summary>
@@ -315,6 +348,101 @@ namespace FrameHub.Core.Services
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             return string.Join(" ", selected);
+        }
+
+        /// <summary>
+        /// Builds the full forwarded-argument list for a cooperative restart from
+        /// the current command line: whitelisted flags are kept and
+        /// <see cref="RestartedFlag"/> is ensured exactly once, so the successor
+        /// can signal readiness back. Pure and unit-tested.
+        /// </summary>
+        public static string[] BuildRestartForwardedArgs(IEnumerable<string>? currentArgv)
+        {
+            var kept = (currentArgv ?? Enumerable.Empty<string>())
+                .Where(arg => !string.IsNullOrWhiteSpace(arg) && ForwardedRestartArguments.Contains(arg.Trim()))
+                .Select(arg => arg.Trim().ToLowerInvariant())
+                .Where(arg => !arg.Equals(RestartedFlag, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            kept.Add(RestartedFlag);
+            return kept.ToArray();
+        }
+
+        /// <summary>
+        /// Per-user temp path of the readiness marker a restart successor writes
+        /// once its main window reaches the loaded state (settings applied,
+        /// Companion sync attempted). The predecessor waits on it instead of
+        /// trusting process liveness alone (QA R1 P2: readiness handshake).
+        /// </summary>
+        public static string GetSuccessorReadyMarkerPath(int processId) =>
+            Path.Combine(Path.GetTempPath(), $"FrameHub-restart-ready-{processId}.tmp");
+
+        /// <summary>
+        /// Written by the successor (only when started with
+        /// <see cref="RestartedFlag"/>) after full initialization. Best-effort:
+        /// never throws.
+        /// </summary>
+        public static void WriteSuccessorReadyMarker(int processId)
+        {
+            try
+            {
+                File.WriteAllText(
+                    GetSuccessorReadyMarkerPath(processId),
+                    DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(
+                        System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Readiness handshake for a just-started successor: polls for its marker
+        /// up to <paramref name="timeout"/> (250 ms cadence). Returns true only
+        /// when the marker appears while the process is still alive; false on
+        /// timeout or early exit. Never kills anything, never blocks longer than
+        /// the timeout. Call <see cref="ClearSuccessorReadyMarker"/> afterwards.
+        /// </summary>
+        public static bool WaitForSuccessorReady(int processId, TimeSpan timeout)
+        {
+            TimeSpan poll = TimeSpan.FromMilliseconds(250);
+            var deadline = DateTimeOffset.UtcNow + timeout;
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                bool marker;
+                try { marker = File.Exists(GetSuccessorReadyMarkerPath(processId)); }
+                catch { marker = false; }
+                if (marker)
+                {
+                    return IsSuccessorAlive(processId, TimeSpan.Zero);
+                }
+
+                try
+                {
+                    using var process = Process.GetProcessById(processId);
+                    if (process.HasExited) return false;
+                }
+                catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+                {
+                    return false;
+                }
+
+                TimeSpan remaining = deadline - DateTimeOffset.UtcNow;
+                if (remaining <= TimeSpan.Zero) break;
+                Thread.Sleep(remaining < poll ? remaining : poll);
+            }
+
+            try { return File.Exists(GetSuccessorReadyMarkerPath(processId)) && IsSuccessorAlive(processId, TimeSpan.Zero); }
+            catch { return false; }
+        }
+
+        /// <summary>Removes a successor readiness marker. Best-effort, never throws.</summary>
+        public static void ClearSuccessorReadyMarker(int processId)
+        {
+            try
+            {
+                string path = GetSuccessorReadyMarkerPath(processId);
+                if (File.Exists(path)) File.Delete(path);
+            }
+            catch { }
         }
 
         private static AppSettings SanitizeSettings(AppSettings settings)

@@ -195,6 +195,53 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
     private readonly SemaphoreSlim _companionSyncGate = new(1, 1);
 
+    /// <summary>
+    /// Bounded Companion start attempts. The window covers the predecessor's
+    /// graceful-shutdown budget (<see cref="DefaultShutdownBudget"/>): on a
+    /// cooperative restart the successor starts while the old instance still
+    /// holds the port, so the first bind fails and only a retry lets the
+    /// successor's Companion come up without manual toggling (QA R1 P2).
+    /// </summary>
+    public const int CompanionStartMaxAttempts = 6;
+
+    /// <summary>Delay between Companion start attempts (6 attempts ≈ 10 s window).</summary>
+    public static readonly TimeSpan CompanionStartRetryDelay = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Bounded retry driver for Companion startup. Pure orchestration over an
+    /// injected starter — unit-tested with fakes, no sockets required. Returns
+    /// the outcome and the number of attempts used. Exceptions from the starter
+    /// propagate (real <c>CompanionServer.StartAsync</c> already reports failures
+    /// as <c>false</c> with status details).
+    /// </summary>
+    public static async Task<(bool Started, int Attempts)> StartCompanionWithRetryAsync(
+        Func<Task<bool>> starter,
+        int maxAttempts,
+        TimeSpan retryDelay,
+        CancellationToken cancellationToken = default)
+    {
+        if (starter == null) throw new ArgumentNullException(nameof(starter));
+        if (maxAttempts < 1) throw new ArgumentOutOfRangeException(nameof(maxAttempts));
+        if (retryDelay < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(retryDelay));
+
+        int attempts = 0;
+        while (true)
+        {
+            attempts++;
+            if (await starter().ConfigureAwait(false))
+            {
+                return (true, attempts);
+            }
+
+            if (attempts >= maxAttempts || cancellationToken.IsCancellationRequested)
+            {
+                return (false, attempts);
+            }
+
+            await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public async Task SyncCompanionServerStateAsync()
     {
         await _companionSyncGate.WaitAsync().ConfigureAwait(false);
@@ -215,7 +262,22 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
             if (options.Enabled)
             {
-                bool started = await CompanionServer.StartAsync(options).ConfigureAwait(false);
+                // QA R1 P2: bounded retry so a restart successor whose first bind
+                // collides with the still-exiting predecessor comes up on its own
+                // (port released during the predecessor's shutdown budget).
+                // No new timer/owner: a plain awaited delay inside the existing
+                // sync gate; failures keep the previous Failed-status reporting.
+                var (started, attempts) = await StartCompanionWithRetryAsync(
+                    async () => _disposed
+                        ? false
+                        : await CompanionServer.StartAsync(options).ConfigureAwait(false),
+                    CompanionStartMaxAttempts,
+                    CompanionStartRetryDelay).ConfigureAwait(false);
+                if (attempts > 1)
+                {
+                    LoggerService.Instance.Warn(
+                        $"Companion server start needed {attempts} attempt(s) (port collision likely).");
+                }
                 if (started)
                 {
                     ActiveGameMonitor.Start();

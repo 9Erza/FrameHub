@@ -57,6 +57,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 
     public AppRuntimeService Runtime => _runtime;
     public LocalizationService Localization => _localization;
+    public SettingsViewModel Settings => _settingsViewModel;
 
     public string AppName { get; } = "FrameHub";
     public string AppVersion { get; } = new AppInfo().Version;
@@ -207,6 +208,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             _benchmarkViewModel.Preselect(item);
             Navigate("Benchmarks");
         };
+        _profilesViewModel.CreateFirstProfileRequested += () => Navigate("Processes");
         _runtime.RuntimeStateChanged += (_, _) => _benchmarkViewModel.RefreshHotkeyStatus();
         _benchmarkViewModel.UserNotificationRequested += message => UserNotificationRequested?.Invoke(message);
         _dashboardViewModel.BenchmarkNavigationRequested = () => Navigate("Benchmarks");
@@ -250,7 +252,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             _localization.T("Shell.About.Message"),
             AppVersion,
             _localization.T("Footer.AuthorLabel"),
-            _localization.T("Footer.Website"));
+            _localization.T("Footer.Website"))
+            + "\n\n" + _localization.T("Shell.About.SupporterNote");
         AboutRequested?.Invoke(_localization.T("Shell.About.Title"), message);
     }
 

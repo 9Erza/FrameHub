@@ -1,0 +1,27 @@
+name: Supporter Compat (PoC)
+
+# Validates the Supporter edition-integration PoC: the pinned-SHA manifest
+# stays well-formed and the public tree keeps the extension-only separation
+# (no private-only code, payments, DRM or license servers in public paths).
+# Adoption of a new public SHA happens only after this job is green.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  supporter-compat:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: SupporterEditionTests.PinnedSha_ExistsInLocalHistory
+          # asserts the pinned base SHA resolves via git; a shallow
+          # checkout (default fetch-depth 1) lacks that commit.
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore .\FrameHub.slnx
+      - run: dotnet build .\FrameHub.slnx --configuration Release --no-restore
+      - run: dotnet test .\FrameHub.slnx --configuration Release --no-build --filter "FullyQualifiedName~SupporterEditionTests"

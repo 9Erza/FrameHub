@@ -63,6 +63,16 @@
                             </StackPanel>
                         </Border>
                     </UniformGrid>
+                    <Border Style="{StaticResource SoftCardBorder}" Margin="0,12,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding StorageLabel}" Style="{StaticResource CardTitleText}" />
+                                <TextBlock Text="{Binding StorageInfoText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="&#xEDA2;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" Margin="16,0,0,0" />
+                        </Grid>
+                    </Border>
                 </StackPanel>
 
                 <Border Grid.Column="2" Style="{StaticResource SectionSurface}">
@@ -74,6 +84,13 @@
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <Border Style="{StaticResource SectionSurface}" Margin="0,16,0,0" Visibility="{Binding IsMonitorEnabled, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="{Binding MonitorStatus}" Style="{StaticResource SectionTitleText}" />
+                    <TextBlock Text="{Binding MonitorDescription}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
 
             <Border Style="{StaticResource SectionSurface}" Margin="0,16,0,0">
                 <StackPanel>

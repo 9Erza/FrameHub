@@ -2,7 +2,10 @@ using FrameHub.App.Helpers;
 using FrameHub.App.Services;
 using FrameHub.Core.Models;
 using FrameHub.Core.Services;
+using FrameHub.Core.Services.Library;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -14,11 +17,14 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     private readonly AppRuntimeService _runtime;
     private readonly DispatcherTimer _refreshTimer;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private readonly SynchronizationContext? _uiSyncContext;
     private bool _refreshPending;
     private bool _disposed;
     private ProcessItem? _selectedProcess;
     private string _selectedPriority = "Normal";
     private OptimizationModeOptionViewModel? _selectedOptimizationModeOption;
+    private string _searchText = string.Empty;
+    private readonly ICollectionView _processesView;
 
     public string Title => _localization.T("Processes.Title");
     public string Subtitle => _localization.T("Processes.Subtitle");
@@ -42,9 +48,73 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     public string PidHeader => _localization.T("Processes.Pid");
     public string ModeHeader => _localization.T("Processes.ModeShort");
     public string RefreshButtonText => _localization.T("Processes.Refresh");
-    public string PhysicalCoresTitle => _localization.CurrentLanguage == "pl" ? "Rdzenie" : "Cores";
-    public string ThreadCoresTitle => _localization.CurrentLanguage == "pl" ? "Wątki SMT / HT" : "SMT / HT threads";
+    public string SearchPlaceholderText => _localization.T("Processes.SearchPlaceholder");
+    public string StatusHeader => _localization.T("Processes.Status");
+    public string RuleHeader => _localization.T("Processes.Rule");
+    public string DetailsTitle => _localization.T("Processes.DetailsTitle");
+    public string ExecutableLabel => _localization.T("Processes.Executable");
+    public string TopologyLabel => _localization.T("Processes.Topology");
+    public string FilteredCountText => string.Format(_localization.T("Processes.FilteredCount"), _processesView?.Cast<object>().Count() ?? Processes.Count, Processes.Count);
+    public string PhysicalCoresTitle => _localization.T("Processes.PhysicalCores");
+    public string ThreadCoresTitle => _localization.T("Processes.ThreadCores");
     public string StatusText => _selectedProcess == null ? _localization.T("Processes.NoSelection") : string.Format(_localization.T("Processes.Selected"), _selectedProcess.Name);
+
+    /// <summary>Live search filter (name or PID). Bound to the grid via <see cref="ProcessesView"/>.</summary>
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (!SetProperty(ref _searchText, value ?? string.Empty)) return;
+            _processesView.Refresh();
+            OnPropertyChanged(nameof(FilteredCountText));
+        }
+    }
+
+    public ICollectionView ProcessesView => _processesView;
+
+    public bool IsBenchmarkActive => _runtime.BenchmarkCoordinator.IsActive;
+
+    public bool IsSelectedProcessProtected => SelectedProcess?.IsProtected == true;
+
+    /// <summary>
+    /// Fail-closed mutation gate for the UI: protected (Riot/anti-cheat) processes
+    /// and an active benchmark capture both disable Apply/Save, with the reason
+    /// surfaced via <see cref="ApplyDisabledReason"/>.
+    /// </summary>
+    public bool CanApplyToSelection => SelectedProcess != null && !IsSelectedProcessProtected && !IsBenchmarkActive;
+
+    public string ApplyDisabledReason
+    {
+        get
+        {
+            if (SelectedProcess == null) return _localization.T("Processes.NoSelection");
+            if (IsSelectedProcessProtected) return _localization.T("Processes.ProtectionReason");
+            if (IsBenchmarkActive) return _localization.T("Processes.BenchmarkActiveReason");
+            return string.Empty;
+        }
+    }
+
+    public bool IsApplyDisabledReasonVisible => SelectedProcess == null || IsSelectedProcessProtected || IsBenchmarkActive;
+
+    public string SelectedProcessExecutableText => SelectedProcess?.ExecutablePath ?? _localization.T("Processes.ExecutableUnknown");
+
+    public string SelectedProcessTopologyText => BuildTopologyText();
+
+    public string SelectedProcessStatusText => SelectedProcess == null
+        ? string.Empty
+        : SelectedProcess.StatusDisplay;
+
+    /// <summary>
+    /// Pure status classifier shared by the grid and the details panel.
+    /// Protected (Riot/anti-cheat) wins over managed: such rows are never mutable.
+    /// Managed rows show the profile (rule) name; unmanaged rows are "Available".
+    /// </summary>
+    public static string ResolveStatusDisplay(string? processName, string? profileName, string protectedText, string availableText)
+    {
+        if (RiotGameProcesses.IsProtectedProcessName(processName)) return protectedText;
+        return string.IsNullOrWhiteSpace(profileName) ? availableText : profileName;
+    }
 
     public ObservableCollection<ProcessItem> Processes { get; } = new();
     public ObservableCollection<CoreInfo> Cores { get; } = new();
@@ -69,6 +139,13 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
             if (!SetProperty(ref _selectedProcess, value)) return;
             LoadSelectionFromProcessOrProfile();
             OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(IsSelectedProcessProtected));
+            OnPropertyChanged(nameof(CanApplyToSelection));
+            OnPropertyChanged(nameof(ApplyDisabledReason));
+            OnPropertyChanged(nameof(IsApplyDisabledReasonVisible));
+            OnPropertyChanged(nameof(SelectedProcessExecutableText));
+            OnPropertyChanged(nameof(SelectedProcessTopologyText));
+            OnPropertyChanged(nameof(SelectedProcessStatusText));
         }
     }
 
@@ -98,6 +175,13 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     {
         _localization = localization;
         _runtime = runtime;
+        // Captured on the UI thread in production (DispatcherSynchronizationContext).
+        // The tail-pass in RefreshAsync runs on the ThreadPool (ConfigureAwait(false))
+        // and must marshal the filtered-view updates back here — CollectionView
+        // rejects background-thread changes. Null in tests/headless hosts means
+        // "already on the right thread": update inline instead of InvokeAsync,
+        // which would hang forever on a dispatcher without a message loop.
+        _uiSyncContext = SynchronizationContext.Current;
 
         foreach (var core in _runtime.Cores)
         {
@@ -114,6 +198,17 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
 
         RefreshOptimizationModes();
         RefreshPriorities();
+
+        _processesView = CollectionViewSource.GetDefaultView(Processes);
+        _processesView.Filter = MatchesSearchFilter;
+
+        _runtime.BenchmarkCoordinator.StateChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsBenchmarkActive));
+            OnPropertyChanged(nameof(CanApplyToSelection));
+            OnPropertyChanged(nameof(ApplyDisabledReason));
+            OnPropertyChanged(nameof(IsApplyDisabledReasonVisible));
+        };
 
         _refreshTimer = new DispatcherTimer
         {
@@ -164,7 +259,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
                 _refreshPending = false;
                 var scan = await _runtime.ScanFullProcessListAsync();
                 if (_disposed) return;
-                UpdateRows(scan.Groups);
+                MarshalToUi(() => UpdateRows(scan.Groups));
             } while (_refreshPending && !_disposed);
         }
         catch (Exception ex)
@@ -213,9 +308,38 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(PidHeader));
         OnPropertyChanged(nameof(ModeHeader));
         OnPropertyChanged(nameof(RefreshButtonText));
+        OnPropertyChanged(nameof(SearchPlaceholderText));
+        OnPropertyChanged(nameof(StatusHeader));
+        OnPropertyChanged(nameof(RuleHeader));
+        OnPropertyChanged(nameof(DetailsTitle));
+        OnPropertyChanged(nameof(ExecutableLabel));
+        OnPropertyChanged(nameof(TopologyLabel));
+        OnPropertyChanged(nameof(FilteredCountText));
         OnPropertyChanged(nameof(PhysicalCoresTitle));
         OnPropertyChanged(nameof(ThreadCoresTitle));
         OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(IsSelectedProcessProtected));
+        OnPropertyChanged(nameof(CanApplyToSelection));
+        OnPropertyChanged(nameof(ApplyDisabledReason));
+        OnPropertyChanged(nameof(IsApplyDisabledReasonVisible));
+        OnPropertyChanged(nameof(SelectedProcessExecutableText));
+        OnPropertyChanged(nameof(SelectedProcessTopologyText));
+        OnPropertyChanged(nameof(SelectedProcessStatusText));
+        RefreshRowStatuses();
+    }
+
+    private void MarshalToUi(Action action)
+    {
+        var ui = _uiSyncContext;
+        if (ui == null || ReferenceEquals(SynchronizationContext.Current, ui))
+        {
+            action();
+            return;
+        }
+
+        // Synchronous Send: the worker must not outrun the UI update, and the UI
+        // thread never blocks on the refresh gate, so no deadlock cycle exists.
+        ui.Send(_ => action(), null);
     }
 
     private void RefreshOptimizationModes()
@@ -273,7 +397,51 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
             item.Priority = PriorityService.Translate(group.Priority.ToString(), _localization.CurrentLanguage);
             item.IsOptimized = profile != null;
             item.ModeTag = tag;
+            item.IsProtected = RiotGameProcesses.IsProtectedProcessName(group.Name);
+            item.StatusDisplay = ResolveStatusDisplay(
+                group.Name,
+                profile?.DisplayName,
+                _localization.T("Processes.StatusProtected"),
+                _localization.T("Processes.StatusAvailable"));
         }
+
+        _processesView.Refresh();
+        OnPropertyChanged(nameof(FilteredCountText));
+    }
+
+    private void RefreshRowStatuses()
+    {
+        foreach (var item in Processes)
+        {
+            var managed = _runtime.Profiles.FirstOrDefault(p => p.IsEnabled && ProfileService.MatchesIdentity(p, item.Name, item.ExecutablePath));
+            item.IsProtected = RiotGameProcesses.IsProtectedProcessName(item.Name);
+            item.IsOptimized = managed != null;
+            item.StatusDisplay = ResolveStatusDisplay(
+                item.Name,
+                managed?.DisplayName,
+                _localization.T("Processes.StatusProtected"),
+                _localization.T("Processes.StatusAvailable"));
+        }
+
+        _processesView.Refresh();
+        OnPropertyChanged(nameof(FilteredCountText));
+    }
+
+    private bool MatchesSearchFilter(object obj)
+    {
+        if (obj is not ProcessItem item) return false;
+        if (string.IsNullOrWhiteSpace(_searchText)) return true;
+        string needle = _searchText.Trim();
+        return item.Name.Contains(needle, StringComparison.OrdinalIgnoreCase)
+            || item.Id.ToString(System.Globalization.CultureInfo.InvariantCulture).Contains(needle, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string BuildTopologyText()
+    {
+        int physical = PhysicalCores.Count;
+        int threads = ThreadCores.Count;
+        int efficient = Cores.Count(c => c.IsECore);
+        return string.Format(_localization.T("Processes.TopologyValue"), physical, threads, efficient, Cores.Count);
     }
 
 
@@ -308,6 +476,11 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     private void ApplySelectedOptimization()
     {
         if (SelectedProcess == null) return;
+        if (!CanApplyToSelection)
+        {
+            _runtime.AddActivity(string.Format(_localization.T("Processes.Activity.ApplyBlocked"), SelectedProcess.Name, ApplyDisabledReason), "Warn");
+            return;
+        }
         var profile = BuildProfileFromSelection(save: false);
         var result = _runtime.ApplyProfileNow(profile, force: true);
         _runtime.AddActivity(string.Format(_localization.T(result.HasAnySuccess ? "Processes.Activity.TempApplied" : "Processes.Activity.TempNotApplied"), SelectedProcess.Name), result.HasAnySuccess ? "Info" : "Warn");
@@ -316,6 +489,11 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
     private void SaveSelectedProfile()
     {
         if (SelectedProcess == null) return;
+        if (!CanApplyToSelection)
+        {
+            _runtime.AddActivity(string.Format(_localization.T("Processes.Activity.ApplyBlocked"), SelectedProcess.Name, ApplyDisabledReason), "Warn");
+            return;
+        }
         var profile = BuildProfileFromSelection(save: true);
         _runtime.UpsertProfile(profile);
         _runtime.ApplyProfileNow(profile, force: true);

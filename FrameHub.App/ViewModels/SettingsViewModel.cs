@@ -35,6 +35,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _benchmarkHotkeyStatus = string.Empty;
 
     public ICommand RestartAsAdminCommand { get; }
+    public ICommand RestartCommand { get; }
     public ICommand CheckUpdatesCommand { get; }
     public ICommand OpenAppDataCommand { get; }
     public ICommand OpenLogsCommand { get; }
@@ -79,6 +80,67 @@ public sealed class SettingsViewModel : ViewModelBase
     public string EnglishLabel => _localization.T("Language.English");
     public string PolishLabel => _localization.T("Language.Polish");
     public string RestartAsAdminText => _localization.T("Settings.RestartAsAdminButton");
+    public string RestartNormalText => _localization.T("Settings.RestartNormalButton");
+    public string RestartNormalDescription => _localization.T("Settings.RestartNormalDescription");
+    public string RestartSectionTitle => _localization.T("Settings.RestartSectionTitle");
+    public string DiagnosticsLogFileLabel => _localization.T("Settings.DiagnosticsLogFile");
+    public string DiagnosticsLogLevelLabel => _localization.T("Settings.DiagnosticsLogLevel");
+
+    /// <summary>
+    /// Advanced file-logging internals surfaced read-only: the values already
+    /// load/save with settings; the UI shows but never edits them.
+    /// </summary>
+    public string DiagnosticsLogFileText => AppPaths.ResolveUserLogFilePath(_settings.LogFilePath);
+
+    public string DiagnosticsLogLevelText => _settings.LogLevelValue switch
+    {
+        <= 0 => "Debug",
+        1 => "Info",
+        2 => "Warn",
+        3 => "Error",
+        _ => "Fatal"
+    };
+
+    /// <summary>
+    /// Raised when the user clicks the normal (non-elevated) Restart button.
+    /// MainWindow owns the cooperative restart flow and handles this event.
+    /// </summary>
+    public event Action? NormalRestartRequested;
+
+    public ObservableCollection<string> SettingsCategories { get; } = new();
+
+    public string CategoryGeneral => _localization.T("Settings.Category.General");
+    public string CategoryLanguage => _localization.T("Settings.Category.Language");
+    public string CategoryStartupWindow => _localization.T("Settings.Category.StartupWindow");
+    public string CategoryCompanionNetwork => _localization.T("Settings.Category.CompanionNetwork");
+    public string CategoryBenchmarks => _localization.T("Settings.Category.Benchmarks");
+    public string CategoryAdvancedDiagnostics => _localization.T("Settings.Category.AdvancedDiagnostics");
+
+    public DnsDiagnosticsPanelViewModel Dns { get; }
+
+    private int _selectedSettingsCategoryIndex;
+
+    public int SelectedSettingsCategoryIndex
+    {
+        get => _selectedSettingsCategoryIndex;
+        set
+        {
+            if (!SetProperty(ref _selectedSettingsCategoryIndex, Math.Clamp(value, 0, 5))) return;
+            OnPropertyChanged(nameof(IsGeneralVisible));
+            OnPropertyChanged(nameof(IsLanguageVisible));
+            OnPropertyChanged(nameof(IsStartupWindowVisible));
+            OnPropertyChanged(nameof(IsCompanionNetworkVisible));
+            OnPropertyChanged(nameof(IsBenchmarksVisible));
+            OnPropertyChanged(nameof(IsAdvancedDiagnosticsVisible));
+        }
+    }
+
+    public bool IsGeneralVisible => SelectedSettingsCategoryIndex == 0;
+    public bool IsLanguageVisible => SelectedSettingsCategoryIndex == 1;
+    public bool IsStartupWindowVisible => SelectedSettingsCategoryIndex == 2;
+    public bool IsCompanionNetworkVisible => SelectedSettingsCategoryIndex == 3;
+    public bool IsBenchmarksVisible => SelectedSettingsCategoryIndex == 4;
+    public bool IsAdvancedDiagnosticsVisible => SelectedSettingsCategoryIndex == 5;
     public string CheckUpdatesText => _localization.T("Settings.CheckUpdatesButton");
     public string OpenAppDataText => _localization.T("Settings.OpenAppData");
     public string OpenLogsText => _localization.T("Settings.OpenLogs");
@@ -457,7 +519,11 @@ public sealed class SettingsViewModel : ViewModelBase
         _runtime.CompanionServer.StatusChanged += OnCompanionStatusChanged;
         _runtime.CompanionServer.PairingEngine.SessionStatusChanged += OnPairingSessionStatusChanged;
 
+        Dns = new DnsDiagnosticsPanelViewModel(localization);
+        RefreshSettingsCategories();
+
         RestartAsAdminCommand = new RelayCommand(_ => _runtime.SettingsService.RestartAsAdmin());
+        RestartCommand = new RelayCommand(_ => NormalRestartRequested?.Invoke());
         CheckUpdatesCommand = new RelayCommand(_ => _ = CheckUpdatesAsync());
         OpenAppDataCommand = new RelayCommand(_ => OpenFolder(AppPaths.UserDataDirectory));
         OpenLogsCommand = new RelayCommand(_ => OpenFolder(Path.GetDirectoryName(LoggerService.Shared.Configuration.LogFilePath) ?? AppPaths.UserDataDirectory));
@@ -795,6 +861,17 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(EnglishLabel));
         OnPropertyChanged(nameof(PolishLabel));
         OnPropertyChanged(nameof(RestartAsAdminText));
+        OnPropertyChanged(nameof(RestartNormalText));
+        OnPropertyChanged(nameof(RestartNormalDescription));
+        OnPropertyChanged(nameof(RestartSectionTitle));
+        OnPropertyChanged(nameof(CategoryGeneral));
+        OnPropertyChanged(nameof(CategoryLanguage));
+        OnPropertyChanged(nameof(CategoryStartupWindow));
+        OnPropertyChanged(nameof(CategoryCompanionNetwork));
+        OnPropertyChanged(nameof(CategoryBenchmarks));
+        OnPropertyChanged(nameof(CategoryAdvancedDiagnostics));
+        RefreshSettingsCategories();
+        Dns.RefreshTexts();
         OnPropertyChanged(nameof(CheckUpdatesText));
         OnPropertyChanged(nameof(OpenAppDataText));
         OnPropertyChanged(nameof(OpenLogsText));
@@ -835,11 +912,26 @@ public sealed class SettingsViewModel : ViewModelBase
         UpdateCompanionStatusProperties();
     }
 
+    private void RefreshSettingsCategories()
+    {
+        int current = SelectedSettingsCategoryIndex;
+        SettingsCategories.Clear();
+        SettingsCategories.Add(CategoryGeneral);
+        SettingsCategories.Add(CategoryLanguage);
+        SettingsCategories.Add(CategoryStartupWindow);
+        SettingsCategories.Add(CategoryCompanionNetwork);
+        SettingsCategories.Add(CategoryBenchmarks);
+        SettingsCategories.Add(CategoryAdvancedDiagnostics);
+        SelectedSettingsCategoryIndex = Math.Clamp(current, 0, SettingsCategories.Count - 1);
+    }
+
     public void ReloadFromRuntime()
     {
         _settings = Clone(_runtime.Settings);
         _companionPortText = _settings.CompanionPort.ToString();
         CompanionPortValidationError = string.Empty;
+        RefreshSettingsCategories();
+        Dns.RefreshTexts();
         RefreshAllValues();
     }
 
@@ -1047,6 +1139,8 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(CompanionEnabled));
         OnPropertyChanged(nameof(CompanionPortText));
         OnPropertyChanged(nameof(CompanionPort));
+        OnPropertyChanged(nameof(DiagnosticsLogFileText));
+        OnPropertyChanged(nameof(DiagnosticsLogLevelText));
         UpdateCompanionStatusProperties();
     }
 
