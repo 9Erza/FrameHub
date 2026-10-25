@@ -1,3 +1,4 @@
+using FrameHub.App.Services;
 using FrameHub.Core.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Reflection;
@@ -148,5 +149,101 @@ public sealed class RestartSuccessorTests
         {
             // Already exited — the expected case for the probe executable.
         }
+    }
+
+    [TestMethod]
+    public void BuildSuccessorArguments_ForwardsRestartedFlag_DropsJunk()
+    {
+        Assert.AreEqual(
+            "--tray --minimized --restarted",
+            SettingsService.BuildSuccessorArguments(["--tray", "--bogus", "--MINIMIZED", " --tray ", "--startup-helper", "--restarted"]));
+    }
+
+    [TestMethod]
+    public void BuildRestartForwardedArgs_KeepsWhitelist_AppendsRestartedOnce()
+    {
+        CollectionAssert.AreEqual(
+            new[] { "--tray", "--restarted" },
+            SettingsService.BuildRestartForwardedArgs(["FrameHub.exe", "--tray", "--bogus", "--startup-helper"]));
+
+        // Already present (e.g. restarting a successor): exactly once, last.
+        CollectionAssert.AreEqual(
+            new[] { "--minimized", "--restarted" },
+            SettingsService.BuildRestartForwardedArgs(["--restarted", "--minimized", "--restarted"]));
+
+        CollectionAssert.AreEqual(
+            new[] { "--restarted" },
+            SettingsService.BuildRestartForwardedArgs(null));
+    }
+
+    [TestMethod]
+    public void SuccessorReadyMarker_WriteWaitClear_Roundtrip()
+    {
+        int pid = Environment.ProcessId;
+        try
+        {
+            Assert.IsFalse(File.Exists(SettingsService.GetSuccessorReadyMarkerPath(pid)));
+            SettingsService.WriteSuccessorReadyMarker(pid);
+            Assert.IsTrue(File.Exists(SettingsService.GetSuccessorReadyMarkerPath(pid)));
+            Assert.IsTrue(
+                SettingsService.WaitForSuccessorReady(pid, TimeSpan.FromSeconds(5)),
+                "Marker of a live process must satisfy the handshake.");
+        }
+        finally
+        {
+            SettingsService.ClearSuccessorReadyMarker(pid);
+        }
+
+        Assert.IsFalse(File.Exists(SettingsService.GetSuccessorReadyMarkerPath(pid)));
+        Assert.IsFalse(
+            SettingsService.WaitForSuccessorReady(pid, TimeSpan.FromMilliseconds(300)),
+            "Without a marker the handshake must time out, not hang.");
+    }
+
+    [TestMethod]
+    public void WaitForSuccessorReady_MissingProcess_ReturnsFalseFast()
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Assert.IsFalse(SettingsService.WaitForSuccessorReady(int.MaxValue, TimeSpan.FromSeconds(5)));
+        Assert.IsTrue(sw.Elapsed < TimeSpan.FromSeconds(5), "Missing PID must fail fast on early exit.");
+    }
+
+    [TestMethod]
+    public async Task StartCompanionWithRetry_SucceedsAfterTransientCollisions()
+    {
+        int calls = 0;
+        var (started, attempts) = await AppRuntimeService.StartCompanionWithRetryAsync(
+            () => Task.FromResult(++calls >= 3),
+            maxAttempts: 6,
+            retryDelay: TimeSpan.FromMilliseconds(10));
+        Assert.IsTrue(started);
+        Assert.AreEqual(3, attempts);
+        Assert.AreEqual(3, calls);
+    }
+
+    [TestMethod]
+    public async Task StartCompanionWithRetry_GivesUpBounded()
+    {
+        int calls = 0;
+        var (started, attempts) = await AppRuntimeService.StartCompanionWithRetryAsync(
+            () => { calls++; return Task.FromResult(false); },
+            maxAttempts: 3,
+            retryDelay: TimeSpan.FromMilliseconds(10));
+        Assert.IsFalse(started);
+        Assert.AreEqual(3, attempts);
+        Assert.AreEqual(3, calls);
+    }
+
+    [TestMethod]
+    public void CompanionRetryWindow_CoversPredecessorShutdownBudget()
+    {
+        // 6 attempts x 2 s ≈ 10 s >= 8 s shutdown budget: the successor's first
+        // bind collides with the exiting predecessor, retries span its exit.
+        double windowSeconds = (AppRuntimeService.CompanionStartMaxAttempts - 1)
+            * AppRuntimeService.CompanionStartRetryDelay.TotalSeconds;
+        Assert.IsTrue(
+            windowSeconds >= AppRuntimeService.DefaultShutdownBudget.TotalSeconds,
+            $"Retry window {windowSeconds}s must cover the shutdown budget " +
+            $"{AppRuntimeService.DefaultShutdownBudget.TotalSeconds}s.");
     }
 }

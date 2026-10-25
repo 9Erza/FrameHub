@@ -119,4 +119,40 @@ public sealed class OverhaulCLocaleTests
         string settingsPath = Path.Combine(_tempDirectory, $"settings-{Guid.NewGuid():N}.json");
         return new AppRuntimeService(settingsPath);
     }
+
+    [TestMethod]
+    public void CompanionKeys_UseCanonicalPartCWording_NoDuplicates()
+    {
+        // QA R1 P3: the PL dictionary had 12 duplicated Companion keys (older
+        // wording earlier, part-C wording at the end, last-wins). The earlier
+        // block is removed; this locks the canonical winners.
+        using var runtime = CreateRuntime();
+        var localization = new LocalizationService(runtime.SettingsService);
+        localization.SetLanguage("pl");
+        Assert.AreEqual("Włącz usługę Companion", localization.T("Settings.CompanionEnable"));
+        Assert.AreEqual("Wyłączona", localization.T("Settings.CompanionStateDisabled"));
+        localization.SetLanguage("en");
+        Assert.AreEqual("Enable Companion", localization.T("Settings.CompanionEnable"));
+        Assert.AreEqual("Disabled", localization.T("Settings.CompanionStateDisabled"));
+    }
+
+    [TestMethod]
+    public void RestartHandshakeKeys_HaveEnAndPlValues()
+    {
+        using var runtime = CreateRuntime();
+        var localization = new LocalizationService(runtime.SettingsService);
+        foreach (string key in new[]
+        {
+            "Shell.Restart.SuccessorReady", "Shell.Restart.SuccessorTimeout",
+            "Shell.Restart.SuccessorDied", "Shell.Restart.Aborted", "Shell.Restart.Incomplete"
+        })
+        {
+            localization.SetLanguage("en");
+            string en = localization.T(key);
+            localization.SetLanguage("pl");
+            string pl = localization.T(key);
+            Assert.IsFalse(string.IsNullOrWhiteSpace(en) || en == key, key);
+            Assert.IsFalse(string.IsNullOrWhiteSpace(pl) || pl == key, key);
+        }
+    }
 }

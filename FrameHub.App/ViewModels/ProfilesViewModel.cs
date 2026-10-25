@@ -454,9 +454,23 @@ public sealed class ProfilesViewModel : ViewModelBase
         // enabled rows the grid churns and never materializes (black list). A real
         // click flips IsEnabled through the binding first, so persisted and
         // in-memory states differ exactly then — and only then we persist.
-        var persisted = _runtime.Profiles
-            .FirstOrDefault(p => p.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase));
-        if (persisted != null && persisted.IsEnabled == profile.IsEnabled) return;
+        //
+        // The comparison MUST read the persisted snapshot from disk: _runtime.Profiles
+        // is a live list and RefreshProfiles stores the same instances in the grid,
+        // so comparing against the live list is comparing the object to itself
+        // (always equal → toggle never persisted, QA R1 P1).
+        bool? persistedEnabled = null;
+        try
+        {
+            var snapshot = _runtime.ProfileService.LoadProfiles()
+                .FirstOrDefault(p => p.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase));
+            if (snapshot != null) persistedEnabled = snapshot.IsEnabled;
+        }
+        catch
+        {
+            persistedEnabled = null;
+        }
+        if (persistedEnabled.HasValue && persistedEnabled.Value == profile.IsEnabled) return;
         _runtime.UpsertProfile(profile, replaceSameProcessName: false);
         string stateText = _localization.T(profile.IsEnabled ? "Profiles.ToggledOn" : "Profiles.ToggledOff");
         _runtime.AddActivity(string.Format(_localization.T("Profiles.Activity.Toggled"), profile.ProcessName, stateText));

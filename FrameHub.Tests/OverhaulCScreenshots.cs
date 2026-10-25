@@ -149,6 +149,9 @@ public sealed class OverhaulCScreenshots
         // E05 Processes with 100 synthetic rows.
         using (var vm = new ProcessesViewModel(localization, runtime))
         {
+            // QA R1 P3: fixtures must show what a real row shows — a translated
+            // priority, not a hardcoded English "Normal" on the PL screen.
+            string shotPriority = PriorityService.Translate("Normal", language);
             for (int i = 0; i < 100; i++)
             {
                 vm.Processes.Add(new ProcessItem
@@ -158,7 +161,7 @@ public sealed class OverhaulCScreenshots
                     InstanceCount = 1,
                     CpuUsage = "1.5%",
                     RamUsageMB = "120 MB",
-                    Priority = "Normal",
+                    Priority = shotPriority,
                     StatusDisplay = "Available"
                 });
             }
@@ -221,6 +224,18 @@ public sealed class OverhaulCScreenshots
 
     private void Shoot(string language, string name, System.Windows.Controls.UserControl view)
     {
+        // QA R1 P2: a bare UserControl has no Background, so RenderTargetBitmap
+        // leaves every unpainted pixel at alpha=0 (up to ~95% transparent) and the
+        // PNG is unreadable on a light viewer. Paint the real shell background
+        // opaquely first — still a genuine XAML render, not an edited composite.
+        if (view.Background == null)
+        {
+            System.Windows.Media.Brush? shell = null;
+            try { shell = System.Windows.Application.Current?.TryFindResource("BrushBackground") as System.Windows.Media.Brush; }
+            catch { }
+            view.Background = shell
+                ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x12, 0x14, 0x19));
+        }
         var sw = System.Diagnostics.Stopwatch.StartNew();
         view.Measure(new System.Windows.Size(ShotWidth, ShotHeight));
         view.Arrange(new System.Windows.Rect(0, 0, ShotWidth, ShotHeight));

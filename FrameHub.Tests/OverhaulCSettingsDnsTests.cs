@@ -161,6 +161,31 @@ public sealed class OverhaulCSettingsDnsTests
     }
 
     [TestMethod]
+    public void DnsCompareTargets_CoverIpv4AndIpv6PerPreset()
+    {
+        // QA R1 P3: the latency compare used to probe IPv4 only. Every preset
+        // contributes both families, family-labelled; custom resolver appended.
+        var targets = DnsDiagnosticsPanelViewModel.BuildCompareTargets(
+            DnsDiagnosticsService.Presets, string.Empty, "Custom");
+
+        Assert.AreEqual(8, targets.Count, "4 presets x IPv4+IPv6 expected.");
+        foreach (var preset in DnsDiagnosticsService.Presets)
+        {
+            Assert.IsTrue(
+                targets.Any(t => t.Label == $"{preset.DisplayName} (IPv4)" && t.Ip == preset.Ipv4Servers[0]),
+                $"Missing IPv4 target for {preset.DisplayName}.");
+            Assert.IsTrue(
+                targets.Any(t => t.Label == $"{preset.DisplayName} (IPv6)" && t.Ip == preset.Ipv6Servers[0]),
+                $"Missing IPv6 target for {preset.DisplayName}.");
+        }
+
+        var withCustom = DnsDiagnosticsPanelViewModel.BuildCompareTargets(
+            DnsDiagnosticsService.Presets, "9.9.9.10", "Custom");
+        Assert.AreEqual(9, withCustom.Count);
+        Assert.AreEqual("9.9.9.10", withCustom[^1].Ip);
+    }
+
+    [TestMethod]
     public void SettingsDnsKeys_HaveEnAndPlValues()
     {
         using var runtime = CreateRuntime();

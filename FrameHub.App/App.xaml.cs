@@ -29,7 +29,35 @@ public partial class App : WpfApplication
             return;
         }
 
+        ApplyHighContrastThemeIfNeeded();
         base.OnStartup(e);
     }
+
+    /// <summary>
+    /// QA R1 P2: minimal HighContrast support. When the OS reports high-contrast
+    /// mode at startup, <c>Themes/HighContrast.xaml</c> is merged last so its
+    /// opaque black/white/yellow values win over the Ember defaults. Checked
+    /// once at startup (documented limitation: toggling HC mid-session needs an
+    /// app restart — same rule as the language switch persistence).
+    /// </summary>
+    internal void ApplyHighContrastThemeIfNeeded()
+    {
+        if (!ShouldApplyHighContrastTheme()) return;
+        try
+        {
+            var dictionary = new ResourceDictionary
+            {
+                Source = new Uri("Themes/HighContrast.xaml", UriKind.Relative)
+            };
+            Resources.MergedDictionaries.Add(dictionary);
+            LoggerService.Instance.Info("High-contrast theme applied (SystemParameters.HighContrast).");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"High-contrast theme failed to load: {ex.Message}");
+        }
+    }
+
+    internal static bool ShouldApplyHighContrastTheme() => SystemParameters.HighContrast;
 }
 

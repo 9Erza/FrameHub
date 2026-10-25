@@ -2,6 +2,7 @@ using FrameHub.App.Services;
 using FrameHub.App.ViewModels;
 using FrameHub.App.Views;
 using FrameHub.Core.Models;
+using FrameHub.Core.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace FrameHub.Tests;
@@ -150,9 +151,38 @@ public sealed class OverhaulCProfilesTests
             row.IsEnabled = false; // what the grid CheckBox binding does
             vm.ToggleProfileEnabled(row);
 
-            var saved = runtime.Profiles.First(p => p.Id == "t1");
-            Assert.IsFalse(saved.IsEnabled, "Toggle must persist through the runtime owner.");
+            // QA R1 P1: assert the PERSISTED snapshot, reloaded from disk through
+            // a fresh ProfileService — never the live in-memory instance (the row
+            // and runtime list used to be the same reference, vacuously green).
+            var fromDisk = new ProfileService().LoadProfiles().First(p => p.Id == "t1");
+            Assert.IsFalse(fromDisk.IsEnabled, "Toggle must persist to disk through the runtime owner.");
+            Assert.IsFalse(ReferenceEquals(row, fromDisk), "Disk reload must yield a fresh instance, not the live row.");
             Assert.IsTrue(vm.Profiles.Any(p => p.Id == "t1"), "Row must survive the toggle refresh.");
+        });
+    }
+
+    [TestMethod]
+    public void ToggleProfileEnabled_BindEchoWithoutChange_DoesNotRewriteDisk()
+    {
+        RunOnSta(() =>
+        {
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var vm = new ProfilesViewModel(localization, runtime);
+            runtime.UpsertProfile(NewProfile("t2", "cs2", isEnabled: true));
+
+            // Initial TwoWay bind echo: Checked fires without flipping the value.
+            // Memory and disk agree, so the guard must skip the persist+refresh
+            // (this is what kept the black-list loop away).
+            var row = vm.Profiles.First(p => p.Id == "t2");
+            byte[] before = File.ReadAllBytes(
+                Path.Combine(_tempDirectory, "profiles.json"));
+            vm.ToggleProfileEnabled(row);
+            var fromDisk = new ProfileService().LoadProfiles().First(p => p.Id == "t2");
+            Assert.IsTrue(fromDisk.IsEnabled, "Bind echo must not flip the persisted value.");
+            CollectionAssert.AreEqual(before, File.ReadAllBytes(
+                Path.Combine(_tempDirectory, "profiles.json")),
+                "Bind echo must not rewrite the profiles file.");
         });
     }
 

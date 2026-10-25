@@ -1,0 +1,76 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- FrameHub HighContrast overrides (QA R1 P2): merged LAST, only when
+         SystemParameters.HighContrast is true at startup (see App.xaml.cs).
+         Same keys as Themes/Colors.xaml, opaque system-style values: black
+         surfaces, white primary text, yellow focus/accent. No transparency,
+         no blur, no animation — contrast first. -->
+    <Color x:Key="ColorBackground">#000000</Color>
+    <Color x:Key="ColorBackgroundAlt">#000000</Color>
+    <Color x:Key="ColorSidebar">#000000</Color>
+    <Color x:Key="ColorTitlebar">#000000</Color>
+
+    <Color x:Key="ColorSurface">#000000</Color>
+    <Color x:Key="ColorSurfaceRaised">#0A0A0A</Color>
+    <Color x:Key="ColorSurfaceInteractive">#1A1A1A</Color>
+    <Color x:Key="ColorSurfaceHover">#1A1A1A</Color>
+    <Color x:Key="ColorSurfaceSelected">#3A3000</Color>
+
+    <Color x:Key="ColorBorderSubtle">#FFFFFF</Color>
+    <Color x:Key="ColorBorderDefault">#FFFFFF</Color>
+    <Color x:Key="ColorBorderStrong">#FFFFFF</Color>
+
+    <Color x:Key="ColorTextPrimary">#FFFFFF</Color>
+    <Color x:Key="ColorTextSecondary">#FFFFFF</Color>
+    <Color x:Key="ColorTextMuted">#E8E8E8</Color>
+    <Color x:Key="ColorTextDisabled">#A6A6A6</Color>
+
+    <Color x:Key="ColorAccentPrimary">#FFFF00</Color>
+    <Color x:Key="ColorAccentSecondary">#FFFF00</Color>
+    <Color x:Key="ColorAccentSoft">#3A3000</Color>
+    <Color x:Key="ColorAccentHover">#FFFF00</Color>
+    <Color x:Key="ColorAccentInk">#000000</Color>
+
+    <Color x:Key="ColorSuccess">#00FF7F</Color>
+    <Color x:Key="ColorSuccessSoft">#00331A</Color>
+    <Color x:Key="ColorWarning">#FFFF00</Color>
+    <Color x:Key="ColorWarningSoft">#3A3000</Color>
+    <Color x:Key="ColorError">#FF6B6B</Color>
+    <Color x:Key="ColorErrorSoft">#3A0000</Color>
+    <Color x:Key="ColorInformation">#7FD4FF</Color>
+    <Color x:Key="ColorInformationSoft">#00202F</Color>
+    <Color x:Key="ColorLive">#00FFFF</Color>
+    <Color x:Key="ColorCoffee">#FFFF00</Color>
+    <Color x:Key="ColorCoffeeSoft">#3A3000</Color>
+
+    <SolidColorBrush x:Key="BrushBackground" Color="{StaticResource ColorBackground}" />
+    <SolidColorBrush x:Key="BrushBackgroundAlt" Color="{StaticResource ColorBackgroundAlt}" />
+    <SolidColorBrush x:Key="BrushSidebar" Color="{StaticResource ColorSidebar}" />
+    <SolidColorBrush x:Key="BrushTitlebar" Color="{StaticResource ColorTitlebar}" />
+    <SolidColorBrush x:Key="BrushSurface" Color="{StaticResource ColorSurface}" />
+    <SolidColorBrush x:Key="BrushSurfaceRaised" Color="{StaticResource ColorSurfaceRaised}" />
+    <SolidColorBrush x:Key="BrushSurfaceInteractive" Color="{StaticResource ColorSurfaceInteractive}" />
+    <SolidColorBrush x:Key="BrushSurfaceHover" Color="{StaticResource ColorSurfaceHover}" />
+    <SolidColorBrush x:Key="BrushSurfaceSelected" Color="{StaticResource ColorSurfaceSelected}" />
+    <SolidColorBrush x:Key="BrushBorderSubtle" Color="{StaticResource ColorBorderSubtle}" />
+    <SolidColorBrush x:Key="BrushBorderDefault" Color="{StaticResource ColorBorderDefault}" />
+    <SolidColorBrush x:Key="BrushBorderStrong" Color="{StaticResource ColorBorderStrong}" />
+    <SolidColorBrush x:Key="BrushTextPrimary" Color="{StaticResource ColorTextPrimary}" />
+    <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource ColorTextSecondary}" />
+    <SolidColorBrush x:Key="BrushTextMuted" Color="{StaticResource ColorTextMuted}" />
+    <SolidColorBrush x:Key="BrushTextDisabled" Color="{StaticResource ColorTextDisabled}" />
+    <SolidColorBrush x:Key="BrushAccentPrimary" Color="{StaticResource ColorAccentPrimary}" />
+    <SolidColorBrush x:Key="BrushAccentSecondary" Color="{StaticResource ColorAccentSecondary}" />
+    <SolidColorBrush x:Key="BrushAccentSoft" Color="{StaticResource ColorAccentSoft}" />
+    <SolidColorBrush x:Key="BrushAccentHover" Color="{StaticResource ColorAccentHover}" />
+    <SolidColorBrush x:Key="BrushAccentInk" Color="{StaticResource ColorAccentInk}" />
+    <SolidColorBrush x:Key="BrushFocus" Color="{StaticResource ColorAccentPrimary}" />
+    <SolidColorBrush x:Key="BrushLive" Color="{StaticResource ColorLive}" />
+    <SolidColorBrush x:Key="BrushSuccess" Color="{StaticResource ColorSuccess}" />
+    <SolidColorBrush x:Key="BrushSuccessSoft" Color="{StaticResource ColorSuccessSoft}" />
+    <SolidColorBrush x:Key="BrushWarning" Color="{StaticResource ColorWarning}" />
+    <SolidColorBrush x:Key="BrushWarningSoft" Color="{StaticResource ColorWarningSoft}" />
+    <SolidColorBrush x:Key="BrushError" Color="{StaticResource ColorError}" />
+    <SolidColorBrush x:Key="BrushErrorSoft" Color="{StaticResource ColorErrorSoft}" />
+    <SolidColorBrush x:Key="BrushInformation" Color="{StaticResource ColorInformation}" />
+</ResourceDictionary>

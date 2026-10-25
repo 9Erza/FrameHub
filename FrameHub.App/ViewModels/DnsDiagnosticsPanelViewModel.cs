@@ -160,25 +160,20 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
         }
 
         var targets = new List<(string Label, string Ip)>();
-        foreach (var preset in DnsDiagnosticsService.Presets)
+        string custom = CustomResolver.Trim();
+        if (!string.IsNullOrWhiteSpace(custom) && !System.Net.IPAddress.TryParse(custom, out _))
         {
-            if (preset.Ipv4Servers.Length > 0)
-            {
-                targets.Add((preset.DisplayName, preset.Ipv4Servers[0]));
-            }
+            _statusText = _localization.T("Dns.CustomInvalid");
+            OnPropertyChanged(nameof(StatusText));
+            return;
         }
 
-        string custom = CustomResolver.Trim();
-        if (!string.IsNullOrWhiteSpace(custom))
+        foreach (var (label, ip) in BuildCompareTargets(
+            DnsDiagnosticsService.Presets,
+            custom,
+            _localization.T("Dns.CustomLabel")))
         {
-            if (!System.Net.IPAddress.TryParse(custom, out _))
-            {
-                _statusText = _localization.T("Dns.CustomInvalid");
-                OnPropertyChanged(nameof(StatusText));
-                return;
-            }
-
-            targets.Add((_localization.T("Dns.CustomLabel"), custom));
+            targets.Add((label, ip));
         }
 
         SetComparing(true);
@@ -216,6 +211,37 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
             : string.Format(_localization.T("Dns.CompareDone"), Results.Count(r => r.Success), Results.Count);
         PostToUi(() => OnPropertyChanged(nameof(StatusText)));
         PostToUi(() => SetComparing(false));
+    }
+
+    /// <summary>
+    /// Builds the latency-compare target list: first IPv4 + first IPv6 server of
+    /// every preset (QA R1 P3: both families, family-labelled), plus the custom
+    /// resolver when set (already validated by the caller). Pure and unit-tested.
+    /// </summary>
+    internal static IReadOnlyList<(string Label, string Ip)> BuildCompareTargets(
+        IEnumerable<DnsDiagnosticsService.DnsPreset> presets,
+        string customResolver,
+        string customLabel)
+    {
+        var targets = new List<(string Label, string Ip)>();
+        foreach (var preset in presets)
+        {
+            if (preset.Ipv4Servers.Length > 0)
+            {
+                targets.Add(($"{preset.DisplayName} (IPv4)", preset.Ipv4Servers[0]));
+            }
+            if (preset.Ipv6Servers.Length > 0)
+            {
+                targets.Add(($"{preset.DisplayName} (IPv6)", preset.Ipv6Servers[0]));
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(customResolver))
+        {
+            targets.Add((customLabel, customResolver));
+        }
+
+        return targets;
     }
 
     private void PostToUi(Action action)

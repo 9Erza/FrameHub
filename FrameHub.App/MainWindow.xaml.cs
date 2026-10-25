@@ -95,6 +95,29 @@ public partial class MainWindow : Window
         InitializeTrayIcon();
         ApplyStartupWindowBehavior();
         RunAutomaticUpdateCheck();
+        SignalRestartReadiness();
+    }
+
+    /// <summary>
+    /// Successor side of the restart readiness handshake (QA R1 P2): when this
+    /// instance was started as a cooperative-restart successor
+    /// (<c>--restarted</c>), the predecessor waits for this marker instead of
+    /// trusting process liveness. Written once the window is loaded (settings
+    /// applied, Companion sync attempted — with bounded retry still draining in
+    /// the background on port collision). Best-effort, never throws.
+    /// </summary>
+    private void SignalRestartReadiness()
+    {
+        try
+        {
+            bool restarted = Environment.GetCommandLineArgs()
+                .Any(arg => string.Equals(arg?.Trim(), SettingsService.RestartedFlag, StringComparison.OrdinalIgnoreCase));
+            if (restarted)
+            {
+                SettingsService.WriteSuccessorReadyMarker(Environment.ProcessId);
+            }
+        }
+        catch { }
     }
 
     private void InitializeTrayIcon()
@@ -545,9 +568,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        string[] forwarded = Environment.GetCommandLineArgs()
-            .Where(arg => SettingsService.ForwardedRestartArguments.Contains(arg?.Trim() ?? string.Empty))
-            .ToArray();
+        string[] forwarded = SettingsService.BuildRestartForwardedArgs(
+            Environment.GetCommandLineArgs().Skip(1));
         SettingsService.RestartResult result = settingsService.TryStartSuccessorProcess(forwarded);
         if (result.Status != SettingsService.RestartStatus.Started)
         {
@@ -558,20 +580,37 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Early-crash handshake (P-C): watch the successor briefly on a background
-        // task. A fast non-zero exit means the restart never took off — surface it
-        // and release the single-flight so retry is a fresh attempt. A living
-        // process (or exit code 0) means the successor owns startup; the armed
-        // single-flight stays until graceful shutdown completes.
+        // Readiness handshake (QA R1 P2): the successor was started with
+        // --restarted and writes its ready marker once its main window reaches
+        // the loaded state (settings applied, Companion sync attempted). Wait
+        // for the marker — not mere process liveness — then report the outcome.
+        // A living process without a marker, or an early exit, releases the
+        // single-flight so retry is a fresh attempt.
         if (result.ProcessId is int successorPid)
         {
             _ = Task.Run(() =>
             {
-                if (!SettingsService.IsSuccessorAlive(successorPid, TimeSpan.FromSeconds(3)))
+                bool ready = SettingsService.WaitForSuccessorReady(successorPid, TimeSpan.FromSeconds(20));
+                try { SettingsService.ClearSuccessorReadyMarker(successorPid); } catch { }
+                if (ready)
+                {
+                    LoggerService.Instance.Info($"Restart successor (PID {successorPid}) signalled ready.");
+                    try { ViewModel?.Runtime.AddActivity(string.Format(ViewModel.Localization.T("Shell.Restart.SuccessorReady"), successorPid), "Info"); }
+                    catch { }
+                    return;
+                }
+
+                try { settingsService.ResetRestartState(); } catch { }
+                if (!SettingsService.IsSuccessorAlive(successorPid, TimeSpan.Zero))
                 {
                     LoggerService.Instance.Warn($"Restart successor (PID {successorPid}) exited within seconds of launch.");
-                    try { settingsService.ResetRestartState(); } catch { }
                     try { ViewModel?.Runtime.AddActivity(ViewModel.Localization.T("Shell.Restart.SuccessorDied"), "Warn"); }
+                    catch { }
+                }
+                else
+                {
+                    LoggerService.Instance.Warn($"Restart successor (PID {successorPid}) is alive but never signalled ready within 20 s.");
+                    try { ViewModel?.Runtime.AddActivity(string.Format(ViewModel.Localization.T("Shell.Restart.SuccessorTimeout"), successorPid), "Warn"); }
                     catch { }
                 }
             });
