@@ -14,6 +14,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: SupporterEditionTests.PinnedSha_ExistsInLocalHistory
+          # asserts the pinned base SHA resolves via git; a shallow
+          # checkout (default fetch-depth 1) lacks that commit.
+          fetch-depth: 0
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
