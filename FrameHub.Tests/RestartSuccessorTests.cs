@@ -1,4 +1,5 @@
 using FrameHub.App.Services;
+using FrameHub.Core.Logging;
 using FrameHub.Core.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Reflection;
@@ -245,5 +246,33 @@ public sealed class RestartSuccessorTests
             windowSeconds >= AppRuntimeService.DefaultShutdownBudget.TotalSeconds,
             $"Retry window {windowSeconds}s must cover the shutdown budget " +
             $"{AppRuntimeService.DefaultShutdownBudget.TotalSeconds}s.");
+    }
+
+    [TestMethod]
+    public void LogFile_AllowsConcurrentPredecessorAndSuccessorWriters()
+    {
+        // QA R2 E2E finding: during handover both instances append to the same
+        // FrameHub.log. With the default append share (Read) the successor's
+        // open failed and it ran with file logging silently dead.
+        string path = Path.Combine(_tempDir, "shared-handover.log");
+        var first = new LoggerConfiguration { LogFilePath = path, EnableConsoleOutput = false };
+        var second = new LoggerConfiguration { LogFilePath = path, EnableConsoleOutput = false };
+
+        using var predecessor = new FileWriter(first);
+        predecessor.Write(LogLevel.Info, "predecessor-line");
+        using var successor = new FileWriter(second);
+        successor.Write(LogLevel.Info, "successor-line");
+
+        // Read with ReadWrite share (like any live log viewer): both writers
+        // stay open — that simultaneity is exactly what this test proves.
+        string content;
+        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        using (var reader = new StreamReader(fs))
+        {
+            content = reader.ReadToEnd();
+        }
+        Assert.IsTrue(content.Contains("predecessor-line"), "Predecessor line must land.");
+        Assert.IsTrue(content.Contains("successor-line"),
+            "Successor line must land while the predecessor holds the file (handover).");
     }
 }

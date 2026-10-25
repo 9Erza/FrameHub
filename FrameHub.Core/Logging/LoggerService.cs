@@ -65,7 +65,19 @@ namespace FrameHub.Core.Logging
 
                 RollIfNeeded();
 
-                _streamWriter = new StreamWriter(_config.LogFilePath, append: true, Encoding.UTF8)
+                // QA R2 E2E finding: during a cooperative-restart handover the
+                // exiting predecessor still holds this file. The default
+                // StreamWriter share (Read) makes the successor's open fail
+                // with a sharing violation, so the successor runs with file
+                // logging silently dead. ReadWrite keeps both instances'
+                // diagnostic lines landing (short AutoFlush writes).
+                _streamWriter = new StreamWriter(
+                    new FileStream(
+                        _config.LogFilePath,
+                        FileMode.Append,
+                        FileAccess.Write,
+                        FileShare.ReadWrite),
+                    Encoding.UTF8)
                 {
                     AutoFlush = true
                 };
