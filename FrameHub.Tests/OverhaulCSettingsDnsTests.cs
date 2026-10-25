@@ -250,6 +250,62 @@ public sealed class OverhaulCSettingsDnsTests
         if (failure is not null) Assert.Fail(failure.ToString());
     }
 
+    [TestMethod]
+    public void DnsSection_VisibilityFollowsCompanionNetworkCategoryOnly()
+    {
+        // QA R3/R4 P2: the DNS Border used to set DataContext="{Binding Dns}"
+        // on itself, so its own Visibility binding resolved against
+        // DnsDiagnosticsPanelViewModel (no such property) and stayed Visible
+        // in all 6 categories. Visibility must stay on the Border (bound to
+        // SettingsViewModel) with Dns as DataContext only of the inner panel.
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                if (System.Windows.Application.Current == null)
+                {
+                    var application = new FrameHub.App.App();
+                    application.InitializeComponent();
+                }
+
+                using var runtime = CreateRuntime();
+                var localization = new LocalizationService(runtime.SettingsService);
+                var vm = new SettingsViewModel(localization, runtime);
+                var view = new SettingsView { DataContext = vm };
+                view.Measure(new System.Windows.Size(1400, 900));
+                view.Arrange(new System.Windows.Rect(0, 0, 1400, 900));
+                view.UpdateLayout();
+
+                var border = (System.Windows.Controls.Border)view.FindName("DnsSectionBorder");
+                var content = (System.Windows.FrameworkElement)view.FindName("DnsSectionContent");
+                Assert.IsNotNull(border, "DnsSectionBorder must exist for the per-category visibility assertion.");
+                Assert.IsNotNull(content, "DnsSectionContent must exist for the DataContext assertion.");
+                // DataContext ownership: Border sees SettingsViewModel (so its
+                // Visibility binding resolves), inner panel sees the DNS VM.
+                Assert.IsTrue(ReferenceEquals(vm, border!.DataContext), "DnsSectionBorder.DataContext must be the SettingsViewModel.");
+                Assert.IsTrue(ReferenceEquals(vm.Dns, content!.DataContext), "DnsSectionContent.DataContext must be the Dns panel VM.");
+
+                for (int category = 0; category < 6; category++)
+                {
+                    vm.SelectedSettingsCategoryIndex = category;
+                    view.UpdateLayout();
+                    var expected = category == 3
+                        ? System.Windows.Visibility.Visible
+                        : System.Windows.Visibility.Collapsed;
+                    Assert.AreEqual(
+                        expected, border.Visibility,
+                        $"DNS section must be {(category == 3 ? "Visible" : "Collapsed")} in category {category}.");
+                }
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.IsTrue(thread.Join(TimeSpan.FromSeconds(60)), "DNS section visibility probe timed out.");
+        if (failure is not null) Assert.Fail(failure.ToString());
+    }
+
     private static void RunOnSta(Action action)
     {
         Exception? failure = null;

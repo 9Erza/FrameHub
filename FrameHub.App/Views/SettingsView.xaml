@@ -269,8 +269,8 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,16,0,0" Visibility="{Binding IsCompanionNetworkVisible, Converter={StaticResource BoolToVisibilityConverter}}" DataContext="{Binding Dns}">
-                    <StackPanel>
+                <Border x:Name="DnsSectionBorder" Style="{StaticResource SettingsSectionSurface}" Margin="0,16,0,0" Visibility="{Binding IsCompanionNetworkVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel x:Name="DnsSectionContent" DataContext="{Binding Dns}">
                         <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding Description}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                         <Border Padding="10" CornerRadius="8" Background="{StaticResource BrushAccentSoft}" Margin="0,0,0,12">
