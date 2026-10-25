@@ -7,6 +7,7 @@ This is the landing page for the canonical architecture documentation. Read thes
 - [Feature map](architecture/FEATURE-MAP.md) — practical “I want to…” routing.
 - [Background work](architecture/BACKGROUND-WORK.md) — recurring loops, intervals, lifecycle, and overlap.
 - [Invariants](architecture/INVARIANTS.md) — safety and authority rules enforced by code.
+- [Glossary](architecture/GLOSSARY.md) — canonical EN/PL UI terms, locale and export format contracts.
 - [Refactor candidates](architecture/REFACTOR-CANDIDATES.md) — remaining evidence-backed work only.
 - [Benchmarking](BENCHMARKING.md) — detailed capture, identity, storage, and PresentMon behavior.
 

@@ -14,9 +14,51 @@ When CS2 config is detected in exactly one Steam userdata folder, FrameHub uses 
 
 ---
 
+## Redesigned interface (October 2026, Ember Signal)
+
+The Desktop shell keeps every module but rearranges it: a 42 px titlebar, a 224 px rail with
+grouped navigation, a two-pill Monitor/Session status strip, and a footer with session, monitor
+and PresentMon state plus `MIT · version`. The rail footer links the author (`9Erza`),
+`DobryPC.pl`, project support and About/licenses.
+
+- **Dashboard** ("Panel główny" in Polish): a hero with the primary action, 4 clickable metric
+  cards (Monitor, Session, Benchmarks with an honest PresentMon state, Library), a Top-CPU
+  process preview and the last 3 activity entries. Card actions navigate (`NavigateMetricCommand`);
+  Quick Start stays unavailable while a benchmark is active or reserved.
+- **Library**: one primary split-scan button (all/launcher sources), a sources segment, an
+  X/Y ready bar, search/filter and a virtualized list; empty state offers Scan / Add folder /
+  Add executable.
+- **Session**: a 4-step wizard (configure → preview → start → restore) with sticky Restore.
+- **Benchmarks**: game → engine-cause state machine (it tells you *which* cause blocks capture:
+  no game, missing PresentMon service, no permission, hotkey unset) → configure → start;
+  History/Compare with CSV/Markdown export through a save dialog that reports write errors.
+- **Processes**: 7 columns plus a rule column (`none` / profile name), sort/filter, per-row
+  detail with CPU Sets/Affinity/Priority and topology presets; virtualization kept; Riot and
+  benchmark-active rows are skipped with a stated reason. Mutations revalidate identity first.
+- **Profiles**: creator-first flow, 0–50 rows with search, per-row enable toggle, conflict
+  warnings, validation and explicit Auto Apply consent.
+- **Hardware**: OFF / ON (lease) / UNAVAILABLE states, optional storage sensors
+  (`EnableStorageSensors`) and a read-only timer-resolution card.
+- **Logs**: severity filter + search, a visible 200-of-N cap and a Clear action that asks
+  for confirmation.
+- **Settings**: 6 categories (General, Language, Startup & Window, Companion & Network,
+  Benchmarks, Advanced & Diagnostics). **Companion & Network** hosts the read-only network
+  diagnostics panel: adapters, current resolvers (automatic/DHCP or static), popular providers
+  (Cloudflare, Google Public DNS, Quad9, OpenDNS) with IPv4/IPv6/DoH latency comparison.
+  The panel states explicitly that nothing is applied — there is no mutation code by design.
+  Restart offers normal cooperative restart (successor-first, settings preserved) and
+  restart-as-administrator, both with success/timeout/refusal feedback.
+
+Language: **Settings > Language** (or the tray/Settings switch) persists `Language: pl|en`
+to `settings.json` (default `en`). The full Desktop dictionary holds 1005 keys per language
+with no gaps; Companion has its own parity-tested dictionary. Export files always use
+invariant formatting and UTC timestamps regardless of UI language.
+
+---
+
 ## LAN Companion & Game CPU Assignment
 
-1. In Desktop FrameHub, navigate to **Settings > Companion**. Ensure Companion is enabled.
+1. In Desktop FrameHub, navigate to **Settings > Companion & Network**. Ensure Companion is enabled.
 2. Open the pairing modal to display the LAN address and pairing QR code.
 3. On your mobile device (connected to the same local Wi-Fi/LAN), scan the QR code or open the displayed URL in your mobile browser.
 4. Complete the one-time pairing to establish a secure session token.
@@ -53,4 +95,4 @@ The hotkey uses the selected running library game. If none is selected, FrameHub
 
 Average FPS describes throughput; 1%/0.1% Low and high frame-time percentiles help expose intermittent stutter and pacing problems. They do not identify the cause by themselves. Capture records the current CPU profile, Session Optimization state, and system environment metadata, but never changes game processes directly. **History** includes local WPF and developer-harness schema-v1 sessions, can open their folder, and can permanently delete one validated session.
 
-Data remains under `%LOCALAPPDATA%\FrameHub\Benchmarks`; settings and logs remain under `%APPDATA%\FrameHub`. No benchmark data is uploaded. If the benchmark engine is unavailable, repair/reinstall FrameHub—the single Setup contains the pinned PresentMon prerequisite. FrameHub itself does not inject into games or read game memory; compatibility with a particular game or anti-cheat may vary.
+Data remains under `%LOCALAPPDATA%\FrameHub\Benchmarks`; settings and logs remain under `%APPDATA%\FrameHub`. No benchmark data is uploaded. If the benchmark engine is unavailable, the Benchmarks view names the specific cause (no game selected/running, missing PresentMon service, no permission, or hotkey unset) instead of a generic reinstall hint. The single Setup contains the pinned PresentMon prerequisite — repair or reinstall it only when the engine panel reports the service itself missing. FrameHub itself does not inject into games or read game memory; compatibility with a particular game or anti-cheat may vary.
