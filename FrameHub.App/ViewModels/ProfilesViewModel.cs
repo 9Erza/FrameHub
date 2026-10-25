@@ -448,6 +448,15 @@ public sealed class ProfilesViewModel : ViewModelBase
     public void ToggleProfileEnabled(ProcessProfile profile)
     {
         if (profile == null) return;
+        // Idempotency guard: row CheckBoxes raise Checked/Unchecked on the initial
+        // TwoWay bind as well as on real clicks. Persisting + resetting the grid
+        // from a bind-time echo restarts container generation mid-layout, so with
+        // enabled rows the grid churns and never materializes (black list). A real
+        // click flips IsEnabled through the binding first, so persisted and
+        // in-memory states differ exactly then — and only then we persist.
+        var persisted = _runtime.Profiles
+            .FirstOrDefault(p => p.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase));
+        if (persisted != null && persisted.IsEnabled == profile.IsEnabled) return;
         _runtime.UpsertProfile(profile, replaceSameProcessName: false);
         string stateText = _localization.T(profile.IsEnabled ? "Profiles.ToggledOn" : "Profiles.ToggledOff");
         _runtime.AddActivity(string.Format(_localization.T("Profiles.Activity.Toggled"), profile.ProcessName, stateText));
