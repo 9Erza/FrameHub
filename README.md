@@ -293,8 +293,8 @@ This includes:
 - **[User Guide](docs/USER_GUIDE.md)**  
   Detailed usage instructions.
 
-- **[Polish User Guide](docs/USER_GUIDE.pl.md)**  
-  Instrukcja użytkownika po polsku.
+- **[Polish User Guide](docs/USER_GUIDE.pl.md)**
+  Polish user guide.
 
 - **[Architecture](docs/ARCHITECTURE.md)**  
   Current architecture and major service boundaries.

@@ -15,29 +15,104 @@
 - Runtime Resource & Overhead Audit: comprehensive background work inventory, memory working set characterization and stabilization analysis, 10-minute idle soak verification showing stable plateau (<0.15 MB/min slope, ~0.25% idle CPU), verified lease-controlled hardware monitor shutdown and zero duplicate background loops.
 - FrameHub v0.7.1 Mobile Companion Polish & Update UX: desktop update notification reworked (once-per-process automatic check gated on real window presentation, silent no-update/error results, shared FrameHub-styled update dialog for automatic and manual checks); Companion browser identity (favicon, Apple touch icon, theme color from the official logo); Companion mobile app-shell rework (fixed header, single scrolling content region with footer, layout-anchored bottom navigation, iOS safe-area/`100dvh` handling, root horizontal-overflow prevention, compact phone density, inline SVG navigation icons, user-facing footer copy).
 
-## 24.10 — modernizacja po Etapie 0 (zaakceptowana 2026-10-24, `main` = `f3114fe`)
+## 24.10 — post-Stage-0 modernization (accepted 2026-10-24, `main` = `f3114fe`)
 
-Zakres: PR #7 (`coder/t_f091ff98-24-10` @ `205c265` → merge `f3114fe`), 17 commitów, 26 plików, +2662/−73 od bazy `a175a25`. CI exact-head 3× success. Walidacja AGENTS na scaleniu: build 0/0, Desktop 700/700, Companion 140/140, JS 7/7. F-DOC-1…8 z review Etapu 0 pozostają naprawione (13 scopes, 17 wierszy, 9× `innerHTML` nadal celowo, `BENCHMARKING.md:95`, `~1800` linii, flagi `_isLocallyAwaitingCapture`/`_localTerminalApplied`); nowa dokumentacja nie zmienia tych liczb.
+Scope: PR #7 (`coder/t_f091ff98-24-10` @ `205c265` → merge `f3114fe`), 17 commits, 26 files, +2662/−73 from base `a175a25`. CI exact-head 3× success. AGENTS validation on the merge: build 0/0, Desktop 700/700, Companion 140/140, JS 7/7. F-DOC-1…8 from the Stage-0 review stay fixed (13 scopes, 17 rows, 9× `innerHTML` still intentional, `BENCHMARKING.md:95`, `~1800` lines, `_isLocallyAwaitingCapture`/`_localTerminalApplied` flags); the new documentation does not change these numbers.
 
-### Wdrożono (potwierdzone kodem + testami + niezależnym QA, werdykt PASS WITH WARNINGS)
-- Stabilność P0/P1: marshal `SessionStateChanged` na dispatcher UI (`SessionStateChangedMarshalingTests`, deterministyczne STA red/green); budżetowany shutdown `MainWindow → Shell.ShutdownAsync(budget) → AppRuntimeService.ShutdownAsync` (koperta 8 s, timeout = jawny błąd, nie blind kill; `ShutdownBudgetTests`); serializacja `ProcessesViewModel.RefreshAsync` + lokalny `CancellationToken` (QA-P2-3, RED 2/2 `ObjectDisposedException` → GREEN); dispose-before-replace rotowanych CTS; serializacja `ComparisonRebuild` (`_comparisonGate`); `TryResume` przez wstrzykiwane delegaty.
-- Restart kooperacyjny (dyrektywa §B, R1): `SettingsService.TryStartSuccessorProcess` — tylko zweryfikowany `_exePath`, whitelist argv (`--tray`, `--minimized`), single-flight, successor-first, timeout = jawny błąd + `ResetRestartState`; wyzwalany z tray-menu (`MainWindow.RestartApplication`); 5 testów w pliku `RestartSuccessorTests` (VERIFIED `grep -c TestMethod` = 5) + filtr 13/13 (Restart 4 + Tray 9, REPORTED `FH-24-10-CODER-EVIDENCE.md:30`, skład filtra niezweryfikowany niezależnie). E2E restartu przez tray = NOT RUN (brak automatyzacji zasobnika).
-- DNS diagnostyka Faza 1 (dyrektywa §C, R2-F1): `DnsDiagnosticsService` **read-only, library-only** — enumeracja adapterów, serwery per-interface (DHCP/statyczne), latencja per-resolver, podgląd komend; celowo ZERO API mutacji; brak konsumentów produkcyjnych (Desktop UI odłożone). 8 testów. Mutacja systemowa (Faza 2) NIE istnieje — jawnie odłożona do czasu udowodnienia rollbacku.
-- Premium PAKIET A1 (dyrektywa §D, R3-A1): eksport porównania benchmarków do CSV/Markdown (`BenchmarkComparisonExportService`, statyczny konsument `BenchmarkStorageService` + `BenchmarkComparisonService`, bez zmian matematyki; determinizm bajt-identyczny, daty UTC ISO-8601); wpięty w zakładkę Compare (WPF `SaveFileDialog` z ownerem). W pełni addytywny: zero gatingu istniejących funkcji, zero licencji/DRM/paywalla/serwera. 8 testów + golden.
-- F-2 izolacja danych (QA-P2-2): `AppPaths` honoruje `FRAMEHUB_DATA_DIR` / `FRAMEHUB_LOCAL_DATA_DIR` (override katalogu danych użytkownika/lokalnego + migracja legacy); 5 testów. Domyślna ścieżka bez zmian (`%APPDATA%\FrameHub`); pomiary QA wykonywano w izolowanym katalogu.
-- Pomiary na HEAD (QA, Release, 2026-10-24): warm start 1224 ms (bramka ≤1522 ms); WM_CLOSE→exit 128–134 ms, kod 0; soak 300 s WS +1,2%, uchwyty 756→708, idle CPU 0,002–0,065% (bramka ≤0,12%). Baseline Etapu 0 (`a175a25`, 2026-10-24): warm 1303/1384 ms, pierwszy po buildzie 4224 ms, soak 1800 s WS 210,3 MB / Private 102,5 MB / CPU 0,102%, REST p50 2,09 ms / p95 7,95 ms, UI p50 4,6–5,8 ms. NOC (2026-10-24, `t_602bd1b8`) ma już tylko wartość historyczną. Kadencje chronione bez zmian (200 ms progress, 250 ms live, 500 ms WS, 1 s poll, 3 s auto, 4 s session-poll).
+### Implemented (verified by code + tests + independent QA, verdict PASS WITH WARNINGS)
+- P0/P1 stability: `SessionStateChanged` marshaled to the UI dispatcher (`SessionStateChangedMarshalingTests`, deterministic STA red/green); budgeted shutdown `MainWindow → Shell.ShutdownAsync(budget) → AppRuntimeService.ShutdownAsync` (8 s envelope, timeout = explicit error, no blind kill; `ShutdownBudgetTests`); serialized `ProcessesViewModel.RefreshAsync` + local `CancellationToken` (QA-P2-3, RED 2/2 `ObjectDisposedException` → GREEN); dispose-before-replace of rotated CTS; serialized `ComparisonRebuild` (`_comparisonGate`); `TryResume` via injected delegates.
+- Cooperative restart (directive §B, R1): `SettingsService.TryStartSuccessorProcess` — verified `_exePath` only, argv whitelist (`--tray`, `--minimized`), single-flight, successor-first, timeout = explicit error + `ResetRestartState`; triggered from the tray menu (`MainWindow.RestartApplication`); 5 tests in `RestartSuccessorTests` (VERIFIED `grep -c TestMethod` = 5) + 13/13 filter (Restart 4 + Tray 9, REPORTED `FH-24-10-CODER-EVIDENCE.md:30`, filter composition not independently verified). Tray-triggered restart E2E = NOT RUN (no tray automation).
+- DNS diagnostics Phase 1 (directive §C, R2-F1): `DnsDiagnosticsService` **read-only, library-only** — adapter enumeration, per-interface servers (DHCP/static), per-resolver latency, command previews; intentionally ZERO mutation API; no production consumers (Desktop UI deferred). 8 tests. System mutation (Phase 2) does NOT exist — explicitly deferred until rollback is proven.
+- Premium PACKAGE A1 (directive §D, R3-A1): benchmark-comparison export to CSV/Markdown (`BenchmarkComparisonExportService`, static consumer of `BenchmarkStorageService` + `BenchmarkComparisonService`, no math changes; byte-identical determinism, UTC ISO-8601 dates); wired into the Compare tab (WPF `SaveFileDialog` with owner). Fully additive: zero gating of existing features, zero license/DRM/paywall/server. 8 tests + golden.
+- F-2 data isolation (QA-P2-2): `AppPaths` honors `FRAMEHUB_DATA_DIR` / `FRAMEHUB_LOCAL_DATA_DIR` (user/local data directory override + legacy migration); 5 tests. Default path unchanged (`%APPDATA%\FrameHub`); QA measurements ran in an isolated directory.
+- Measurements on HEAD (QA, Release, 2026-10-24): warm start 1224 ms (gate ≤1522 ms); WM_CLOSE→exit 128–134 ms, code 0; 300 s soak WS +1.2%, handles 756→708, idle CPU 0.002–0.065% (gate ≤0.12%). Stage-0 baseline (`a175a25`, 2026-10-24): warm 1303/1384 ms, first-after-build 4224 ms, 1800 s soak WS 210.3 MB / Private 102.5 MB / CPU 0.102%, REST p50 2.09 ms / p95 7.95 ms, UI p50 4.6–5.8 ms. NOC (2026-10-24, `t_602bd1b8`) now has historical value only. Protected cadences unchanged (200 ms progress, 250 ms live, 500 ms WS, 1 s poll, 3 s auto, 4 s session-poll).
 
-### Jawnie odłożone (decyzje z dyrektywy, nie luki implementacyjne)
-- HUD: 0 kodu (warunek antycheat niespełnialny do udowodnienia) — WSTRZYMANE.
-- WinUI 3 / migracja UI: odłożone z powodem (brak dowodu zysku; WPF wspierany w .NET 10) — bez PoC w tej fazie.
-- Auto-updater/hosting/backend aktualizacji: PÓŹNIEJ (tylko check `version.txt`).
-- Zdalny serwer/VPS/public API/przebudowa Companion: PÓŹNIEJ.
-- Mutacja DNS (Faza 2) i DNS-UI: odłożone (warunek: udowodniony rollback + akceptacja UX).
-- `LibraryViewModel` split (1837 linii), `GameData` adopt/remove, trendy benchmarków (A2), reguły Session per-gra: odłożone z powodem (wpisane w REFACTOR-CANDIDATES / Experimental).
-- `Module.Toolkit.*` (20 kluczy lokalizacyjnych): rezerwacja pod ewentualny moduł Toolkit, nie ślad usuniętego kodu; decyzja Toolkit TAK/NIE wisi.
+### Explicitly deferred (directive decisions, not implementation gaps)
+- HUD: 0 code (anti-cheat condition cannot be proven) — SUSPENDED.
+- WinUI 3 / UI migration: deferred with reason (no proven benefit; WPF supported on .NET 10) — no PoC in this phase.
+- Auto-updater/hosting/update backend: LATER (only `version.txt` check).
+- Remote server/VPS/public API/Companion rebuild: LATER.
+- DNS mutation (Phase 2) and DNS-UI: deferred (condition: proven rollback + UX acceptance). NOTE: the read-only DNS *diagnostics UI* shipped later in UI overhaul C (Settings > Companion & Network); only *mutation* stays deferred.
+- `LibraryViewModel` split (1837 lines), `GameData` adopt/remove, benchmark trends (A2), per-game Session rules: deferred with reason (listed in REFACTOR-CANDIDATES / Experimental).
+- `Module.Toolkit.*` (20 localization keys): reservation for a possible Toolkit module, not a trace of deleted code; Toolkit YES/NO decision pending.
 
-### NOT RUN na HEAD (przyczyny w raporcie QA; status niezmieniony przez ten zakres)
-Capture e2e/live telemetry/preempcja (brak PresentMon i gry), sensory i lease Hardware, nawigacja/render/scroll, tray→Exit i pełny budżet 8 s wall-clock, parowanie Companion/scopes 403/WS z biletem, GC/alloc, DNS/registry/schtasks/restart-admin/mutacje procesów. Otwarte: QA-P2-1 (test regresji `ComparisonRebuild` nie czerwienieje na pre-fix — brak niezależnego dowodu red/green dla fixu wyścigu z CI).
+### NOT RUN on HEAD (causes in the QA report; unchanged by this scope)
+E2E capture/live telemetry/preemption (no PresentMon or game), Hardware sensors and lease, navigation/render/scroll, tray→Exit and full 8 s wall-clock budget, Companion pairing/scopes 403/WS with ticket, GC/alloc, DNS/registry/schtasks/restart-admin/process mutations. Open: QA-P2-1 (`ComparisonRebuild` regression test does not go red on pre-fix — no independent red/green proof for the CI race fix).
+
+## UI overhaul B+C — Ember Signal redesign (accepted 2026-10-25, `main` = `25c3419`)
+
+Scope: PR #10 UI-B (`coder/t_aa6bb97a-ui-b` @ `fd47b39` → merge `221da77`, 24 files, +1586/−149) and
+PR #11 UI-C (`coder/t_6b4535fd-ui-c` @ `051bd44` + CI-only `defa21a` → merge `25c3419`,
+42 files, +4361/−91 vs `221da77`; `defa21a` differs from `051bd44` only by `fetch-depth: 0`
+in `ci.yml` + `supporter-compat.yml`, no UI/test/tree changes). Human decision OPCJA A kept
+(`051bd44` approved; QA R5 PASS WITH WARNINGS, 6× P3, no R6 follow-up fixes).
+Post-merge validation on `25c3419` (AGENTS): build 0 warnings / 0 errors, Desktop 775/775,
+Companion 141/141, JS 7/7, `git diff --check` clean. Post-merge CI on `main`: 2/2 success.
+No open PRs. All 15 tracked refs verified IN-MAIN (`merge-base --is-ancestor`, uniq=0);
+history preserved, nothing deleted.
+
+### Implemented (verified by code + tests + independent QA)
+- Ember Signal design system: ~10 tokens in `Colors.xaml` (background `#121419`, text `#F7F4EC`,
+  primary accent amber `#F2A93B`, CTA contrast 9.3:1), flat brushes, radius ≤10, no blur/shadow/
+  looped animations; `AllowsTransparency=False` kept; `Themes/HighContrast.xaml` + 8 `App.xaml.cs`
+  references; 200%-DPI/min-window render probed (one P3: dashboard tile titles clip without
+  ellipsis at 685×400 DIP).
+- Shell + navigation: 42 px titlebar, 224 px rail with main/games/performance/system groups,
+  two-pill status strip (Monitor / Session), window footer (session · monitor · PresentMon ·
+  `MIT · v0.7.1`), rail footer keeps `9Erza` · `DobryPC.pl` · `Wesprzyj FrameHub` · About/licenses.
+- 9 views rebuilt from E01–E10: Dashboard (hero + 4 clickable metric cards + Top-CPU preview +
+  last-3 activity), Library (single primary split-scan button, sources segment, X/Y ready bar,
+  search/filter, virtualized rows), Session (4-step wizard + sticky Restore), Benchmarks
+  (game → engine-cause state machine → configure → start; History/Compare, export via dialog
+  with write-error handling), Processes (7 columns + rule column, sort/filter, right detail
+  with topology presets, virtualization kept), Profiles (creator-first, 0–50 rows
+  with search/toggle/conflicts/validation), Hardware (OFF/ON-lease/UNAVAILABLE states,
+  storage opt-in `EnableStorageSensors`, read-only timer-resolution card), Logs (severity
+  filter + search, visible 200/N cap, confirmed Clear), Settings (6 subnav categories, per-category
+  visibility incl. the DNS panel, normal + admin restart with feedback).
+- Localization: Desktop dictionary 1005/1005 PL/EN keys both directions, 0 duplicates/empties/
+  key-echoes (QA R5); Companion `i18n.js` parity suite; language switch persists to
+  `settings.json` (`Language: pl|en`, default `en`); UI culture formats, export stays
+  InvariantCulture/UTC. Canonical terms in [Glossary](architecture/GLOSSARY.md)
+  (Dashboard = Panel główny, Logs = Dziennik — decided, not proposed).
+- Quality-of-life: read-only DNS panel (adapters, DHCP/static resolvers, Cloudflare/Google/
+  Quad9/OpenDNS + IPv4/IPv6/DoH latency comparison, explicit read-only notice, zero mutation
+  code — grep-verified), cooperative restart feedback (success/timeout/UAC-refusal),
+  public CSV/Markdown export (deterministic, no gating), empty/loading/error/permission states
+  per view, keyboard-only operability with visible focus and `AutomationProperties`.
+- Supporter PoC (no private repo, no accounts, no payments — see [Edition integration](../supporter/EDITION-INTEGRATION.md)):
+  manifest `supporter/edition.manifest.json` (pinned SHA `221da77`), `supporter-compat` CI job,
+  `SupporterEditionTests` (separation + adoption), About/Support UX. Blocker: adopting the new
+  `main` pin (`25c3419`) requires explicit owner consent + green compat suite.
+- Unchanged domain invariants (no new owners): `ProcessService`, `SessionOptimizationCoordinator`,
+  `BenchmarkCaptureCoordinator`, `LivePerformanceTelemetryService`, `ProcessSuspendService`,
+  `ProcessScannerService` (sole CPU sampler), `AppRuntimeService`, `HardwareMonitorService`;
+  protected cadences untouched (benchmark progress 200 ms, live 250 ms, WS 500 ms, active game
+  2 s, session auto 3 s, session poll 4 s, capture 20 ms).
+
+### Proposed (not implemented, no code)
+- Private `FrameHub-Supporter` repo with extension-only modules (BenchmarkLab, history
+  dashboards, preset versioning, per-game automations, layout personalization): requires explicit
+  user consent; start without server, accounts, or paid integrations.
+- Manifest pin adoption `221da77` → `25c3419` after a green `SupporterEdition` compat run.
+- Support platforms evaluation (no integration): Buy Me a Coffee first (5% platform + ~2.9%+$0.30
+  Stripe + 0.5% payout, weekly/monthly; sources 2026-10-24), Patreon (10% for new creators after
+  2026-08-04, PLN processing/payout fees; sources 2026-10-24), GitHub Sponsors terms NOT verified
+  (retrieval failed — explicit blocker, no rates quoted from memory). Tax/formalities need an
+  accountant; out of scope for this round.
+- Toolkit YES/NO, `GameData` adopt/remove, benchmark trends (A2), per-game Session rules,
+  DNS mutation Phase 2, light theme, WinUI 3, HUD, updater backend, VPS work.
+
+### NOT RUN (environmental, with reasons — not hidden gaps)
+- UIA live scroll p50/p95 (ScrollPattern invalid-state; offscreen equivalent measured: grid
+  p50 41.4 / p95 50.2 ms).
+- Whole-process GC generations (no `dotnet-counters`/EventPipe in the environment; UI-load GC
+  measured instead: +12/+4/+2 gen, 36.3 MB alloc, 9.1 MB heap).
+- System DPI change 125/150/200% (no OS-setting authorization; DIP-equivalent + render probed).
+- Private Supporter repo (needs explicit consent).
+- Live pixel screenshot EN (operator foreground locked; covered by 10 offscreen EN PNG +
+  EN runtime log). Measured instead: soak 1800 s (WS −6.3 MB, private +0.04 MB, handles −19.7,
+  no rising trend), UIA navigation p50 104.6 / p95 267.2 ms, live 1920×1032 capture.
 
 ## Planned Near-Term Backlog
 

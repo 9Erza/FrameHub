@@ -32,7 +32,7 @@
 | Change Companion dashboard rendering | `telemetry.js` |
 | Change Companion benchmark UI | `benchmarks.js` |
 | Export a benchmark A/B comparison to CSV/Markdown | `BenchmarkComparisonExportService` (static; deterministic, UTC ISO-8601) via Benchmark Compare tab (`SaveFileDialog` with main-window owner); math stays in `BenchmarkComparisonService`, data in `BenchmarkStorageService` |
-| Diagnose DNS resolvers / preview change commands | `DnsDiagnosticsService` — read-only, library-only (no production UI as of 24.10, no mutation API by design); system mutation explicitly deferred |
+| Diagnose DNS resolvers / preview change commands | `DnsDiagnosticsService` — read-only: adapter enumeration, per-interface servers (DHCP/static), per-resolver latency, command previews; Desktop UI in **Settings > Companion & Network** (`DnsDiagnosticsPanelViewModel`, visible only for that settings category); zero mutation API by design, system mutation explicitly deferred |
 | Restart FrameHub cooperatively (successor-first) | tray menu → `MainWindow.RestartApplication` → `SettingsService.TryStartSuccessorProcess` (verified `_exePath` only, argv whitelist `--tray`/`--minimized`, single-flight, timeout = explicit error + `ResetRestartState`) → existing graceful shutdown chain |
 | Isolate the user-data directory for tests/measurements | env `FRAMEHUB_DATA_DIR` / `FRAMEHUB_LOCAL_DATA_DIR` honored by `AppPaths` (default `%APPDATA%\FrameHub` unchanged) |
 | Change Companion Library/Background UI | `library.js` |
