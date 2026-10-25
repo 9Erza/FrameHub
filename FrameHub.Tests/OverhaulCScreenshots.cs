@@ -221,12 +221,14 @@ public sealed class OverhaulCScreenshots
 
     private void Shoot(string language, string name, System.Windows.Controls.UserControl view)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         view.Measure(new System.Windows.Size(ShotWidth, ShotHeight));
         view.Arrange(new System.Windows.Rect(0, 0, ShotWidth, ShotHeight));
-        // Required: without a pumped dispatcher, template expansion only happens
+        // Required: without a pumped dispatcher, template expansion happens only
         // synchronously here. (Do NOT pump: pending async previews must stay empty
         // so no real process names leak into the synthetic evidence.)
         view.UpdateLayout();
+        long layoutMs = sw.ElapsedMilliseconds;
 
         int texts = 0;
         CountTexts(view, ref texts);
@@ -239,8 +241,13 @@ public sealed class OverhaulCScreenshots
         var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
         encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
         string path = Path.Combine(_shotDirectory, $"after-{language}-{name}.png");
-        using var stream = File.Create(path);
-        encoder.Save(stream);
+        using (var stream = File.Create(path))
+        {
+            encoder.Save(stream);
+        }
+        File.AppendAllText(
+            Path.Combine(_shotDirectory, "timings.log"),
+            $"{DateTime.Now:HH:mm:ss} {language}-{name} layout={layoutMs}ms total={sw.ElapsedMilliseconds}ms{Environment.NewLine}");
     }
 
     private static void CountTexts(System.Windows.DependencyObject root, ref int count)
