@@ -1,32 +1,32 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- FrameHub Ember Ledger: warm graphite canvas, ember accent, Segoe UI + Consolas-numbers. -->
-    <Color x:Key="ColorBackground">#100F0D</Color>
-    <Color x:Key="ColorBackgroundAlt">#141210</Color>
-    <Color x:Key="ColorSidebar">#141210</Color>
-    <Color x:Key="ColorTitlebar">#100F0D</Color>
+    <!-- FrameHub workshop: cool graphite surfaces, warm brass action, legible system typography. -->
+    <Color x:Key="ColorBackground">#10151B</Color>
+    <Color x:Key="ColorBackgroundAlt">#151C23</Color>
+    <Color x:Key="ColorSidebar">#151C23</Color>
+    <Color x:Key="ColorTitlebar">#10151B</Color>
 
-    <Color x:Key="ColorSurface">#191714</Color>
-    <Color x:Key="ColorSurfaceRaised">#23201B</Color>
-    <Color x:Key="ColorSurfaceInteractive">#23201B</Color>
-    <Color x:Key="ColorSurfaceHover">#2D2821</Color>
-    <Color x:Key="ColorSurfaceSelected">#2D2821</Color>
+    <Color x:Key="ColorSurface">#1A232C</Color>
+    <Color x:Key="ColorSurfaceRaised">#202C36</Color>
+    <Color x:Key="ColorSurfaceInteractive">#202C36</Color>
+    <Color x:Key="ColorSurfaceHover">#2A3944</Color>
+    <Color x:Key="ColorSurfaceSelected">#2A3944</Color>
 
-    <Color x:Key="ColorBorderSubtle">#39332B</Color>
-    <Color x:Key="ColorBorderDefault">#817464</Color>
-    <Color x:Key="ColorBorderStrong">#A89C88</Color>
+    <Color x:Key="ColorBorderSubtle">#34434E</Color>
+    <Color x:Key="ColorBorderDefault">#77858E</Color>
+    <Color x:Key="ColorBorderStrong">#AAB4B8</Color>
 
-    <Color x:Key="ColorTextPrimary">#F4EFE6</Color>
-    <Color x:Key="ColorTextSecondary">#C3B9AA</Color>
-    <Color x:Key="ColorTextMuted">#AA9F8F</Color>
-    <Color x:Key="ColorTextDisabled">#93877A</Color>
+    <Color x:Key="ColorTextPrimary">#F2F4F2</Color>
+    <Color x:Key="ColorTextSecondary">#C4CFD0</Color>
+    <Color x:Key="ColorTextMuted">#A8B8BB</Color>
+    <Color x:Key="ColorTextDisabled">#8B9A9E</Color>
 
-    <Color x:Key="ColorAccentPrimary">#F5A623</Color>
-    <Color x:Key="ColorAccentSecondary">#F5A623</Color>
-    <Color x:Key="ColorAccentSoft">#2E2413</Color>
-    <Color x:Key="ColorAccentHover">#FFBB4A</Color>
-    <Color x:Key="ColorAccentInk">#17120A</Color>
-    <Color x:Key="ColorFocus">#FFD38A</Color>
+    <Color x:Key="ColorAccentPrimary">#EAB45D</Color>
+    <Color x:Key="ColorAccentSecondary">#EAB45D</Color>
+    <Color x:Key="ColorAccentSoft">#332C20</Color>
+    <Color x:Key="ColorAccentHover">#F5C979</Color>
+    <Color x:Key="ColorAccentInk">#19150F</Color>
+    <Color x:Key="ColorFocus">#FFE1A5</Color>
 
     <Color x:Key="ColorSuccess">#69D5A3</Color>
     <Color x:Key="ColorSuccessSoft">#16281F</Color>
@@ -35,15 +35,15 @@
     <Color x:Key="ColorError">#FF858A</Color>
     <Color x:Key="ColorErrorSoft">#33191B</Color>
     <Color x:Key="ColorInformation">#D8C39A</Color>
-    <Color x:Key="ColorInformationSoft">#2E2413</Color>
-    <Color x:Key="ColorLive">#F5A623</Color>
+    <Color x:Key="ColorInformationSoft">#332C20</Color>
+    <Color x:Key="ColorLive">#EAB45D</Color>
     <!-- Supporter gold: reserved exclusively for Supporter surfaces. Never a product CTA. -->
     <Color x:Key="ColorCoffee">#D6B66E</Color>
-    <Color x:Key="ColorCoffeeSoft">#2E2413</Color>
+    <Color x:Key="ColorCoffeeSoft">#332C20</Color>
     <Color x:Key="ColorSupporter">#D6B66E</Color>
-    <Color x:Key="ColorSupporterSoft">#2E2413</Color>
+    <Color x:Key="ColorSupporterSoft">#332C20</Color>
     <Color x:Key="ColorSupporterInk">#241B08</Color>
-    <Color x:Key="ColorBand">#141210</Color>
+    <Color x:Key="ColorBand">#151C23</Color>
 
     <Thickness x:Key="Space4">4</Thickness>
     <Thickness x:Key="Space6">6</Thickness>

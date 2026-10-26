@@ -607,11 +607,11 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="GridLinesVisibility" Value="None" />
         <Setter Property="RowBackground" Value="{StaticResource BrushBackgroundAlt}" />
-        <Setter Property="AlternatingRowBackground" Value="{StaticResource BrushSurface}" />
-        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BrushBorder}" />
+        <Setter Property="AlternatingRowBackground" Value="{StaticResource BrushBackgroundAlt}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BrushBorderSubtle}" />
         <Setter Property="VerticalGridLinesBrush" Value="{StaticResource BrushBorder}" />
-        <Setter Property="RowHeight" Value="42" />
-        <Setter Property="ColumnHeaderHeight" Value="40" />
+        <Setter Property="RowHeight" Value="46" />
+        <Setter Property="ColumnHeaderHeight" Value="38" />
         <Setter Property="SelectionUnit" Value="FullRow" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="UseLayoutRounding" Value="True" />
@@ -1233,7 +1233,7 @@
 
     <!-- Hero panel: single raised surface, hairline border, local content rhythm. -->
     <Style x:Key="LedgerHeroCard" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource BrushSurface}" />
+        <Setter Property="Background" Value="{StaticResource BrushSurfaceRaised}" />
         <Setter Property="BorderBrush" Value="{StaticResource BrushBorderSubtle}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="10" />
@@ -1244,7 +1244,7 @@
 
     <!-- Work section card: same surface language as the hero, flatter padding. -->
     <Style x:Key="LedgerSectionCard" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource BrushSurface}" />
+        <Setter Property="Background" Value="{StaticResource BrushBackgroundAlt}" />
         <Setter Property="BorderBrush" Value="{StaticResource BrushBorderSubtle}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="10" />

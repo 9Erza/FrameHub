@@ -52,6 +52,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public string MainStatusTitle => _localization.T("Dashboard.MainStatus.Title");
     public string MainStatusDescription => _localization.T("Dashboard.MainStatus.Description");
     public string ActiveModulesTitle => _localization.T("Dashboard.ActiveModules.Title");
+    public string SystemOverviewTitle => _localization.T("Dashboard.SystemOverview.Title");
     public string ActiveModulesDescription => _localization.T("Dashboard.ActiveModules.Description");
     public string SessionStateTitle => _localization.T("Dashboard.SessionState.Title");
     public string SessionStateValue { get; private set; } = string.Empty;
@@ -591,6 +592,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(MainStatusTitle));
         OnPropertyChanged(nameof(MainStatusDescription));
         OnPropertyChanged(nameof(ActiveModulesTitle));
+        OnPropertyChanged(nameof(SystemOverviewTitle));
         OnPropertyChanged(nameof(ActiveModulesDescription));
         OnPropertyChanged(nameof(SessionStateTitle));
         OnPropertyChanged(nameof(SessionStateValue));

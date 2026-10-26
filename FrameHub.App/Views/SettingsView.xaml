@@ -20,7 +20,7 @@
                     <ColumnDefinition Width="24" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Border x:Name="SettingsIndexBorder" Grid.Column="0" Style="{StaticResource SettingsSectionSurface}" Padding="8" VerticalAlignment="Top">
+                <Border x:Name="SettingsIndexBorder" Grid.Column="0" Style="{StaticResource DataPanel}" Padding="8" VerticalAlignment="Top">
                     <ListBox x:Name="IndexList" ItemsSource="{Binding SettingsCategories}" SelectedIndex="{Binding SelectedSettingsCategoryIndex, Mode=TwoWay}" BorderThickness="0" Background="Transparent" AutomationProperties.Name="{Binding Title}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Vertical" /></ItemsPanelTemplate></ListBox.ItemsPanel>
                         <!-- QA E F6: selection speaks the LedgerNavItem language (gold rail +
@@ -62,7 +62,9 @@
                         <ListBox.ItemTemplate><DataTemplate><TextBlock x:Name="Label" Text="{Binding}" Style="{StaticResource SettingTitleText}" Foreground="{StaticResource BrushTextSecondary}" /><DataTemplate.Triggers><DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter TargetName="Label" Property="Foreground" Value="{StaticResource BrushTextPrimary}" /></DataTrigger></DataTemplate.Triggers></DataTemplate></ListBox.ItemTemplate>
                     </ListBox>
                 </Border>
-                <StackPanel x:Name="SettingsRowsPanel" Grid.Column="2">
+                <Border x:Name="SettingsRowsPanel" Grid.Column="2" Style="{StaticResource SectionSurface}" Padding="24">
+                <StackPanel>
+                <TextBlock Text="{Binding SelectedItem, ElementName=IndexList}" Style="{StaticResource PageTitleText}" Margin="0,0,0,20" TextWrapping="Wrap" />
 
             <StackPanel x:Name="LeftSettingsColumn">
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsLanguageVisible, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -478,6 +480,7 @@
                 </Border>
                 </StackPanel>
             </StackPanel>
+            </Border>
         </Grid>
     </Grid>
     </ScrollViewer>

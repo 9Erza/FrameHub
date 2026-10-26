@@ -80,9 +80,12 @@
                 </StackPanel>
             </Grid>
 
+            <Grid x:Name="HardwareOverview" Margin="0,16,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="0" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <!-- QA E F4: background behavior is state-independent (watcher status is live
                  either way), so it always renders and fills the OFF state honestly. -->
-            <Border Style="{StaticResource SectionSurface}" Margin="0,16,0,0">
+            <Border x:Name="HardwareBehaviorPanel" Grid.Column="0" Style="{StaticResource SectionSurface}">
                 <StackPanel>
                     <TextBlock Text="{Binding BackgroundBehaviorTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,8" />
                     <Border Style="{StaticResource InlineRow}"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding ProfileWatcherTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding ProfileWatcherStatus}" Style="{StaticResource CaptionText}" Margin="0,4,0,0" /></StackPanel><Ellipse Grid.Column="1" Width="8" Height="8" Fill="{StaticResource BrushSuccess}" VerticalAlignment="Center" /></Grid></Border>
@@ -93,7 +96,7 @@
 
             <!-- QA E F4: designed OFF empty state — what the module covers + live status,
                  no invented values, the toggle in the banner above stays the action. -->
-            <Border Style="{StaticResource SectionSurface}" Margin="0,16,0,0" Visibility="{Binding IsMonitorEnabled, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+            <Border x:Name="HardwareOffPanel" Grid.Column="2" Style="{StaticResource SectionSurface}" Visibility="{Binding IsMonitorEnabled, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                 <StackPanel>
                     <TextBlock Text="&#xE9D9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="28" Foreground="{StaticResource BrushAccentPrimary}" />
                     <TextBlock Text="{Binding MonitorStatus}" Style="{StaticResource SectionTitleText}" Margin="0,10,0,0" />
@@ -107,6 +110,8 @@
                     <TextBlock Text="{Binding BackendStatusText}" Style="{StaticResource StatusText}" Margin="0,8,0,0" />
                 </StackPanel>
             </Border>
+
+            </Grid>
 
             <Border Style="{StaticResource SectionSurface}" Margin="0,16,0,0">
                 <StackPanel>

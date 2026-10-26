@@ -134,9 +134,9 @@ public partial class LibraryView : WpfUserControl
         if (CatalogWorkspace != null) CatalogWorkspace.Margin = new Thickness(0, sideBySide ? 16 : 8, 0, 0);
         if (ManageLibraryExpander != null) ManageLibraryExpander.Margin = new Thickness(0, 0, 0, compactEmpty ? 8 : 16);
         if (WelcomeGlyph != null) WelcomeGlyph.Visibility = compactEmpty ? Visibility.Collapsed : Visibility.Visible;
-        // Panel title stays for populated libraries and wide empty states (context);
-        // only the compact empty state hides it so the welcome card leads (QA E F2).
-        if (LibraryItemsHeader != null) LibraryItemsHeader.Visibility = compactEmpty ? Visibility.Collapsed : Visibility.Visible;
+        // The welcome title leads whenever the library is empty; the catalog
+        // header returns as soon as there are items to search or filter.
+        if (LibraryItemsHeader != null) LibraryItemsHeader.Visibility = _viewModel?.HasLibraryItems == false ? Visibility.Collapsed : Visibility.Visible;
         if (LibraryWelcomePanel != null) LibraryWelcomePanel.Padding = compactEmpty ? new Thickness(12) : new Thickness(20);
         if (WelcomeScanButton != null) WelcomeScanButton.Margin = compactEmpty ? new Thickness(0, 8, 0, 0) : new Thickness(0, 14, 0, 0);
         if (WelcomeSecondaryRow != null) WelcomeSecondaryRow.Margin = compactEmpty ? new Thickness(0, 6, 0, 0) : new Thickness(0, 8, 0, 0);

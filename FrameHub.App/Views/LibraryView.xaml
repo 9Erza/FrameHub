@@ -76,7 +76,12 @@
                     </Border>
                 </Expander>
 
-                <Border Style="{StaticResource DataPanel}" Padding="0">
+                <Border Padding="0">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource DataPanel}">
+                            <Style.Triggers><DataTrigger Binding="{Binding HasLibraryItems}" Value="False"><Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /></DataTrigger></Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <StackPanel>
                         <!-- Panel header: hidden only in the compact empty state, where the
                              welcome card carries the single EmptyTitle headline (QA E F2). -->
@@ -87,7 +92,7 @@
                             <TextBlock Grid.Column="1" Text="{Binding FilterLabel}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" Margin="12,0,8,0" />
                             <ComboBox Grid.Column="2" ItemsSource="{Binding FilterLabels}" SelectedIndex="{Binding SelectedFilterIndex, Mode=TwoWay}" MinWidth="160" AutomationProperties.Name="{Binding FilterLabel}" />
                         </Grid>
-                        <ListBox x:Name="LibraryItems" ItemsSource="{Binding FilteredItems}" Margin="12,0,12,12" MaxHeight="420" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
+                        <ListBox x:Name="LibraryItems" ItemsSource="{Binding FilteredItems}" Margin="12,0,12,12" MaxHeight="420" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="{x:Type lib:LibraryItemViewModel}">
                                     <Border x:Name="GameRow" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
@@ -128,7 +133,7 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                        <Border Margin="20,8,20,24"><Border.Style><Style TargetType="Border" BasedOn="{StaticResource EmptyStateBorder}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding HasFilteredItems}" Value="False"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Border.Style>
+                        <Border Margin="0,8,0,24" Padding="0"><Border.Style><Style TargetType="Border" BasedOn="{StaticResource EmptyStateBorder}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding HasFilteredItems}" Value="False"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Border.Style>
                             <StackPanel>
                             <!-- Empty library: welcome card + sources panel, side by side when wide. -->
                             <Grid x:Name="LibraryEmptyZones" Visibility="{Binding HasLibraryItems, Converter={StaticResource InverseBoolToVisibilityConverter}}">
@@ -136,10 +141,10 @@
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <Border x:Name="LibraryWelcomePanel" Grid.Column="0" Grid.Row="0" Style="{StaticResource LedgerSectionCard}">
                                     <StackPanel>
-                                        <TextBlock x:Name="WelcomeGlyph" Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="56" Foreground="{StaticResource BrushBorderStrong}" />
+                                        <TextBlock x:Name="WelcomeGlyph" Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="28" Foreground="{StaticResource BrushAccentPrimary}" />
                                         <!-- Single empty-state headline; sources note lives once in the strip below,
                                              manage actions live in the expander header + sources panel. -->
-                                        <TextBlock Text="{Binding EmptyTitle}" Style="{StaticResource SectionTitleText}" Margin="0,12,0,0" />
+                                        <TextBlock Text="{Binding EmptyTitle}" Style="{StaticResource PageTitleText}" Margin="0,12,0,0" TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding EmptyText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                         <!-- QA E F1: the dominant card leads with the primary + secondary
                                              actions; the sources panel keeps per-source shortcuts only. -->
@@ -164,7 +169,7 @@
                                         </UniformGrid>
                                         <!-- Existing-sources strip moved in from below the cards (QA E F1):
                                              balances the taller welcome card with real folder content. -->
-                                        <Border Margin="0,16,0,0" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                                        <Border Margin="0,16,0,0" Background="Transparent" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
                                             <StackPanel VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding CustomFoldersTitle}" Style="{StaticResource TinyCapsText}" />
                                                 <ItemsControl ItemsSource="{Binding CustomFolders}" Margin="0,6,0,0">

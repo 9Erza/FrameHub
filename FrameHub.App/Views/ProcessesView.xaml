@@ -17,15 +17,23 @@
             <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" />
             <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,0" TextWrapping="Wrap" />
         </StackPanel>
-        <Grid Grid.Row="1">
+        <ScrollViewer x:Name="ProcessWorkspaceScroller" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+        <Grid x:Name="ProcessWorkspace">
         <Grid.ColumnDefinitions><ColumnDefinition Width="1.7*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="0.8*" /></Grid.ColumnDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="0" /><RowDefinition Height="0" /></Grid.RowDefinitions>
 
         <Border Grid.Column="0" Style="{StaticResource DataPanel}">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                 <Grid Margin="16,14,14,8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding ProcessListTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding FilteredCountText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" /></StackPanel>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ProcessListTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding FilteredCountText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding SelectedProcessTopologyText}" TextWrapping="Wrap" Margin="0,4,0,0">
+                            <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding SelectedProcess}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
                     <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Command="{Binding RefreshCommand}" Content="{Binding RefreshButtonText}" VerticalAlignment="Center" AutomationProperties.Name="{Binding RefreshButtonText}" />
                 </Grid>
                 <Grid Grid.Row="1" Margin="16,0,14,10">
@@ -78,7 +86,8 @@
             </Grid>
         </Border>
 
-        <Border Grid.Column="2" Style="{StaticResource SectionSurface}" Padding="20">
+        <Border x:Name="ProcessInspector" Grid.Column="2" Padding="20">
+            <Border.Style><Style TargetType="Border" BasedOn="{StaticResource SectionSurface}"><Style.Triggers><DataTrigger Binding="{Binding SelectedProcess}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></Border.Style>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
                     <StackPanel Margin="0,0,0,16">
@@ -129,5 +138,6 @@
             </ScrollViewer>
         </Border>
         </Grid>
+        </ScrollViewer>
     </Grid>
 </UserControl>

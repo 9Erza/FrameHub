@@ -28,29 +28,7 @@
             </Grid>
 
             <ListBox x:Name="ActivityList" Grid.Row="2" ItemsSource="{Binding ActivityView}" Margin="8,0,8,8" ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" AutomationProperties.Name="{Binding ActivityTitle}">
-                <!-- QA E F4: ruled list surface (ledger ruling) keeps the sparse-list viewport
-                     structured instead of a flat void; real rows paint over the faint rules. -->
-                <ListBox.Background>
-                    <DrawingBrush TileMode="Tile" Viewport="0,0,24,44" ViewportUnits="Absolute" Stretch="None">
-                        <DrawingBrush.Drawing>
-                            <DrawingGroup>
-                                <GeometryDrawing Brush="{StaticResource BrushSurface}">
-                                    <GeometryDrawing.Geometry>
-                                        <RectangleGeometry Rect="0,0,24,44" />
-                                    </GeometryDrawing.Geometry>
-                                </GeometryDrawing>
-                                <GeometryDrawing>
-                                    <GeometryDrawing.Geometry>
-                                        <LineGeometry StartPoint="0,43" EndPoint="24,43" />
-                                    </GeometryDrawing.Geometry>
-                                    <GeometryDrawing.Pen>
-                                        <Pen Brush="{StaticResource BrushBorderSubtle}" Thickness="1" />
-                                    </GeometryDrawing.Pen>
-                                </GeometryDrawing>
-                            </DrawingGroup>
-                        </DrawingBrush.Drawing>
-                    </DrawingBrush>
-                </ListBox.Background>
+                <ListBox.Background><SolidColorBrush Color="{StaticResource ColorSurface}" /></ListBox.Background>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Border Style="{StaticResource InlineRow}" Padding="10,10">
