@@ -12,6 +12,12 @@
         </Style>
     </UserControl.Resources>
     <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <StackPanel Margin="0,4,0,16">
+            <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" />
+            <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+        <Grid Grid.Row="1">
         <Grid.ColumnDefinitions><ColumnDefinition Width="1.7*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="0.8*" /></Grid.ColumnDefinitions>
 
         <Border Grid.Column="0" Style="{StaticResource DataPanel}">
@@ -30,22 +36,43 @@
                     </TextBlock>
                 </Grid>
 
+                <!-- QA E C3 (F8): DataGrid owns its scroll viewport directly. The previous
+                     outer ScrollViewer (Horizontal=Auto) measured the grid with infinite
+                     width, so star columns collapsed to 20 px on first navigation.
+                     QA E4 (N2): NO MinWidth on the grid itself. A grid-level MinWidth
+                     forces ActualWidth past the card column at narrow windows; the
+                     overflow (incl. the scrollbar) is clipped by the parent, so CPU/RAM
+                     stay unreachable even at HPercent=100. The grid now fills its finite
+                     cell and scrolls its columns internally (column MinWidths define
+                     the extent). -->
                 <DataGrid x:Name="ProcessGrid" Grid.Row="2" Margin="1"
                           ItemsSource="{Binding ProcessesView}" SelectedItem="{Binding SelectedProcess, Mode=TwoWay}"
                           AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
-                          HeadersVisibility="Column" SelectionMode="Single" EnableRowVirtualization="True" EnableColumnVirtualization="True" CanUserSortColumns="True"
+                          HeadersVisibility="Column" SelectionMode="Single" EnableRowVirtualization="True" EnableColumnVirtualization="False" CanUserSortColumns="True"
                           VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                           ScrollViewer.CanContentScroll="True" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           AutomationProperties.Name="{Binding ProcessListTitle}">
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="2.2*" MinWidth="200" SortMemberPath="Name"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontWeight="SemiBold" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTextColumn Header="{Binding Data.PidHeader, Source={StaticResource VmProxy}}" Binding="{Binding Id}" Width="64" />
-                        <DataGridTextColumn Header="{Binding Data.InstancesHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="58" />
-                        <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding ModeDisplay}" Width="95" />
-                        <DataGridTextColumn Header="{Binding Data.RuleHeader, Source={StaticResource VmProxy}}" Binding="{Binding StatusDisplay}" Width="100" />
-                        <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding Priority}" Width="112" />
-                        <DataGridTextColumn Header="{Binding Data.CpuHeader, Source={StaticResource VmProxy}}" Binding="{Binding CpuUsage}" ElementStyle="{StaticResource ProcessMetricCell}" Width="64" />
-                        <DataGridTextColumn Header="{Binding Data.RamHeader, Source={StaticResource VmProxy}}" Binding="{Binding RamUsageMB}" ElementStyle="{StaticResource ProcessMetricCell}" Width="78" />
+                        <DataGridTextColumn Header="{Binding Data.PidHeader, Source={StaticResource VmProxy}}" Binding="{Binding Id}" Width="64" MinWidth="64" />
+                        <DataGridTextColumn Header="{Binding Data.InstancesHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="58" MinWidth="58" />
+                        <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding ModeDisplay}" Width="78" MinWidth="78">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding ModeDisplay}" /></Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="{Binding Data.RuleHeader, Source={StaticResource VmProxy}}" Binding="{Binding StatusDisplay}" Width="88" MinWidth="88">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding StatusDisplay}" /></Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding Priority}" Width="100" MinWidth="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding Priority}" /></Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="{Binding Data.CpuHeader, Source={StaticResource VmProxy}}" Binding="{Binding CpuUsage}" ElementStyle="{StaticResource ProcessMetricCell}" Width="64" MinWidth="64" />
+                        <DataGridTextColumn Header="{Binding Data.RamHeader, Source={StaticResource VmProxy}}" Binding="{Binding RamUsageMB}" ElementStyle="{StaticResource ProcessMetricCell}" Width="78" MinWidth="78" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
@@ -56,7 +83,8 @@
                 <StackPanel>
                     <StackPanel Margin="0,0,0,16">
                         <TextBlock Text="{Binding DetailsTitle}" Style="{StaticResource SectionTitleText}" />
-                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                        <!-- QA E F3: hint wraps instead of clipping past the window edge. -->
+                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" />
                         <Border Style="{StaticResource InlineRow}" Margin="0,10,0,0" Padding="10">
                             <StackPanel>
                                 <TextBlock Text="{Binding ExecutableLabel}" Style="{StaticResource TinyCapsText}" />
@@ -100,5 +128,6 @@
                 </StackPanel>
             </ScrollViewer>
         </Border>
+        </Grid>
     </Grid>
 </UserControl>
