@@ -155,6 +155,67 @@ public sealed class EmberOverhaulBTests
         AssertLibraryEmptyStateBindings(xaml);
     }
 
+    [TestMethod]
+    public void LibraryEmpty_NeverClaimsReadiness()
+    {
+        // QA C B2: a zero-game library showed "0/0 ready", "Library ready." and a READY
+        // chip at once. The empty state must be unambiguous instead.
+        using var host = CreateLibraryHost();
+        var vm = host.ViewModel;
+        host.Library.SaveItems(Array.Empty<LibraryItem>());
+        vm.Reload();
+        Assert.IsFalse(vm.HasLibraryItems);
+        Assert.IsFalse(vm.HasStatusMessage, "Empty library must not carry a state message.");
+        Assert.AreEqual(string.Empty, vm.StatusMessage);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(vm.EmptyTitle), "Empty library needs an unambiguous headline.");
+        StringAssert.Contains(vm.EmptyTitle, "No games added yet");
+    }
+
+    [TestMethod]
+    public void LibraryPopulated_KeepsReadyCountAndStatus()
+    {
+        using var host = CreateLibraryHost();
+        var vm = host.ViewModel;
+        vm.Reload();
+        Assert.IsTrue(vm.HasLibraryItems);
+        Assert.IsTrue(vm.HasStatusMessage);
+        StringAssert.Contains(vm.ReadyCountText, "ready");
+    }
+
+    [TestMethod]
+    public void DashboardNumbers_FollowUiLanguage_NotSystemCulture()
+    {
+        // QA C P2-5: EN UI showed 4,0% (system pl-PL) instead of 4.0%.
+        var en = LocalizationService.GetUiCulture("en");
+        var pl = LocalizationService.GetUiCulture("pl");
+        Assert.AreEqual("en-US", en.Name);
+        Assert.AreEqual("pl-PL", pl.Name);
+        Assert.AreEqual("4.0%", string.Format(en, "{0:N1}%", 4.0));
+        Assert.AreEqual("4,0%", string.Format(pl, "{0:N1}%", 4.0));
+    }
+
+    [TestMethod]
+    public void DashboardQuickStart_EmptyBranchBindsLibraryNavigation()
+    {
+        // QA C P1: the empty Quick Start card had copy but no action. The XAML must
+        // bind a NavigateLibraryCommand CTA visible only in the empty branch.
+        string? repoRoot = FindRepoRoot();
+        if (repoRoot == null)
+        {
+            Assert.Inconclusive("Repository source root was not discoverable from the test assembly location.");
+        }
+
+        string xaml = File.ReadAllText(Path.Combine(repoRoot, "FrameHub.App", "Views", "DashboardView.xaml"));
+        StringAssert.Contains(xaml, "{Binding NavigateLibraryCommand}",
+            "Dashboard empty Quick Start must bind NavigateLibraryCommand.");
+        StringAssert.Contains(xaml, "Visibility=\"{Binding HasNoGamingGames, Converter={StaticResource BoolToVisibilityConverter}}\"",
+            "Dashboard library CTA must be visible only in the empty branch.");
+        StringAssert.Contains(xaml, "{Binding OpenEngineLogText}",
+            "Engine panel must use the dedicated engine-log label.");
+        StringAssert.Contains(xaml, "{Binding OpenActivityLogText}",
+            "Activity panel must use the dedicated activity-log label.");
+    }
+
     private static void AssertLibraryEmptyStateBindings(string xaml)
     {
         // The empty-state panel as a whole is gated by the filtered-empty state.
@@ -171,6 +232,57 @@ public sealed class EmberOverhaulBTests
         // Regression guard: neither panel may bind ListBox.HasItems again.
         Assert.IsFalse(xaml.Contains("ElementName=LibraryItems", StringComparison.Ordinal),
             "LibraryView empty states must not bind ListBox.HasItems (QA B-R1 defect: wrong empty state on no-match filter).");
+
+        // QA C B2: the empty library claimed readiness three times and duplicated the
+        // "Library items" headline. Exactly one ItemsTitle binding may remain (the panel
+        // header); the empty headline must be the unambiguous EmptyTitle.
+        Assert.AreEqual(1, CountOccurrences(xaml, "{Binding ItemsTitle}"),
+            "LibraryView must keep a single ItemsTitle headline (QA C B2: duplicated header).");
+        // QA C2 F3: the header EmptyTitle duplicated the welcome-card headline (two equal
+        // headlines, triple actions). Exactly one EmptyTitle binding may remain — the welcome card.
+        Assert.AreEqual(1, CountOccurrences(xaml, "{Binding EmptyTitle}"),
+            "LibraryView must show the empty headline exactly once (QA C2 F3: duplicated headline).");
+        // QA C2 F3: "Manage library" appeared 3x, "Scan all"/"Add manually"/sources note 2x each.
+        // The top row no longer repeats empty-state commands: single manage surface (expander
+        // header), single accent Scan all, and the top Add manually is populated-only.
+        Assert.AreEqual(1, CountOccurrences(xaml, "{Binding ManageLibraryTitle}"),
+            "LibraryView must expose a single manage-library surface (QA C2 F3: tripled action).");
+        Assert.AreEqual(1, CountOccurrences(xaml, "Content=\"{Binding ScanAllText}\""),
+            "LibraryView must keep a single accent Scan-all CTA (QA C2 F3: duplicated CTA).");
+        AssertGatedBy(xaml, "Content=\"{Binding AddManuallyText}\"", "HasLibraryItems",
+            "Top-row Add manually must only render when the library holds items (QA C2 F3).");
+        AssertGatedBy(xaml, "{Binding ReadyCountText}", "HasLibraryItems",
+            "Ready count must only render when the library holds items (QA C B2).");
+        AssertGatedBy(xaml, "{Binding ReadyBadgeText}", "HasLibraryItems",
+            "READY chip must only render when the library holds items (QA C B2).");
+        StringAssert.Contains(xaml, "{Binding IndividualSourcesText}",
+            "Sources panel must label the individual sources segment (QA C B3).");
+        foreach (string command in new[] { "ScanAllCommand", "ScanSteamCommand", "ScanEpicCommand", "ScanRiotCommand", "ScanCustomCommand", "AddFolderCommand", "OpenManageLibraryCommand" })
+        {
+            StringAssert.Contains(xaml, "{Binding " + command + "}",
+                "Sources panel must keep " + command + " callable (QA C B3: no scan command may be dropped).");
+        }
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        int count = 0;
+        int index = 0;
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
+    }
+
+    private static void AssertGatedBy(string xaml, string binding, string gate, string message)
+    {
+        int index = xaml.IndexOf(binding, StringComparison.Ordinal);
+        Assert.IsTrue(index >= 0, "Expected binding " + binding + " in LibraryView.xaml. " + message);
+        int window = Math.Min(index + 400, xaml.Length) - index;
+        StringAssert.Contains(xaml.Substring(index, window), gate, message);
     }
 
     private static string? FindRepoRoot()
@@ -208,7 +320,7 @@ public sealed class EmberOverhaulBTests
         File.WriteAllText(plPath, "{\"Language\":\"pl\"}");
         using var runtimePl = new AppRuntimeService(plPath);
         Assert.IsTrue(runtimePl.Activity.Count >= 2, "Startup must record the launch + watcher entries.");
-        StringAssert.Contains(runtimePl.Activity[1].Message, "Dzia\u0142anie FrameHub uruchomione.");
+        StringAssert.Contains(runtimePl.Activity[1].Message, "FrameHub został uruchomiony.");
         StringAssert.Contains(runtimePl.Activity[0].Message, "Monitor profili w tle aktywny");
 
         string enPath = Path.Combine(_tempDirectory, "settings-activity-en.json");
@@ -264,12 +376,13 @@ public sealed class EmberOverhaulBTests
             "Dashboard.Benchmark.EngineDown", "Dashboard.Hero.ScanLibrary", "Dashboard.Hero.HowItWorks",
             "Dashboard.Hero.NoGamesDetail", "Dashboard.TopProcesses.Title", "Dashboard.TopProcesses.Hint",
             "Dashboard.TopProcesses.Empty", "Dashboard.TopProcesses.Open", "Dashboard.TopProcesses.RowDetail",
-            "Dashboard.OpenLogs", "Dashboard.RecentActivity.Count", "Dashboard.Monitor.IdleBadge",
+            "Dashboard.OpenLogs", "Dashboard.OpenEngineLog", "Dashboard.OpenActivityLog", "Dashboard.RecentActivity.Count", "Dashboard.Monitor.IdleBadge",
             "Shell.Session.Pill", "Shell.Footer.PresentMon", "Shell.Footer.License", "Shell.ToggleNav",
             "Shell.About", "Shell.About.Title", "Shell.About.Message",
             "Library.ScanMenu", "Library.AddManually", "Library.SearchPlaceholder", "Library.FilterLabel",
             "Library.Filter.All", "Library.Filter.Ready", "Library.Filter.Running", "Library.Filter.Cs2",
-            "Library.Filter.MissingExe", "Library.EmptyFiltered", "Library.SourcesNote",
+            "Library.Filter.MissingExe", "Library.EmptyFiltered", "Library.SourcesNote", "Library.EmptyTitle",
+            "Library.IndividualSources",
             "Session.Steps.Title", "Session.Steps.Configure", "Session.Steps.Preview", "Session.Steps.Start",
             "Session.Steps.Restore", "Session.Footer.RestoreReady", "Session.Footer.RestoreIdle", "Session.Start.NeedsGame",
             "Benchmark.Engine.ReadyHint", "Benchmark.Engine.NoService",
@@ -307,7 +420,7 @@ public sealed class EmberOverhaulBTests
         public void AddActivity(string message, string level = "Info") { }
     }
 
-    private sealed record LibraryHost(LibraryViewModel ViewModel, EmberFakeLaunchService Launcher) : IDisposable
+    private sealed record LibraryHost(LibraryViewModel ViewModel, EmberFakeLaunchService Launcher, LibraryService Library) : IDisposable
     {
         public void Dispose() => ViewModel.Dispose();
     }
@@ -362,7 +475,7 @@ public sealed class EmberOverhaulBTests
         var runtime = new AppRuntimeService(settingsPath);
         var localization = new LocalizationService(runtime.SettingsService);
         var viewModel = new LibraryViewModel(localization, runtime, libraryService, scanner, launcher);
-        return new LibraryHost(viewModel, launcher);
+        return new LibraryHost(viewModel, launcher, libraryService);
     }
 
     private async Task<LibraryHost> CreateLibraryHostAsync()
