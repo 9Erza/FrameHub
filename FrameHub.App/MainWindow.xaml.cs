@@ -86,7 +86,6 @@ public partial class MainWindow : Window
         };
         StateChanged += MainWindow_StateChanged;
         SizeChanged += (_, _) => UpdateResponsiveShell();
-        Tag = true;
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -386,14 +385,28 @@ public partial class MainWindow : Window
     private void ShowAboutDialog(string title, string message)
     {
         if (ViewModel == null) return;
+        // Identity block and SupporterNote stay separate: the dialog renders the
+        // supporter chapter from the exact SupporterNote wording, never paraphrased.
+        string identity = string.Format(
+            ViewModel.Localization.T("Shell.About.Message"),
+            ViewModel.AppVersion,
+            ViewModel.Localization.T("Footer.AuthorLabel"),
+            ViewModel.Localization.T("Footer.Website"));
         ModernDialogService.ShowAbout(
             this,
             title,
-            message,
+            identity,
+            ViewModel.Localization.T("Shell.About.SupporterNote"),
             ViewModel.Localization.T("Footer.Support"),
             ViewModel.Settings.OpenThirdPartyNoticesText,
             () => ExternalLinkService.TryOpen(FrameHubExternalLink.Support),
-            () => ViewModel.Settings.OpenThirdPartyNoticesCommand.Execute(null));
+            () => ViewModel.Settings.OpenThirdPartyNoticesCommand.Execute(null),
+            ViewModel.Localization.T("Footer.AuthorLabel"),
+            ViewModel.Localization.T("Footer.Website"),
+            ViewModel.Localization.T("Footer.Repository"),
+            () => { if (ViewModel.OpenAuthorCommand.CanExecute(null)) ViewModel.OpenAuthorCommand.Execute(null); },
+            () => { if (ViewModel.OpenWebsiteCommand.CanExecute(null)) ViewModel.OpenWebsiteCommand.Execute(null); },
+            () => { if (ViewModel.OpenRepositoryCommand.CanExecute(null)) ViewModel.OpenRepositoryCommand.Execute(null); });
     }
 
     private void ShowBenchmarkNotification(string message)
@@ -404,17 +417,24 @@ public partial class MainWindow : Window
         _trayIcon.ShowBalloonTip(2500, "FrameHub", message, WinForms.ToolTipIcon.Info);
     }
 
-    private bool _isNavCollapsed;
-
     /// <summary>
-    /// Responsive override: narrow windows (&lt;1080px) force the icon rail so all
-    /// destinations stay reachable; the user's manual toggle is restored at full width.
+    /// True while the client area is narrower than 1100 DIP: the single sidebar
+    /// collapses to the 64 DIP icon rail (tooltips + automation names preserved,
+    /// full names available in the rail drawer). Threshold is evaluated on client
+    /// width (window minus 1 DIP border each side).
     /// </summary>
-    private bool _autoCollapsed;
+    public static readonly DependencyProperty IsNarrowWindowProperty =
+        DependencyProperty.Register(nameof(IsNarrowWindow), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public bool IsNarrowWindow
+    {
+        get => (bool)GetValue(IsNarrowWindowProperty);
+        set => SetValue(IsNarrowWindowProperty, value);
+    }
 
     /// <summary>
-    /// True while the window is too short for brand footers (min-window 880x460).
-    /// Footer stacks collapse via style trigger; navigation and Settings stay visible.
+    /// True while the window is too short for secondary chrome (min-window 880x460).
+    /// Navigation and all actions stay visible; only decorative density adapts.
     /// </summary>
     public static readonly DependencyProperty IsShortHeightProperty =
         DependencyProperty.Register(nameof(IsShortHeight), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
@@ -425,27 +445,76 @@ public partial class MainWindow : Window
         set => SetValue(IsShortHeightProperty, value);
     }
 
-    private void ToggleNavButton_Click(object sender, RoutedEventArgs e)
-    {
-        _isNavCollapsed = !_isNavCollapsed;
-        ApplyNavCollapseState();
-    }
-
-    private void ApplyNavCollapseState()
-    {
-        bool collapsed = _isNavCollapsed || _autoCollapsed;
-        NavigationColumn.Width = new GridLength(collapsed ? 64 : 224);
-        NavigationPane.Padding = collapsed ? new Thickness(8, 18, 8, 14) : new Thickness(12, 18, 12, 14);
-        Tag = !collapsed;
-    }
-
     private void UpdateResponsiveShell()
     {
-        bool compact = ActualWidth > 0 && ActualWidth < 1080;
-        PageHost.Margin = compact ? new Thickness(18, 20, 18, 24) : new Thickness(28, 24, 28, 28);
-        _autoCollapsed = compact;
+        double clientWidth = ActualWidth > 0 ? ActualWidth - 2 : 0;
+        bool compact = clientWidth > 0 && clientWidth < 1100;
+        ContentHost.Margin = compact ? new Thickness(16, 16, 16, 20) : new Thickness(24, 20, 24, 24);
+        IsNarrowWindow = compact;
         IsShortHeight = ActualHeight > 0 && ActualHeight < 620;
-        ApplyNavCollapseState();
+    }
+
+    /// <summary>
+    /// Rail drawer keyboard contract: Escape closes the overlay and returns focus to
+    /// the rail menu button. Activation inside the drawer navigates and closes it.
+    /// Focus may rest on the menu button itself (it keeps focus after the toggle
+    /// click), so Escape is handled both on the popup and on the button.
+    /// </summary>
+    internal bool CloseRailMenuFromKeyboard()
+    {
+        if (DataContext is ShellViewModel shell && shell.IsRailMenuOpen)
+        {
+            shell.IsRailMenuOpen = false;
+            RailMenuButton.Focus();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void RailMenuPopup_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Escape) return;
+        if (CloseRailMenuFromKeyboard()) e.Handled = true;
+    }
+
+    private void RailMenuButton_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Escape) return;
+        if (CloseRailMenuFromKeyboard()) e.Handled = true;
+    }
+
+    /// <summary>
+    /// When the drawer opens, move keyboard focus to its first focusable item so
+    /// Escape and Tab always reach the drawer instead of stranding focus on the
+    /// menu button that opened it.
+    /// </summary>
+    private void RailMenuPopup_Opened(object? sender, EventArgs e)
+    {
+        Dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.Loaded,
+            new Action(FocusFirstRailDrawerItem));
+    }
+
+    private void FocusFirstRailDrawerItem()
+    {
+        if (RailMenuPopup.Child is not System.Windows.DependencyObject root) return;
+        var pending = new System.Collections.Generic.Queue<System.Windows.DependencyObject>();
+        pending.Enqueue(root);
+        while (pending.Count > 0)
+        {
+            var current = pending.Dequeue();
+            if (current is System.Windows.UIElement element && element.Focusable && element.IsEnabled && element.Focus())
+            {
+                return;
+            }
+
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(current);
+            for (int i = 0; i < count; i++)
+            {
+                pending.Enqueue(System.Windows.Media.VisualTreeHelper.GetChild(current, i));
+            }
+        }
     }
 
     private void HideToTray()

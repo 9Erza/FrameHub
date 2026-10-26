@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using MediaBrush = System.Windows.Media.Brush;
 using MediaBrushes = System.Windows.Media.Brushes;
 using MediaColor = System.Windows.Media.Color;
@@ -325,16 +326,25 @@ public static class ModernDialogService
         WpfWindow? owner,
         string title,
         string message,
+        string supporterNote,
         string supportText,
         string noticesText,
         Action onSupport,
-        Action onNotices)
+        Action onNotices,
+        string? authorText = null,
+        string? websiteText = null,
+        string? repositoryText = null,
+        Action? onAuthor = null,
+        Action? onWebsite = null,
+        Action? onRepository = null)
     {
         var primary = (MediaBrush)(WpfApplication.Current.TryFindResource("BrushTextPrimary") ?? MediaBrushes.White);
         var secondary = (MediaBrush)(WpfApplication.Current.TryFindResource("BrushTextSecondary") ?? MediaBrushes.LightSteelBlue);
         var accent = (MediaBrush)(WpfApplication.Current.TryFindResource("BrushPrimary") ?? MediaBrushes.DeepSkyBlue);
         var surface = (MediaBrush)(WpfApplication.Current.TryFindResource("BrushSurface") ?? new MediaSolidColorBrush(MediaColor.FromRgb(14, 25, 45)));
         var border = (MediaBrush)(WpfApplication.Current.TryFindResource("BrushBorder") ?? new MediaSolidColorBrush(MediaColor.FromRgb(45, 68, 112)));
+        var supporter = (MediaBrush)(WpfApplication.Current.TryFindResource("BrushSupporter") ?? new MediaSolidColorBrush(MediaColor.FromRgb(214, 182, 110)));
+        var supporterSoft = (MediaBrush)(WpfApplication.Current.TryFindResource("BrushSupporterSoft") ?? new MediaSolidColorBrush(MediaColor.FromRgb(46, 36, 19)));
 
         var dialog = new WpfWindow
         {
@@ -361,7 +371,7 @@ public static class ModernDialogService
             HorizontalAlignment = WpfHorizontalAlignment.Right,
             Cursor = WpfCursor.Hand
         };
-        supportButton.SetResourceReference(WpfControl.StyleProperty, "PrimaryButton");
+        supportButton.SetResourceReference(WpfControl.StyleProperty, "SupporterButton");
         supportButton.Click += (_, _) => { try { onSupport(); } catch { } dialog.Close(); };
 
         var noticesButton = new WpfButton
@@ -440,6 +450,73 @@ public static class ModernDialogService
 
         var rootStack = new WpfStackPanel();
         rootStack.Children.Add(contentGrid);
+
+        // Identity links: author / website / repository stay one click away,
+        // reusing the existing shell external-link commands passed by the caller.
+        var linkItems = new (string? Text, Action? Open)[]
+        {
+            (authorText, onAuthor),
+            (websiteText, onWebsite),
+            (repositoryText, onRepository),
+        };
+        bool hasLinks = linkItems.Any(item => !string.IsNullOrWhiteSpace(item.Text) && item.Open is not null);
+        if (hasLinks)
+        {
+            var linkRow = new WpfStackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                Margin = new WpfThickness(62, 10, 0, 0),
+            };
+            foreach ((string? text, Action? open) in linkItems)
+            {
+                if (string.IsNullOrWhiteSpace(text) || open is null) continue;
+                var linkButton = new WpfButton
+                {
+                    Content = text,
+                    MinWidth = 40,
+                    Height = 32,
+                    Padding = new WpfThickness(10, 0, 10, 0),
+                    Margin = new WpfThickness(0, 0, 8, 0),
+                    Cursor = WpfCursor.Hand,
+                };
+                linkButton.SetResourceReference(WpfControl.StyleProperty, "FooterLinkButton");
+                linkButton.Click += (_, _) => { try { open(); } catch { } dialog.Close(); };
+                linkRow.Children.Add(linkButton);
+            }
+            rootStack.Children.Add(linkRow);
+        }
+
+        // Supporter chapter: one quiet gold panel with the exact SupporterNote wording.
+        // No paywall, no goal counters, no premium benefits — the app stays complete and free.
+        var supporterChapter = new WpfBorder
+        {
+            Background = supporterSoft,
+            BorderBrush = supporter,
+            BorderThickness = new WpfThickness(1),
+            CornerRadius = new WpfCornerRadius(8),
+            Padding = new WpfThickness(14, 12, 14, 12),
+            Margin = new WpfThickness(0, 18, 0, 0)
+        };
+        var supporterRow = new WpfStackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        supporterRow.Children.Add(new WpfBorder
+        {
+            Width = 3,
+            CornerRadius = new WpfCornerRadius(2),
+            Background = supporter,
+            Margin = new WpfThickness(0, 2, 10, 2)
+        });
+        supporterRow.Children.Add(new WpfTextBlock
+        {
+            Text = supporterNote,
+            FontSize = 13,
+            LineHeight = 20,
+            Foreground = primary,
+            TextWrapping = WpfTextWrapping.Wrap,
+            MaxWidth = 520
+        });
+        supporterChapter.Child = supporterRow;
+        rootStack.Children.Add(supporterChapter);
+
         rootStack.Children.Add(buttonsPanel);
 
         dialog.Content = new WpfBorder
