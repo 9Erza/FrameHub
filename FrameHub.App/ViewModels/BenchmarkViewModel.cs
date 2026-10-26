@@ -109,7 +109,16 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public string StopText => _localization.T("Benchmark.Stop");
     public string ComparableHint => _localization.T("Benchmark.ComparableHint");
     public string ProgressText => string.Format(_localization.T("Benchmark.Progress"), ElapsedSeconds, RequestedDurationSeconds);
-    public string StateText => State == BenchmarkUiState.Waiting ? string.Format(_localization.T("Benchmark.State.Countdown"), RemainingCountdown) : _localization.T($"Benchmark.State.{State}");
+    public string StateText => State switch
+    {
+        // Honest idle copy: never claim readiness while the engine or the
+        // target is unavailable. Start stays CanExecute-gated (CanStart).
+        BenchmarkUiState.Waiting => string.Format(_localization.T("Benchmark.State.Countdown"), RemainingCountdown),
+        BenchmarkUiState.Idle when !EngineReady => _localization.T("Benchmark.Engine.Unavailable"),
+        BenchmarkUiState.Idle when HasNoSelectedGame => _localization.T("Benchmark.Game.NoneTitle"),
+        BenchmarkUiState.Idle when SelectedGame?.IsRunning != true => _localization.T("Benchmark.NotRunning"),
+        _ => _localization.T($"Benchmark.State.{State}"),
+    };
     public string HistoryEmptyText => _localization.T("Benchmark.History.Empty");
     public string HistoryEmptyDescription => _localization.T("Benchmark.History.EmptyDescription");
     public string CompareHint => _localization.T("Benchmark.Compare.Hint");
@@ -189,7 +198,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     }
     public bool HasInsufficientComparisonSessions => !HasEnoughComparisonSessions;
     public bool CanStart => !IsCaptureActive && EngineReady && SelectedGame?.IsRunning == true;
-    public bool EngineReady { get => _engineReady; private set { if (SetProperty(ref _engineReady, value)) { OnPropertyChanged(nameof(EngineStatus)); OnPropertyChanged(nameof(EngineHint)); OnPropertyChanged(nameof(CanStart)); RaiseCommandStates(); } } }
+    public bool EngineReady { get => _engineReady; private set { if (SetProperty(ref _engineReady, value)) { OnPropertyChanged(nameof(EngineStatus)); OnPropertyChanged(nameof(EngineHint)); OnPropertyChanged(nameof(StateText)); OnPropertyChanged(nameof(CanStart)); RaiseCommandStates(); } } }
     public int RequestedDurationSeconds => UseCustomDuration ? Math.Clamp(CustomDuration, 10, 600) : SelectedDuration;
     public double ProgressValue => RequestedDurationSeconds <= 0 ? 0 : Math.Clamp(ElapsedSeconds / RequestedDurationSeconds * 100, 0, 100);
 
@@ -212,7 +221,7 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
             if (!SetProperty(ref _selectedGame, value)) return;
             _preselectedLibraryItemId = value?.Item.Id;
             StatusMessage = value?.HasMultipleInstances == true ? _localization.T("Benchmark.Error.MultipleInstances") : string.Empty;
-            OnPropertyChanged(nameof(CanStart)); OnPropertyChanged(nameof(HasSelectedGame)); OnPropertyChanged(nameof(HasNoSelectedGame)); RaiseCommandStates();
+            OnPropertyChanged(nameof(StateText)); OnPropertyChanged(nameof(CanStart)); OnPropertyChanged(nameof(HasSelectedGame)); OnPropertyChanged(nameof(HasNoSelectedGame)); RaiseCommandStates();
             if (value is not null && !string.Equals(previousId, value.Item.Id, StringComparison.OrdinalIgnoreCase))
                 _runtime.AddActivity(string.Format(_localization.T("Benchmark.Log.TargetSelected"), value.DisplayName));
         }

@@ -3,24 +3,68 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              UseLayoutRounding="True"
              SnapsToDevicePixels="False">
-    <!-- The page title and description are owned by MainWindow/ShellViewModel. -->
+    <!-- Chapter heading lives at the top of this view; the index is local to Settings. -->
     <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
         <Grid x:Name="ContentLayout" MaxWidth="1120" HorizontalAlignment="Stretch" Margin="0,0,0,24">
-            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="Auto" /><RowDefinition Height="0" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="24" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <Border Style="{StaticResource SettingsSectionSurface}" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Padding="10">
-                <ListBox ItemsSource="{Binding SettingsCategories}" SelectedIndex="{Binding SelectedSettingsCategoryIndex, Mode=TwoWay}" BorderThickness="0" Background="Transparent" AutomationProperties.Name="{Binding Title}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate></ListBox.ItemsPanel>
-                    <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Margin" Value="0,0,6,0" /><Setter Property="Padding" Value="0" /><Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /></Style></ListBox.ItemContainerStyle>
-                    <ListBox.ItemTemplate><DataTemplate><Border Padding="12,7" CornerRadius="6"><TextBlock Text="{Binding}" Style="{StaticResource SettingTitleText}" /></Border></DataTemplate></ListBox.ItemTemplate>
-                </ListBox>
-            </Border>
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <StackPanel Grid.Row="0">
+                <!-- Chapter heading: the single H1 of this page. -->
+                <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" Margin="0,4,0,0" />
+                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                <ComboBox x:Name="CategoryCombo" ItemsSource="{Binding SettingsCategories}" SelectedIndex="{Binding SelectedSettingsCategoryIndex, Mode=TwoWay}" Margin="0,12,0,0" MaxWidth="420" HorizontalAlignment="Left" AutomationProperties.Name="{Binding Title}" Visibility="Collapsed" />
+            </StackPanel>
+            <!-- Preference catalog: local index + single rows panel. ComboBox replaces the index below 1100 DIP. -->
+            <Grid x:Name="SettingsIndexLayout" Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200" />
+                    <ColumnDefinition Width="24" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="SettingsIndexBorder" Grid.Column="0" Style="{StaticResource SettingsSectionSurface}" Padding="8" VerticalAlignment="Top">
+                    <ListBox x:Name="IndexList" ItemsSource="{Binding SettingsCategories}" SelectedIndex="{Binding SelectedSettingsCategoryIndex, Mode=TwoWay}" BorderThickness="0" Background="Transparent" AutomationProperties.Name="{Binding Title}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Vertical" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                        <!-- QA E F6: selection speaks the LedgerNavItem language (gold rail +
+                             tint, semibold primary text) instead of the neutral container fill. -->
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Margin" Value="0,0,0,2" />
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Grid>
+                                                <Border x:Name="Row" Background="Transparent" CornerRadius="6" Padding="12,9">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="3" /><ColumnDefinition Width="9" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Border x:Name="Rail" Width="3" CornerRadius="0,2,2,0" Background="Transparent" Margin="0,3,0,3" />
+                                                        <ContentPresenter Grid.Column="2" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </Border>
+                                                <Border x:Name="FocusRing" BorderBrush="{StaticResource BrushFocus}" BorderThickness="2" CornerRadius="8" Margin="-2" Opacity="0" IsHitTestVisible="False" />
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="{StaticResource BrushSurfaceHover}" /></Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Row" Property="Background" Value="{StaticResource BrushAccentSoft}" />
+                                                    <Setter TargetName="Rail" Property="Background" Value="{StaticResource BrushAccentPrimary}" />
+                                                </Trigger>
+                                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusRing" Property="Opacity" Value="1" /></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate><DataTemplate><TextBlock x:Name="Label" Text="{Binding}" Style="{StaticResource SettingTitleText}" Foreground="{StaticResource BrushTextSecondary}" /><DataTemplate.Triggers><DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter TargetName="Label" Property="Foreground" Value="{StaticResource BrushTextPrimary}" /></DataTrigger></DataTemplate.Triggers></DataTemplate></ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+                <StackPanel x:Name="SettingsRowsPanel" Grid.Column="2">
 
-            <StackPanel x:Name="LeftSettingsColumn" Grid.Column="0" Grid.Row="2">
+            <StackPanel x:Name="LeftSettingsColumn">
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsLanguageVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding LanguageTitle}" Style="{StaticResource SectionTitleText}" />
@@ -100,7 +144,7 @@
                             <TextBlock Text="{Binding CompanionPortLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
                             <TextBox Grid.Column="1" Style="{StaticResource CompactNumberTextBox}" Text="{Binding CompanionPortText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="70"/>
                         </Grid>
-                        <TextBlock Text="{Binding CompanionPortValidationError}" Style="{StaticResource SmallMutedText}" Foreground="#FF6C6C" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="{Binding HasCompanionPortValidationError, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <TextBlock Text="{Binding CompanionPortValidationError}" Style="{StaticResource SmallMutedText}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="{Binding HasCompanionPortValidationError, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,0,0,12" />
                         <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -113,7 +157,7 @@
                             <TextBlock Text="{Binding CompanionEndpointLabel}" Style="{StaticResource TinyCapsText}"/>
                             <TextBox Text="{Binding CompanionEndpointText, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent" Foreground="{StaticResource BrushTextSecondary}" FontSize="13" Padding="0,2" Margin="0,2,0,0"/>
                         </StackPanel>
-                        <TextBlock Text="{Binding CompanionErrorMessage}" Style="{StaticResource SmallMutedText}" Foreground="#FF6C6C" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding IsCompanionFailed, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <TextBlock Text="{Binding CompanionErrorMessage}" Style="{StaticResource SmallMutedText}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding IsCompanionFailed, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
                         <!-- M3 LAN Access & Pairing Controls -->
                         <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,12,0,12" />
@@ -141,7 +185,7 @@
                         <StackPanel Visibility="{Binding IsPairingSectionVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                             <!-- Pair New Device Button -->
                             <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionPairButtonLabel}" Command="{Binding StartPairingCommand}" Margin="0,6,0,0" HorizontalAlignment="Left"/>
-                            <TextBlock Text="{Binding PairingStatusMessage}" Style="{StaticResource SmallMutedText}" Foreground="#FF6C6C" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding PairingStatusMessage, Converter={StaticResource NonEmptyToVisibilityConverter}}"/>
+                            <TextBlock Text="{Binding PairingStatusMessage}" Style="{StaticResource SmallMutedText}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding PairingStatusMessage, Converter={StaticResource NonEmptyToVisibilityConverter}}"/>
                             <TextBlock Text="{Binding CompanionPairingLanHintText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding CompanionLanEnabled, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
 
                             <!-- Active Pairing Window Panel -->
@@ -160,9 +204,9 @@
                             </Border>
 
                             <!-- Pending Pairing Approval Panel -->
-                            <Border Visibility="{Binding HasPendingPairingRequest, Converter={StaticResource BoolToVisibilityConverter}}" Background="#1E2A3A" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,10,0,0">
+                            <Border Visibility="{Binding HasPendingPairingRequest, Converter={StaticResource BoolToVisibilityConverter}}" Background="{StaticResource BrushAccentSoft}" BorderBrush="{StaticResource BrushAccentPrimary}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,10,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding CompanionPendingTitle}" Style="{StaticResource SectionTitleText}" Foreground="#3B82F6"/>
+                                    <TextBlock Text="{Binding CompanionPendingTitle}" Style="{StaticResource SectionTitleText}"/>
                                     <TextBlock Text="{Binding PendingDeviceName}" Style="{StaticResource SettingTitleText}" Margin="0,4,0,0"/>
                                     <TextBlock Text="{Binding PendingSourceIp}" Style="{StaticResource SmallMutedText}" Margin="0,2,0,10"/>
                                     <StackPanel Orientation="Horizontal">
@@ -174,9 +218,9 @@
                         </StackPanel>
 
                         <!-- Device Store Fault Alert -->
-                        <Border Visibility="{Binding IsDeviceStoreFaulted, Converter={StaticResource BoolToVisibilityConverter}}" Background="#2A1E1E" BorderBrush="#FF6C6C" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,12,0,0">
+                        <Border Visibility="{Binding IsDeviceStoreFaulted, Converter={StaticResource BoolToVisibilityConverter}}" Background="{StaticResource BrushErrorSoft}" BorderBrush="{StaticResource BrushError}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,12,0,0">
                             <StackPanel>
-                                <TextBlock Text="{Binding CompanionStoreFaultTitle}" Style="{StaticResource SectionTitleText}" Foreground="#FF6C6C"/>
+                                <TextBlock Text="{Binding CompanionStoreFaultTitle}" Style="{StaticResource SectionTitleText}" Foreground="{StaticResource BrushError}"/>
                                 <TextBlock Text="{Binding CompanionStoreFaultMessage}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,8"/>
                                 <Button Style="{StaticResource SubtleButton}" Content="{Binding CompanionResetStoreLabel}" Command="{Binding ResetDeviceStoreCommand}" HorizontalAlignment="Left"/>
                             </StackPanel>
@@ -340,7 +384,7 @@
                 </Border>
             </StackPanel>
 
-            <StackPanel x:Name="RightSettingsColumn" Grid.Column="2" Grid.Row="2">
+            <StackPanel x:Name="RightSettingsColumn">
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsBenchmarksVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding BenchmarkEngineTitle}" Style="{StaticResource SectionTitleText}" />
@@ -395,7 +439,10 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsAdvancedDiagnosticsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                <!-- QA E F4: diagnostics renders for every category as the global footer
+                     section, so short categories never leave a dead canvas band. The safety
+                     section above stays category-gated. -->
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
                     <StackPanel>
                         <TextBlock Text="{Binding DiagnosticsTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding DiagnosticsDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
@@ -420,7 +467,18 @@
                         <StackPanel Orientation="Horizontal"><Border Style="{StaticResource BadgeBorder}" VerticalAlignment="Center"><TextBlock Text="{Binding AdminStatus}" Style="{StaticResource StatusText}" /></Border><Button Style="{StaticResource SubtleButton}" Content="{Binding RestartAsAdminText}" Command="{Binding RestartAsAdminCommand}" Margin="12,0,0,0" /></StackPanel>
                     </StackPanel>
                 </Border>
+
+                <!-- Backstage supporter nook: one quiet gold panel, no paywall, no counters. -->
+                <Border Style="{StaticResource SupporterBand}" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding SupporterTitle}" Style="{StaticResource SectionHeadingText}" />
+                        <TextBlock Text="{Binding SupporterText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,12" />
+                        <Button Style="{StaticResource SupporterButton}" Content="{Binding SupporterActionText}" Command="{Binding OpenSupportCommand}" HorizontalAlignment="Left" AutomationProperties.Name="{Binding SupporterActionText}" />
+                    </StackPanel>
+                </Border>
+                </StackPanel>
             </StackPanel>
         </Grid>
+    </Grid>
     </ScrollViewer>
 </UserControl>

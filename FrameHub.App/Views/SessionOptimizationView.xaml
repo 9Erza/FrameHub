@@ -15,6 +15,11 @@
                   HorizontalContentAlignment="Stretch"
                   Loaded="PageScrollViewer_Loaded">
         <StackPanel Margin="0,0,0,96">
+            <!-- Chapter heading: the single H1 of this page. -->
+            <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" Margin="0,4,0,0" />
+            <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,10" TextWrapping="Wrap" />
+
+            <!-- Band A — live session/recovery strip. The sticky bar below stays the single in-frame action. -->
             <Border Margin="0,0,0,16">
                 <Border.Style>
                     <Style TargetType="Border" BasedOn="{StaticResource StateBanner}">
@@ -28,96 +33,100 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <Ellipse Width="10" Height="10" Fill="{StaticResource BrushAccentPrimary}" VerticalAlignment="Top" Margin="0,7,14,0" />
                     <StackPanel Grid.Column="1">
-                        <TextBlock Text="{Binding SessionStateDisplay}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding SessionStateDisplay}" Style="{StaticResource SectionHeadingText}" />
                         <TextBlock Text="{Binding ActiveSessionInfo}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,2,0,0" />
                         <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
-                        <Button Style="{StaticResource ToolbarButton}" Content="{Binding TestDetectionButtonText}" Command="{Binding TestDetectionCommand}" Margin="0,0,8,0" />
-                        <Button Style="{StaticResource SuccessButton}" Content="{Binding StopButtonText}" Command="{Binding StopSessionCommand}" />
+                        <Button Style="{StaticResource ToolbarButton}" Content="{Binding TestDetectionButtonText}" Command="{Binding TestDetectionCommand}" />
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- 1. Automation -->
-            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
+            <!-- Plan status line: current state and next action, not a new state machine. -->
+            <Border Style="{StaticResource ChapterBand}" Margin="0,0,0,16">
                 <StackPanel>
-                    <TextBlock Text="{Binding StepsTitle}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,10" />
-                    <UniformGrid Columns="4">
-                        <StackPanel HorizontalAlignment="Center">
-                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasSelectedGame}" Value="True">
-                                                <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                            <TextBlock Text="{Binding StepConfigureText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
-                        </StackPanel>
-                        <StackPanel HorizontalAlignment="Center">
-                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasCandidates}" Value="True">
-                                                <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                            <TextBlock Text="{Binding StepPreviewText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
-                        </StackPanel>
-                        <StackPanel HorizontalAlignment="Center">
-                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsSessionActive}" Value="True">
-                                                <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                            <TextBlock Text="{Binding StepStartText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
-                        </StackPanel>
-                        <StackPanel HorizontalAlignment="Center">
-                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsRecoveryPending}" Value="True">
-                                                <Setter Property="Fill" Value="{StaticResource BrushWarning}" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding HasSuspendedProcesses}" Value="True">
-                                                <Setter Property="Fill" Value="{StaticResource BrushSuccess}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                            <TextBlock Text="{Binding StepRestoreText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
-                        </StackPanel>
-                    </UniformGrid>
+                    <TextBlock Text="{Binding StepsTitle}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,8" />
+                    <TextBlock Style="{StaticResource BodyText}" TextWrapping="Wrap">
+                        <Run Text="{Binding StepConfigureText, Mode=OneWay}" /><Run Text="  →  " /><Run Text="{Binding StepPreviewText, Mode=OneWay}" /><Run Text="  →  " /><Run Text="{Binding StepStartText, Mode=OneWay}" /><Run Text="  →  " /><Run Text="{Binding StepRestoreText, Mode=OneWay}" />
+                    </TextBlock>
                 </StackPanel>
             </Border>
 
-            <!-- 2. Automatic mode -->
+            <!-- Plan + decision console: side by side when wide, single column when narrow. -->
+            <Grid x:Name="PlanWorkspace">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="1.6*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="0" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
+                <StackPanel x:Name="SessionPlanPanel" Grid.Column="0" Grid.Row="0">
+            <!-- 1. Things FrameHub may suspend -->
+            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="{Binding WhatGetsPausedTitle}" Style="{StaticResource SectionHeadingText}" />
+                    <TextBlock Text="{Binding WhatGetsPausedDescription}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,16" />
+
+                    <TabControl Style="{StaticResource FrameHubTabControl}" ItemContainerStyle="{StaticResource FrameHubTabItem}">
+                        <TabItem Header="{Binding BackgroundRulesTitle}">
+                            <ItemsControl ItemsSource="{Binding Rules}" Margin="0,12,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource InlineRow}">
+                                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding Description}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" /></StackPanel><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="16,0,0,0" /></Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </TabItem>
+
+                        <TabItem Header="{Binding RunningProcessesTitle}">
+                            <StackPanel Margin="0,12,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding RunningProcessesHint}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                    <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowManualProcessList, Mode=TwoWay}" Content="{Binding ShowManualProcessesLabel}" Margin="20,0,0,0" />
+                                </Grid>
+                                <StackPanel Visibility="{Binding ManualProcessesPlaceholderVisible, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,16,0,4"><TextBlock Text="{Binding ManualProcessesRecommendationTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding ManualProcessesRecommendationText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel>
+                                <StackPanel Visibility="{Binding ShowManualProcessList, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Button Style="{StaticResource ToolbarButton}" Content="{Binding RefreshProcessListButtonText}" Command="{Binding RefreshRunningProcessesCommand}" HorizontalAlignment="Right" Margin="0,12,0,8" />
+                                    <Grid>
+                                        <DataGrid ItemsSource="{Binding RunningProcesses}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="False" Height="250" HorizontalScrollBarVisibility="Auto" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                            <DataGrid.Columns><DataGridTemplateColumn Header="{Binding Data.SuspendColumnHeader, Source={StaticResource VmProxy}}" Width="82"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn><DataGridTextColumn Header="{Binding Data.ProcessColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessName}" Width="160" IsReadOnly="True" /><DataGridTextColumn Header="{Binding Data.InstanceColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="70" IsReadOnly="True" /><DataGridTextColumn Header="{Binding Data.PathColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ExamplePath}" Width="2*" IsReadOnly="True"><DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding ExamplePath}" /></Style></DataGridTextColumn.ElementStyle></DataGridTextColumn></DataGrid.Columns>
+                                        </DataGrid>
+                                        <TextBlock Text="{Binding NoRunningProcessesText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding NoRunningProcessesVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </TabItem>
+                    </TabControl>
+                </StackPanel>
+            </Border>
+
+            <!-- 2. Concise preview and recovery list -->
+            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
+                <StackPanel>
+                    <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding CandidateTitle}" Style="{StaticResource SectionHeadingText}" /><TextBlock Text="{Binding CandidateHint}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshButtonText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" /></Grid>
+                    <Grid>
+                        <DataGrid ItemsSource="{Binding Candidates}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Height="180" HorizontalScrollBarVisibility="Auto" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"><DataGrid.Columns><DataGridTextColumn Header="{Binding Data.RuleColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding RuleName}" Width="140" /><DataGridTextColumn Header="{Binding Data.ProcessColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessName}" Width="160" /><DataGridTextColumn Header="{Binding Data.PidColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessId}" Width="72" /><DataGridTextColumn Header="{Binding Data.PathColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ExecutablePath}" Width="2*"><DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding ExecutablePath}" /></Style></DataGridTextColumn.ElementStyle></DataGridTextColumn></DataGrid.Columns></DataGrid>
+                        <TextBlock Text="{Binding NoCandidatesText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding NoCandidatesVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    </Grid>
+
+                    <StackPanel Visibility="{Binding HasSuspendedProcesses, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="0,20,0,16" />
+                        <TextBlock Text="{Binding ActiveSessionTitle}" Style="{StaticResource SectionHeadingText}" Margin="0,0,0,12" />
+                        <DataGrid ItemsSource="{Binding SuspendedProcesses}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Height="160" HorizontalScrollBarVisibility="Auto" EnableRowVirtualization="True"><DataGrid.Columns><DataGridTextColumn Header="{Binding Data.RuleColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding RuleName}" Width="*" /><DataGridTextColumn Header="{Binding Data.ProcessColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessName}" Width="*" /><DataGridTextColumn Header="{Binding Data.PidColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessId}" Width="72" /><DataGridTextColumn Header="{Binding Data.TimeColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding SuspendedAt}" Width="96" /></DataGrid.Columns></DataGrid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+                </StackPanel>
+
+                <StackPanel x:Name="SessionConsolePanel" Grid.Column="2" Grid.Row="0">
+            <!-- 3. Automation console -->
             <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
                 <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="{Binding AutoModeTitle}" Style="{StaticResource SectionTitleText}" />
+                            <TextBlock Text="{Binding AutoModeTitle}" Style="{StaticResource SectionHeadingText}" />
                             <TextBlock Text="{Binding AutoModeDescription}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                         </StackPanel>
                         <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AutoModeEnabled, Mode=TwoWay}" Content="{Binding AutoModeSwitchLabel}" VerticalAlignment="Center" Margin="24,0,0,0" />
@@ -150,69 +159,10 @@
                 </StackPanel>
             </Border>
 
-            <!-- 2. Things FrameHub may suspend -->
-            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="{Binding WhatGetsPausedTitle}" Style="{StaticResource SectionTitleText}" />
-                    <TextBlock Text="{Binding WhatGetsPausedDescription}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,16" />
-
-                    <TabControl Style="{StaticResource FrameHubTabControl}" ItemContainerStyle="{StaticResource FrameHubTabItem}">
-                        <TabItem Header="{Binding BackgroundRulesTitle}">
-                            <ItemsControl ItemsSource="{Binding Rules}" Margin="0,12,0,0">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Style="{StaticResource InlineRow}">
-                                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding Description}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" /></StackPanel><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="16,0,0,0" /></Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </TabItem>
-
-                        <TabItem Header="{Binding RunningProcessesTitle}">
-                            <StackPanel Margin="0,12,0,0">
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding RunningProcessesHint}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                    <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowManualProcessList, Mode=TwoWay}" Content="{Binding ShowManualProcessesLabel}" Margin="20,0,0,0" />
-                                </Grid>
-                                <StackPanel Visibility="{Binding ManualProcessesPlaceholderVisible, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,16,0,4"><TextBlock Text="{Binding ManualProcessesRecommendationTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding ManualProcessesRecommendationText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel>
-                                <StackPanel Visibility="{Binding ShowManualProcessList, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <Button Style="{StaticResource ToolbarButton}" Content="{Binding RefreshProcessListButtonText}" Command="{Binding RefreshRunningProcessesCommand}" HorizontalAlignment="Right" Margin="0,12,0,8" />
-                                    <Grid>
-                                        <DataGrid ItemsSource="{Binding RunningProcesses}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="False" Height="250" HorizontalScrollBarVisibility="Auto" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
-                                            <DataGrid.Columns><DataGridTemplateColumn Header="{Binding Data.SuspendColumnHeader, Source={StaticResource VmProxy}}" Width="82"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn><DataGridTextColumn Header="{Binding Data.ProcessColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessName}" Width="160" IsReadOnly="True" /><DataGridTextColumn Header="{Binding Data.InstanceColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="70" IsReadOnly="True" /><DataGridTextColumn Header="{Binding Data.PathColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ExamplePath}" Width="2*" IsReadOnly="True" /></DataGrid.Columns>
-                                        </DataGrid>
-                                        <TextBlock Text="{Binding NoRunningProcessesText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding NoRunningProcessesVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                    </Grid>
-                                </StackPanel>
-                            </StackPanel>
-                        </TabItem>
-                    </TabControl>
-                </StackPanel>
-            </Border>
-
-            <!-- 3. Concise preview and recovery list -->
-            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
-                <StackPanel>
-                    <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding CandidateTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding CandidateHint}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshButtonText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" /></Grid>
-                    <Grid>
-                        <DataGrid ItemsSource="{Binding Candidates}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Height="180" HorizontalScrollBarVisibility="Auto" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"><DataGrid.Columns><DataGridTextColumn Header="{Binding Data.RuleColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding RuleName}" Width="140" /><DataGridTextColumn Header="{Binding Data.ProcessColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessName}" Width="160" /><DataGridTextColumn Header="{Binding Data.PidColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessId}" Width="72" /><DataGridTextColumn Header="{Binding Data.PathColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ExecutablePath}" Width="2*" /></DataGrid.Columns></DataGrid>
-                        <TextBlock Text="{Binding NoCandidatesText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding NoCandidatesVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
-                    </Grid>
-
-                    <StackPanel Visibility="{Binding HasSuspendedProcesses, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="0,20,0,16" />
-                        <TextBlock Text="{Binding ActiveSessionTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12" />
-                        <DataGrid ItemsSource="{Binding SuspendedProcesses}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Height="160" HorizontalScrollBarVisibility="Auto" EnableRowVirtualization="True"><DataGrid.Columns><DataGridTextColumn Header="{Binding Data.RuleColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding RuleName}" Width="*" /><DataGridTextColumn Header="{Binding Data.ProcessColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessName}" Width="*" /><DataGridTextColumn Header="{Binding Data.PidColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessId}" Width="72" /><DataGridTextColumn Header="{Binding Data.TimeColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding SuspendedAt}" Width="96" /></DataGrid.Columns></DataGrid>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
             <!-- 4. One explicit manual action -->
             <Border Style="{StaticResource SectionSurface}">
                 <StackPanel>
-                    <TextBlock Text="{Binding ManualModeTitle}" Style="{StaticResource SectionTitleText}" />
+                    <TextBlock Text="{Binding ManualModeTitle}" Style="{StaticResource SectionHeadingText}" />
                     <TextBlock Text="{Binding ManualModeDescription}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,16" />
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -233,6 +183,8 @@
                     </Expander>
                 </StackPanel>
             </Border>
+                </StackPanel>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 

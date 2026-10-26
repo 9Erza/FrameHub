@@ -36,6 +36,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand OpenBenchmarksCommand { get; }
     public ICommand StartGamingModeCommand { get; }
     public ICommand NavigateLibraryCommand { get; }
+    public ICommand NavigateSessionCommand { get; }
     public ICommand NavigateMetricCommand { get; }
     public ICommand NavigateLogsCommand { get; }
     public ICommand NavigateHowItWorksCommand { get; }
@@ -91,11 +92,15 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public string HeroScanLibraryText => _localization.T("Dashboard.Hero.ScanLibrary");
     public string HeroHowItWorksText => _localization.T("Dashboard.Hero.HowItWorks");
     public string HeroNoGamesDetail => _localization.T("Dashboard.Hero.NoGamesDetail");
+    public string OpenLibraryText => _localization.T("Dashboard.Empty.OpenLibrary");
+    public string ConfigureSessionText => _localization.T("Dashboard.Empty.ConfigureSession");
     public string TopProcessesTitle => _localization.T("Dashboard.TopProcesses.Title");
     public string TopProcessesHint => _localization.T("Dashboard.TopProcesses.Hint");
     public string TopProcessesEmpty => _localization.T("Dashboard.TopProcesses.Empty");
     public string TopProcessesOpenText => _localization.T("Dashboard.TopProcesses.Open");
     public string OpenLogsText => _localization.T("Dashboard.OpenLogs");
+    public string OpenEngineLogText => _localization.T("Dashboard.OpenEngineLog");
+    public string OpenActivityLogText => _localization.T("Dashboard.OpenActivityLog");
     public string RecentActivityCountText => string.Format(_localization.T("Dashboard.RecentActivity.Count"), Activity.Count);
 
     public bool IsLiveActive => _gamingSession?.IsActive == true;
@@ -208,6 +213,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             else LibraryNavigationRequested?.Invoke();
         });
         NavigateLogsCommand = new RelayCommand(key => NavigationRequested?.Invoke("Logs"));
+        NavigateSessionCommand = new RelayCommand(_ => NavigationRequested?.Invoke("Session"));
         NavigateHowItWorksCommand = new RelayCommand(key => NavigationRequested?.Invoke("Session"));
         NavigateMetricCommand = new RelayCommand(key => NavigationRequested?.Invoke(key?.ToString() ?? "Dashboard"));
         StartGamingModeCommand = new RelayCommand(
@@ -338,11 +344,11 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
                 {
                     Name = group.Name,
                     Detail = string.Format(
-                        CultureInfo.CurrentCulture,
+                        _localization.UiCulture,
                         _localization.T("Dashboard.TopProcesses.RowDetail"),
                         group.FirstProcessId,
                         group.InstanceCount),
-                    CpuText = string.Format(CultureInfo.CurrentCulture, "{0:N1}%", group.CpuUsagePercent),
+                    CpuText = string.Format(_localization.UiCulture, "{0:N1}%", group.CpuUsagePercent),
                     MemoryText = FormatMegabytes(group.TotalMemoryBytes),
                     CpuRatio = Math.Clamp(group.CpuUsagePercent / 100.0, 0.0, 1.0)
                 })
@@ -365,10 +371,10 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private static string FormatMegabytes(long bytes)
+    private string FormatMegabytes(long bytes)
     {
         double megabytes = bytes / 1048576.0;
-        return string.Format(CultureInfo.CurrentCulture, "{0:N0} MB", megabytes);
+        return string.Format(_localization.UiCulture, "{0:N0} MB", megabytes);
     }
 
     private async Task RefreshSelectedGameRunningStateAsync()
@@ -510,7 +516,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             .FirstOrDefault(entry => entry.Metadata.Status == BenchmarkSessionStatus.Completed && entry.Summary?.PrimaryPresentedMetrics is not null);
         LatestBenchmarkGame = latestBenchmark?.Metadata.Game.DisplayName ?? _localization.T("Dashboard.Benchmark.Empty");
         LatestBenchmarkResult = latestBenchmark?.Summary?.PrimaryPresentedMetrics is { } metrics
-            ? string.Format(CultureInfo.CurrentCulture, _localization.T("Dashboard.Benchmark.Result"), metrics.AverageFps, metrics.OnePercentLowFps, latestBenchmark.Metadata.StartUtc.ToLocalTime())
+            ? string.Format(_localization.UiCulture, _localization.T("Dashboard.Benchmark.Result"), metrics.AverageFps, metrics.OnePercentLowFps, latestBenchmark.Metadata.StartUtc.ToLocalTime())
             : _localization.T("Dashboard.Benchmark.EmptyDetail");
 
         SessionStateValue = isSessionActive
@@ -562,7 +568,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         Metrics.Add(new MetricCardViewModel
         {
             Title = _localization.T("Metric.Profiles.Title"),
-            Value = totalProfiles.ToString(CultureInfo.CurrentCulture),
+            Value = totalProfiles.ToString(_localization.UiCulture),
             Detail = string.IsNullOrWhiteSpace(_runtime.LastAppliedProfile) ? _localization.T("Metric.Profiles.Detail") : _runtime.LastAppliedProfile,
             Accent = "#7FA8D9",
             TargetKey = "Profiles"
@@ -570,7 +576,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         Metrics.Add(new MetricCardViewModel
         {
             Title = _localization.T("Dashboard.LibraryMetric.Title"),
-            Value = libraryGames.ToString(CultureInfo.CurrentCulture),
+            Value = libraryGames.ToString(_localization.UiCulture),
             Detail = _localization.T("Dashboard.LibraryMetric.Detail"),
             Accent = "#F2A93B",
             TargetKey = "Library"
@@ -605,11 +611,15 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(HeroScanLibraryText));
         OnPropertyChanged(nameof(HeroHowItWorksText));
         OnPropertyChanged(nameof(HeroNoGamesDetail));
+        OnPropertyChanged(nameof(OpenLibraryText));
+        OnPropertyChanged(nameof(ConfigureSessionText));
         OnPropertyChanged(nameof(TopProcessesTitle));
         OnPropertyChanged(nameof(TopProcessesHint));
         OnPropertyChanged(nameof(TopProcessesEmpty));
         OnPropertyChanged(nameof(TopProcessesOpenText));
         OnPropertyChanged(nameof(OpenLogsText));
+        OnPropertyChanged(nameof(OpenEngineLogText));
+        OnPropertyChanged(nameof(OpenActivityLogText));
         OnPropertyChanged(nameof(RecentActivityCountText));
         OnPropertyChanged(nameof(IsLiveActive));
         OnPropertyChanged(nameof(ActivityLiveBadgeText));

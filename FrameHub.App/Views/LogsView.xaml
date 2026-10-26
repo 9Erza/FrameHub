@@ -1,7 +1,15 @@
 <UserControl x:Class="FrameHub.App.Views.LogsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Border Style="{StaticResource DataPanel}" VerticalAlignment="Top" MinHeight="220" MaxHeight="560">
+    <!-- QA E F4: title row (Auto) + activity panel (*) fills the available height;
+         the list scrolls internally with a sticky header and footer. -->
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <StackPanel Margin="0,4,0,16">
+            <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" />
+            <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+    <Border Grid.Row="1" Style="{StaticResource DataPanel}" VerticalAlignment="Stretch" MinHeight="220">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <Grid Margin="16,14,14,8">
@@ -20,6 +28,29 @@
             </Grid>
 
             <ListBox x:Name="ActivityList" Grid.Row="2" ItemsSource="{Binding ActivityView}" Margin="8,0,8,8" ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" AutomationProperties.Name="{Binding ActivityTitle}">
+                <!-- QA E F4: ruled list surface (ledger ruling) keeps the sparse-list viewport
+                     structured instead of a flat void; real rows paint over the faint rules. -->
+                <ListBox.Background>
+                    <DrawingBrush TileMode="Tile" Viewport="0,0,24,44" ViewportUnits="Absolute" Stretch="None">
+                        <DrawingBrush.Drawing>
+                            <DrawingGroup>
+                                <GeometryDrawing Brush="{StaticResource BrushSurface}">
+                                    <GeometryDrawing.Geometry>
+                                        <RectangleGeometry Rect="0,0,24,44" />
+                                    </GeometryDrawing.Geometry>
+                                </GeometryDrawing>
+                                <GeometryDrawing>
+                                    <GeometryDrawing.Geometry>
+                                        <LineGeometry StartPoint="0,43" EndPoint="24,43" />
+                                    </GeometryDrawing.Geometry>
+                                    <GeometryDrawing.Pen>
+                                        <Pen Brush="{StaticResource BrushBorderSubtle}" Thickness="1" />
+                                    </GeometryDrawing.Pen>
+                                </GeometryDrawing>
+                            </DrawingGroup>
+                        </DrawingBrush.Drawing>
+                    </DrawingBrush>
+                </ListBox.Background>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Border Style="{StaticResource InlineRow}" Padding="10,10">
@@ -37,4 +68,5 @@
             <TextBlock Grid.Row="3" Text="{Binding BoundedNoteText}" Style="{StaticResource CaptionText}" Margin="16,0,14,12" TextWrapping="Wrap" />
         </Grid>
     </Border>
+    </Grid>
 </UserControl>
