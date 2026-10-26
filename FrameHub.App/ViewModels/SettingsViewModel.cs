@@ -42,6 +42,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public ICommand RepairStartupCommand { get; }
     public ICommand OpenThirdPartyNoticesCommand { get; }
     public ICommand OpenPresentMonProjectCommand { get; }
+    public ICommand OpenSupportCommand { get; }
     public ICommand ClearBenchmarkHotkeyCommand { get; }
 
     public string Title => _localization.T("Settings.Title");
@@ -153,6 +154,9 @@ public sealed class SettingsViewModel : ViewModelBase
     public string ThirdPartyLicense => _localization.T("Settings.BenchmarkEngine.License");
     public string OpenThirdPartyNoticesText => _localization.T("Settings.BenchmarkEngine.Notices");
     public string OpenPresentMonProjectText => _localization.T("Settings.BenchmarkEngine.Project");
+    public string SupporterTitle => _localization.T("Settings.Supporter.Title");
+    public string SupporterText => _localization.T("Settings.Supporter.Text");
+    public string SupporterActionText => _localization.T("Settings.Supporter.Action");
     public string ThirdPartyComponents => _localization.T("Settings.ThirdParty.Components");
     public string BenchmarkHotkeyTitle => _localization.T("Settings.BenchmarkHotkey.Title");
     public string BenchmarkHotkeyDescription => _localization.T("Settings.BenchmarkHotkey.Description");
@@ -530,6 +534,7 @@ public sealed class SettingsViewModel : ViewModelBase
         RepairStartupCommand = new RelayCommand(_ => _ = SaveStartupSettingsAsync());
         OpenThirdPartyNoticesCommand = new RelayCommand(_ => OpenThirdPartyNotices());
         OpenPresentMonProjectCommand = new RelayCommand(_ => ExternalLinkService.TryOpen(FrameHubExternalLink.PresentMon));
+        OpenSupportCommand = new RelayCommand(_ => ExternalLinkService.TryOpen(FrameHubExternalLink.Support));
         ClearBenchmarkHotkeyCommand = new RelayCommand(_ => ClearBenchmarkHotkey());
 
         RefreshLanAddressesCommand = new RelayCommand(_ => RefreshLanAddresses());
@@ -884,6 +889,9 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(ThirdPartyLicense));
         OnPropertyChanged(nameof(OpenThirdPartyNoticesText));
         OnPropertyChanged(nameof(OpenPresentMonProjectText));
+        OnPropertyChanged(nameof(SupporterTitle));
+        OnPropertyChanged(nameof(SupporterText));
+        OnPropertyChanged(nameof(SupporterActionText));
         OnPropertyChanged(nameof(ThirdPartyComponents));
         OnPropertyChanged(nameof(BenchmarkHotkeyTitle));
         OnPropertyChanged(nameof(BenchmarkHotkeyDescription));

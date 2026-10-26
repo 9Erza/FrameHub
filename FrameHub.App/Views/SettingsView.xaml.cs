@@ -47,12 +47,19 @@ public partial class SettingsView : WpfUserControl
 
     private void UpdateResponsiveLayout()
     {
-        bool singleColumn = ActualWidth < 940;
-        ContentLayout.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
-        ContentLayout.ColumnDefinitions[1].Width = new GridLength(singleColumn ? 0 : 24);
-        ContentLayout.ColumnDefinitions[2].Width = new GridLength(singleColumn ? 0 : 1, GridUnitType.Star);
-        ContentLayout.RowDefinitions[3].Height = new GridLength(singleColumn ? 16 : 0);
-        Grid.SetColumn(RightSettingsColumn, singleColumn ? 0 : 2);
-        Grid.SetRow(RightSettingsColumn, singleColumn ? 4 : 2);
+        // Below ~1100 DIP the local index becomes a category ComboBox with full PL/EN
+        // labels; the rows panel takes the full width in one scroll, never clipped.
+        // Compact keeps a single star column (0) for the rows; the index column is
+        // gone in this mode, so the rows must NOT be moved into a zero-width column.
+        bool compact = ActualWidth > 0 && ActualWidth < 1100;
+        if (SettingsIndexBorder != null) SettingsIndexBorder.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        if (CategoryCombo != null) CategoryCombo.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
+        if (SettingsIndexLayout != null)
+        {
+            SettingsIndexLayout.ColumnDefinitions[0].Width = new GridLength(compact ? 1 : 200, compact ? GridUnitType.Star : GridUnitType.Pixel);
+            SettingsIndexLayout.ColumnDefinitions[1].Width = new GridLength(compact ? 0 : 24);
+            SettingsIndexLayout.ColumnDefinitions[2].Width = compact ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+            Grid.SetColumn(SettingsRowsPanel, compact ? 0 : 2);
+        }
     }
 }

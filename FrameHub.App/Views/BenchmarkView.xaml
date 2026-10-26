@@ -146,31 +146,25 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <TabControl Style="{StaticResource FrameHubTabControl}" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <!-- Chapter heading: the single H1 of this page; Capture/History/Compare stay local tabs. -->
+        <StackPanel Margin="0,4,0,12">
+            <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" />
+            <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+    <TabControl Grid.Row="1" Style="{StaticResource FrameHubTabControl}" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
         <TabItem Style="{StaticResource FrameHubTabItem}" Header="{Binding CaptureTabText}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="0,0,0,24">
-                    <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,18">
-                        <StackPanel>
-                            <TextBlock Text="{Binding StepsTitle}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,10" />
-                            <UniformGrid Columns="4">
-                                <StackPanel HorizontalAlignment="Center">
-                                    <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
-                                        <Ellipse.Style>
-                                            <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding HasSelectedGame}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Ellipse.Style>
-                                    </Ellipse>
-                                    <TextBlock Text="{Binding StepGameText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
-                                </StackPanel>
-                                <StackPanel HorizontalAlignment="Center">
-                                    <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                    <!-- Readiness strip: engine + exact target on one honest band. Unavailable is a state, never fake readiness. -->
+                    <Border Style="{StaticResource ChapterBandAlt}" CornerRadius="8" Padding="16,12" Margin="0,0,0,18">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding EngineLabel}" Style="{StaticResource TinyCapsText}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
                                                 <Setter Property="Fill" Value="{StaticResource BrushError}" />
@@ -182,47 +176,44 @@
                                             </Style>
                                         </Ellipse.Style>
                                     </Ellipse>
-                                    <TextBlock Text="{Binding StepEngineText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                    <TextBlock Text="{Binding EngineStatus}" Style="{StaticResource DataTitleText}" VerticalAlignment="Center" />
                                 </StackPanel>
-                                <StackPanel HorizontalAlignment="Center">
-                                    <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
+                                <TextBlock Text="{Binding EngineVersionText, StringFormat=PresentMon {0}}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" />
+                                <TextBlock Text="{Binding EngineHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Visibility="{Binding HasSelectedGame, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="{Binding ChangeGameText}" Style="{StaticResource TinyCapsText}" />
+                                <TextBlock Text="{Binding SelectedGame.DisplayName}" Style="{StaticResource SectionHeadingText}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding SelectedGame.SourceText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Ellipse Width="7" Height="7" Margin="0,0,7,0" VerticalAlignment="Center">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
+                                                <Setter Property="Fill" Value="{StaticResource BrushTextMuted}" />
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding HasSelectedGame}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
+                                                    <DataTrigger Binding="{Binding SelectedGame.IsRunning}" Value="True">
+                                                        <Setter Property="Fill" Value="{StaticResource BrushSuccess}" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Ellipse.Style>
                                     </Ellipse>
-                                    <TextBlock Text="{Binding StepConfigText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                    <TextBlock Text="{Binding SelectedGame.StatusText}" Style="{StaticResource StatusText}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding SelectedGame.ProcessDetail}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" Margin="8,0,0,0" />
                                 </StackPanel>
-                                <StackPanel HorizontalAlignment="Center">
-                                    <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
-                                        <Ellipse.Style>
-                                            <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="{StaticResource BrushBorderDefault}" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsCaptureActive}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource BrushAccentPrimary}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Ellipse.Style>
-                                    </Ellipse>
-                                    <TextBlock Text="{Binding StepStartText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" Margin="0,5,0,0" />
-                                </StackPanel>
-                            </UniformGrid>
-                        </StackPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Visibility="{Binding HasNoSelectedGame, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="{Binding NoRunningGameTitle}" Style="{StaticResource DataTitleText}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding EmptyGamesText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Grid>
                     </Border>
                     <Grid x:Name="CaptureWorkspace" Margin="0,0,0,18">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="1.7*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="0"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <Border x:Name="CaptureConfigurationPanel" Style="{StaticResource SectionSurface}">
                             <StackPanel>
-                                <TextBlock Text="{Binding TestConfigurationTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14"/>
+                                <Grid Margin="0,0,0,14"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding TestConfigurationTitle}" Style="{StaticResource SectionHeadingText}" VerticalAlignment="Center" /><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshGamesCommand}" VerticalAlignment="Center" Margin="12,0,0,0" /></Grid>
                                 <Grid Visibility="{Binding HasSelectedGame, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="54"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <Border Width="44" Height="44" Background="{StaticResource BrushSurfaceInteractive}" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1" CornerRadius="7"><Image Source="{Binding SelectedGame.IconSource}" Width="36" Height="36"/></Border>
@@ -240,9 +231,11 @@
                                     </StackPanel>
                                 </Grid>
                                 <Border Style="{StaticResource DataPanel}" Padding="14" Visibility="{Binding HasNoSelectedGame, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <StackPanel HorizontalAlignment="Center" Margin="16,8"><TextBlock Text="&#xE9D2;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource BrushAccentPrimary}" HorizontalAlignment="Center"/><TextBlock Text="{Binding NoRunningGameTitle}" Style="{StaticResource DataTitleText}" HorizontalAlignment="Center" Margin="0,7,0,0"/><TextBlock Text="{Binding EmptyGamesText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="460" Margin="0,4,0,8"/><Button Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshGamesCommand}" HorizontalAlignment="Center"/></StackPanel>
+                                    <StackPanel HorizontalAlignment="Center" Margin="16,8"><TextBlock Text="&#xE9D2;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource BrushAccentPrimary}" HorizontalAlignment="Center"/><TextBlock Text="{Binding NoRunningGameTitle}" Style="{StaticResource DataTitleText}" HorizontalAlignment="Center" Margin="0,7,0,0"/><TextBlock Text="{Binding EmptyGamesText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="460" Margin="0,4,0,0"/></StackPanel>
                                 </Border>
                                 <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ChangeGameText}" Style="{StaticResource TinyCapsText}" VerticalAlignment="Center" Margin="0,0,12,0"/><ComboBox Grid.Column="1" ItemsSource="{Binding Games}" SelectedItem="{Binding SelectedGame, Mode=TwoWay}" MaxWidth="420" HorizontalAlignment="Left"><ComboBox.ItemTemplate><DataTemplate><Grid MinWidth="300"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}"/><TextBlock Text="{Binding SourceText}" Style="{StaticResource CaptionText}"/></StackPanel><TextBlock Grid.Column="1" Text="{Binding StatusText}" Style="{StaticResource StatusText}" VerticalAlignment="Center" Margin="12,0,0,0"/></Grid></DataTemplate></ComboBox.ItemTemplate></ComboBox></Grid>
+                                <!-- Primary action directly under the target: visible without scrolling at 1540x900. -->
+                                <StackPanel Orientation="Horizontal" Margin="0,14,0,0"><Button Style="{StaticResource PrimaryButton}" Content="{Binding StartText}" Command="{Binding StartCommand}" AutomationProperties.Name="{Binding StartText}" MinWidth="190" Visibility="{Binding ShowStartAction, Converter={StaticResource BoolToVisibilityConverter}}"/><Button Style="{StaticResource DangerButton}" Content="{Binding StopText}" Command="{Binding StopCommand}" AutomationProperties.Name="{Binding StopText}" MinWidth="190" Visibility="{Binding ShowStopAction, Converter={StaticResource BoolToVisibilityConverter}}"/></StackPanel>
                                 <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="0,16"/>
                                 <TextBlock Text="{Binding DurationLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,7"/>
                                 <WrapPanel><RadioButton Content="30 s" IsChecked="{Binding Duration30Selected, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,6,6"/><RadioButton Content="60 s" IsChecked="{Binding Duration60Selected, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,6,6"/><RadioButton Content="120 s" IsChecked="{Binding Duration120Selected, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,6,6"/><RadioButton Content="{Binding CustomDurationLabel}" IsChecked="{Binding DurationCustomSelected, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,6,6"/></WrapPanel>
@@ -250,23 +243,31 @@
                                 <TextBlock Text="{Binding CountdownLabel}" Style="{StaticResource TinyCapsText}" Margin="0,7,0,7"/>
                                 <WrapPanel><RadioButton Content="0 s" IsChecked="{Binding Countdown0Selected, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,6,0"/><RadioButton Content="3 s" IsChecked="{Binding Countdown3Selected, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}" Margin="0,0,6,0"/><RadioButton Content="5 s" IsChecked="{Binding Countdown5Selected, Mode=TwoWay}" Style="{StaticResource SegmentRadioButton}"/></WrapPanel>
                                 <TextBlock Text="{Binding ComparableHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,12,0,0"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,16,0,0"><Button Style="{StaticResource PrimaryButton}" Content="{Binding StartText}" Command="{Binding StartCommand}" MinWidth="190" Visibility="{Binding ShowStartAction, Converter={StaticResource BoolToVisibilityConverter}}"/><Button Style="{StaticResource DangerButton}" Content="{Binding StopText}" Command="{Binding StopCommand}" MinWidth="190" Visibility="{Binding ShowStopAction, Converter={StaticResource BoolToVisibilityConverter}}"/></StackPanel>
                             </StackPanel>
                         </Border>
 
                         <StackPanel x:Name="CaptureStatusPanel" Grid.Column="2">
-                            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,14">
-                                <StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding EngineLabel}" Style="{StaticResource TinyCapsText}"/><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshGamesCommand}" Margin="8,-5,-5,-5"/></Grid><StackPanel Orientation="Horizontal" Margin="0,8,0,0"><Ellipse Width="7" Height="7" Margin="0,0,7,0"><Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="{StaticResource BrushError}"/><Style.Triggers><DataTrigger Binding="{Binding EngineReady}" Value="True"><Setter Property="Fill" Value="{StaticResource BrushSuccess}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse><TextBlock Text="{Binding EngineStatus}" Style="{StaticResource DataTitleText}"/></StackPanel><TextBlock Text="{Binding EngineVersionText, StringFormat=PresentMon {0}}" Style="{StaticResource CaptionText}" Margin="14,1,0,0"/><TextBlock Text="{Binding EngineHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="14,6,0,0" /></StackPanel>
-                            </Border>
+                            <!-- Single progress console: hotkey context + live capture state. Engine lives in the strip above. -->
                             <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,14">
                                 <StackPanel><TextBlock Text="{Binding HotkeyStatusText}" Style="{StaticResource TinyCapsText}"/><ItemsControl ItemsSource="{Binding HotkeyTokens}" Margin="0,9,0,0"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Style="{StaticResource KeyCap}"><TextBlock Text="{Binding}" Style="{StaticResource StatusText}"/></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
                             </Border>
                             <Border Style="{StaticResource StateBanner}">
-                                <StackPanel><TextBlock Text="{Binding CurrentStateTitle}" Style="{StaticResource TinyCapsText}"/><Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding StateText}" Style="{StaticResource SectionTitleText}"/><TextBlock Grid.Column="1" Text="{Binding ProgressText}" Style="{StaticResource StatusText}" VerticalAlignment="Center" Visibility="{Binding ShowCaptureProgress, Converter={StaticResource BoolToVisibilityConverter}}"/></Grid><ProgressBar x:Name="CaptureProgressBar" Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Margin="0,10,0,0" Visibility="{Binding ShowCaptureProgress, Converter={StaticResource BoolToVisibilityConverter}}"/><TextBlock Text="{Binding StatusMessage}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,8,0,0"/><Expander Header="{Binding DiagnosticsText}" Margin="0,6,0,0"><TextBox x:Name="DiagnosticsTextBox" Text="{Binding TechnicalError, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="140" VerticalScrollBarVisibility="Auto"/></Expander></StackPanel>
+                                <StackPanel>
+                                     <!-- QA E F7: the readiness strip above carries the full engine
+                                          message; this console keeps the short state + target context,
+                                          so "Unavailable" is not repeated three times. -->
+                                     <StackPanel Visibility="{Binding HasNoSelectedGame, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,12">
+                                         <TextBlock Text="{Binding NoRunningGameTitle}" Style="{StaticResource DataTitleText}" TextWrapping="Wrap" />
+                                         <TextBlock Text="{Binding EmptyGamesText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                     </StackPanel>
+                                     <TextBlock Text="{Binding CurrentStateTitle}" Style="{StaticResource TinyCapsText}"/><Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding StateText}" Style="{StaticResource SectionTitleText}"/><TextBlock Grid.Column="1" Text="{Binding ProgressText}" Style="{StaticResource StatusText}" VerticalAlignment="Center" Visibility="{Binding ShowCaptureProgress, Converter={StaticResource BoolToVisibilityConverter}}"/></Grid><ProgressBar x:Name="CaptureProgressBar" Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Margin="0,10,0,0" Visibility="{Binding ShowCaptureProgress, Converter={StaticResource BoolToVisibilityConverter}}"/><TextBlock Text="{Binding StatusMessage}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,8,0,0"/><Expander Header="{Binding DiagnosticsText}" Margin="0,6,0,0"><TextBox x:Name="DiagnosticsTextBox" Text="{Binding TechnicalError, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="140" VerticalScrollBarVisibility="Auto"/></Expander></StackPanel>
                             </Border>
                         </StackPanel>
                     </Grid>
-                    <StackPanel Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibilityConverter}}"><TextBlock Text="{Binding LatestResultTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10"/><ContentControl Content="{Binding CurrentResult}"/></StackPanel>
+                    <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="0,6,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <Border Style="{StaticResource ChapterBand}" Margin="0,20,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel><TextBlock Text="{Binding LatestResultTitle}" Style="{StaticResource SectionHeadingText}" Margin="0,0,0,10" /><ContentControl Content="{Binding CurrentResult}" /></StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
@@ -274,7 +275,7 @@
         <TabItem Style="{StaticResource FrameHubTabItem}" Header="{Binding HistoryTabText}">
             <Grid>
                 <Border Style="{StaticResource EmptyStateBorder}" Visibility="{Binding HasNoHistory, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="480"><TextBlock Text="&#xE81E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="32" Foreground="{StaticResource BrushAccentPrimary}" HorizontalAlignment="Center"/><TextBlock Text="{Binding HistoryEmptyText}" Style="{StaticResource SectionTitleText}" TextAlignment="Center" Margin="0,10,0,0"/><TextBlock Text="{Binding HistoryEmptyDescription}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,5,0,0"/></StackPanel>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="480"><TextBlock Text="&#xE81E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="32" Foreground="{StaticResource BrushAccentPrimary}" HorizontalAlignment="Center"/><TextBlock Text="{Binding HistoryEmptyText}" Style="{StaticResource SectionTitleText}" TextAlignment="Center" Margin="0,10,0,0"/><TextBlock Text="{Binding HistoryEmptyDescription}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,5,0,0"/><Button Style="{StaticResource SecondaryButton}" Content="{Binding RefreshText}" Command="{Binding RefreshHistoryCommand}" AutomationProperties.Name="{Binding RefreshText}" HorizontalAlignment="Center" Margin="0,16,0,0" MinHeight="36"/></StackPanel>
                 </Border>
                 <Grid x:Name="HistoryWorkspace" Visibility="{Binding HasHistory, Converter={StaticResource BoolToVisibilityConverter}}">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="350"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -291,7 +292,7 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <Grid>
                     <Border Style="{StaticResource EmptyStateBorder}" Visibility="{Binding HasInsufficientComparisonSessions, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520"><TextBlock Text="&#xE8AB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="32" Foreground="{StaticResource BrushAccentPrimary}" HorizontalAlignment="Center"/><TextBlock Text="{Binding CompareEmptyTitle}" Style="{StaticResource SectionTitleText}" TextAlignment="Center" Margin="0,10,0,0"/><TextBlock Text="{Binding CompareEmptyText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,5,0,0"/></StackPanel>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520"><TextBlock Text="&#xE8AB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="32" Foreground="{StaticResource BrushAccentPrimary}" HorizontalAlignment="Center"/><TextBlock Text="{Binding CompareEmptyTitle}" Style="{StaticResource SectionTitleText}" TextAlignment="Center" Margin="0,10,0,0"/><TextBlock Text="{Binding CompareEmptyText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,5,0,0"/><Button Style="{StaticResource SecondaryButton}" Content="{Binding RefreshText}" Command="{Binding RefreshHistoryCommand}" AutomationProperties.Name="{Binding RefreshText}" HorizontalAlignment="Center" Margin="0,16,0,0" MinHeight="36"/></StackPanel>
                     </Border>
                     <StackPanel Margin="0,0,0,24" Visibility="{Binding HasEnoughComparisonSessions, Converter={StaticResource BoolToVisibilityConverter}}">
                         <Grid Margin="0,0,0,14"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -325,4 +326,5 @@
             </ScrollViewer>
         </TabItem>
     </TabControl>
+    </Grid>
 </UserControl>

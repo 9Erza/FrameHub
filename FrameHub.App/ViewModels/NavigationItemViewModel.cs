@@ -16,6 +16,19 @@ public sealed class NavigationItemViewModel : ViewModelBase
     public bool IsPlanned { get; init; }
 
     public string Title => _localization.T(TitleKey);
+    /// <summary>
+    /// Session-chapter label for the top chapter bar (Overview/Prepare/Play/Verify).
+    /// Non-chapter destinations fall back to <see cref="Title"/>.
+    /// Pure presentation projection; navigation ownership stays in ShellViewModel.
+    /// </summary>
+    public string ChapterTitle => Key switch
+    {
+        "Dashboard" => _localization.T("Shell.Chapter.Overview"),
+        "Library" => _localization.T("Shell.Chapter.Prepare"),
+        "Session" => _localization.T("Shell.Chapter.Play"),
+        "Benchmarks" => _localization.T("Shell.Chapter.Verify"),
+        _ => Title,
+    };
     public string Badge => string.IsNullOrWhiteSpace(BadgeKey) ? string.Empty : _localization.T(BadgeKey);
     public Visibility BadgeVisibility => string.IsNullOrWhiteSpace(Badge) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -58,6 +71,7 @@ public sealed class NavigationItemViewModel : ViewModelBase
     public void RefreshTexts()
     {
         OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(ChapterTitle));
         OnPropertyChanged(nameof(Badge));
         OnPropertyChanged(nameof(BadgeVisibility));
         OnPropertyChanged(nameof(EffectiveBadge));

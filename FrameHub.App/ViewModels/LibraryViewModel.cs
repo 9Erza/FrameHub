@@ -81,6 +81,9 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public string ItemsTitle => _localization.T("Library.ItemsTitle");
     public string CustomFoldersTitle => _localization.T("Library.CustomFoldersTitle");
     public string EmptyText => _localization.T("Library.Empty");
+    /// <summary>Empty-library headline: a single unambiguous initial state, never "ready".</summary>
+    public string EmptyTitle => _localization.T("Library.EmptyTitle");
+    public string IndividualSourcesText => _localization.T("Library.IndividualSources");
     public string DisplayNameLabel => _localization.T("Library.DisplayName");
     public string ExecutableLabel => _localization.T("Library.Executable");
     public string TypeLabel => _localization.T("Library.Type");
@@ -304,6 +307,8 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public string AddManuallyText => _localization.T("Library.AddManually");
     public string ScanMenuText => _localization.T("Library.ScanMenu");
     public string EmptyFilteredText => _localization.T("Library.EmptyFiltered");
+    public string ClearFilterText => _localization.T("Library.ClearFilter");
+    public ICommand ClearLibraryFilterCommand { get; }
     public string SourcesNoteText => _localization.T("Library.SourcesNote");
 
     public void RefreshFilteredItems()
@@ -318,6 +323,16 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(HasFilteredItems));
         OnPropertyChanged(nameof(HasNoFilteredItems));
         OnPropertyChanged(nameof(HasLibraryItems));
+    }
+
+    /// <summary>
+    /// Clears the catalog search/filter back to the unfiltered state (empty-state UX).
+    /// Local view state only; no library mutation and no new domain owner.
+    /// </summary>
+    public void ClearLibraryFilter()
+    {
+        SearchText = string.Empty;
+        SelectedFilterIndex = 0;
     }
 
     private bool MatchesFilter(LibraryItemViewModel item)
@@ -452,8 +467,17 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public string StatusMessage
     {
         get => _statusMessage;
-        set => SetProperty(ref _statusMessage, value);
+        set
+        {
+            if (SetProperty(ref _statusMessage, value))
+            {
+                OnPropertyChanged(nameof(HasStatusMessage));
+            }
+        }
     }
+
+    /// <summary>True while an action or state message is worth showing next to the count.</summary>
+    public bool HasStatusMessage => !string.IsNullOrWhiteSpace(_statusMessage);
 
     public bool IsBusy
     {
@@ -658,6 +682,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         RefreshStatusCommand = new RelayCommand(_ => RefreshRuntimeState());
         ToggleManageLibraryCommand = new RelayCommand(_ => ShowManageLibrary = !ShowManageLibrary);
         OpenManageLibraryCommand = new RelayCommand(_ => ShowManageLibrary = true);
+        ClearLibraryFilterCommand = new RelayCommand(_ => ClearLibraryFilter());
         RemoveItemCommand = new RelayCommand(parameter => RemoveItem(parameter as LibraryItemViewModel));
         SelectItemCommand = new RelayCommand(parameter => SelectedItem = parameter as LibraryItemViewModel);
         LaunchSelectedCommand = new RelayCommand(_ => LaunchSelected(), _ => SelectedItem != null && IsSelectedItemLaunchable());
@@ -726,7 +751,9 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         foreach (string folder in _runtime.Settings.CustomLibraryLocations) CustomFolders.Add(folder);
 
         RefreshRuntimeState();
-        StatusMessage = _localization.T("Library.Ready");
+        // An empty library must never claim readiness: keep the state message
+        // silent until the first item (or action feedback) gives it meaning.
+        StatusMessage = Items.Count > 0 ? _localization.T("Library.Ready") : string.Empty;
         OnPropertyChanged(nameof(ReadyCountText));
     }
 

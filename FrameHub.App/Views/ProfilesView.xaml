@@ -4,13 +4,20 @@
              xmlns:helpers="clr-namespace:FrameHub.App.Helpers">
     <UserControl.Resources><helpers:BindingProxy x:Key="VmProxy" Data="{Binding}" /></UserControl.Resources>
     <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <StackPanel Margin="0,4,0,16">
+            <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" />
+            <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+        <Grid Grid.Row="1">
         <Grid.ColumnDefinitions><ColumnDefinition Width="0.9*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="1.1*" /></Grid.ColumnDefinitions>
 
         <Border Grid.Column="0" Style="{StaticResource DataPanel}">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                <Grid Margin="16,14,14,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding SavedProfilesTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding ProfilesCountText}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" /></StackPanel><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" AutomationProperties.Name="{Binding RefreshText}" /></Grid>
-                <Grid Grid.Row="1" Margin="16,0,14,10">
+                <Grid Margin="16,14,14,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding SavedProfilesTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding ProfilesCountText}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" /></StackPanel><!-- QA E F7: refresh is inert with zero rows; it enables with the first profile. --><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" AutomationProperties.Name="{Binding RefreshText}" IsEnabled="{Binding HasItems, ElementName=ProfilesGrid}" /></Grid>
+                <Grid Grid.Row="1" Margin="16,0,14,10" IsEnabled="{Binding HasItems, ElementName=ProfilesGrid}">
+                    <!-- QA E F7: nothing to filter with zero rows; the search enables with the first profile. -->
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" MinHeight="30" VerticalContentAlignment="Center" AutomationProperties.Name="{Binding SearchPlaceholderText}" ToolTip="{Binding SearchPlaceholderText}" />
                     <TextBlock Grid.Column="0" Text="{Binding SearchPlaceholderText}" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
@@ -22,12 +29,31 @@
                     <TextBlock Text="{Binding ConflictWarningText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                 </Border>
 
-                <DataGrid x:Name="ProfilesGrid" Grid.Row="3" Margin="1" ItemsSource="{Binding ProfilesView}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" EnableRowVirtualization="True" EnableColumnVirtualization="True" CanUserSortColumns="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" AutomationProperties.Name="{Binding SavedProfilesTitle}">
+                <!-- QA E C3 (F9): DataGrid owns its scroll viewport directly. The previous
+                     outer ScrollViewer (Horizontal=Auto) measured the grid with infinite
+                     width, so Mode/Priority/Enabled collapsed to 20 px.
+                    QA E4 (N1): NO MinWidth on the grid itself. A grid-level MinWidth
+                    forces ActualWidth past the card column at narrow windows; the
+                    overflow is clipped by the parent (HScrollable=False, Priority and
+                    Enabled unreachable). The grid now always fills its finite cell and
+                    scrolls its columns internally (column MinWidths define the extent).
+                     QA E4 (N1): NO MinWidth on the grid itself + PROPORTIONAL star
+                     columns (231*/150*/105*/76*). A grid-level MinWidth forced
+                     ActualWidth past the card column at narrow windows, and an EMPTY
+                     DataGrid can never horizontal-scroll (its internal ScrollViewer
+                     scrolls the rows presenter; zero rows = zero scroll extent, so
+                     Priority/Enabled headers were unreachable). Star columns always
+                     fill exactly the available viewport, so every header stays
+                     visible and clickable at 880/1024/1100/1280/1540, empty or
+                     populated. At 1540 the weights resolve to exactly 231/150/105/76
+                     (F9 preserved); column MinWidths (120/80/60/44) only guard a
+                     degenerate measure pass and narrow floors, never the layout. -->
+                <DataGrid x:Name="ProfilesGrid" Grid.Row="3" Margin="1" ItemsSource="{Binding ProfilesView}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" EnableRowVirtualization="True" EnableColumnVirtualization="False" CanUserSortColumns="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="{Binding SavedProfilesTitle}">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="*" MinWidth="180" SortMemberPath="ProcessName"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ProcessName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding DisplayOptimizationMode}" Width="150" />
-                        <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding DisplayPriority}" Width="105" />
-                        <DataGridTemplateColumn Header="{Binding Data.EnabledHeader, Source={StaticResource VmProxy}}" Width="76" SortMemberPath="IsEnabled"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Checked="ProfileEnabledCheckBox_Changed" Unchecked="ProfileEnabledCheckBox_Changed" AutomationProperties.Name="{Binding ProcessName}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="231*" MinWidth="120" SortMemberPath="ProcessName"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ProcessName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding DisplayOptimizationMode}" Width="150*" MinWidth="80" />
+                        <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding DisplayPriority}" Width="105*" MinWidth="60" />
+                        <DataGridTemplateColumn Header="{Binding Data.EnabledHeader, Source={StaticResource VmProxy}}" Width="76*" MinWidth="44" SortMemberPath="IsEnabled"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Checked="ProfileEnabledCheckBox_Changed" Unchecked="ProfileEnabledCheckBox_Changed" AutomationProperties.Name="{Binding ProcessName}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -39,9 +65,10 @@
                         </Style>
                     </Border.Style>
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
-                        <TextBlock Text="{Binding SavedProfilesTitle}" Style="{StaticResource SectionTitleText}" HorizontalAlignment="Center" />
-                        <TextBlock Text="{Binding EmptyStateText}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0" />
-                        <TextBlock Text="{Binding FirstProfileHintText}" Style="{StaticResource CaptionText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <!-- QA E F7: the panel header above already says "Saved profiles" — the empty
+                             state leads with the message + first step instead of repeating it. -->
+                        <TextBlock Text="{Binding EmptyStateText}" Style="{StaticResource SectionTitleText}" TextAlignment="Center" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding FirstProfileHintText}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,0" />
                         <Button Style="{StaticResource PrimaryButton}" Content="{Binding CreateFirstProfileText}" Command="{Binding CreateFirstProfileCommand}" HorizontalAlignment="Center" Margin="0,16,0,0" AutomationProperties.Name="{Binding CreateFirstProfileText}" />
                     </StackPanel>
                 </Border>
@@ -61,6 +88,8 @@
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="330">
                             <TextBlock Text="{Binding SelectProfileTitle}" Style="{StaticResource SectionTitleText}" HorizontalAlignment="Center" />
                             <TextBlock Text="{Binding SelectProfileDescription}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            <!-- QA E F7: with zero profiles the right card gains the first step too. -->
+                            <TextBlock Text="{Binding FirstProfileHintText}" Style="{StaticResource CaptionText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding HasItems, ElementName=ProfilesGrid, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
                         </StackPanel>
                     </Border>
 
@@ -90,5 +119,6 @@
                 </Grid>
             </ScrollViewer>
         </Border>
+        </Grid>
     </Grid>
 </UserControl>

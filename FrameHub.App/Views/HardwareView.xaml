@@ -3,6 +3,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
         <StackPanel Margin="0,0,0,24">
+            <StackPanel Margin="0,4,0,16">
+                <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" />
+                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+            </StackPanel>
             <Border Style="{StaticResource StateBanner}" Margin="0,0,0,16">
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -12,11 +16,11 @@
                 </Grid>
             </Border>
 
+            <!-- QA E F4: sensor cards only (behavior panel moved below, always visible). -->
             <Grid>
                 <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding IsMonitorEnabled}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Grid.Style>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="1.25*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="0.75*" /></Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0">
+                <StackPanel>
                     <UniformGrid Columns="2" Margin="0,0,0,12">
                         <Border Style="{StaticResource MetricCardBorder}" Margin="0,0,6,0">
                             <StackPanel>
@@ -74,21 +78,33 @@
                         </Grid>
                     </Border>
                 </StackPanel>
-
-                <Border Grid.Column="2" Style="{StaticResource SectionSurface}">
-                    <StackPanel>
-                        <TextBlock Text="{Binding BackgroundBehaviorTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,8" />
-                        <Border Style="{StaticResource InlineRow}"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding ProfileWatcherTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding ProfileWatcherStatus}" Style="{StaticResource CaptionText}" Margin="0,4,0,0" /></StackPanel><Ellipse Grid.Column="1" Width="8" Height="8" Fill="{StaticResource BrushSuccess}" VerticalAlignment="Center" /></Grid></Border>
-                        <Border Style="{StaticResource InlineRow}"><StackPanel><TextBlock Text="{Binding StorageSensorsTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding StorageSensorsDescription}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel></Border>
-                        <Border Style="{StaticResource InlineRow}" BorderThickness="0"><StackPanel><TextBlock Text="{Binding RefreshModesTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding RefreshModesDescription}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel></Border>
-                    </StackPanel>
-                </Border>
             </Grid>
 
+            <!-- QA E F4: background behavior is state-independent (watcher status is live
+                 either way), so it always renders and fills the OFF state honestly. -->
+            <Border Style="{StaticResource SectionSurface}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="{Binding BackgroundBehaviorTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,8" />
+                    <Border Style="{StaticResource InlineRow}"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding ProfileWatcherTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding ProfileWatcherStatus}" Style="{StaticResource CaptionText}" Margin="0,4,0,0" /></StackPanel><Ellipse Grid.Column="1" Width="8" Height="8" Fill="{StaticResource BrushSuccess}" VerticalAlignment="Center" /></Grid></Border>
+                    <Border Style="{StaticResource InlineRow}"><StackPanel><TextBlock Text="{Binding StorageSensorsTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding StorageSensorsDescription}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel></Border>
+                    <Border Style="{StaticResource InlineRow}" BorderThickness="0"><StackPanel><TextBlock Text="{Binding RefreshModesTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding RefreshModesDescription}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel></Border>
+                </StackPanel>
+            </Border>
+
+            <!-- QA E F4: designed OFF empty state — what the module covers + live status,
+                 no invented values, the toggle in the banner above stays the action. -->
             <Border Style="{StaticResource SectionSurface}" Margin="0,16,0,0" Visibility="{Binding IsMonitorEnabled, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                 <StackPanel>
-                    <TextBlock Text="{Binding MonitorStatus}" Style="{StaticResource SectionTitleText}" />
+                    <TextBlock Text="&#xE9D9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="28" Foreground="{StaticResource BrushAccentPrimary}" />
+                    <TextBlock Text="{Binding MonitorStatus}" Style="{StaticResource SectionTitleText}" Margin="0,10,0,0" />
                     <TextBlock Text="{Binding MonitorDescription}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                    <UniformGrid Columns="4" Margin="0,14,0,0">
+                        <Border Style="{StaticResource InlineRow}" BorderThickness="0" Padding="0,4" Margin="0,0,8,0"><TextBlock Text="{Binding CpuLabel}" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushTextMuted}" /></Border>
+                        <Border Style="{StaticResource InlineRow}" BorderThickness="0" Padding="0,4" Margin="0,0,8,0"><TextBlock Text="{Binding GpuLabel}" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushTextMuted}" /></Border>
+                        <Border Style="{StaticResource InlineRow}" BorderThickness="0" Padding="0,4" Margin="0,0,8,0"><TextBlock Text="{Binding RamLabel}" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushTextMuted}" /></Border>
+                        <Border Style="{StaticResource InlineRow}" BorderThickness="0" Padding="0,4"><TextBlock Text="{Binding VramLabel}" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushTextMuted}" /></Border>
+                    </UniformGrid>
+                    <TextBlock Text="{Binding BackendStatusText}" Style="{StaticResource StatusText}" Margin="0,8,0,0" />
                 </StackPanel>
             </Border>
 

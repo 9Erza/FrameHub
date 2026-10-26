@@ -1108,3 +1108,99 @@ public sealed class BenchmarkShellAndLocalizationTests
         public string TechnicalError => "diagnostic";
     }
 }
+
+[TestClass]
+public sealed class BenchmarkIdleStateTextTests
+{
+    // QA P2 regression: Idle must never render "Ready to benchmark" while the
+    // engine is unavailable or no running target is selected. Start stays
+    // CanExecute-gated (CanStart); this only guards the honest state copy.
+    private string _root = null!;
+    private readonly List<BenchmarkViewModel> _liveVms = [];
+    [TestInitialize] public void Initialize() => _root = Path.Combine(Path.GetTempPath(), "FrameHubVmIdleTests", Guid.NewGuid().ToString("N"));
+    [TestCleanup]
+    public async Task Cleanup()
+    {
+        foreach (BenchmarkViewModel vm in _liveVms) await vm.WaitForBackgroundWorkAsync(TimeSpan.FromSeconds(30));
+        _liveVms.Clear();
+        if (Directory.Exists(_root)) Directory.Delete(_root, true);
+    }
+
+    [TestMethod]
+    public void Idle_EngineUnavailable_DoesNotClaimReady()
+    {
+        var localization = new LocalizationService(new SettingsService());
+        using BenchmarkViewModel vm = Create(localization, engineReady: false, running: true);
+        Assert.AreEqual(BenchmarkUiState.Idle, vm.State);
+        Assert.IsFalse(vm.EngineReady);
+        Assert.AreEqual(vm.EngineStatus, vm.StateText);
+        Assert.AreNotEqual(localization.T("Benchmark.State.Idle"), vm.StateText);
+        Assert.IsFalse(vm.CanStart);
+    }
+
+    [TestMethod]
+    public async Task Idle_EngineReadyButNoTarget_DoesNotClaimReady()
+    {
+        var localization = new LocalizationService(new SettingsService());
+        using BenchmarkViewModel vm = Create(localization, engineReady: true, running: false);
+        await WaitForGamesAsync(vm);
+        Assert.AreEqual(BenchmarkUiState.Idle, vm.State);
+        Assert.IsTrue(vm.EngineReady);
+        Assert.IsNull(vm.SelectedGame);
+        Assert.AreEqual(vm.NoRunningGameTitle, vm.StateText);
+        Assert.AreNotEqual(localization.T("Benchmark.State.Idle"), vm.StateText);
+        Assert.IsFalse(vm.CanStart);
+    }
+
+    [TestMethod]
+    public async Task Idle_EngineReadyWithRunningTarget_KeepsReadyCopyAndEnablesStart()
+    {
+        var localization = new LocalizationService(new SettingsService());
+        using BenchmarkViewModel vm = Create(localization, engineReady: true, running: true);
+        await WaitForGamesAsync(vm);
+        Assert.AreEqual(BenchmarkUiState.Idle, vm.State);
+        Assert.IsTrue(vm.CanStart);
+        Assert.AreEqual(localization.T("Benchmark.State.Idle"), vm.StateText);
+    }
+
+    private static async Task WaitForGamesAsync(BenchmarkViewModel vm)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (vm.Games.Count == 0 && DateTime.UtcNow < deadline)
+        {
+            await vm.RefreshGamesAsync();
+            await Task.Delay(50);
+        }
+        await vm.RefreshGamesAsync();
+    }
+
+    private BenchmarkViewModel Create(LocalizationService localization, bool engineReady, bool running)
+    {
+        var storage = new BenchmarkStorageService(_root);
+        var game = new LibraryItem { Id = "game", DisplayName = "Game", Source = LibrarySource.Manual, ExecutablePath = @"C:\Games\game.exe", ProcessName = "game", IsEnabled = true };
+        IReadOnlyList<BenchmarkProcessSnapshot> processes = running
+            ? [new(123, "game", @"C:\Games\game.exe", DateTime.UtcNow)]
+            : [];
+        var detector = new BenchmarkGameDetectionService(new FixedIdleProcesses(processes));
+        var vm = new BenchmarkViewModel(localization, new IdleStateTestRuntime(), storage, detector, () => [game], () => new IdleStateTestBackend(), () => false, engineProbe: () => (engineReady, engineReady ? "2.5.1" : null, null));
+        _liveVms.Add(vm);
+        return vm;
+    }
+
+    private sealed class FixedIdleProcesses(IReadOnlyList<BenchmarkProcessSnapshot> items) : IBenchmarkProcessSnapshotProvider { public IReadOnlyList<BenchmarkProcessSnapshot> GetProcesses() => items; }
+
+    private sealed class IdleStateTestBackend : IBenchmarkCaptureBackend
+    {
+        public Task<BenchmarkCaptureResult> CaptureAsync(BenchmarkSession session, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("Idle state-copy tests never start a capture.");
+    }
+
+    private sealed class IdleStateTestRuntime : IBenchmarkRuntimeContext
+    {
+        public AppSettings Settings { get; } = new();
+        public List<ProcessProfile> Profiles { get; } = [];
+        public string? LastAppliedProfile => null;
+        public IBenchmarkCaptureCoordinator BenchmarkCoordinator { get; } = new BenchmarkCaptureCoordinator();
+        public void AddActivity(string message, string level = "Info") { }
+    }
+}

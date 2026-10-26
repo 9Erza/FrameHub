@@ -49,6 +49,52 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public IEnumerable<NavigationItemViewModel> PerformanceGroupItems => NavigationItems.Skip(4).Take(3);
     public IEnumerable<NavigationItemViewModel> SystemGroupItems => NavigationItems.Skip(7).Take(1);
     public NavigationItemViewModel SettingsNavigationItem => NavigationItems[^1];
+    /// <summary>
+    /// Session-chapters presentation projection (Overview→Dashboard, Prepare→Library,
+    /// Play→Session, Verify→Benchmarks). Same item instances, same NavigateCommand
+    /// ownership — only the visual grouping is new.
+    /// </summary>
+    public IEnumerable<NavigationItemViewModel> ChapterItems => NavigationItems.Take(4);
+    /// <summary>
+    /// Backstage utility destinations for the bottom utility bar.
+    /// </summary>
+    public IEnumerable<NavigationItemViewModel> UtilityItems => NavigationItems.Skip(4);
+    /// <summary>
+    /// Ember Ledger sidebar groups (Gra → Narzędzia → System): explicit key order per
+    /// the v2 contract. Same item instances, same NavigateCommand ownership — only the
+    /// visual grouping is new. Chapter/utility projections above stay for compatibility.
+    /// </summary>
+    public IEnumerable<NavigationItemViewModel> SidebarGamesItems => ItemsFor("Dashboard", "Library");
+    public IEnumerable<NavigationItemViewModel> SidebarToolsItems => ItemsFor("Session", "Processes", "Hardware", "Benchmarks");
+    public IEnumerable<NavigationItemViewModel> SidebarSystemItems => ItemsFor("Profiles", "Logs", "Settings");
+    public string SidebarGamesTitle => _localization.T("Nav.Group.Games");
+    public string SidebarToolsTitle => _localization.T("Nav.Group.Tools");
+    public string SidebarSystemTitle => _localization.T("Nav.Group.System");
+    public string NavMenuTooltip => _localization.T("Shell.Nav.Menu");
+
+    private IEnumerable<NavigationItemViewModel> ItemsFor(params string[] keys)
+    {
+        var byKey = new Dictionary<string, NavigationItemViewModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in NavigationItems) byKey[item.Key] = item;
+        foreach (string key in keys)
+        {
+            if (byKey.TryGetValue(key, out var item)) yield return item;
+        }
+    }
+
+    private bool _isRailMenuOpen;
+    /// <summary>
+    /// Rail-mode overlay with full navigation names (below 1100 DIP client width).
+    /// </summary>
+    public bool IsRailMenuOpen
+    {
+        get => _isRailMenuOpen;
+        set => SetProperty(ref _isRailMenuOpen, value);
+    }
+    public ICommand ToggleRailMenuCommand { get; }
+    public ICommand CloseRailMenuCommand { get; }
+    public ICommand NavigateFromRailCommand { get; }
+    public string CurrentKey => _currentKey;
     public ICommand NavigateCommand { get; }
     public ICommand OpenRepositoryCommand { get; }
     public ICommand OpenAuthorCommand { get; }
@@ -197,6 +243,13 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         };
 
         NavigateCommand = new RelayCommand(parameter => Navigate(parameter?.ToString() ?? "Dashboard"));
+        ToggleRailMenuCommand = new RelayCommand(_ => IsRailMenuOpen = !IsRailMenuOpen);
+        CloseRailMenuCommand = new RelayCommand(_ => IsRailMenuOpen = false);
+        NavigateFromRailCommand = new RelayCommand(parameter =>
+        {
+            IsRailMenuOpen = false;
+            Navigate(parameter?.ToString() ?? "Dashboard");
+        });
         OpenRepositoryCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Repository));
         OpenAuthorCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Author));
         OpenWebsiteCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Website));
@@ -248,6 +301,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 
     private void ShowAbout()
     {
+        // Rail-mode links live in the drawer overlay: activating one dismisses it like navigation does.
+        IsRailMenuOpen = false;
         string message = string.Format(
             _localization.T("Shell.About.Message"),
             AppVersion,
@@ -293,6 +348,10 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(GamingGroupTitle));
         OnPropertyChanged(nameof(PerformanceGroupTitle));
         OnPropertyChanged(nameof(SystemGroupTitle));
+        OnPropertyChanged(nameof(SidebarSystemTitle));
+        OnPropertyChanged(nameof(SidebarGamesTitle));
+        OnPropertyChanged(nameof(SidebarToolsTitle));
+        OnPropertyChanged(nameof(NavMenuTooltip));
         OnPropertyChanged(nameof(RepositoryTooltip));
         OnPropertyChanged(nameof(AuthorTooltip));
         OnPropertyChanged(nameof(AuthorLabel));
@@ -311,6 +370,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 
     private void OpenExternalLink(FrameHubExternalLink link)
     {
+        // Rail-mode links live in the drawer overlay: activating one dismisses it like navigation does.
+        IsRailMenuOpen = false;
         if (!ExternalLinkService.TryOpen(link))
         {
             _runtime.AddActivity(_localization.T("Footer.OpenFailed"), "Warn");
@@ -374,6 +435,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         }
 
         CurrentViewModel = viewModel;
+        OnPropertyChanged(nameof(CurrentKey));
         CurrentTitle = viewModel switch
         {
             DashboardViewModel dashboard => dashboard.Title,

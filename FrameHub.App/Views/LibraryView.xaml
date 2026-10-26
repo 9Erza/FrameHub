@@ -5,16 +5,29 @@
              xmlns:opt="clr-namespace:FrameHub.App.ViewModels.GameOptimization">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
         <StackPanel>
-            <!-- The list is primary. Scanning and manual management stay compact. -->
-            <StackPanel Visibility="{Binding ShowLibraryHome, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Grid Margin="0,0,0,16">
+            <!-- Chapter heading: the single H1 of this page. -->
+            <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" Margin="0,4,0,0" />
+            <TextBlock x:Name="LibrarySubtitle" Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+
+            <!-- Catalog + inspector: side by side when wide, stacked detail when narrow. -->
+            <Grid x:Name="CatalogWorkspace" Margin="0,16,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="1.55*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="0" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
+                <!-- The catalog is primary. Scanning and manual management stay compact. -->
+                <StackPanel x:Name="LibraryCatalogPanel" Grid.Column="0" Grid.Row="0">
+                <Grid x:Name="LibraryTopRow" Margin="0,0,0,16">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding ReadyCountText}" Style="{StaticResource SectionTitleText}" />
-                        <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        <!-- Empty state headline lives once in the welcome card below; the top row
+                             keeps ReadyCount (populated) and status text only. -->
+                        <TextBlock Text="{Binding ReadyCountText}" Style="{StaticResource SectionTitleText}"
+                                   Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
                     <WrapPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="16,0,0,0">
-                        <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,8,0" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
                             <Button Style="{StaticResource PrimaryButton}" Content="{Binding ScanMenuText}" Command="{Binding ScanAllCommand}" AutomationProperties.Name="{Binding ScanAllText}" Padding="14,8,10,8" />
                             <Button x:Name="ScanMenuButton" Style="{StaticResource PrimaryButton}" Click="ScanMenuButton_Click" AutomationProperties.Name="{Binding ScanMenuText}" Margin="2,0,0,0" Padding="10,8">
                                 <Button.ContextMenu>
@@ -30,11 +43,13 @@
                             </Button>
                         </StackPanel>
                         <Button Style="{StaticResource SecondaryButton}" Content="{Binding RefreshStatusText}" Command="{Binding RefreshStatusCommand}" Margin="0,0,8,0" />
-                        <Button Style="{StaticResource GhostButton}" Content="{Binding AddManuallyText}" Command="{Binding ToggleManageLibraryCommand}" />
+                        <!-- Populated only: in the empty state Add manually lives once in the sources panel. -->
+                        <Button Style="{StaticResource GhostButton}" Content="{Binding AddManuallyText}" Command="{Binding ToggleManageLibraryCommand}"
+                                Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </WrapPanel>
                 </Grid>
 
-                <Expander Header="{Binding ManageLibraryTitle}" Margin="0,0,0,16" IsExpanded="{Binding ShowManageLibrary, Mode=TwoWay}">
+                <Expander x:Name="ManageLibraryExpander" Header="{Binding ManageLibraryTitle}" Margin="0,0,0,16" IsExpanded="{Binding ShowManageLibrary, Mode=TwoWay}">
                     <Border Style="{StaticResource SectionSurface}" Margin="0,8,0,0">
                         <StackPanel>
                             <TextBlock Text="{Binding SourcesNoteText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,0,0,12" />
@@ -45,10 +60,10 @@
                                 <TextBlock Text="{Binding SafetyNoteDescription}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,16" />
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="1*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="1.4*" /></Grid.ColumnDefinitions>
-                                    <StackPanel><TextBlock Text="{Binding DisplayNameLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><TextBox Text="{Binding NewDisplayName, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                                    <StackPanel Grid.Column="2"><TextBlock Text="{Binding ExecutableLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding NewExecutablePath, UpdateSourceTrigger=PropertyChanged}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding BrowseText}" Command="{Binding BrowseExecutableCommand}" Margin="8,0,0,0" /></Grid></StackPanel>
+                                    <StackPanel><TextBlock Text="{Binding DisplayNameLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><TextBox Text="{Binding NewDisplayName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding DisplayNameLabel}" ToolTip="{Binding DisplayNameLabel}" /></StackPanel>
+                                    <StackPanel Grid.Column="2"><TextBlock Text="{Binding ExecutableLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding NewExecutablePath, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding ExecutableLabel}" ToolTip="{Binding ExecutableLabel}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding BrowseText}" Command="{Binding BrowseExecutableCommand}" Margin="8,0,0,0" /></Grid></StackPanel>
                                 </Grid>
-                                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><ComboBox ItemsSource="{Binding AvailableTypes}" SelectedItem="{Binding NewItemType}" Width="180" HorizontalAlignment="Left" /><Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="{Binding AddManualText}" Command="{Binding AddManualCommand}" /></Grid>
+                                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><ComboBox ItemsSource="{Binding AvailableTypes}" SelectedItem="{Binding NewItemType}" Width="180" HorizontalAlignment="Left" AutomationProperties.Name="{Binding TypeLabel}" ToolTip="{Binding TypeLabel}" /><Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="{Binding AddManualText}" Command="{Binding AddManualCommand}" /></Grid>
                             </StackPanel>
                             <Border Grid.Column="1" Width="1" Background="{StaticResource BrushBorderSubtle}" Margin="24,0" />
                             <StackPanel Grid.Column="2">
@@ -63,8 +78,10 @@
 
                 <Border Style="{StaticResource DataPanel}" Padding="0">
                     <StackPanel>
-                        <Grid Margin="20,16,16,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Grid.Column="1" Text="{Binding ReadyBadgeText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Center" /></Grid>
-                        <Grid Margin="20,0,16,12">
+                        <!-- Panel header: hidden only in the compact empty state, where the
+                             welcome card carries the single EmptyTitle headline (QA E F2). -->
+                        <Grid x:Name="LibraryItemsHeader" Margin="20,16,16,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Grid.Column="1" Text="{Binding ReadyBadgeText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Center" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}" /></Grid>
+                        <Grid Margin="20,0,16,12" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <TextBox Style="{StaticResource HintTextBox}" Tag="{Binding SearchPlaceholder}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding SearchPlaceholder}" />
                             <TextBlock Grid.Column="1" Text="{Binding FilterLabel}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" Margin="12,0,8,0" />
@@ -73,12 +90,17 @@
                         <ListBox x:Name="LibraryItems" ItemsSource="{Binding FilteredItems}" Margin="12,0,12,12" MaxHeight="420" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="{x:Type lib:LibraryItemViewModel}">
-                                    <Border x:Name="GameRow" Style="{StaticResource InlineRow}" Padding="8,10">
+                                    <Border x:Name="GameRow" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                                         <Grid>
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="1.1*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                            <Border Width="40" Height="40" CornerRadius="8" Background="{StaticResource BrushSurfaceInteractive}" Margin="0,0,12,0"><Grid><Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="26" Height="26" Opacity="0.2" RenderOptions.BitmapScalingMode="HighQuality" /><Image Source="{Binding IconSource}" Width="28" Height="28" RenderOptions.BitmapScalingMode="HighQuality" /></Grid></Border>
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /><StackPanel Orientation="Horizontal" Margin="0,3,0,0"><TextBlock Text="{Binding SourceText}" Style="{StaticResource CaptionText}" /><TextBlock Text="  ·  " Style="{StaticResource CaptionText}" /><TextBlock Text="{Binding TypeText}" Style="{StaticResource CaptionText}" /></StackPanel></StackPanel>
-                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="16,0">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <!-- 16:9 identity block: neutral monogram surface, never fetched artwork. -->
+                                            <Border Width="128" Height="72" CornerRadius="6" Background="{StaticResource BrushSurfaceInteractive}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" Margin="0,0,14,0">
+                                                <Grid>
+                                                    <TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="26" Foreground="{StaticResource BrushBorderStrong}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    <Image Source="{Binding IconSource}" Width="40" Height="40" RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /><StackPanel Orientation="Horizontal" Margin="0,3,0,0"><TextBlock Text="{Binding SourceText}" Style="{StaticResource CaptionText}" /><TextBlock Text="  ·  " Style="{StaticResource CaptionText}" /><TextBlock Text="{Binding TypeText}" Style="{StaticResource CaptionText}" /></StackPanel>
                                                 <TextBlock Text="{Binding StatusText}">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock" BasedOn="{StaticResource StatusText}">
@@ -97,36 +119,91 @@
                                                 <TextBlock Text="{Binding ProfileText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding ExeMissingText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushWarning}" Margin="0,2,0,0" Visibility="{Binding IsExecutableMissing, Converter={StaticResource BoolToVisibilityConverter}}" />
                                             </StackPanel>
-                                            <Button Grid.Column="3" Style="{StaticResource ToolbarButton}" Content="{Binding DataContext.DetailsOptimizeText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Command="{Binding DataContext.SelectItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Margin="0,0,4,0" />
-                                            <Button Grid.Column="4" AutomationProperties.Name="{Binding DataContext.RemoveText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" ToolTip="{Binding DataContext.RemoveText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Opacity="0.35"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource IconButton}"><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=GameRow}" Value="True"><Setter Property="Opacity" Value="1" /></DataTrigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Opacity" Value="1" /></Trigger></Style.Triggers></Style></Button.Style><Path Data="{StaticResource IconTrash}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="15" Height="15" Stretch="Uniform" /></Button>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0">
+                                                <Button Style="{StaticResource ToolbarButton}" Content="{Binding DataContext.DetailsOptimizeText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Command="{Binding DataContext.SelectItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Margin="0,0,0,6" />
+                                                <Button AutomationProperties.Name="{Binding DataContext.RemoveText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" ToolTip="{Binding DataContext.RemoveText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Opacity="0.35"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource IconButton}"><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=GameRow}" Value="True"><Setter Property="Opacity" Value="1" /></DataTrigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Opacity" Value="1" /></Trigger></Style.Triggers></Style></Button.Style><Path Data="{StaticResource IconTrash}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="15" Height="15" Stretch="Uniform" /></Button>
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
                         <Border Margin="20,8,20,24"><Border.Style><Style TargetType="Border" BasedOn="{StaticResource EmptyStateBorder}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding HasFilteredItems}" Value="False"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Border.Style>
-                            <StackPanel HorizontalAlignment="Center" MaxWidth="480">
-                            <StackPanel HorizontalAlignment="Center" Visibility="{Binding HasLibraryItems, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                <TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding EmptyText}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0" />
-                                <WrapPanel HorizontalAlignment="Center" Margin="0,16,0,0">
-                                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding ScanAllText}" Command="{Binding ScanAllCommand}" Margin="0,0,8,8" />
-                                    <Button Style="{StaticResource SecondaryButton}" Content="{Binding AddFolderText}" Command="{Binding AddFolderCommand}" Margin="0,0,8,8" />
-                                    <Button Style="{StaticResource SubtleButton}" Content="{Binding AddManuallyText}" Command="{Binding OpenManageLibraryCommand}" Margin="0,0,0,8" />
-                                </WrapPanel>
-                            </StackPanel>
-                            <StackPanel HorizontalAlignment="Center" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" HorizontalAlignment="Center" />
+                            <StackPanel>
+                            <!-- Empty library: welcome card + sources panel, side by side when wide. -->
+                            <Grid x:Name="LibraryEmptyZones" Visibility="{Binding HasLibraryItems, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="1.38*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Border x:Name="LibraryWelcomePanel" Grid.Column="0" Grid.Row="0" Style="{StaticResource LedgerSectionCard}">
+                                    <StackPanel>
+                                        <TextBlock x:Name="WelcomeGlyph" Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="56" Foreground="{StaticResource BrushBorderStrong}" />
+                                        <!-- Single empty-state headline; sources note lives once in the strip below,
+                                             manage actions live in the expander header + sources panel. -->
+                                        <TextBlock Text="{Binding EmptyTitle}" Style="{StaticResource SectionTitleText}" Margin="0,12,0,0" />
+                                        <TextBlock Text="{Binding EmptyText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                        <!-- QA E F1: the dominant card leads with the primary + secondary
+                                             actions; the sources panel keeps per-source shortcuts only. -->
+                                        <Button x:Name="WelcomeScanButton" Style="{StaticResource PrimaryButton}" Content="{Binding ScanAllText}" Command="{Binding ScanAllCommand}" AutomationProperties.Name="{Binding ScanAllText}" HorizontalAlignment="Stretch" MinHeight="40" Margin="0,14,0,0" />
+                                        <Grid x:Name="WelcomeSecondaryRow" Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Style="{StaticResource SecondaryButton}" Content="{Binding AddFolderText}" Command="{Binding AddFolderCommand}" AutomationProperties.Name="{Binding AddFolderText}" HorizontalAlignment="Stretch" MinHeight="36" />
+                                            <Button Grid.Column="2" Style="{StaticResource SubtleButton}" Content="{Binding AddManuallyText}" Command="{Binding OpenManageLibraryCommand}" AutomationProperties.Name="{Binding AddManuallyText}" HorizontalAlignment="Stretch" MinHeight="36" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                                <Border x:Name="LibrarySourcesPanel" Grid.Column="2" Grid.Row="0" Style="{StaticResource LedgerSectionCard}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding ScanTitle}" Style="{StaticResource DataTitleText}" />
+                                        <TextBlock Text="{Binding SafetyNoteDescription}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                        <TextBlock Text="{Binding IndividualSourcesText}" Style="{StaticResource TinyCapsText}" Margin="0,16,0,8" />
+                                        <UniformGrid Columns="2" Rows="2">
+                                            <Button Style="{StaticResource QuietButton}" Content="{Binding ScanSteamText}" Command="{Binding ScanSteamCommand}" AutomationProperties.Name="{Binding ScanSteamText}" Margin="0,0,8,8" MinHeight="34" />
+                                            <Button Style="{StaticResource QuietButton}" Content="{Binding ScanEpicText}" Command="{Binding ScanEpicCommand}" AutomationProperties.Name="{Binding ScanEpicText}" Margin="0,0,0,8" MinHeight="34" />
+                                            <Button Style="{StaticResource QuietButton}" Content="{Binding ScanRiotText}" Command="{Binding ScanRiotCommand}" AutomationProperties.Name="{Binding ScanRiotText}" Margin="0,0,8,0" MinHeight="34" />
+                                            <Button Style="{StaticResource QuietButton}" Content="{Binding ScanCustomText}" Command="{Binding ScanCustomCommand}" AutomationProperties.Name="{Binding ScanCustomText}" Margin="0,0,0,0" MinHeight="34" />
+                                        </UniformGrid>
+                                        <!-- Existing-sources strip moved in from below the cards (QA E F1):
+                                             balances the taller welcome card with real folder content. -->
+                                        <Border Margin="0,16,0,0" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding CustomFoldersTitle}" Style="{StaticResource TinyCapsText}" />
+                                                <ItemsControl ItemsSource="{Binding CustomFolders}" Margin="0,6,0,0">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding}" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <TextBlock Text="{Binding SourcesNoteText}" TextWrapping="Wrap" Margin="0,2,0,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CustomFolders.Count}" Value="0">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                            <StackPanel HorizontalAlignment="Center" MaxWidth="480" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <TextBlock Text="{Binding EmptyFilteredText}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                <Button Style="{StaticResource SubtleButton}" Content="{Binding ClearFilterText}" Command="{Binding ClearLibraryFilterCommand}" AutomationProperties.Name="{Binding ClearFilterText}" HorizontalAlignment="Center" Margin="0,16,0,0" />
                             </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
                 </Border>
-            </StackPanel>
+                </StackPanel>
 
-            <!-- Game detail view. -->
-            <StackPanel Visibility="{Binding ShowSelectedDetail, Converter={StaticResource BoolToVisibilityConverter}}">
+                <!-- Game inspector: selection opens the working panel beside the catalog (below it when narrow). -->
+                <StackPanel x:Name="LibraryInspectorPanel" Grid.Column="2" Grid.Row="0"
+                            Visibility="{Binding ShowSelectedDetail, Converter={StaticResource BoolToVisibilityConverter}}">
                 <Button Style="{StaticResource GhostButton}" Content="{Binding BackToLibraryText}" Command="{Binding BackToLibraryCommand}" HorizontalAlignment="Left" Margin="0,0,0,16" />
 
                 <Border Style="{StaticResource HeroCardBorder}" Margin="0,0,0,16">
@@ -437,7 +514,8 @@
                         </Border>
                     </TabItem>
                 </TabControl>
-            </StackPanel>
+                </StackPanel>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
