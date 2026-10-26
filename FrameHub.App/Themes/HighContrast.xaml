@@ -73,4 +73,14 @@
     <SolidColorBrush x:Key="BrushError" Color="{StaticResource ColorError}" />
     <SolidColorBrush x:Key="BrushErrorSoft" Color="{StaticResource ColorErrorSoft}" />
     <SolidColorBrush x:Key="BrushInformation" Color="{StaticResource ColorInformation}" />
+    <Color x:Key="ColorSupporter">#FFFF00</Color>
+    <Color x:Key="ColorSupporterSoft">#3A3000</Color>
+    <Color x:Key="ColorSupporterInk">#000000</Color>
+    <Color x:Key="ColorBand">#000000</Color>
+
+    <SolidColorBrush x:Key="BrushSupporter" Color="{StaticResource ColorSupporter}" />
+    <SolidColorBrush x:Key="BrushSupporterSoft" Color="{StaticResource ColorSupporterSoft}" />
+    <SolidColorBrush x:Key="BrushSupporterInk" Color="{StaticResource ColorSupporterInk}" />
+    <SolidColorBrush x:Key="BrushBand" Color="{StaticResource ColorBand}" />
+    <SolidColorBrush x:Key="BrushCanvas" Color="{StaticResource ColorBackground}" />
 </ResourceDictionary>

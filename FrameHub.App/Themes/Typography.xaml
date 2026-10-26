@@ -4,23 +4,25 @@
     <!-- Type scale tokens (device-independent px). WPF scales DIPs with system DPI, so one
          token set covers 100/125/150/200% with no per-DPI sizes; ClearType + Display formatting
          below keep small sizes crisp. Change a token, not a literal, when the scale evolves. -->
-    <sys:Double x:Key="TypeSizeEyebrow">10.5</sys:Double>
-    <sys:Double x:Key="TypeSizePageTitle">31</sys:Double>
-    <sys:Double x:Key="TypeLinePageTitle">39</sys:Double>
+    <sys:Double x:Key="TypeSizeEyebrow">11</sys:Double>
+    <sys:Double x:Key="TypeSizeDisplay">32</sys:Double>
+    <sys:Double x:Key="TypeLineDisplay">40</sys:Double>
+    <sys:Double x:Key="TypeSizePageTitle">24</sys:Double>
+    <sys:Double x:Key="TypeLinePageTitle">32</sys:Double>
     <sys:Double x:Key="TypeSizeSubtitle">13.5</sys:Double>
     <sys:Double x:Key="TypeLineSubtitle">21</sys:Double>
-    <sys:Double x:Key="TypeSizeSection">19</sys:Double>
-    <sys:Double x:Key="TypeLineSection">26</sys:Double>
+    <sys:Double x:Key="TypeSizeSection">18</sys:Double>
+    <sys:Double x:Key="TypeLineSection">25</sys:Double>
     <sys:Double x:Key="TypeSizeData">14</sys:Double>
     <sys:Double x:Key="TypeLineData">21</sys:Double>
-    <sys:Double x:Key="TypeSizeBody">13.5</sys:Double>
-    <sys:Double x:Key="TypeLineBody">21</sys:Double>
-    <sys:Double x:Key="TypeSizeSecondary">12.5</sys:Double>
-    <sys:Double x:Key="TypeLineSecondary">19</sys:Double>
-    <sys:Double x:Key="TypeSizeCaption">11.5</sys:Double>
-    <sys:Double x:Key="TypeLineCaption">17</sys:Double>
-    <sys:Double x:Key="TypeSizeMetric">35</sys:Double>
-    <sys:Double x:Key="TypeLineMetric">40</sys:Double>
+    <sys:Double x:Key="TypeSizeBody">14</sys:Double>
+    <sys:Double x:Key="TypeLineBody">22</sys:Double>
+    <sys:Double x:Key="TypeSizeSecondary">13</sys:Double>
+    <sys:Double x:Key="TypeLineSecondary">20</sys:Double>
+    <sys:Double x:Key="TypeSizeCaption">12</sys:Double>
+    <sys:Double x:Key="TypeLineCaption">18</sys:Double>
+    <sys:Double x:Key="TypeSizeMetric">40</sys:Double>
+    <sys:Double x:Key="TypeLineMetric">46</sys:Double>
     <sys:Double x:Key="TypeSizeMetricSecondary">21</sys:Double>
     <sys:Double x:Key="TypeSizeStatus">11.5</sys:Double>
     <sys:Double x:Key="TypeSizeCard">15</sys:Double>
@@ -32,11 +34,12 @@
     <FontFamily x:Key="FrameHubFontExtraBold">Segoe UI</FontFamily>
     <FontFamily x:Key="FrameHubDisplayFontFamily">Segoe UI</FontFamily>
     <FontFamily x:Key="FrameHubMetricFontFamily">Segoe UI</FontFamily>
+    <FontFamily x:Key="FrameHubMonoFontFamily">Consolas, Segoe UI</FontFamily>
     <!-- Compatibility aliases keep every existing view on the same centralized family. -->
     <StaticResource x:Key="FontUi" ResourceKey="FrameHubFontFamily" />
     <StaticResource x:Key="FontDisplay" ResourceKey="FrameHubFontBold" />
     <StaticResource x:Key="FontMetric" ResourceKey="FrameHubMetricFontFamily" />
-    <StaticResource x:Key="FontMono" ResourceKey="FrameHubFontFamily" />
+    <StaticResource x:Key="FontMono" ResourceKey="FrameHubMonoFontFamily" />
 
     <Style TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontFamily}" />
@@ -54,11 +57,31 @@
         <Setter Property="Foreground" Value="{StaticResource BrushAccentPrimary}" />
     </Style>
     <Style x:Key="PageTitleText" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource FrameHubFontExtraBold}" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="FontSize" Value="{StaticResource TypeSizePageTitle}" />
         <Setter Property="LineHeight" Value="{StaticResource TypeLinePageTitle}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+    </Style>
+    <!-- Ember Ledger H1: one per screen, semibold, never light. -->
+    <Style x:Key="ChapterTitleText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FrameHubDisplayFontFamily}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="26" />
+        <Setter Property="LineHeight" Value="32" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+    </Style>
+    <!-- Ember Ledger display cut for hero status values. -->
+    <Style x:Key="LedgerDisplayText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FrameHubDisplayFontFamily}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="30" />
+        <Setter Property="LineHeight" Value="38" />
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+    </Style>
+    <Style x:Key="ChapterDisplayText" TargetType="TextBlock" BasedOn="{StaticResource ChapterTitleText}">
+        <Setter Property="FontSize" Value="{StaticResource TypeSizeMetric}" />
+        <Setter Property="LineHeight" Value="{StaticResource TypeLineMetric}" />
     </Style>
     <Style x:Key="PageSubtitleText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontFamily}" />
@@ -67,12 +90,14 @@
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
     </Style>
     <Style x:Key="SectionTitleText" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource FrameHubFontBold}" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="FontSize" Value="{StaticResource TypeSizeSection}" />
         <Setter Property="LineHeight" Value="{StaticResource TypeLineSection}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
     </Style>
+    <!-- Session Chapters band heading: section scale with eyebrow rhythm. -->
+    <Style x:Key="SectionHeadingText" TargetType="TextBlock" BasedOn="{StaticResource SectionTitleText}" />
     <Style x:Key="DataTitleText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource FrameHubFontSemiBold}" />
         <Setter Property="FontWeight" Value="SemiBold" />
