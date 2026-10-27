@@ -28,10 +28,10 @@
                          AutomationProperties.Name="{Binding Title}">
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="{Binding Icon}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                    <TextBlock Grid.Column="0" Text="{Binding Icon}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" VerticalAlignment="Center" HorizontalAlignment="Center"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Margin" Value="0,0,12,0" /><Style.Triggers><DataTrigger Binding="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"><Setter Property="Margin" Value="0" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
                     <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Visibility="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
-                    <Border Grid.Column="2" Style="{StaticResource BadgeBorder}" Visibility="{Binding EffectiveBadgeVisibility}" Margin="12,0,0,0"><TextBlock Text="{Binding EffectiveBadge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" /></Border>
+                    <Border Grid.Column="2" Margin="12,0,0,0"><Border.Style><Style TargetType="Border" BasedOn="{StaticResource BadgeBorder}"><Setter Property="Visibility" Value="{Binding EffectiveBadgeVisibility}" /><Style.Triggers><DataTrigger Binding="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></Border.Style><TextBlock Text="{Binding EffectiveBadge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" /></Border>
                 </Grid>
             </RadioButton>
         </DataTemplate>
@@ -54,15 +54,14 @@
         </DataTemplate>
     </Window.Resources>
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0" UseAeroCaptionButtons="False" />
+        <shell:WindowChrome CaptionHeight="44" ResizeBorderThickness="6" GlassFrameThickness="0" UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
 
     <Border Background="{StaticResource BrushAppBackground}" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="40" />
+                <RowDefinition Height="44" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="24" />
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0" Background="{StaticResource BrushTitlebar}" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
@@ -79,7 +78,7 @@
                     <TextBlock Text="FrameHub" FontFamily="{StaticResource FrameHubFontBold}" FontSize="14" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <Border Grid.Column="1" Height="1" Background="{StaticResource BrushBorderSubtle}" VerticalAlignment="Bottom" />
+                <Border Grid.ColumnSpan="3" Height="1" Background="{StaticResource BrushBorderSubtle}" VerticalAlignment="Bottom" IsHitTestVisible="False" />
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" shell:WindowChrome.IsHitTestVisibleInChrome="True">
                     <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Focusable="False" Style="{StaticResource ChromeButton}" Click="MinimizeButton_Click" ToolTip="{Binding MinimizeTooltip}" AutomationProperties.Name="{Binding MinimizeTooltip}"><Path Data="{StaticResource IconWindowMinimize}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform" /></Button>
@@ -119,16 +118,15 @@
                                     Visibility="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <TextBlock Text="&#xE700;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Button>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0"
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,4,0,6"
                                         Visibility="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                <Border Width="27" Height="27" CornerRadius="8" Background="{StaticResource BrushAccentSoft}" Margin="0,0,10,0" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1" ClipToBounds="True">
-                                    <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
-                                </Border>
-                                <TextBlock Text="FrameHub" FontFamily="{StaticResource FrameHubFontBold}" FontSize="14" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SessionPillText}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding WatcherStatus}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                         </Grid>
 
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="8,4,8,4">
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" Margin="8,4,8,4">
+                            <ScrollViewer.Style><Style TargetType="ScrollViewer"><Setter Property="VerticalScrollBarVisibility" Value="Auto" /><Style.Triggers><DataTrigger Binding="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"><Setter Property="VerticalScrollBarVisibility" Value="Hidden" /></DataTrigger></Style.Triggers></Style></ScrollViewer.Style>
                             <StackPanel>
                                 <TextBlock Text="{Binding SidebarGamesTitle}" Style="{StaticResource NavGroupText}" Margin="12,8,0,4"
                                            Visibility="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
@@ -153,8 +151,9 @@
 
                         <!-- Rail mode: footer links live in the "Navigation menu" drawer overlay below,
                              so this in-lane strip collapses and no nav/foot rects can overlap. -->
-                        <StackPanel Grid.Row="2" Margin="8,4,8,12"
-                                    Visibility="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <Expander Grid.Row="2" Header="{Binding ProjectVersionLabel}" Margin="12,4,12,12"
+                                  Visibility="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <StackPanel>
                             <Button Style="{StaticResource FooterProjectButton}" Command="{Binding OpenRepositoryCommand}" ToolTip="{Binding RepositoryTooltip}" AutomationProperties.Name="{Binding RepositoryTooltip}" MinHeight="36" HorizontalContentAlignment="Stretch">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Data="{StaticResource IconGitHub}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" />
@@ -191,6 +190,7 @@
                                 </StackPanel>
                             </Button>
                         </StackPanel>
+                        </Expander>
                     </Grid>
                 </Border>
 
@@ -257,18 +257,6 @@
                 </Popup>
             </Grid>
 
-            <Border Grid.Row="2" Background="{StaticResource BrushTitlebar}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,1,0,0" Padding="16,0">
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource CaptionText}" VerticalAlignment="Center"
-                                       ToolTip="{Binding WatcherStatus, Mode=OneWay}">
-                                <Run Text="{Binding SessionStatus, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding WatcherStatus, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding EngineFooterText, Mode=OneWay}" />
-                            </TextBlock>
-                        </StackPanel>
-                        <TextBlock Grid.Column="1" Text="{Binding FooterLicenseText}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" />
-                    </Grid>
-                </Border>
         </Grid>
     </Border>
 </Window>

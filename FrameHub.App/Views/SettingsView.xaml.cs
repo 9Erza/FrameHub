@@ -56,7 +56,7 @@ public partial class SettingsView : WpfUserControl
         if (CategoryCombo != null) CategoryCombo.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
         if (SettingsIndexLayout != null)
         {
-            SettingsIndexLayout.ColumnDefinitions[0].Width = new GridLength(compact ? 1 : 200, compact ? GridUnitType.Star : GridUnitType.Pixel);
+            SettingsIndexLayout.ColumnDefinitions[0].Width = new GridLength(compact ? 1 : 240, compact ? GridUnitType.Star : GridUnitType.Pixel);
             SettingsIndexLayout.ColumnDefinitions[1].Width = new GridLength(compact ? 0 : 24);
             SettingsIndexLayout.ColumnDefinitions[2].Width = compact ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
             Grid.SetColumn(SettingsRowsPanel, compact ? 0 : 2);

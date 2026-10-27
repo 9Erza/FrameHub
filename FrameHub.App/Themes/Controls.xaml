@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Style x:Key="ChromeButton" TargetType="Button">
         <Setter Property="Width" Value="46" />
-        <Setter Property="Height" Value="40" />
+        <Setter Property="Height" Value="44" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
         <Setter Property="BorderThickness" Value="0" />
@@ -201,6 +201,7 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Background" Value="{StaticResource BrushSurfaceInteractive}" />
                             <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource BrushBorderSubtle}" />
+                            <Setter TargetName="Root" Property="BorderThickness" Value="1" />
                             <Setter Property="Foreground" Value="{StaticResource BrushTextDisabled}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -307,9 +308,9 @@
     </Style>
 
     <Style x:Key="CompactNumberTextBox" TargetType="TextBox">
-        <Setter Property="Width" Value="54" />
+        <Setter Property="Width" Value="72" />
         <Setter Property="Padding" Value="8,5" />
-        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="MinHeight" Value="36" />
         <Setter Property="Background" Value="{StaticResource BrushSurfaceHover}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
         <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
@@ -607,11 +608,11 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="GridLinesVisibility" Value="None" />
         <Setter Property="RowBackground" Value="{StaticResource BrushBackgroundAlt}" />
-        <Setter Property="AlternatingRowBackground" Value="{StaticResource BrushSurface}" />
-        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BrushBorder}" />
+        <Setter Property="AlternatingRowBackground" Value="{StaticResource BrushBackgroundAlt}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BrushBorderSubtle}" />
         <Setter Property="VerticalGridLinesBrush" Value="{StaticResource BrushBorder}" />
-        <Setter Property="RowHeight" Value="42" />
-        <Setter Property="ColumnHeaderHeight" Value="40" />
+        <Setter Property="RowHeight" Value="40" />
+        <Setter Property="ColumnHeaderHeight" Value="38" />
         <Setter Property="SelectionUnit" Value="FullRow" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="UseLayoutRounding" Value="True" />
@@ -642,16 +643,43 @@
                 <Setter Property="Background" Value="{StaticResource BrushSelectedGradient}" />
                 <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
             </Trigger>
-            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{StaticResource BrushFocus}" /><Setter Property="BorderThickness" Value="2,0,0,0" /></Trigger>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{StaticResource BrushFocus}" /><Setter Property="BorderThickness" Value="1" /></Trigger>
         </Style.Triggers>
     </Style>
 
     <Style TargetType="DataGridCell">
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Padding" Value="12,0" />
         <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridRow}}" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridCell">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="TableCellText" TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style x:Key="TableNumericText" TargetType="TextBlock" BasedOn="{StaticResource TableCellText}">
+        <Setter Property="FontFamily" Value="{StaticResource FontMono}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="TextAlignment" Value="Right" />
+    </Style>
+    <Style x:Key="TableNumericCell" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+        <Setter Property="Padding" Value="8,0" />
+    </Style>
+    <Style x:Key="TableNumericHeader" TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+        <Setter Property="Padding" Value="8,8" />
+        <Setter Property="HorizontalContentAlignment" Value="Right" />
     </Style>
 
     <Style TargetType="ComboBox">
@@ -1194,16 +1222,9 @@
                 <ControlTemplate TargetType="RadioButton">
                     <Grid>
                         <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="3" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Border x:Name="Accent" Width="3" CornerRadius="0,2,2,0" Background="Transparent" Margin="-12,6,12,6" />
-                                <ContentPresenter Grid.Column="1" VerticalAlignment="Center" />
-                            </Grid>
+                            <ContentPresenter VerticalAlignment="Center" />
                         </Border>
-                        <Border x:Name="FocusRing" BorderBrush="{StaticResource BrushFocus}" BorderThickness="2" CornerRadius="8" Margin="-2" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="FocusRing" BorderBrush="{StaticResource BrushFocus}" BorderThickness="2" CornerRadius="6" Margin="1" Opacity="0" IsHitTestVisible="False" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -1214,8 +1235,7 @@
                             <Setter TargetName="Root" Property="Background" Value="{StaticResource BrushSurfaceInteractive}" />
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Root" Property="Background" Value="{StaticResource BrushAccentSoft}" />
-                            <Setter TargetName="Accent" Property="Background" Value="{StaticResource BrushAccentPrimary}" />
+                            <Setter TargetName="Root" Property="Background" Value="{StaticResource BrushSurfaceSelected}" />
                             <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
                             <Setter Property="FontWeight" Value="SemiBold" />
                         </Trigger>
@@ -1233,7 +1253,7 @@
 
     <!-- Hero panel: single raised surface, hairline border, local content rhythm. -->
     <Style x:Key="LedgerHeroCard" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource BrushSurface}" />
+        <Setter Property="Background" Value="{StaticResource BrushSurfaceRaised}" />
         <Setter Property="BorderBrush" Value="{StaticResource BrushBorderSubtle}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="10" />
@@ -1244,7 +1264,7 @@
 
     <!-- Work section card: same surface language as the hero, flatter padding. -->
     <Style x:Key="LedgerSectionCard" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource BrushSurface}" />
+        <Setter Property="Background" Value="{StaticResource BrushBackgroundAlt}" />
         <Setter Property="BorderBrush" Value="{StaticResource BrushBorderSubtle}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="10" />

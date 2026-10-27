@@ -4,8 +4,7 @@
              xmlns:helpers="clr-namespace:FrameHub.App.Helpers">
     <UserControl.Resources>
         <helpers:BindingProxy x:Key="VmProxy" Data="{Binding}" />
-        <Style x:Key="ProcessMetricCell" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="{StaticResource FrameHubDisplayFontFamily}" />
+        <Style x:Key="ProcessMetricCell" TargetType="TextBlock" BasedOn="{StaticResource TableNumericText}">
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -17,15 +16,23 @@
             <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" />
             <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,0" TextWrapping="Wrap" />
         </StackPanel>
-        <Grid Grid.Row="1">
+        <ScrollViewer x:Name="ProcessWorkspaceScroller" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+        <Grid x:Name="ProcessWorkspace">
         <Grid.ColumnDefinitions><ColumnDefinition Width="1.7*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="0.8*" /></Grid.ColumnDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="0" /><RowDefinition Height="0" /></Grid.RowDefinitions>
 
         <Border Grid.Column="0" Style="{StaticResource DataPanel}">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                 <Grid Margin="16,14,14,8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding ProcessListTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding FilteredCountText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" /></StackPanel>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ProcessListTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding FilteredCountText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding SelectedProcessTopologyText}" TextWrapping="Wrap" Margin="0,4,0,0">
+                            <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding SelectedProcess}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
                     <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Command="{Binding RefreshCommand}" Content="{Binding RefreshButtonText}" VerticalAlignment="Center" AutomationProperties.Name="{Binding RefreshButtonText}" />
                 </Grid>
                 <Grid Grid.Row="1" Margin="16,0,14,10">
@@ -54,31 +61,32 @@
                           AutomationProperties.Name="{Binding ProcessListTitle}">
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="2.2*" MinWidth="200" SortMemberPath="Name"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontWeight="SemiBold" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTextColumn Header="{Binding Data.PidHeader, Source={StaticResource VmProxy}}" Binding="{Binding Id}" Width="64" MinWidth="64" />
-                        <DataGridTextColumn Header="{Binding Data.InstancesHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="58" MinWidth="58" />
+                        <DataGridTextColumn Header="{Binding Data.PidHeader, Source={StaticResource VmProxy}}" Binding="{Binding Id}" Width="64" MinWidth="64" ElementStyle="{StaticResource TableNumericText}" CellStyle="{StaticResource TableNumericCell}" HeaderStyle="{StaticResource TableNumericHeader}" />
+                        <DataGridTextColumn Header="{Binding Data.InstancesHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="58" MinWidth="58" ElementStyle="{StaticResource TableNumericText}" CellStyle="{StaticResource TableNumericCell}" HeaderStyle="{StaticResource TableNumericHeader}" />
                         <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding ModeDisplay}" Width="78" MinWidth="78">
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding ModeDisplay}" /></Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource TableCellText}"><Setter Property="ToolTip" Value="{Binding ModeDisplay}" /></Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
                         <DataGridTextColumn Header="{Binding Data.RuleHeader, Source={StaticResource VmProxy}}" Binding="{Binding StatusDisplay}" Width="88" MinWidth="88">
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding StatusDisplay}" /></Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource TableCellText}"><Setter Property="ToolTip" Value="{Binding StatusDisplay}" /></Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding Priority}" Width="100" MinWidth="100">
+                        <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding Priority}" Width="SizeToCells" MinWidth="100">
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding Priority}" /></Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource TableCellText}"><Setter Property="ToolTip" Value="{Binding Priority}" /></Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="{Binding Data.CpuHeader, Source={StaticResource VmProxy}}" Binding="{Binding CpuUsage}" ElementStyle="{StaticResource ProcessMetricCell}" Width="64" MinWidth="64" />
-                        <DataGridTextColumn Header="{Binding Data.RamHeader, Source={StaticResource VmProxy}}" Binding="{Binding RamUsageMB}" ElementStyle="{StaticResource ProcessMetricCell}" Width="78" MinWidth="78" />
+                        <DataGridTextColumn Header="{Binding Data.CpuHeader, Source={StaticResource VmProxy}}" Binding="{Binding CpuUsage}" ElementStyle="{StaticResource ProcessMetricCell}" CellStyle="{StaticResource TableNumericCell}" HeaderStyle="{StaticResource TableNumericHeader}" Width="64" MinWidth="64" />
+                        <DataGridTextColumn Header="{Binding Data.RamHeader, Source={StaticResource VmProxy}}" Binding="{Binding RamUsageMB}" ElementStyle="{StaticResource ProcessMetricCell}" CellStyle="{StaticResource TableNumericCell}" HeaderStyle="{StaticResource TableNumericHeader}" Width="78" MinWidth="78" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
         </Border>
 
-        <Border Grid.Column="2" Style="{StaticResource SectionSurface}" Padding="20">
+        <Border x:Name="ProcessInspector" Grid.Column="2" Padding="20">
+            <Border.Style><Style TargetType="Border" BasedOn="{StaticResource SectionSurface}"><Style.Triggers><DataTrigger Binding="{Binding SelectedProcess}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></Border.Style>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
                     <StackPanel Margin="0,0,0,16">
@@ -129,5 +137,6 @@
             </ScrollViewer>
         </Border>
         </Grid>
+        </ScrollViewer>
     </Grid>
 </UserControl>

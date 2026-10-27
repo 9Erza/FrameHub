@@ -150,10 +150,10 @@ public sealed class ShellSidebarGroupTests
 
         if (directory == null) Assert.Inconclusive("Repository source root was not discoverable.");
         string xaml = File.ReadAllText(Path.Combine(directory, "FrameHub.App", "MainWindow.xaml"));
-        StringAssert.Contains(xaml, "<StackPanel Grid.Row=\"2\"",
-            "Sidebar footer strip must exist for the wide layout (QA C2 F1).");
-        int footerIndex = xaml.IndexOf("<StackPanel Grid.Row=\"2\"", StringComparison.Ordinal);
-        int footerEnd = xaml.IndexOf("</StackPanel>", footerIndex, StringComparison.Ordinal);
+        StringAssert.Contains(xaml, "<Expander Grid.Row=\"2\"",
+            "Sidebar footer expander must exist for the wide layout (QA C2 F1).");
+        int footerIndex = xaml.IndexOf("<Expander Grid.Row=\"2\"", StringComparison.Ordinal);
+        int footerEnd = xaml.IndexOf(">", footerIndex, StringComparison.Ordinal);
         string footerStrip = xaml.Substring(footerIndex, Math.Min(footerEnd, footerIndex + 600) - footerIndex);
         StringAssert.Contains(footerStrip, "InverseBoolToVisibilityConverter",
             "Sidebar footer strip must collapse in rail mode so no nav/foot rects can overlap (QA C2 F1).");
