@@ -15,12 +15,20 @@ LAN Companion server, CS2 configuration and hardware monitoring in one desktop a
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-2EA44F?style=flat-square)](LICENSE)
-![Release](https://img.shields.io/badge/release-v0.7.1-2EA44F?style=flat-square)
+![Release](https://img.shields.io/badge/release-v1.0.0-EAB45D?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Current release: v0.7.1.** See the [Changelog](CHANGELOG.md) for release details and the [Roadmap](docs/ROADMAP.md) for future work.
+> **Current release: v1.0.0** (prepared in code; no public GitHub Release published yet). See the [Changelog](CHANGELOG.md) for release details and the [Roadmap](docs/ROADMAP.md) for future work.
+
+### What's new in 1.0.0
+
+- **Frame Core visual identity**: one official dark-graphite/amber mark across the desktop EXE, taskbar, tray, installer, WPF views and the Companion web UI.
+- **Product-wide version unification**: every surface reports **1.0.0** from the single `version.txt` source.
+- **Companion redesign**: a real desktop web composition with side navigation on wide screens plus the mobile app shell (fixed header, single scroll region, bottom navigation, safe-area support) — same lightweight vanilla HTML/CSS/JS frontend, no new polling or backend owners.
+- **Hardened everyday UX**: honest empty states, localized placeholders, keyboard focus and reduced-motion support, AA-contrast palette, comfortable touch targets.
+- **Documentation refresh**: both READMEs, the changelog and both user guides describe the 1.0.0 product as it actually behaves.
 
 ---
 
@@ -61,7 +69,7 @@ The project currently focuses on:
 | **Hardware Monitor** | Opt-in local CPU, GPU and RAM telemetry with lease-controlled sensor lifecycle. |
 | **Logs & Settings** | Diagnostics, language, tray behavior, logging, Companion pairing, and Windows startup configuration. |
 
-### Benchmarking in v0.7.0
+### Benchmarking in 1.0.0
 
 Start a game from Game Library, open **Benchmarks** (or use the game's **Benchmark** action), choose a duration, and reproduce the same scene each time. FrameHub shows Average FPS, median, 1% Low, 0.1% Low, P95/P99 frame time, environment metadata context (OS, CPU, GPU driver, RAM, display), quality diagnostics, a spike-preserving frame-time graph, local history, and same-game comparisons. Raw frames and summaries remain on this machine under `%LOCALAPPDATA%\FrameHub\Benchmarks`; FrameHub adds no upload, analytics, account, or cloud service.
 
@@ -98,15 +106,17 @@ FrameHub itself does not inject DLLs into games, read or modify game memory, ins
 - Recovery state for interrupted sessions.
 - Process validation designed to reduce incorrect resume operations.
 
-### LAN Companion Server & Mobile Web UI
+### LAN Companion Server & Web UI
 
 - Lightweight ASP.NET Core Kestrel LAN web server.
 - Cryptographically secure pairing with opaque device records and QR code connection.
 - Granular permission scopes for read/write access.
 - Real-time WebSocket hardware telemetry streaming.
+- Desktop web composition with side navigation on wide screens; mobile app shell with bottom navigation and safe-area support.
 - Mobile game library browsing and remote launching.
 - Mobile benchmark status and capture controls.
 - Mobile Session Optimization and Game CPU Assignment cards.
+- Settings/About shows the running product version with project and support links.
 - Client-side game icon caching via IndexedDB.
 
 ### CPU and process control

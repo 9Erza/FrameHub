@@ -15,12 +15,20 @@ serwer LAN Companion, konfiguracja CS2 oraz monitoring sprzętu w jednej aplikac
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![Licencja](https://img.shields.io/badge/licencja-MIT-2EA44F?style=flat-square)](LICENSE)
-![Wydanie](https://img.shields.io/badge/wydanie-v0.7.1-2EA44F?style=flat-square)
+![Wydanie](https://img.shields.io/badge/wydanie-v1.0.0-EAB45D?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Aktualne wydanie: v0.7.1.** Szczegóły wydania znajdziesz w [Changelogu](CHANGELOG.md), a dalsze plany w [Roadmapie](docs/ROADMAP.md).
+> **Aktualne wydanie: v1.0.0** (przygotowane w kodzie; publiczny GitHub Release nie został jeszcze opublikowany). Szczegóły wydania znajdziesz w [Changelogu](CHANGELOG.md), a dalsze plany w [Roadmapie](docs/ROADMAP.md).
+
+### Co nowego w 1.0.0
+
+- **Tożsamość wizualna Frame Core**: jeden oficjalny znak (ciemny grafit/bursztyn) w pliku EXE, na pasku zadań, w zasobniku, instalatorze, widokach WPF i interfejsie web Companion.
+- **Ujednolicenie wersji**: każda część produktu zgłasza **1.0.0** z jednego źródła `version.txt`.
+- **Przeprojektowany Companion**: pełna kompozycja desktopowa z boczną nawigacją na szerokich ekranach oraz mobilna powłoka aplikacji (stały nagłówek, jeden region przewijania, dolna nawigacja, safe-area) — ten sam lekki frontend vanilla HTML/CSS/JS, bez nowych pętli odpytań i właścicieli backendu.
+- **Dopracowany codzienny UX**: uczciwe stany puste, lokalizowane placeholdery, obsługa klawiatury i reduced-motion, paleta w kontraście AA, wygodne cele dotykowe.
+- **Odświeżona dokumentacja**: oba README, changelog i obie instrukcje opisują produkt 1.0.0 takim, jakim faktycznie jest.
 
 ---
 
@@ -63,7 +71,7 @@ Projekt skupia się obecnie na:
 
 ---
 
-### Benchmarki w v0.7.0
+### Benchmarki w 1.0.0
 
 Uruchom grę z Biblioteki gier, otwórz **Benchmarki** (albo użyj akcji **Benchmark** przy grze), wybierz czas i za każdym razem odtwórz tę samą scenę. FrameHub pokazuje średnie FPS, medianę, 1% Low, 0,1% Low, P95/P99 czasu klatki, metadane środowiska testowego (system, CPU, sterownik GPU, RAM, ekran), diagnostykę jakości, wykres zachowujący skoki, lokalną historię oraz porównania tej samej gry. Surowe klatki i podsumowania pozostają na komputerze w `%LOCALAPPDATA%\FrameHub\Benchmarks`; FrameHub nie wysyła ich do chmury i nie dodaje analityki ani kont.
 
@@ -100,15 +108,17 @@ Sam FrameHub nie wstrzykuje bibliotek DLL do gier, nie odczytuje ani nie zmienia
 - Stan odzyskiwania po nieprawidłowo zakończonej sesji.
 - Walidacja procesów ograniczająca ryzyko przywrócenia niewłaściwego procesu.
 
-### Serwer LAN Companion i interfejs mobilny
+### Serwer LAN Companion i interfejs webowy
 
 - Lekki serwer WWW ASP.NET Core Kestrel w sieci lokalnej.
 - Bezpieczne parowanie kryptograficzne z kodami QR i tokenami sesyjnymi.
 - Szczegółowe uprawnienia odczytu i zapisu (uprawnienia scoped).
 - Strumieniowanie telemetrii sprzętowej w czasie rzeczywistym (WebSocket).
+- Kompozycja desktopowa z boczną nawigacją na szerokich ekranach; mobilna powłoka aplikacji z dolną nawigacją i obsługą safe-area.
 - Zdalny podgląd biblioteki i uruchamianie gier.
 - Zdalne sterowanie pomiarami i podgląd stanu benchmarków.
 - Karty Optymalizacji sesji i Przydziału CPU w telefonie.
+- Widok Informacje w Ustawieniach pokazuje działającą wersję produktu wraz z linkami do projektu i wsparcia.
 - Buforowanie ikon gier po stronie klienta (IndexedDB).
 
 ### CPU i procesy

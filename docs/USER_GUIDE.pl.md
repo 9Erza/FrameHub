@@ -70,7 +70,7 @@ używają formatu invariant i znaczników czasu UTC niezależnie od języka UI.
    - **Przydział CPU dla gry**: Przy aktywnej grze tymczasowo dostosuj przydział rdzeni procesora przy użyciu presetów topologii (Wszystkie rdzenie, Tylko fizyczne, Wyczyść) lub CPU Sets.
    - **Optymalizacja sesji**: Monitoruj i kontroluj stan wstrzymania aplikacji w tle.
    - **Benchmarki**: Śledź postęp testów lub uruchamiaj pomiary zdalnie.
-6. Companion działa jako mobilna powłoka aplikacji: dolna nawigacja pozostaje stała podczas przewijania treści, działa w mobilnym Safari/Chrome, a stronę można dodać do ekranu głównego z ikoną FrameHub.
+6. Companion dostosowuje się do ekranu: w szerokim oknie przeglądarki na komputerze pokazuje boczną szynę nawigacji z wielokolumnowymi sekcjami; na telefonie działa jako mobilna powłoka aplikacji — dolna nawigacja pozostaje stała podczas przewijania treści, działa w mobilnym Safari/Chrome, a stronę można dodać do ekranu głównego z ikoną FrameHub. Działająca wersja produktu jest widoczna w **Ustawienia > Informacje** (oraz w stopce).
 
 ---
 
