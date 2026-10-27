@@ -52,3 +52,45 @@ With isolated data directories and this output path, the final Desktop suite pas
 799/799, Companion passed 141/141, and JavaScript syntax validation passed.
 The sidebar regression test was updated for the footer expander while retaining
 the rail visibility and drawer-command checks.
+
+## Next implementation checkpoint — 2026-10-27
+
+This phase is partial, not the requested completed redesign. Work started clean
+at `e3d10da` on `codex/framehub-3`. Three presentation commits were made:
+
+- `3d988ab` changes the populated Library from action-heavy cards to selectable
+  rows with a contextual inspector, keeps existing commands, and fixes the stale
+  no-profile explanation when a game is selected. It is not a full Library
+  reconstruction. The existing `IsReady` definition can report an item ready
+  when its configured executable is missing; review its product semantics before
+  changing it. Verify long names, filter/selection behavior, PL and more sizes.
+- `cd0faf7` improves benchmark metric wrapping, compact history proportions,
+  comparison alignment and the selected-session label in the ComboBox. This is
+  not the full requested analytical redesign. Check the empty chart when raw
+  samples are unavailable, responsive compare and all capture states.
+- `ea1adc8` adds compact level/time rows and a selectable, scrollable full-message
+  area to Logs. Filters and the existing clear confirmation remain in place.
+  Test long messages, levels, empty results and both languages at small sizes.
+
+Real WPF captures live outside the worktree at
+`C:\1_eryk_prywatne\Projekty\FrameHub-3-next-evidence`. Library uses 24
+synthetic items; benchmark history/comparison uses two synthetic summaries (no
+raw frames). Captures were checked in English at approximately 1540x900, and
+Library selection at approximately 880x460. The captures are not evidence of a
+complete PL/EN, width, DPI, accessibility, or state matrix. Do not claim full
+visual acceptance for any area. Existing user process was left running.
+
+The dialog inventory found `ModernDialogService`, `UpdateAvailableDialog`,
+benchmark and other system message boxes, and native file/folder pickers. No
+dialog redesign or complete global consistency pass was performed. Finish the
+Library, Benchmarks, Logs and dialogs in the original priority order. Keep both
+`FRAMEHUB_DATA_DIR` and `FRAMEHUB_LOCAL_DATA_DIR` isolated for future UI tests;
+benchmark storage is under the latter.
+
+Final validation for this checkpoint: Release build with OutDir
+`artifacts/next-phase/` passed with 0 warnings and errors. With isolated roaming
+and local data roots, Desktop passed 800/800 and Companion passed 141/141;
+JavaScript syntax and diff whitespace checks passed. The exact standard Release
+build was attempted and failed with locked output DLLs held by the existing
+FrameHub.App process 19316; the exact standard no-build tests were not used as
+proof of the changed binaries. No changes to that process were made.
