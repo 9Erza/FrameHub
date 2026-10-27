@@ -25,7 +25,7 @@ public partial class BenchmarkView : WpfUserControl
         HistoryWorkspace.ColumnDefinitions[0].Width = compact ? new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) : new System.Windows.GridLength(350);
         HistoryWorkspace.ColumnDefinitions[1].Width = new System.Windows.GridLength(compact ? 0 : 16);
         HistoryWorkspace.ColumnDefinitions[2].Width = new System.Windows.GridLength(compact ? 0 : 1, System.Windows.GridUnitType.Star);
-        HistoryWorkspace.RowDefinitions[0].Height = compact ? new System.Windows.GridLength(340) : new System.Windows.GridLength(1, System.Windows.GridUnitType.Star);
+        HistoryWorkspace.RowDefinitions[0].Height = compact ? new System.Windows.GridLength(Math.Clamp(ActualHeight * 0.32, 150, 240)) : new System.Windows.GridLength(1, System.Windows.GridUnitType.Star);
         HistoryWorkspace.RowDefinitions[1].Height = new System.Windows.GridLength(compact ? 14 : 0);
         HistoryWorkspace.RowDefinitions[2].Height = compact ? new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) : new System.Windows.GridLength(0);
         System.Windows.Controls.Grid.SetColumn(HistoryDetailPanel, compact ? 0 : 2);
