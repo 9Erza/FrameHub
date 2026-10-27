@@ -59,10 +59,10 @@ public sealed class ShellChapterProjectionTests
     {
         using var shell = new ShellViewModel();
         var chapters = shell.ChapterItems.ToArray();
-        Assert.AreEqual("Overview", chapters[0].ChapterTitle);
-        Assert.AreEqual("Prepare", chapters[1].ChapterTitle);
-        Assert.AreEqual("Play", chapters[2].ChapterTitle);
-        Assert.AreEqual("Verify", chapters[3].ChapterTitle);
+        Assert.AreEqual(LocalizationService.Translate("Shell.Chapter.Overview", shell.Localization.CurrentLanguage), chapters[0].ChapterTitle);
+        Assert.AreEqual(LocalizationService.Translate("Shell.Chapter.Prepare", shell.Localization.CurrentLanguage), chapters[1].ChapterTitle);
+        Assert.AreEqual(LocalizationService.Translate("Shell.Chapter.Play", shell.Localization.CurrentLanguage), chapters[2].ChapterTitle);
+        Assert.AreEqual(LocalizationService.Translate("Shell.Chapter.Verify", shell.Localization.CurrentLanguage), chapters[3].ChapterTitle);
         // Non-chapter destinations fall back to the screen title.
         Assert.AreEqual(shell.UtilityItems.First().Title, shell.UtilityItems.First().ChapterTitle);
     }
