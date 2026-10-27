@@ -27,23 +27,24 @@ addition to color for state, and avoid decorative movement.
 
 ## Implemented compositions
 
-- The shell exposes the current page in the title bar and session/profile status
-  in the navigation area. Its existing compact rail remains the navigation
-  mechanism below the shell breakpoint.
-- The Dashboard groups session and game selection, separates system state from
-  benchmark status, and reflows the state band from four columns to two.
+- The shell keeps session/profile status in navigation and secondary project
+  links in an expandable footer. The compact rail remains below the breakpoint.
+- The Dashboard leads with game selection and the primary action, followed by
+  session status; the system state band reflows from four columns to two.
 - Library onboarding separates the principal scan action from source-specific
   actions and removes the enclosing empty data panel.
-- Session controls precede the rules and preview in the visual and keyboard
-  order. The controls stack when there is insufficient width.
+- Session puts manual start before automation and retains the existing preview
+  and rules. The controls stack when there is insufficient width.
 - Logs use actual rows rather than a decorative ruled background.
 - Processes and Profiles give the list the available width until an item is
   selected. The inspector opens alongside it on wide windows and below it on
   compact windows; each pane keeps its own finite scroll viewport.
 - Hardware's disabled state and background behavior share a responsive overview
   rather than full-width stacked bands. No sensor reading is synthesized.
-- Settings groups the selected category in a distinct reading surface while
-  retaining the side index or compact category selector.
+- Settings uses a left-aligned category workspace and side index or compact
+  selector. Diagnostics appear in their own category, and supporter details
+  remain under General. Process table numbers align right and cells and headers
+  use consistent spacing.
 
 Other views still need their intended structural redesign and verification.
 The resources alone do not constitute a complete design system migration.

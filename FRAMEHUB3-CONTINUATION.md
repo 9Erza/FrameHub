@@ -19,3 +19,36 @@ Status: **incomplete; not a release**. Worktree is `C:\1_eryk_prywatne\Projekty\
 - Actual isolated-app visual checks covered Dashboard, empty Library, Session, Processes, Profiles, Hardware and Settings in English. Profiles were also checked with two disabled synthetic profiles at 1540×900, 880×640 and 880×460. At minimum size selection brings the editor into view; its lower actions were reached by scrolling. The data grid keeps a finite viewport and its own horizontal scrollbar. The synthetic capture is `window-profile-synthetic-880x460-editor.png` in the evidence directory. This is not a complete F8/F9/N1/N2 matrix. No actual-window PL or DPI matrix was completed.
 - Full structural work remains for populated Library and its inspector, benchmark history/compare, Logs, dialogs and remaining states; Processes, Profiles, Hardware and Settings need further refinement and state coverage. The current result does **not** satisfy the user's full redesign brief; preserve all commands and safety semantics while completing it. Review all screens at real target sizes, both languages and accessible keyboard states; avoid real process mutations during visual checks.
 - Run the exact six validation commands in `AGENTS.md` after the last edit, review changes, and commit logical verified work only on this branch. Never merge into `main` without the owner's separate request.
+
+## Structural checkpoint — 2026-10-27
+
+This remains incomplete. Starting HEAD for this continuation was `50acb99`.
+The shell removes duplicated title/status chrome, consolidates project links in
+an expandable sidebar footer, and tightens navigation selection/focus. Shared
+process table cells now align with headers; numeric columns align right and the
+priority column accommodates its contents. Settings uses a left-aligned category
+workspace with diagnostics confined to Advanced. Session leads with manual start;
+Dashboard leads with game selection. Keyed runtime activity entries retranslate
+on language change; unkeyed historical text remains in its original language.
+Existing owners and commands were reused. Commits `1fd2ecc`, `d045a60`,
+`26a9c6f` and `cdcd758` contain this work.
+
+Actual isolated-app captures are in
+`C:\1_eryk_prywatne\Projekty\FrameHub-3-structural-evidence-20261027`.
+They cover selected EN/PL Dashboard, Processes, Settings and Session states at
+approximately 1540x900 and 880x460; they do not establish the full language,
+DPI, keyboard, state or width matrix. No actual 1100x700 or 1280x800 capture
+was made in this pass. Remaining work includes populated Library, benchmark
+history/compare, Logs, dialogs, other states and comprehensive regression and
+accessibility verification. Do not describe F8/F9/N1/N2 as fully verified.
+
+The user's existing FrameHub instance locks the standard Release output. Keep it
+running; build and tests can use `-p:OutDir=C:/1_eryk_prywatne/Projekty/FrameHub-3/artifacts/structural-build/`.
+A Release build there passed with zero warnings and errors. The normal exact
+Release build is blocked by the locked output while that instance remains open.
+The earlier verification details above describe the prior checkpoint, not this one.
+
+With isolated data directories and this output path, the final Desktop suite passed
+799/799, Companion passed 141/141, and JavaScript syntax validation passed.
+The sidebar regression test was updated for the footer expander while retaining
+the rail visibility and drawer-command checks.
