@@ -4,8 +4,7 @@
              xmlns:helpers="clr-namespace:FrameHub.App.Helpers">
     <UserControl.Resources>
         <helpers:BindingProxy x:Key="VmProxy" Data="{Binding}" />
-        <Style x:Key="ProcessMetricCell" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="{StaticResource FrameHubDisplayFontFamily}" />
+        <Style x:Key="ProcessMetricCell" TargetType="TextBlock" BasedOn="{StaticResource TableNumericText}">
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -62,25 +61,25 @@
                           AutomationProperties.Name="{Binding ProcessListTitle}">
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="2.2*" MinWidth="200" SortMemberPath="Name"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontWeight="SemiBold" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTextColumn Header="{Binding Data.PidHeader, Source={StaticResource VmProxy}}" Binding="{Binding Id}" Width="64" MinWidth="64" />
-                        <DataGridTextColumn Header="{Binding Data.InstancesHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="58" MinWidth="58" />
+                        <DataGridTextColumn Header="{Binding Data.PidHeader, Source={StaticResource VmProxy}}" Binding="{Binding Id}" Width="64" MinWidth="64" ElementStyle="{StaticResource TableNumericText}" CellStyle="{StaticResource TableNumericCell}" HeaderStyle="{StaticResource TableNumericHeader}" />
+                        <DataGridTextColumn Header="{Binding Data.InstancesHeader, Source={StaticResource VmProxy}}" Binding="{Binding InstanceCount}" Width="58" MinWidth="58" ElementStyle="{StaticResource TableNumericText}" CellStyle="{StaticResource TableNumericCell}" HeaderStyle="{StaticResource TableNumericHeader}" />
                         <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding ModeDisplay}" Width="78" MinWidth="78">
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding ModeDisplay}" /></Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource TableCellText}"><Setter Property="ToolTip" Value="{Binding ModeDisplay}" /></Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
                         <DataGridTextColumn Header="{Binding Data.RuleHeader, Source={StaticResource VmProxy}}" Binding="{Binding StatusDisplay}" Width="88" MinWidth="88">
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding StatusDisplay}" /></Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource TableCellText}"><Setter Property="ToolTip" Value="{Binding StatusDisplay}" /></Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding Priority}" Width="100" MinWidth="100">
+                        <DataGridTextColumn Header="{Binding Data.PriorityHeader, Source={StaticResource VmProxy}}" Binding="{Binding Priority}" Width="SizeToCells" MinWidth="100">
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding Priority}" /></Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource TableCellText}"><Setter Property="ToolTip" Value="{Binding Priority}" /></Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="{Binding Data.CpuHeader, Source={StaticResource VmProxy}}" Binding="{Binding CpuUsage}" ElementStyle="{StaticResource ProcessMetricCell}" Width="64" MinWidth="64" />
-                        <DataGridTextColumn Header="{Binding Data.RamHeader, Source={StaticResource VmProxy}}" Binding="{Binding RamUsageMB}" ElementStyle="{StaticResource ProcessMetricCell}" Width="78" MinWidth="78" />
+                        <DataGridTextColumn Header="{Binding Data.CpuHeader, Source={StaticResource VmProxy}}" Binding="{Binding CpuUsage}" ElementStyle="{StaticResource ProcessMetricCell}" CellStyle="{StaticResource TableNumericCell}" HeaderStyle="{StaticResource TableNumericHeader}" Width="64" MinWidth="64" />
+                        <DataGridTextColumn Header="{Binding Data.RamHeader, Source={StaticResource VmProxy}}" Binding="{Binding RamUsageMB}" ElementStyle="{StaticResource ProcessMetricCell}" CellStyle="{StaticResource TableNumericCell}" HeaderStyle="{StaticResource TableNumericHeader}" Width="78" MinWidth="78" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
