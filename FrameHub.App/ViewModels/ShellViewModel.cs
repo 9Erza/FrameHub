@@ -183,6 +183,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _localization.LanguageChanged += (_, _) =>
         {
             _runtime.ReloadSettings();
+            _runtime.RefreshActivityLanguage();
             _settingsViewModel.ReloadFromRuntime();
             RefreshTexts();
             UiLanguageChanged?.Invoke(this, EventArgs.Empty);

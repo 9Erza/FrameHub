@@ -126,8 +126,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             LaunchReservations,
             SessionOptimizationCoordinator);
 
-        AddActivity(ActivityText("Activity.Startup"));
-        AddActivity(GetWatcherStartupText());
+        AddLocalizedActivity("Activity.Startup");
+        AddWatcherStartupActivity();
         StartProfileWatcher();
         _ = SyncCompanionServerStateAsync();
     }
@@ -329,7 +329,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         ProfileService.SaveProfiles(Profiles);
         Profiles = ProfileService.LoadProfiles();
         ProfilesChanged?.Invoke(this, EventArgs.Empty);
-        AddActivity(string.Format(ActivityText("Activity.ProfilesSaved"), Profiles.Count));
+        AddLocalizedActivity("Activity.ProfilesSaved", "Info", Profiles.Count);
     }
 
     public void UpsertProfile(ProcessProfile profile, bool replaceSameProcessName = true)
@@ -353,14 +353,14 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
         SaveProfiles(Profiles.Where(p => !p.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase)).ToList());
         Optimization.ClearProfileCacheForProcess(profile.ProcessName);
-        AddActivity(string.Format(ActivityText("Activity.ProfileDeleted"), profile.ProcessName));
+        AddLocalizedActivity("Activity.ProfileDeleted", "Info", profile.ProcessName);
     }
 
     public OptimizationBatchResult ApplyProfileNow(ProcessProfile profile, bool force = true)
     {
         if (!TryAcquireProfileMutation(out IDisposable? benchmarkLease))
         {
-            AddActivity(ActivityText("Activity.MutationBlockedBenchmark"), "Warn");
+            AddLocalizedActivity("Activity.MutationBlockedBenchmark", "Warn");
             return CreateBenchmarkBlockedResult(profile.ProcessName);
         }
 
@@ -373,14 +373,29 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     }
 
     /// <summary>
-    /// Localizes a runtime activity message against the CURRENT settings language on every
-    /// call (static lookup, no cached service instance), so a language switch applies to new
-    /// entries while already recorded history stays untouched. Callers pass values; technical
-    /// details (PIDs, exception text) are preserved as format arguments, never translated.
+    /// Localizes a runtime activity message against the current settings language.
+    /// Keyed entries retain their original arguments so presentation can refresh on
+    /// language changes; unkeyed and technical messages remain untouched.
     /// </summary>
     private string ActivityText(string key) => LocalizationService.Translate(key, Settings.Language);
 
-    public void AddActivity(string message, string level = "Info")
+    public void AddActivity(string message, string level = "Info") => AddActivityCore(message, level, null, []);
+
+    private void AddLocalizedActivity(string key, string level = "Info", params object[] arguments)
+    {
+        string message = string.Format(LocalizationService.GetUiCulture(Settings.Language), ActivityText(key), arguments);
+        AddActivityCore(message, level, key, arguments);
+    }
+
+    public void RefreshActivityLanguage()
+    {
+        DispatchActivityIfRequired(() =>
+        {
+            foreach (ActivityItemViewModel item in Activity) item.Relocalize(Settings.Language);
+        });
+    }
+
+    private void AddActivityCore(string message, string level, string? localizationKey, object[] arguments)
     {
         // Activity is a WPF-bound ObservableCollection. Most callers run on the UI
         // thread, but timer/task continuations and future Companion paths may call
@@ -392,7 +407,9 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             {
                 Time = DateTime.Now.ToString("HH:mm"),
                 Message = message,
-                Level = level
+                Level = level,
+                LocalizationKey = localizationKey,
+                LocalizationArguments = arguments
             });
 
             while (Activity.Count > 200)
@@ -486,7 +503,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
                     LastAppliedProfile = result.ProcessName;
                     OptimizedProcessCount = batch.Successful;
                     RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
-                    AddActivity(string.Format(ActivityText("Activity.ProfileAppliedMonitor"), result.ProcessName, result.ProcessId, result.Mode, result.Priority));
+                    AddLocalizedActivity("Activity.ProfileAppliedMonitor", "Info", result.ProcessName, result.ProcessId, result.Mode, result.Priority);
                 }
                 else
                 {
@@ -496,7 +513,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         }
         catch (Exception ex)
         {
-            AddActivity(string.Format(ActivityText("Activity.MonitorError"), ex.Message), "Warn");
+            AddLocalizedActivity("Activity.MonitorError", "Warn", ex.Message);
         }
         finally
         {
@@ -511,15 +528,15 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             LastAppliedProfile = processName;
             OptimizedProcessCount = batch.Successful;
             RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
-            AddActivity(string.Format(ActivityText("Activity.ProfileAppliedSource"), processName, source, batch.Successful, batch.Total));
+            AddLocalizedActivity("Activity.ProfileAppliedSource", "Info", processName, source, batch.Successful, batch.Total);
         }
         else if (batch.Total > 0)
         {
-            AddActivity(string.Format(ActivityText("Activity.ProfileNoInstance"), processName, source), "Warn");
+            AddLocalizedActivity("Activity.ProfileNoInstance", "Warn", processName, source);
         }
         else
         {
-            AddActivity(string.Format(ActivityText("Activity.ProfileNoProcess"), processName), "Warn");
+            AddLocalizedActivity("Activity.ProfileNoProcess", "Warn", processName);
         }
     }
 
@@ -546,7 +563,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         }
 
         _failureLogThrottle[key] = DateTime.UtcNow;
-        AddActivity(ActivityText("Activity.AutoMutationSkippedBenchmark"), "Warn");
+        AddLocalizedActivity("Activity.AutoMutationSkippedBenchmark", "Warn");
     }
 
     private static OptimizationBatchResult CreateBenchmarkBlockedResult(string processName) => new()
@@ -567,12 +584,11 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     internal bool TryAcquireProfileMutation(out IDisposable? lease) =>
         BenchmarkCoordinator.TryAcquireExternalMutation(out lease);
 
-    private string GetWatcherStartupText()
+    private void AddWatcherStartupActivity()
     {
         var enabled = Profiles.Where(p => p.IsEnabled).Select(p => p.ProcessName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        return enabled.Count == 0
-            ? ActivityText("Activity.WatcherIdle")
-            : string.Format(ActivityText("Activity.WatcherActive"), enabled.Count, string.Join(", ", enabled));
+        if (enabled.Count == 0) AddLocalizedActivity("Activity.WatcherIdle");
+        else AddLocalizedActivity("Activity.WatcherActive", "Info", enabled.Count, string.Join(", ", enabled));
     }
 
     private void ConfigureLoggerFromSettings()
