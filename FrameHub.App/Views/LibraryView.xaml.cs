@@ -142,6 +142,19 @@ public partial class LibraryView : WpfUserControl
         if (WelcomeSecondaryRow != null) WelcomeSecondaryRow.Margin = compactEmpty ? new Thickness(0, 6, 0, 0) : new Thickness(0, 8, 0, 0);
     }
 
+    private void LibraryItems_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, LibraryItems) || e.AddedItems.Count == 0 || _viewModel == null)
+            return;
+
+        var item = e.AddedItems[0];
+        if (ReferenceEquals(item, _viewModel.SelectedItem)) return;
+        if (_viewModel.SelectItemCommand.CanExecute(item)) _viewModel.SelectItemCommand.Execute(item);
+        if (ActualWidth < 1200)
+            Dispatcher.BeginInvoke(new Action(() => LibraryInspectorPanel.BringIntoView()),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
     private void ViewModel_InfoDialogRequested(string title, string message)
     {
         ModernDialogService.ShowInfo(Window.GetWindow(this), title, message);

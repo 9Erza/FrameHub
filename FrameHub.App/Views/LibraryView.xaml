@@ -92,44 +92,43 @@
                             <TextBlock Grid.Column="1" Text="{Binding FilterLabel}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" Margin="12,0,8,0" />
                             <ComboBox Grid.Column="2" ItemsSource="{Binding FilterLabels}" SelectedIndex="{Binding SelectedFilterIndex, Mode=TwoWay}" MinWidth="160" AutomationProperties.Name="{Binding FilterLabel}" />
                         </Grid>
-                        <ListBox x:Name="LibraryItems" ItemsSource="{Binding FilteredItems}" Margin="12,0,12,12" MaxHeight="420" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <ListBox x:Name="LibraryItems" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem, Mode=OneWay}" SelectionChanged="LibraryItems_SelectionChanged" Margin="12,0,12,12" MaxHeight="520" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}" />
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Template">
+                                        <Setter.Value><ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="SelectionSurface" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="4" Padding="8,8">
+                                                <ContentPresenter HorizontalAlignment="Stretch" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="SelectionSurface" Property="Background" Value="{StaticResource BrushSurfaceInteractive}" /></Trigger>
+                                                <Trigger Property="IsSelected" Value="True"><Setter TargetName="SelectionSurface" Property="Background" Value="{StaticResource BrushSurfaceRaised}" /><Setter TargetName="SelectionSurface" Property="BorderBrush" Value="{StaticResource BrushBorderStrong}" /></Trigger>
+                                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="SelectionSurface" Property="BorderBrush" Value="{StaticResource BrushFocus}" /></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate></Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="{x:Type lib:LibraryItemViewModel}">
-                                    <Border x:Name="GameRow" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                            <!-- 16:9 identity block: neutral monogram surface, never fetched artwork. -->
-                                            <Border Width="128" Height="72" CornerRadius="6" Background="{StaticResource BrushSurfaceInteractive}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" Margin="0,0,14,0">
-                                                <Grid>
-                                                    <TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="26" Foreground="{StaticResource BrushBorderStrong}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    <Image Source="{Binding IconSource}" Width="40" Height="40" RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Grid>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /><StackPanel Orientation="Horizontal" Margin="0,3,0,0"><TextBlock Text="{Binding SourceText}" Style="{StaticResource CaptionText}" /><TextBlock Text="  ·  " Style="{StaticResource CaptionText}" /><TextBlock Text="{Binding TypeText}" Style="{StaticResource CaptionText}" /></StackPanel>
-                                                <TextBlock Text="{Binding StatusText}">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource StatusText}">
-                                                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                                                    <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding IsExecutableMissing}" Value="True">
-                                                                    <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBlock Text="{Binding ProfileText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding ExeMissingText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushWarning}" Margin="0,2,0,0" Visibility="{Binding IsExecutableMissing, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0">
-                                                <Button Style="{StaticResource ToolbarButton}" Content="{Binding DataContext.DetailsOptimizeText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Command="{Binding DataContext.SelectItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Margin="0,0,0,6" />
-                                                <Button AutomationProperties.Name="{Binding DataContext.RemoveText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" ToolTip="{Binding DataContext.RemoveText, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Opacity="0.35"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource IconButton}"><Style.Triggers><DataTrigger Binding="{Binding IsMouseOver, ElementName=GameRow}" Value="True"><Setter Property="Opacity" Value="1" /></DataTrigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Opacity" Value="1" /></Trigger></Style.Triggers></Style></Button.Style><Path Data="{StaticResource IconTrash}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="15" Height="15" Stretch="Uniform" /></Button>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
+                                    <Grid MinHeight="56">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <Border Width="56" Height="56" CornerRadius="4" Background="{StaticResource BrushSurfaceInteractive}" Margin="0,0,16,0">
+                                            <Grid>
+                                                <TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource BrushBorderStrong}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <Image Source="{Binding IconSource}" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayName}" />
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"><TextBlock Text="{Binding SourceText}" Style="{StaticResource CaptionText}" /><TextBlock Text="  ·  " Style="{StaticResource CaptionText}" /><TextBlock Text="{Binding TypeText}" Style="{StaticResource CaptionText}" /></StackPanel>
+                                            <TextBlock Text="{Binding ProfileText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding ProfileText}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding StatusText}" Style="{StaticResource StatusText}" VerticalAlignment="Center" Margin="12,0,0,0" MaxWidth="160" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusText}" />
+                                    </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -216,22 +215,24 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="0" />
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <Border Width="56" Height="56" CornerRadius="8" Background="{StaticResource BrushSurfaceInteractive}" Margin="0,0,16,0"><Grid><Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="38" Height="38" Opacity="0.2" /><Image Source="{Binding SelectedItem.IconSource}" Width="42" Height="42" RenderOptions.BitmapScalingMode="HighQuality" /></Grid></Border>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding SelectedItemTitle}" Style="{StaticResource PageTitleText}" />
+                            <TextBlock Text="{Binding SelectedItemTitle}" Style="{StaticResource PageTitleText}" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding SelectedItem.ExecutablePath}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
                             <StackPanel Margin="0,10,0,0" Visibility="{Binding SelectedItem.IsBackgroundApp, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <CheckBox Content="{Binding RemoteControlOptInText}" IsChecked="{Binding SelectedItem.AllowRemoteControl, Mode=TwoWay}" />
                                 <TextBlock Text="{Binding RemoteControlOptInHint}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="22,3,0,0" />
                             </StackPanel>
                         </StackPanel>
-                            <WrapPanel Grid.Column="2" VerticalAlignment="Center" Margin="18,0,0,0" MaxWidth="360">
+                            <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,16,0,0">
                                 <Button Style="{StaticResource PrimaryButton}" Content="{Binding LaunchText}" Command="{Binding LaunchSelectedCommand}" ToolTip="{Binding LaunchText}" Margin="0,0,8,8" />
                                 <Button Style="{StaticResource SecondaryButton}" Content="{Binding BenchmarkText}" Command="{Binding BenchmarkSelectedCommand}" ToolTip="{Binding BenchmarkButtonTooltip}" ToolTipService.ShowOnDisabled="True" Margin="0,0,8,8" />
                                 <Button Style="{StaticResource SecondaryButton}" Content="{Binding ApplyProfileText}" Command="{Binding ApplyLinkedProfileCommand}" ToolTip="{Binding ApplyProfileButtonTooltip}" Margin="0,0,8,8" />
                                 <Button Style="{StaticResource SubtleButton}" Content="{Binding OpenFolderText}" Command="{Binding OpenSelectedFolderCommand}" Margin="0,0,0,8" />
+                                <Button Style="{StaticResource SubtleButton}" Content="{Binding RemoveText}" Command="{Binding RemoveItemCommand}" CommandParameter="{Binding SelectedItem}" Margin="0,0,0,8" />
                             </WrapPanel>
                     </Grid>
                 </Border>

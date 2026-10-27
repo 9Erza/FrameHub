@@ -494,6 +494,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
             LoadProfileForSelectedItem();
             AnalyzeCs2IfSelected();
             OnPropertyChanged(nameof(HasSelectedItem));
+            OnPropertyChanged(nameof(CurrentOptimizationProfileText));
             OnPropertyChanged(nameof(IsCs2Selected));
             if (IsCs2Selected)
             {

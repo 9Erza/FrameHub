@@ -35,6 +35,23 @@ public sealed class RiotLibraryUxTests
     }
 
     [TestMethod]
+    public void SelectingGameWithoutProfile_RefreshesProfileDescription()
+    {
+        using var host = CreateViewModelHost();
+        int notifications = 0;
+        host.ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(host.ViewModel.CurrentOptimizationProfileText)) notifications++;
+        };
+
+        string before = host.ViewModel.CurrentOptimizationProfileText;
+        host.ViewModel.SelectedItem = host.Items.First(item => item.Id == "custom-ineligible");
+
+        Assert.IsTrue(notifications > 0, "Selection must update the bound profile description even if no profile exists.");
+        Assert.AreNotEqual(before, host.ViewModel.CurrentOptimizationProfileText);
+    }
+
+    [TestMethod]
     public void RiotItemSelected_LaunchTextUsesRiotClientWording()
     {
         using var host = CreateViewModelHost();
