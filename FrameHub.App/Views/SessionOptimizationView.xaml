@@ -61,11 +61,11 @@
                     <Expander Header="{Binding AdvancedOptionsTitle}" Margin="0,16,0,0">
                         <StackPanel Margin="0,8,0,0">
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding WindowsInterfaceLabel}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding WindowsInterfaceHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" /></StackPanel><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding WindowsInterfaceEnabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="16,0,0,0" /></Grid>
-                            <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="0,12" />
+                            <Border Height="24" Background="Transparent" />
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding HideTaskbarLabel}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding HideTaskbarHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" /></StackPanel><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding HideTaskbarDuringSession, Mode=TwoWay}" VerticalAlignment="Center" Margin="16,0,0,0" /></Grid>
-                            <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="0,12" />
+                            <Border Height="24" Background="Transparent" />
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding GamePriorityLabel}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding GamePriorityHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" /></StackPanel><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding GamePriorityOverrideEnabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="16,0,0,0" /></Grid>
-                            <Border Height="1" Background="{StaticResource BrushBorderSubtle}" Margin="0,12" />
+                            <Border Height="24" Background="Transparent" />
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding PowerPlanLabel}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding PowerPlanHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" /></StackPanel><CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding PowerPlanOverrideEnabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="16,0,0,0" /></Grid>
                         </StackPanel>
                     </Expander>
@@ -83,16 +83,13 @@
                         <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AutoModeEnabled, Mode=TwoWay}" Content="{Binding AutoModeSwitchLabel}" VerticalAlignment="Center" Margin="24,0,0,0" />
                     </Grid>
 
+                    <!-- UI 3.0: single game choice lives in the Manual card above (same
+                         SelectedGame). Automation keeps its per-game list + reload. -->
                     <Grid Margin="0,20,0,8">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                        <StackPanel>
-                            <TextBlock Text="{Binding SelectedGameLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" />
-                            <ComboBox ItemsSource="{Binding Games}" SelectedItem="{Binding SelectedGame, Mode=TwoWay}" DisplayMemberPath="DisplayName" HorizontalAlignment="Stretch" />
-                        </StackPanel>
-                        <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding ReloadLibraryButtonText}" Command="{Binding ReloadLibraryCommand}" VerticalAlignment="Bottom" />
+                        <TextBlock Text="{Binding AutoGamesLabel}" Style="{StaticResource DataTitleText}" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding ReloadLibraryButtonText}" Command="{Binding ReloadLibraryCommand}" VerticalAlignment="Center" Margin="12,0,0,0" />
                     </Grid>
-
-                    <TextBlock Text="{Binding AutoGamesLabel}" Style="{StaticResource DataTitleText}" Margin="0,12,0,4" />
                     <ItemsControl ItemsSource="{Binding Games}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>

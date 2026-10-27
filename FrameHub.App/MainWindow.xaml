@@ -108,7 +108,7 @@
                         </Style>
                     </Border.Style>
                     <Grid>
-                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
                         <Grid Margin="12,12,12,4">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -151,8 +151,21 @@
 
                         <!-- Rail mode: footer links live in the "Navigation menu" drawer overlay below,
                              so this in-lane strip collapses and no nav/foot rects can overlap. -->
-                        <Expander Grid.Row="2" Header="{Binding ProjectVersionLabel}" Margin="12,4,12,12"
+                        <Expander Grid.Row="2" x:Name="FooterExpander" Header="{Binding ProjectVersionLabel}"
                                   Visibility="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <Expander.Style>
+                            <!-- BasedOn keeps the implicit Expander theme (Controls.xaml):
+                                 a local Style without it would drop the header template.
+                                 Expanded keeps the pre-3.0 12px bottom rhythm (P3-1). -->
+                            <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+                                <Setter Property="Margin" Value="12,4,12,4" />
+                                <Style.Triggers>
+                                    <Trigger Property="IsExpanded" Value="True">
+                                        <Setter Property="Margin" Value="12,4,12,12" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Expander.Style>
                         <StackPanel>
                             <Button Style="{StaticResource FooterProjectButton}" Command="{Binding OpenRepositoryCommand}" ToolTip="{Binding RepositoryTooltip}" AutomationProperties.Name="{Binding RepositoryTooltip}" MinHeight="36" HorizontalContentAlignment="Stretch">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -191,6 +204,57 @@
                             </Button>
                         </StackPanel>
                         </Expander>
+                        <!-- UI 3.0: slim discovery row in its own grid row — GitHub +
+                             BuyMeACoffee stay live even when the version panel is
+                             collapsed. Same commands, tooltips and UIA names as the full
+                             links; hidden while expanded and in rail mode (the drawer
+                             owns the links there). 32px targets fit the lane. -->
+                        <StackPanel Grid.Row="3" x:Name="DiscoveryRowWide" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding IsExpanded, ElementName=FooterExpander}" Value="False" />
+                                                <Condition Binding="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}}" Value="False" />
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <Button Style="{StaticResource QuietButton}" Command="{Binding OpenRepositoryCommand}" ToolTip="{Binding RepositoryTooltip}" AutomationProperties.Name="{Binding RepositoryTooltip}" Width="32" Height="32" Padding="0">
+                                <Path Data="{StaticResource IconGitHub}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="14" Height="14" Stretch="Uniform" />
+                            </Button>
+                            <Button Style="{StaticResource QuietButton}" Command="{Binding OpenSupportCommand}" ToolTip="{Binding SupportTooltip}" AutomationProperties.Name="{Binding SupportTooltip}" Width="32" Height="32" Padding="0" Margin="4,0,0,0">
+                                <Image Source="/FrameHub.App;component/Assets/BuyMeACoffee.png" Width="17" Height="17" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                            </Button>
+                        </StackPanel>
+                        <!-- QA t_ca0f6d2d P2: the 64-DIP rail also keeps both links subtly
+                             visible without expanding — stacked 32px icons in the same
+                             footer row (the version Expander is collapsed in rail mode,
+                             so there is no expanded state to gate on). Same commands,
+                             tooltips, UIA names and focusability as the wide row; the
+                             drawer keeps the full labeled links. -->
+                        <StackPanel Grid.Row="3" x:Name="DiscoveryRowRail" Orientation="Vertical" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <Button Style="{StaticResource QuietButton}" Command="{Binding OpenRepositoryCommand}" ToolTip="{Binding RepositoryTooltip}" AutomationProperties.Name="{Binding RepositoryTooltip}" Width="32" Height="32" Padding="0">
+                                <Path Data="{StaticResource IconGitHub}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="14" Height="14" Stretch="Uniform" />
+                            </Button>
+                            <Button Style="{StaticResource QuietButton}" Command="{Binding OpenSupportCommand}" ToolTip="{Binding SupportTooltip}" AutomationProperties.Name="{Binding SupportTooltip}" Width="32" Height="32" Padding="0" Margin="0,4,0,0">
+                                <Image Source="/FrameHub.App;component/Assets/BuyMeACoffee.png" Width="17" Height="17" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                            </Button>
+                        </StackPanel>
                     </Grid>
                 </Border>
 

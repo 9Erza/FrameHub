@@ -57,6 +57,14 @@ public sealed class ProfilesViewModel : ViewModelBase
     public bool HasConflictWarning => FindConflictingGroups(_runtime.Profiles).Count != 0;
     public string ProfilesCountText => string.Format(_localization.T("Profiles.Count"), Profiles.Count);
     public string SearchPlaceholderText => _localization.T("Profiles.Search");
+    public string NoResultsText => _localization.T("Profiles.NoResults");
+    public string ClearSearchText => _localization.T("Profiles.ClearSearch");
+
+    /// <summary>True while stored profiles exist (ignores the live search filter).</summary>
+    public bool HasStoredProfiles => Profiles.Count > 0;
+
+    /// <summary>True while a search filter narrows the list.</summary>
+    public bool IsSearchActive => !string.IsNullOrWhiteSpace(_searchText);
 
     /// <summary>Live search filter (process or display name). Bound via <see cref="ProfilesView"/>.</summary>
     public string SearchText
@@ -67,6 +75,7 @@ public sealed class ProfilesViewModel : ViewModelBase
             if (!SetProperty(ref _searchText, value ?? string.Empty)) return;
             _profilesView.Refresh();
             OnPropertyChanged(nameof(ProfilesCountText));
+            OnPropertyChanged(nameof(IsSearchActive));
         }
     }
 
@@ -108,6 +117,7 @@ public sealed class ProfilesViewModel : ViewModelBase
     public ICommand ClearAllCommand { get; }
     public ICommand DisableSmtCommand { get; }
     public ICommand DisableECoresCommand { get; }
+    public ICommand ClearSearchCommand { get; }
 
     public ProcessProfile? SelectedProfile
     {
@@ -181,6 +191,7 @@ public sealed class ProfilesViewModel : ViewModelBase
         DeleteProfileCommand = new RelayCommand(_ => RequestDeleteSelected(), _ => SelectedProfile != null);
         SaveProfileChangesCommand = new RelayCommand(_ => SaveSelectedChanges(), _ => SelectedProfile != null);
         RefreshCommand = new RelayCommand(_ => RefreshProfiles());
+        ClearSearchCommand = new RelayCommand(_ => SearchText = string.Empty);
         CreateFirstProfileCommand = new RelayCommand(_ => CreateFirstProfileRequested?.Invoke());
         SelectAllCommand = new RelayCommand(_ => TouchEditor(() => SetAllCores(true)), _ => SelectedProfile != null);
         ClearAllCommand = new RelayCommand(_ => TouchEditor(() => SetAllCores(false)), _ => SelectedProfile != null);
@@ -216,6 +227,7 @@ public sealed class ProfilesViewModel : ViewModelBase
         OnPropertyChanged(nameof(ConflictWarningText));
         OnPropertyChanged(nameof(HasConflictWarning));
         OnPropertyChanged(nameof(ProfilesCountText));
+        OnPropertyChanged(nameof(HasStoredProfiles));
         _profilesView.Refresh();
     }
 
@@ -323,6 +335,10 @@ public sealed class ProfilesViewModel : ViewModelBase
         OnPropertyChanged(nameof(DeleteCancelText));
         OnPropertyChanged(nameof(SearchPlaceholderText));
         OnPropertyChanged(nameof(SearchText));
+        OnPropertyChanged(nameof(NoResultsText));
+        OnPropertyChanged(nameof(ClearSearchText));
+        OnPropertyChanged(nameof(HasStoredProfiles));
+        OnPropertyChanged(nameof(IsSearchActive));
     }
 
     private void RefreshOptimizationModes()

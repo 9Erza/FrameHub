@@ -84,8 +84,19 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="0" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <!-- QA E F4: background behavior is state-independent (watcher status is live
-                 either way), so it always renders and fills the OFF state honestly. -->
-            <Border x:Name="HardwareBehaviorPanel" Grid.Column="0" Style="{StaticResource SectionSurface}">
+                 either way), so it always renders and fills the OFF state honestly.
+                 UI 3.0: when sensors are ON the right OFF-panel collapses — behavior
+                 then spans the full width instead of leaving a dead void. -->
+            <Border x:Name="HardwareBehaviorPanel" Grid.Column="0">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource SectionSurface}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsMonitorEnabled}" Value="True">
+                                <Setter Property="Grid.ColumnSpan" Value="3" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <StackPanel>
                     <TextBlock Text="{Binding BackgroundBehaviorTitle}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,8" />
                     <Border Style="{StaticResource InlineRow}"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding ProfileWatcherTitle}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding ProfileWatcherStatus}" Style="{StaticResource CaptionText}" Margin="0,4,0,0" /></StackPanel><Ellipse Grid.Column="1" Width="8" Height="8" Fill="{StaticResource BrushSuccess}" VerticalAlignment="Center" /></Grid></Border>
@@ -107,6 +118,13 @@
                         <Border Style="{StaticResource InlineRow}" BorderThickness="0" Padding="0,4" Margin="0,0,8,0"><TextBlock Text="{Binding RamLabel}" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushTextMuted}" /></Border>
                         <Border Style="{StaticResource InlineRow}" BorderThickness="0" Padding="0,4"><TextBlock Text="{Binding VramLabel}" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushTextMuted}" /></Border>
                     </UniformGrid>
+                    <!-- Honest OFF-state content: storage reports its real unavailability
+                         (sensors off) instead of inventing values. -->
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding StorageLabel}" Style="{StaticResource TinyCapsText}" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Top" Margin="0,0,10,0" />
+                        <TextBlock Grid.Column="1" Text="{Binding StorageInfoText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" />
+                    </Grid>
                     <TextBlock Text="{Binding BackendStatusText}" Style="{StaticResource StatusText}" Margin="0,8,0,0" />
                 </StackPanel>
             </Border>

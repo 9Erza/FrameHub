@@ -819,6 +819,8 @@ public sealed class LocalizationService
         ["Profiles.ToggledOn"] = "enabled",
         ["Profiles.ToggledOff"] = "disabled",
         ["Profiles.Search"] = "Search profiles…",
+        ["Profiles.NoResults"] = "No profiles match this search.",
+        ["Profiles.ClearSearch"] = "Clear search",
         ["Dialog.Cancel"] = "Cancel",
         ["Dialog.Confirm"] = "Confirm",
 
@@ -1858,6 +1860,8 @@ public sealed class LocalizationService
         ["Profiles.ToggledOn"] = "włączony",
         ["Profiles.ToggledOff"] = "wyłączony",
         ["Profiles.Search"] = "Szukaj profili…",
+        ["Profiles.NoResults"] = "Żaden profil nie pasuje do wyszukiwania.",
+        ["Profiles.ClearSearch"] = "Wyczyść wyszukiwanie",
         ["Dialog.Cancel"] = "Anuluj",
         ["Dialog.Confirm"] = "Potwierdź",
 
