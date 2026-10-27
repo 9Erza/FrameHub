@@ -4,8 +4,8 @@
              UseLayoutRounding="True"
              SnapsToDevicePixels="False">
     <!-- Chapter heading lives at the top of this view; the index is local to Settings. -->
-    <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
-        <Grid x:Name="ContentLayout" MaxWidth="1120" HorizontalAlignment="Stretch" Margin="0,0,0,24">
+    <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" HorizontalAlignment="Left" MaxWidth="960" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=UserControl}}">
+        <Grid x:Name="ContentLayout" HorizontalAlignment="Stretch" Margin="0,0,0,24">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <StackPanel Grid.Row="0">
                 <!-- Chapter heading: the single H1 of this page. -->
@@ -16,11 +16,11 @@
             <!-- Preference catalog: local index + single rows panel. ComboBox replaces the index below 1100 DIP. -->
             <Grid x:Name="SettingsIndexLayout" Grid.Row="2">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="200" />
+                    <ColumnDefinition Width="240" />
                     <ColumnDefinition Width="24" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Border x:Name="SettingsIndexBorder" Grid.Column="0" Style="{StaticResource DataPanel}" Padding="8" VerticalAlignment="Top">
+                <Border x:Name="SettingsIndexBorder" Grid.Column="0" Background="Transparent" Padding="0" VerticalAlignment="Top">
                     <ListBox x:Name="IndexList" ItemsSource="{Binding SettingsCategories}" SelectedIndex="{Binding SelectedSettingsCategoryIndex, Mode=TwoWay}" BorderThickness="0" Background="Transparent" AutomationProperties.Name="{Binding Title}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Vertical" /></ItemsPanelTemplate></ListBox.ItemsPanel>
                         <!-- QA E F6: selection speaks the LedgerNavItem language (gold rail +
@@ -59,10 +59,10 @@
                                 </Setter>
                             </Style>
                         </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate><DataTemplate><TextBlock x:Name="Label" Text="{Binding}" Style="{StaticResource SettingTitleText}" Foreground="{StaticResource BrushTextSecondary}" /><DataTemplate.Triggers><DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter TargetName="Label" Property="Foreground" Value="{StaticResource BrushTextPrimary}" /></DataTrigger></DataTemplate.Triggers></DataTemplate></ListBox.ItemTemplate>
+                        <ListBox.ItemTemplate><DataTemplate><TextBlock x:Name="Label" Text="{Binding}" Style="{StaticResource SettingTitleText}" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap" /><DataTemplate.Triggers><DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter TargetName="Label" Property="Foreground" Value="{StaticResource BrushTextPrimary}" /></DataTrigger></DataTemplate.Triggers></DataTemplate></ListBox.ItemTemplate>
                     </ListBox>
                 </Border>
-                <Border x:Name="SettingsRowsPanel" Grid.Column="2" Style="{StaticResource SectionSurface}" Padding="24">
+                <Border x:Name="SettingsRowsPanel" Grid.Column="2" Background="Transparent" Padding="0">
                 <StackPanel>
                 <TextBlock Text="{Binding SelectedItem, ElementName=IndexList}" Style="{StaticResource PageTitleText}" Margin="0,0,0,20" TextWrapping="Wrap" />
 
@@ -441,10 +441,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- QA E F4: diagnostics renders for every category as the global footer
-                     section, so short categories never leave a dead canvas band. The safety
-                     section above stays category-gated. -->
-                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16">
+                <!-- Diagnostics belongs to its category, not to every settings page. -->
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsAdvancedDiagnosticsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding DiagnosticsTitle}" Style="{StaticResource SectionTitleText}" />
                         <TextBlock Text="{Binding DiagnosticsDescription}" Style="{StaticResource SettingDescriptionText}" Margin="0,4,0,12" />
@@ -471,13 +469,14 @@
                 </Border>
 
                 <!-- Backstage supporter nook: one quiet gold panel, no paywall, no counters. -->
-                <Border Style="{StaticResource SupporterBand}" Margin="0,16,0,0">
+                <Expander Header="{Binding SupporterTitle}" Margin="0,16,0,0" Visibility="{Binding IsGeneralVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Border Style="{StaticResource SupporterBand}" Margin="0,8,0,0">
                     <StackPanel>
-                        <TextBlock Text="{Binding SupporterTitle}" Style="{StaticResource SectionHeadingText}" />
-                        <TextBlock Text="{Binding SupporterText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,12" />
+                        <TextBlock Text="{Binding SupporterText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,0,0,12" />
                         <Button Style="{StaticResource SupporterButton}" Content="{Binding SupporterActionText}" Command="{Binding OpenSupportCommand}" HorizontalAlignment="Left" AutomationProperties.Name="{Binding SupporterActionText}" />
                     </StackPanel>
                 </Border>
+                </Expander>
                 </StackPanel>
             </StackPanel>
             </Border>
