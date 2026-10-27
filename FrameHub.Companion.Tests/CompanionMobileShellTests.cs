@@ -131,7 +131,9 @@ public sealed class CompanionMobileShellTests
 
         int scrollRegion = html.IndexOf("app-scroll-region", StringComparison.Ordinal);
         int footer = html.IndexOf("<footer", StringComparison.Ordinal);
-        int nav = html.IndexOf("<nav", StringComparison.Ordinal);
+        // Two navs exist since 1.0: the desktop side rail (before content) and the mobile
+        // bottom bar (after content). The shell invariant targets the bottom bar.
+        int nav = html.IndexOf("<nav class=\"bottom-nav", StringComparison.Ordinal);
         Assert.IsTrue(scrollRegion >= 0 && footer > scrollRegion, "The footer must live inside the scrolling content region.");
         Assert.IsTrue(nav > footer, "The bottom nav must come after the footer, outside the scroll region.");
 

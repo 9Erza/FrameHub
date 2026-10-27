@@ -108,10 +108,14 @@
         if (isPaired) {
             elements.pairingSection.classList.add('hidden');
             if (elements.appNav) elements.appNav.classList.remove('hidden');
+            const sideNav = document.getElementById('side-nav');
+            if (sideNav) sideNav.classList.remove('hidden');
             if (authStateChanged) switchTab(activeTab);
         } else {
             elements.pairingSection.classList.remove('hidden');
             if (elements.appNav) elements.appNav.classList.add('hidden');
+            const sideNavHidden = document.getElementById('side-nav');
+            if (sideNavHidden) sideNavHidden.classList.add('hidden');
             if (elements.homeView) elements.homeView.classList.add('hidden');
             if (elements.libraryView) elements.libraryView.classList.add('hidden');
             if (elements.benchmarksView) elements.benchmarksView.classList.add('hidden');
@@ -128,6 +132,11 @@
             const resp = await fetch('/api/v1/status', { headers: getAuthHeaders() });
             if (resp.ok) {
                 const statusData = await resp.json();
+                if (statusData && statusData.appVersion) {
+                    document.querySelectorAll('[data-app-version]').forEach(function (el) {
+                        el.textContent = statusData.appVersion;
+                    });
+                }
                 if (statusData && statusData.desktopLanguage) {
                     let hasExplicit = false;
                     try {
@@ -139,6 +148,13 @@
                         if (elements.languageSelect) {
                             elements.languageSelect.value = window.FrameHubI18n.getCurrentLanguage();
                         }
+                        // The language arrived after first render: re-render dynamic regions so no
+                        // stale-locale strings (e.g. history empty-state) survive the switch.
+                        try {
+                            if (typeof switchTab === 'function' && typeof activeTab !== 'undefined') switchTab(activeTab);
+                            if (typeof fetchStatus === 'function') fetchStatus();
+                            if (typeof fetchHistory === 'function') fetchHistory();
+                        } catch (_) { }
                     }
                 }
             }

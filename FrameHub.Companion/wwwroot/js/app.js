@@ -162,6 +162,13 @@
             }
         });
 
+        // Desktop side rail mirrors the bottom bar tabs (same switchTab, no extra polling).
+        document.querySelectorAll('.side-nav-item').forEach(function (btn) {
+            const isActive = btn.getAttribute('data-tab') === activeTab;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
         if (activeTab === 'library') {
             fetchLibraryItems();
             fetchBackgroundApps();
@@ -205,6 +212,14 @@
             }
         });
 
+        // Desktop side-rail listeners: same tabs, same one-shot refresh behavior as the bottom bar.
+        document.querySelectorAll('.side-nav-item').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const tab = btn.getAttribute('data-tab');
+                switchTab(tab);
+            });
+        });
+
         // Brand Home button listener
         if (elements.brandHomeBtn) {
             elements.brandHomeBtn.addEventListener('click', function () {
@@ -221,6 +236,15 @@
         }
 
         elements.pairingForm.addEventListener('submit', handlePairingSubmit);
+        // Pairing submit is only meaningful with a token: reflect the existing
+        // submit guard in the button state (no validation logic change).
+        if (elements.pairingToken && elements.btnPair) {
+            const syncPairButton = function () {
+                elements.btnPair.disabled = elements.pairingToken.value.trim().length === 0;
+            };
+            elements.pairingToken.addEventListener('input', syncPairButton);
+            syncPairButton();
+        }
         if (elements.btnRefreshLibrary) elements.btnRefreshLibrary.addEventListener('click', function () {
             fetchLibraryItems();
             fetchBackgroundApps();
