@@ -4,6 +4,10 @@
              UseLayoutRounding="True"
              SnapsToDevicePixels="False">
     <!-- Chapter heading lives at the top of this view; the index is local to Settings. -->
+    <!-- UI 3.0 bounded (QA t_ca0f6d2d P3-3): the 960-DIP readable column is
+         LEFT-anchored so its H1/gutter matches the other seven screens (245 DIP
+         at 1540 wide) instead of centering 157 DIP inward; at narrow widths
+         MaxWidth never binds and the layout is unchanged. -->
     <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" HorizontalAlignment="Left" MaxWidth="960" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=UserControl}}">
         <Grid x:Name="ContentLayout" HorizontalAlignment="Stretch" Margin="0,0,0,24">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>

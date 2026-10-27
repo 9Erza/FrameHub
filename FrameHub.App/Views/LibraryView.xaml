@@ -42,7 +42,11 @@
                                 <Path Data="{StaticResource IconChevronDown}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="{StaticResource IconSizeChrome}" Height="{StaticResource IconSizeChrome}" Stretch="Uniform" />
                             </Button>
                         </StackPanel>
-                        <Button Style="{StaticResource SecondaryButton}" Content="{Binding RefreshStatusText}" Command="{Binding RefreshStatusCommand}" Margin="0,0,8,0" />
+                        <!-- UI 3.0: refresh lives with the scan actions on the populated
+                             catalog. In the empty state the welcome card + sources panel
+                             own all actions, so a detached refresh row is hidden. -->
+                        <Button Style="{StaticResource SecondaryButton}" Content="{Binding RefreshStatusText}" Command="{Binding RefreshStatusCommand}" Margin="0,0,8,0"
+                                Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}" />
                         <!-- Populated only: in the empty state Add manually lives once in the sources panel. -->
                         <Button Style="{StaticResource GhostButton}" Content="{Binding AddManuallyText}" Command="{Binding ToggleManageLibraryCommand}"
                                 Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}" />

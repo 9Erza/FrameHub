@@ -17,8 +17,11 @@
         <Border x:Name="ProfilesListPanel" Grid.Column="0" Style="{StaticResource DataPanel}">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                <Grid Margin="16,14,14,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding SavedProfilesTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding ProfilesCountText}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" /><TextBlock Text="{Binding SelectProfileDescription}" TextWrapping="Wrap" Margin="0,4,0,0"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsProfileSelected}" Value="False" /><Condition Binding="{Binding HasItems, ElementName=ProfilesGrid}" Value="True" /></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible" /></MultiDataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></StackPanel><!-- QA E F7: refresh is inert with zero rows; it enables with the first profile. --><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" AutomationProperties.Name="{Binding RefreshText}" IsEnabled="{Binding HasItems, ElementName=ProfilesGrid}" /></Grid>
-                <Grid Grid.Row="1" Margin="16,0,14,10" IsEnabled="{Binding HasItems, ElementName=ProfilesGrid}">
+                <Grid Margin="16,14,14,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding SavedProfilesTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Text="{Binding ProfilesCountText}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" /><TextBlock Text="{Binding SelectProfileDescription}" TextWrapping="Wrap" Margin="0,4,0,0"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding IsProfileSelected}" Value="False" /><Condition Binding="{Binding HasItems, ElementName=ProfilesGrid}" Value="True" /></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible" /></MultiDataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></StackPanel><!-- QA E F7: refresh is inert with zero rows; it enables with the first profile. --><!-- Refresh and search key off stored profiles (not the filtered view):
+                     with zero saved profiles both stay inert; a filter that
+                     matches nothing keeps search enabled so it can be cleared. -->
+                <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" AutomationProperties.Name="{Binding RefreshText}" IsEnabled="{Binding HasStoredProfiles}" /></Grid>
+                <Grid Grid.Row="1" Margin="16,0,14,10" IsEnabled="{Binding HasStoredProfiles}">
                     <!-- QA E F7: nothing to filter with zero rows; the search enables with the first profile. -->
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" MinHeight="30" VerticalContentAlignment="Center" AutomationProperties.Name="{Binding SearchPlaceholderText}" ToolTip="{Binding SearchPlaceholderText}" />
@@ -51,6 +54,23 @@
                      (F9 preserved); column MinWidths (120/80/60/44) only guard a
                      degenerate measure pass and narrow floors, never the layout. -->
                 <DataGrid x:Name="ProfilesGrid" Grid.Row="3" Margin="1" ItemsSource="{Binding ProfilesView}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" EnableRowVirtualization="True" EnableColumnVirtualization="False" CanUserSortColumns="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="{Binding SavedProfilesTitle}">
+                    <!-- UI 3.0: the grid is a replacement, not an underlay. With zero
+                         (filtered) rows it collapses so the starter / no-results card
+                         below owns the cell — no overlay, no obscured focus.
+                         BasedOn keeps the implicit DataGrid theme (Controls.xaml):
+                         without it this local Style would replace dark Background /
+                         RowBackground, RowHeight=40, GridLinesVisibility=None and
+                         Foreground (QA t_ca0f6d2d P1). -->
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasItems, RelativeSource={RelativeSource Self}}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="{Binding Data.NameHeader, Source={StaticResource VmProxy}}" Width="231*" MinWidth="120" SortMemberPath="ProcessName"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ProcessName}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                         <DataGridTextColumn Header="{Binding Data.ModeHeader, Source={StaticResource VmProxy}}" Binding="{Binding DisplayOptimizationMode}" Width="150*" MinWidth="80" />
@@ -59,7 +79,10 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <Border Grid.Row="3" Margin="16" Panel.ZIndex="2">
+                <!-- UI 3.0: starter REPLACES the grid (same cell, grid collapses above),
+                     so zero profiles read as onboarding, not as a dominated empty table.
+                     Zero filter matches show a distinct no-results card instead. -->
+                <Border Grid.Row="3" Margin="16">
                     <Border.Style>
                         <Style TargetType="Border" BasedOn="{StaticResource EmptyStateBorder}">
                             <Setter Property="Visibility" Value="Collapsed" />
@@ -69,9 +92,29 @@
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
                         <!-- QA E F7: the panel header above already says "Saved profiles" — the empty
                              state leads with the message + first step instead of repeating it. -->
-                        <TextBlock Text="{Binding EmptyStateText}" Style="{StaticResource SectionTitleText}" TextAlignment="Center" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding FirstProfileHintText}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,0" />
-                        <Button Style="{StaticResource PrimaryButton}" Content="{Binding CreateFirstProfileText}" Command="{Binding CreateFirstProfileCommand}" HorizontalAlignment="Center" Margin="0,16,0,0" AutomationProperties.Name="{Binding CreateFirstProfileText}" />
+                        <StackPanel Visibility="{Binding HasStoredProfiles, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                            <TextBlock Text="{Binding EmptyStateText}" Style="{StaticResource SectionTitleText}" TextAlignment="Center" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding FirstProfileHintText}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,0" />
+                            <Button Style="{StaticResource PrimaryButton}" Content="{Binding CreateFirstProfileText}" Command="{Binding CreateFirstProfileCommand}" HorizontalAlignment="Center" Margin="0,16,0,0" AutomationProperties.Name="{Binding CreateFirstProfileText}" />
+                        </StackPanel>
+                        <StackPanel>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding HasStoredProfiles}" Value="True" />
+                                                <Condition Binding="{Binding HasItems, ElementName=ProfilesGrid}" Value="False" />
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="{Binding NoResultsText}" Style="{StaticResource SectionTitleText}" TextAlignment="Center" TextWrapping="Wrap" />
+                            <Button Style="{StaticResource SubtleButton}" Content="{Binding ClearSearchText}" Command="{Binding ClearSearchCommand}" HorizontalAlignment="Center" Margin="0,16,0,0" AutomationProperties.Name="{Binding ClearSearchText}" />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </Grid>
