@@ -26,6 +26,9 @@
             'pairing.namePlaceholder': 'e.g. Mobile Browser',
             'pairing.submitBtn': 'Pair Device',
             'pairing.pendingMsg': 'Pairing request submitted. Please approve on your desktop...',
+            'pairing.failedStatus': 'Pairing failed (HTTP {status}).',
+            'pairing.networkError': 'Network error during pairing request.',
+            'pairing.missingCredential': 'The server did not return a pairing credential.',
 
             'home.noGame': 'No Game Detected',
             'home.gameRunning': 'Running',
@@ -281,6 +284,9 @@
             'pairing.namePlaceholder': 'np. Przeglądarka Mobilna',
             'pairing.submitBtn': 'Sparuj Urządzenie',
             'pairing.pendingMsg': 'Wysłano prośbę o parowanie. Zatwierdź ją na komputerze stacjonarnym...',
+            'pairing.failedStatus': 'Nie udało się sparować urządzenia (HTTP {status}).',
+            'pairing.networkError': 'Błąd sieci podczas wysyłania prośby o parowanie.',
+            'pairing.missingCredential': 'Serwer nie zwrócił danych uwierzytelniających urządzenia.',
 
             'home.noGame': 'Nie wykryto gry',
             'home.gameRunning': 'Uruchomiona',
