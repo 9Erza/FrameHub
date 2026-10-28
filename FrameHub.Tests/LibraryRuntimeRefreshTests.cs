@@ -168,8 +168,12 @@ public sealed class LibraryRuntimeRefreshTests
         Assert.IsFalse(librarySource.Contains("PeriodicTimer"), "No periodic timer may be added.");
         Assert.IsFalse(librarySource.Contains("System.Threading.Timer"), "No thread-pool timer may be added.");
 
-        StringAssert.Contains(librarySource, "public void Activate() => RefreshRuntimeState();",
+        StringAssert.Contains(librarySource, "public void Activate()",
+            "LibraryViewModel.Activate must exist as the bounded navigation entry point.");
+        StringAssert.Contains(librarySource, "RefreshRuntimeState();",
             "LibraryViewModel.Activate must perform bounded runtime-state refresh without rescanning or persisting library changes.");
+        StringAssert.Contains(librarySource, "ShowManageLibrary = false;",
+            "LibraryViewModel navigation entry must collapse the secondary manual form in a populated library (FH-100-003).");
     }
 
     private static int CountOccurrences(string source, string fragment)

@@ -65,19 +65,27 @@ public partial class LibraryView : WpfUserControl
 
     /// <summary>
     /// W5 (QA C runda 4): at narrow widths the manage form expands above the
-    /// viewport with no visible feedback. Scroll it into view after layout
-    /// settles; no focus theft, no command or state change.
+    /// viewport with no visible feedback. Scroll it into view and move keyboard
+    /// focus to its first field after layout settles; the open itself is always
+    /// user-initiated (FH-100-003), so this is not focus theft. No command or
+    /// state change.
     /// </summary>
     private void BringManageFormIntoView()
     {
         if (ManageLibraryExpander == null) return;
-        Dispatcher.BeginInvoke(new Action(() => ManageLibraryExpander.BringIntoView()),
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            ManageLibraryExpander.BringIntoView();
+            ManualDisplayNameBox?.Focus();
+        }),
             System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     /// <summary>
-    /// Catalog + inspector sit side by side at >= 1200 DIP with a 320+ DIP inspector;
-    /// below that the inspector stacks underneath the catalog (detail layout, never squeezed).
+    /// FH-100-005: catalog + inspector stay in ONE view with proportional star
+    /// widths (catalog ~45%, inspector ~55%) and responsive minima instead of
+    /// the previous fixed 400 DIP inspector. Below 1200 DIP the inspector
+    /// stacks underneath the catalog (detail layout, never squeezed).
     /// With no selection the catalog takes the full width — no dead inspector column.
     /// Filter/search state is untouched by layout; Back keeps its existing deselect semantics.
     /// </summary>
@@ -89,7 +97,7 @@ public partial class LibraryView : WpfUserControl
         CatalogWorkspace.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
         CatalogWorkspace.ColumnDefinitions[1].Width = new GridLength(sideBySide ? 16 : 0);
         CatalogWorkspace.ColumnDefinitions[2].Width = sideBySide
-            ? new GridLength(400, GridUnitType.Pixel)
+            ? new GridLength(1.2, GridUnitType.Star)
             : new GridLength(0);
         CatalogWorkspace.RowDefinitions[1].Height = new GridLength(sideBySide ? 0 : 16);
         CatalogWorkspace.RowDefinitions[2].Height = new GridLength(sideBySide ? 0 : 1, GridUnitType.Star);

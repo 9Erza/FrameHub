@@ -310,6 +310,12 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public string ClearFilterText => _localization.T("Library.ClearFilter");
     public ICommand ClearLibraryFilterCommand { get; }
     public string SourcesNoteText => _localization.T("Library.SourcesNote");
+    /// <summary>FH-100-007: visible hint that selecting a row opens CPU configuration; selection never launches.</summary>
+    public string SelectHintText => _localization.T("Library.SelectHint");
+    /// <summary>FH-100-007: discreet per-row affordance opening the same selection (no launch).</summary>
+    public string ConfigureActionText => _localization.T("Library.ConfigureAction");
+    /// <summary>FH-100-007: inspector headline naming the game being configured.</summary>
+    public string InspectorTitle => string.Format(_localization.T("Library.InspectorTitle"), SelectedItem?.DisplayName ?? NoSelectionText);
 
     public void RefreshFilteredItems()
     {
@@ -506,6 +512,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
             }
             RefreshCs2ProcessState();
             OnPropertyChanged(nameof(SelectedItemTitle));
+            OnPropertyChanged(nameof(InspectorTitle));
             OnPropertyChanged(nameof(ShowLibraryHome));
             OnPropertyChanged(nameof(ShowSelectedDetail));
             OnPropertyChanged(nameof(LaunchText));
@@ -681,7 +688,9 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         AddFolderCommand = new RelayCommand(_ => AddCustomFolder());
         ScanCustomCommand = new RelayCommand(_ => ScanCustom(), _ => !IsBusy);
         RefreshStatusCommand = new RelayCommand(_ => RefreshRuntimeState());
-        ToggleManageLibraryCommand = new RelayCommand(_ => ShowManageLibrary = !ShowManageLibrary);
+        // FH-100-003: the manual form is secondary. Opening it must never
+        // accidentally close it again, so both entry buttons only open.
+        ToggleManageLibraryCommand = new RelayCommand(_ => ShowManageLibrary = true);
         OpenManageLibraryCommand = new RelayCommand(_ => ShowManageLibrary = true);
         ClearLibraryFilterCommand = new RelayCommand(_ => ClearLibraryFilter());
         RemoveItemCommand = new RelayCommand(parameter => RemoveItem(parameter as LibraryItemViewModel));
@@ -752,6 +761,11 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         foreach (string folder in _runtime.Settings.CustomLibraryLocations) CustomFolders.Add(folder);
 
         RefreshRuntimeState();
+        // FH-100-003: entering a populated library keeps the secondary manual
+        // form collapsed; catalog and scan stay primary. The empty state owns
+        // its own onboarding actions, so the expander stays shut there too
+        // until the user opens it explicitly.
+        ShowManageLibrary = false;
         // An empty library must never claim readiness: keep the state message
         // silent until the first item (or action feedback) gives it meaning.
         StatusMessage = Items.Count > 0 ? _localization.T("Library.Ready") : string.Empty;
@@ -881,8 +895,18 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Bounded runtime-status refresh for Library view activation: one fresh running-state
     /// check only. No game-source rescan, no persistence change, no timer.
+    /// FH-100-003: entering a populated library keeps the secondary manual form
+    /// collapsed so catalog and scan stay primary.
     /// </summary>
-    public void Activate() => RefreshRuntimeState();
+    public void Activate()
+    {
+        if (HasLibraryItems)
+        {
+            ShowManageLibrary = false;
+        }
+
+        RefreshRuntimeState();
+    }
 
     private async void RefreshRuntimeState()
     {
