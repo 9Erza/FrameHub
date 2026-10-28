@@ -72,7 +72,6 @@ public partial class MainWindow : Window
         Loaded += MainWindow_Loaded;
         SourceInitialized += (_, _) =>
         {
-            ApplyCurrentScreenWorkArea();
             HwndSource? source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             if (source is not null)
             {
@@ -306,11 +305,6 @@ public partial class MainWindow : Window
             _lastNonMinimizedWindowState = WindowState;
         }
 
-        if (WindowState == WindowState.Maximized)
-        {
-            ApplyCurrentScreenWorkArea();
-        }
-
         if (WindowState == WindowState.Minimized && ViewModel?.Runtime.Settings.MinimizeToTray == true)
         {
             HideToTray();
@@ -319,41 +313,17 @@ public partial class MainWindow : Window
         RunAutomaticUpdateCheck();
     }
 
+    /// <summary>
+    /// FH-100-001: trivial Normal↔Maximized toggle. Maximized geometry is owned
+    /// solely by WindowChrome (native min/max handling → current monitor work
+    /// area, DPI/taskbar aware). No manual MaxWidth/MaxHeight clamp: constraining the
+    /// whole window (incl. resize border) to the work-area size shrinks the
+    /// client by ~1 px (white bleed) and a sticky clamp pollutes restore bounds.
+    /// Snap (Win+arrows) stays with the OS window manager.
+    /// </summary>
     private void ToggleWindowState()
     {
-        if (WindowState == WindowState.Maximized)
-        {
-            WindowState = WindowState.Normal;
-            return;
-        }
-
-        ApplyCurrentScreenWorkArea();
-        WindowState = WindowState.Maximized;
-    }
-
-    private void ApplyCurrentScreenWorkArea()
-    {
-        try
-        {
-            var handle = new WindowInteropHelper(this).Handle;
-            if (handle == IntPtr.Zero)
-            {
-                return;
-            }
-
-            var workingArea = WinForms.Screen.FromHandle(handle).WorkingArea;
-            var source = PresentationSource.FromVisual(this);
-            double scaleX = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
-            double scaleY = source?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
-
-            MaxWidth = workingArea.Width / scaleX;
-            MaxHeight = workingArea.Height / scaleY;
-        }
-        catch
-        {
-            MaxWidth = SystemParameters.WorkArea.Width;
-            MaxHeight = SystemParameters.WorkArea.Height;
-        }
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 
     private void RefreshTrayTexts()
