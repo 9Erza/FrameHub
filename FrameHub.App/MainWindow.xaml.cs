@@ -75,6 +75,10 @@ public partial class MainWindow : Window
             HwndSource? source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             if (source is not null)
             {
+                // FH-100-001: constrain borderless maximization to the current
+                // monitor work area (see WndProc/WM_GETMINMAXINFO below).
+                // Coexists with GlobalHotkeyService's own hook (chained).
+                source.AddHook(WndProc);
                 _globalHotkeyService = new GlobalHotkeyService(source);
                 _globalHotkeyService.HotkeyPressed += async (_, _) =>
                 {
@@ -315,15 +319,92 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// FH-100-001: trivial Normal↔Maximized toggle. Maximized geometry is owned
-    /// solely by WindowChrome (native min/max handling → current monitor work
-    /// area, DPI/taskbar aware). No manual MaxWidth/MaxHeight clamp: constraining the
-    /// whole window (incl. resize border) to the work-area size shrinks the
-    /// client by ~1 px (white bleed) and a sticky clamp pollutes restore bounds.
+    /// by the <c>WM_GETMINMAXINFO</c> hook below (current monitor work area,
+    /// DPI/taskbar aware) together with WindowChrome. No manual
+    /// MaxWidth/MaxHeight clamp: constraining the whole window (incl. resize
+    /// border) to the work-area size shrinks the client by ~1 px (white bleed)
+    /// and a sticky clamp pollutes restore bounds.
     /// Snap (Win+arrows) stays with the OS window manager.
     /// </summary>
     private void ToggleWindowState()
     {
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    // FH-100-001: borderless (WindowStyle=None) maximization must cover the
+    // current monitor WORK area (rcWork: taskbar/dock aware), not the full
+    // monitor rect. Without this hook WPF maximizes to the monitor bounds and
+    // the bottom ~48 px of content (footer, "Przywróć sesję") hides behind the
+    // topmost taskbar. Both MINMAXINFO and MONITORINFO are device pixels, so
+    // the constraint is DPI/mixed-DPI safe with no hardcoded sizes or margins;
+    // MonitorFromWindow keeps it per-monitor (nearest), never primary-only.
+    private const int WmGetMinMaxInfo = 0x0024;
+    private const uint MonitorDefaultToNearest = 0x00000002;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MonitorInfo lpmi);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RectNative
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private struct MonitorInfo
+    {
+        public int Size;
+        public RectNative Monitor;
+        public RectNative Work;
+        public uint Flags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PointNative
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MinMaxInfo
+    {
+        public PointNative Reserved;
+        public PointNative MaxSize;
+        public PointNative MaxPosition;
+        public PointNative MinTrackSize;
+        public PointNative MaxTrackSize;
+    }
+
+    private static IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WmGetMinMaxInfo)
+        {
+            IntPtr monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
+            if (monitor != IntPtr.Zero)
+            {
+                var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+                if (GetMonitorInfo(monitor, ref info))
+                {
+                    MinMaxInfo mmi = Marshal.PtrToStructure<MinMaxInfo>(lParam);
+                    mmi.MaxPosition.X = Math.Abs(info.Work.Left - info.Monitor.Left);
+                    mmi.MaxPosition.Y = Math.Abs(info.Work.Top - info.Monitor.Top);
+                    mmi.MaxSize.X = Math.Abs(info.Work.Right - info.Work.Left);
+                    mmi.MaxSize.Y = Math.Abs(info.Work.Bottom - info.Work.Top);
+                    Marshal.StructureToPtr(mmi, lParam, true);
+                    handled = true;
+                }
+            }
+        }
+
+        return IntPtr.Zero;
     }
 
     private void RefreshTrayTexts()

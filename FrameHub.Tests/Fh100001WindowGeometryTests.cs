@@ -4,11 +4,13 @@ namespace FrameHub.Tests;
 
 /// <summary>
 /// FH-100-001 — main-window geometry / WindowChrome regression.
-/// The maximized white-bleed (right edge) was caused by a manual
-/// MaxWidth/MaxHeight clamp (WinForms WorkingArea / WPF scale) racing the
-/// native WindowChrome maximized layout. The fix removes the manual clamp;
-/// WindowChrome stays the sole maximized-geometry owner. These tests pin the
-/// removal and the intact chrome contract (no magic margins).
+/// Borderless (WindowStyle=None) maximization must cover the current monitor
+/// WORK area (rcWork), not the full monitor rect: without a WM_GETMINMAXINFO
+/// hook WPF maximizes to the monitor bounds and the bottom ~48 px of content
+/// (footer, "Przywróć sesję") hides behind the taskbar (QA P1: MAX_RECT
+/// -7,-7,1934,1094 at 1920x1080/DPI100 instead of work area 1920x1032).
+/// These tests pin the hook mechanism and forbid both the old manual
+/// MaxWidth/MaxHeight clamp and any hardcoded geometry/magic margins.
 /// Real Windows GUI + DPI matrix (100/125/150/200, mixed-DPI): NOT RUN here —
 /// single host, no isolated multi-DPI rig; covered by independent QA.
 /// </summary>
@@ -63,7 +65,7 @@ public sealed class Fh100001WindowGeometryTests
     }
 
     [TestMethod]
-    public void DoubleClick_RoutesThroughToggle_AndSnapStaysWithOs()
+    public void DoubleClick_RoutesThroughToggle_MaximizeConstrainedToWorkArea()
     {
         string codeBehind = ReadMainWindowCodeBehind();
 
@@ -71,9 +73,42 @@ public sealed class Fh100001WindowGeometryTests
             "Title-bar double-click maximize/restore path must stay wired.");
         Assert.IsTrue(codeBehind.Contains("ToggleWindowState()", StringComparison.Ordinal),
             "Double-click and chrome button must share the single toggle path.");
+    }
 
-        StringAssert.DoesNotMatch(codeBehind, new System.Text.RegularExpressions.Regex("WM_GETMINMAXINFO|WndProc|HwndSourceHook|AddHook"),
-            "FH-100-001: no custom min/max hook may fight WindowChrome; Win+arrows/Snap stay with the OS window manager.");
+    [TestMethod]
+    public void MaximizedGeometry_UsesWorkAreaHook_NoClamp_NoMagicMargins()
+    {
+        string codeBehind = ReadMainWindowCodeBehind();
+
+        // Mechanism: WM_GETMINMAXINFO answered from the NEAREST monitor's
+        // rcWork — per-monitor, taskbar-aware, device pixels (DPI-safe).
+        StringAssert.Contains(codeBehind, "WmGetMinMaxInfo",
+            "FH-100-001: WM_GETMINMAXINFO must be handled to bound maximization.");
+        StringAssert.Contains(codeBehind, "MonitorFromWindow",
+            "FH-100-001: the hook must resolve the current (nearest) monitor, never assume primary.");
+        StringAssert.Contains(codeBehind, "MonitorDefaultToNearest",
+            "FH-100-001: MonitorFromWindow must use MONITOR_DEFAULTTONEAREST.");
+        StringAssert.Contains(codeBehind, "GetMonitorInfo",
+            "FH-100-001: the hook must read MONITORINFO for rcWork.");
+        StringAssert.Contains(codeBehind, "MaxSize",
+            "FH-100-001: the hook must bound ptMaxSize to the work-area size.");
+        StringAssert.Contains(codeBehind, "MaxPosition",
+            "FH-100-001: the hook must origin ptMaxPosition at the work-area offset.");
+        StringAssert.Contains(codeBehind, "AddHook",
+            "FH-100-001: the WndProc hook must be registered on the window source.");
+        Assert.IsTrue(codeBehind.Contains("info.Work", StringComparison.Ordinal),
+            "FH-100-001: maximized bounds must derive from rcWork (taskbar-aware), not rcMonitor.");
+
+        // Forbid the old broken compensator and hardcoded geometry.
+        StringAssert.DoesNotMatch(codeBehind, new System.Text.RegularExpressions.Regex("MaxWidth\\s*="),
+            "FH-100-001: no MaxWidth clamp may constrain the maximized window.");
+        StringAssert.DoesNotMatch(codeBehind, new System.Text.RegularExpressions.Regex("MaxHeight\\s*="),
+            "FH-100-001: no MaxHeight clamp may constrain the maximized window or leak into restore bounds.");
+        foreach (string magic in new[] { "1920", "1080", "1032", "1094" })
+        {
+            Assert.IsFalse(codeBehind.Contains(magic, StringComparison.Ordinal),
+                $"FH-100-001: no hardcoded screen geometry ({magic}); bounds come from the live monitor work area.");
+        }
     }
 
     [TestMethod]
