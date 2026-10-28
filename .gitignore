@@ -20,3 +20,29 @@ TestResults/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Isolated agent worktrees and local recovery state
+.worktrees/
+recovery-backups/
+
+# Local credentials / signing material (never commit real secrets)
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+*.pem
+
+# Generated scratch files, runtime databases and crash dumps
+*.bak
+*.tmp
+*.temp
+*.orig
+*.rej
+*.dmp
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm

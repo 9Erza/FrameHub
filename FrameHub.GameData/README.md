@@ -1,23 +1,26 @@
-# FrameHub.GameData
+# FrameHub.GameData — dormant research data
 
-> **Status: dormant (2026-10-24).** This data set is not referenced by production code
-> (no `.csproj`, absent from `FrameHub.slnx`, zero consumers of `GameDataService` /
-> `GameDataModels`). Canonical state: `docs/architecture/OVERVIEW.md` and
-> `docs/architecture/FEATURE-MAP.md`. Adopt-or-remove is a pending P3 decision —
-> see `docs/audits/2026-10-24-noc-functional-inventory.md`. Do not treat the text
-> below as the live integration contract.
+> **Not used by FrameHub 1.0.0.** Production does not reference this data set:
+> it has no `.csproj`, is absent from `FrameHub.slnx`, and neither the
+> WPF app nor Companion calls `GameDataService` / `GameDataModels`.
+> The active Counter-Strike 2 workflow uses `Cs2OptimizationService`.
 
-This folder contains declarative game optimization data used by FrameHub.
+This directory retains **experimental declarative data** for a possible
+future game-integration architecture. It is not packaged as an active
+configuration source, and editing these JSON files will not change
+FrameHub's current game settings or optimization behavior.
 
-The application engine reads these JSON files and builds the UI/options dynamically.
-Do not put executable scripts, PowerShell, batch files, DLLs or binary patches here.
+Currently retained research data: `games/counter-strike-2/`.
 
-Current games:
+**Do not** put executable scripts, PowerShell, batch files, DLLs, binary
+patches or credentials in this data directory.
 
-- `counter-strike-2`
+The possible adopt-or-remove decision is deliberately deferred to a separate
+reviewed change: see
+[`docs/architecture/REFACTOR-CANDIDATES.md`](../docs/architecture/REFACTOR-CANDIDATES.md),
+[`docs/architecture/OVERVIEW.md`](../docs/architecture/OVERVIEW.md) and
+[`docs/audits/2026-10-24-noc-functional-inventory.md`](../docs/audits/2026-10-24-noc-functional-inventory.md).
 
-Planned online model:
-
-1. Built-in data ships with the app from this folder.
-2. Updated data can later be downloaded to `%APPDATA%/FrameHub/GameData`.
-3. User/local AppData data has priority over built-in data.
+A future implementation would need an explicit production consumer, packaging
+contract, tests, security review and documentation update. Nothing in this
+directory should be interpreted as a shipping feature.
