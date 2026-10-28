@@ -68,7 +68,7 @@ invariant formatting and UTC timestamps regardless of UI language.
    - **Game CPU Assignment**: When a game is active, temporarily adjust CPU core scheduling using topology presets (All Cores, Physical Only, Clear) or custom CPU Sets.
    - **Session Optimization**: Monitor and control background app suspension.
    - **Benchmarks**: Monitor active benchmark progress or trigger remote capture.
-6. The Companion is designed as a mobile app shell: the bottom navigation stays fixed while content scrolls, works in mobile Safari/Chrome, and can be added to your home screen with the FrameHub icon.
+6. The Companion adapts to the screen: on wide desktop browser windows it shows a side navigation rail with multi-column content grids; on phones it behaves as a mobile app shell — the bottom navigation stays fixed while content scrolls, it works in mobile Safari/Chrome, and it can be added to your home screen with the FrameHub icon. The running product version is shown in **Settings > About** (and in the footer).
 
 ---
 

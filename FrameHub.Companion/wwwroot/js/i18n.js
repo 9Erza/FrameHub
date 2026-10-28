@@ -132,6 +132,11 @@
             'settings.unpairDesc': 'Removes the saved pairing credential from this browser.',
             'settings.aboutTitle': 'About',
             'settings.aboutDesc': 'FrameHub Companion connects locally to FrameHub running on your Windows PC.',
+            'settings.aboutVersionLabel': 'Version',
+            'settings.aboutProjectLabel': 'Project',
+            'settings.aboutSupportLabel': 'Support',
+            'settings.aboutSupportLink': 'Buy Me a Coffee',
+            'a11y.skipToContent': 'Skip to content',
 
             'library.title': 'Game Library',
             'library.refresh': 'Refresh',
@@ -215,11 +220,11 @@
 
             'optimization.cpu.title': 'Game CPU Assignment',
             'optimization.cpu.description': 'Temporarily change how the currently running game uses the CPU.',
-            'optimization.cpu.sourceLabel': 'Configuration source',
+            'optimization.cpu.sourceLabel': 'Configuration source:',
             'optimization.cpu.sourceSystem': 'System',
             'optimization.cpu.sourceProfile': 'Game profile',
             'optimization.cpu.sourceOverride': 'Temporary override',
-            'optimization.cpu.modeLabel': 'CPU mode',
+            'optimization.cpu.modeLabel': 'CPU mode:',
             'optimization.cpu.defaultSetting': 'Default system setting',
             'optimization.cpu.systemSetting': 'System setting',
             'optimization.cpu.availableProcessors': 'Available processors',
@@ -382,6 +387,11 @@
             'settings.unpairDesc': 'Usuwa zapisane dane parowania z tej przeglądarki.',
             'settings.aboutTitle': 'Informacje',
             'settings.aboutDesc': 'FrameHub Companion łączy się lokalnie z aplikacją FrameHub na komputerze Windows.',
+            'settings.aboutVersionLabel': 'Wersja',
+            'settings.aboutProjectLabel': 'Projekt',
+            'settings.aboutSupportLabel': 'Wsparcie',
+            'settings.aboutSupportLink': 'Buy Me a Coffee',
+            'a11y.skipToContent': 'Przejdź do treści',
 
             'library.title': 'Biblioteka Gier',
             'library.refresh': 'Odśwież',
@@ -465,11 +475,11 @@
 
             'optimization.cpu.title': 'Przydział CPU dla gry',
             'optimization.cpu.description': 'Tymczasowo zmień sposób wykorzystania procesora przez aktualnie uruchomioną grę.',
-            'optimization.cpu.sourceLabel': 'Źródło konfiguracji',
+            'optimization.cpu.sourceLabel': 'Źródło konfiguracji:',
             'optimization.cpu.sourceSystem': 'System',
             'optimization.cpu.sourceProfile': 'Profil gry',
             'optimization.cpu.sourceOverride': 'Tymczasowe ustawienia',
-            'optimization.cpu.modeLabel': 'Tryb CPU',
+            'optimization.cpu.modeLabel': 'Tryb CPU:',
             'optimization.cpu.defaultSetting': 'Standardowe ustawienie',
             'optimization.cpu.systemSetting': 'Ustawienie systemowe',
             'optimization.cpu.availableProcessors': 'Dostępne procesory',
@@ -553,6 +563,16 @@
                 el.textContent = t(key, el.textContent);
             }
         });
+        const placeholders = scope.querySelectorAll('[data-i18n-placeholder]');
+        placeholders.forEach(function (el) {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (key) {
+                const text = t(key, el.getAttribute('placeholder') || '');
+                try {
+                    el.setAttribute('placeholder', text);
+                } catch (_) { }
+            }
+        });
     }
 
     function setLanguage(lang, persist) {
@@ -564,6 +584,9 @@
             } catch (_) { }
         }
         applyTranslations(document);
+        try {
+            document.documentElement.setAttribute('lang', normalized);
+        } catch (_) { }
         window.dispatchEvent(new CustomEvent('framehub:languagechanged', { detail: { language: normalized } }));
         return normalized;
     }
@@ -576,6 +599,9 @@
 
     // Initialize initial language
     currentLanguage = getInitialLanguage();
+    try {
+        document.documentElement.setAttribute('lang', currentLanguage);
+    } catch (_) { }
 
     window.FrameHubI18n = {
         translations: translations,

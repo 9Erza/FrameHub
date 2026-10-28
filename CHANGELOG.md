@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.0.0] - prepared, not yet released
+
+> This release is implemented in code (`version.txt` reads `1.0.0`, all surfaces report it).
+> No public GitHub Release and no `v1.0.0` tag have been published.
+
+### Added
+
+- Official Frame Core visual identity: the approved dark-graphite/amber mark now ships in `FrameHub.App/Assets` (EXE icon, window, taskbar, tray, installer, shortcuts) and across the Companion web UI (header logo, favicon, Apple touch icon, graphite theme color).
+- Companion desktop web composition: side navigation rail, wide-screen content grids and a centered settings workspace on viewports >= 1024 px, alongside the mobile app shell (fixed header, single scroll region, bottom navigation, safe-area support).
+- Companion Settings/About now shows the running product version (live from `/api/v1/status`), with project and support links; the footer and desktop rail carry the same version.
+- `ProductVersionTests`: single-source-of-truth coverage pinning `version.txt` to `1.0.0` and to the shipped assembly metadata.
+
+### Changed
+
+- Every user-visible surface reports **1.0.0** from the single `version.txt` source (WPF, Companion, installer file name, About, API status, current docs).
+- Companion theme rebuilt on Frame Core tokens (`Colors.xaml` graphite/amber/ivory/steel); amber is reserved for primary actions and the active state.
+- Companion hardening: hardware-off state renders the disabled notice with an enable action instead of empty tiles; pairing placeholders are localized; the language switch re-renders dynamic regions; the pair button gates on a non-empty token; live regions and skip-link/keyboard focus covered.
+
+### Fixed
+
+- Stale Polish strings surviving a desktop-language sync (e.g. benchmark history empty-state) are re-rendered after the switch.
+- Hardware telemetry section no longer shows placeholder tiles before the first state arrives.
+
+History of earlier releases is preserved below unchanged.
+
 ## [0.7.1] - 2026-08-18
 
 ### Changed

@@ -104,7 +104,8 @@ public sealed class CompanionFrontendStaticFilesTests
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         string content = await response.Content.ReadAsStringAsync();
-        Assert.IsTrue(content.Contains("--bg-main"), "CSS file must contain FrameHub theme variables.");
+        // Frame Core 1.0 tokens (Graphite/Amber/Ivory/Steel); renamed from the legacy navy --bg-main.
+        Assert.IsTrue(content.Contains("--fh-bg"), "CSS file must contain FrameHub theme variables.");
     }
 
     [TestMethod]
