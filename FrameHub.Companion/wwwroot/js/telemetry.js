@@ -19,9 +19,9 @@
             const usedGb = (usedBytes / (1024 * 1024 * 1024)).toFixed(1);
             if (typeof totalBytes === 'number' && isFinite(totalBytes) && totalBytes > 0) {
                 const totalGb = (totalBytes / (1024 * 1024 * 1024)).toFixed(1);
-                return usedGb + ' / ' + totalGb + ' GB';
+                return usedGb + ' / ' + totalGb + '\u00A0GB';
             }
-            return usedGb + ' GB';
+            return usedGb + '\u00A0GB';
         }
         return '--';
     }
