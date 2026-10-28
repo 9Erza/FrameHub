@@ -19,6 +19,14 @@
             <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" Margin="0,4,0,0" />
             <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,10" TextWrapping="Wrap" />
 
+            <!-- FH-100-016: one short guide over the existing workflow (no new wizard). -->
+            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="{Binding WorkflowGuideTitle}" Style="{StaticResource SectionHeadingText}" />
+                    <TextBlock Text="{Binding WorkflowGuideText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+
             <!-- Band A — live session/recovery strip. The sticky bar below stays the single in-frame action. -->
             <Border Margin="0,0,0,16">
                 <Border.Style>
@@ -85,13 +93,28 @@
 
                     <!-- UI 3.0: single game choice lives in the Manual card above (same
                          SelectedGame). Automation keeps its per-game list + reload. -->
+                    <TextBlock Text="{Binding AutoVsManualHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,12,0,0" />
                     <Grid Margin="0,20,0,8">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding AutoGamesLabel}" Style="{StaticResource DataTitleText}" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding ReloadLibraryButtonText}" Command="{Binding ReloadLibraryCommand}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                        <TextBlock Grid.Column="1" Text="{Binding AutoGamesSummary}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                        <Button Grid.Column="2" Style="{StaticResource ToolbarButton}" Content="{Binding ReloadLibraryButtonText}" Command="{Binding ReloadLibraryCommand}" VerticalAlignment="Center" Margin="12,0,0,0" />
                     </Grid>
-                    <ItemsControl ItemsSource="{Binding Games}">
-                        <ItemsControl.ItemTemplate>
+                    <!-- FH-100-015: bounded, searchable, virtualized game list (~6 rows, own scroll). -->
+                    <TextBlock Text="{Binding GameSearchLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" />
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBox Style="{StaticResource HintTextBox}" Tag="{Binding GameSearchPlaceholder}" Text="{Binding GameSearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding GameSearchLabel}" />
+                        <Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding ClearSearchButtonText}" Command="{Binding ClearGameSearchCommand}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                    </Grid>
+                    <ListBox ItemsSource="{Binding GamesView}" SelectedItem="{Binding SelectedGame, Mode=TwoWay}"
+                             MaxHeight="320" MinHeight="104"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.CanContentScroll="True"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling">
+                        <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Style="{StaticResource InlineRow}">
                                     <Grid>
@@ -102,8 +125,9 @@
                                     </Grid>
                                 </Border>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="{Binding NoMatchingGamesText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding NoMatchingGamesVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
                 </StackPanel>
             </Border>
 
@@ -155,7 +179,7 @@
             <!-- 2. Concise preview and recovery list -->
             <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
                 <StackPanel>
-                    <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding CandidateTitle}" Style="{StaticResource SectionHeadingText}" /><TextBlock Text="{Binding CandidateHint}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshButtonText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" /></Grid>
+                    <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding CandidateTitle}" Style="{StaticResource SectionHeadingText}" /><TextBlock Text="{Binding CandidateHint}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,0" /><TextBlock Text="{Binding CandidateSafetyNote}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel><Button Grid.Column="1" Style="{StaticResource ToolbarButton}" Content="{Binding RefreshButtonText}" Command="{Binding RefreshCommand}" VerticalAlignment="Center" /></Grid>
                     <Grid>
                         <DataGrid BorderThickness="0" HeadersVisibility="Column" ItemsSource="{Binding Candidates}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Height="180" HorizontalScrollBarVisibility="Auto" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"><DataGrid.Columns><DataGridTextColumn Header="{Binding Data.RuleColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding RuleName}" Width="140" /><DataGridTextColumn Header="{Binding Data.ProcessColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessName}" Width="160" /><DataGridTextColumn Header="{Binding Data.PidColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ProcessId}" Width="72" /><DataGridTextColumn Header="{Binding Data.PathColumnHeader, Source={StaticResource VmProxy}}" Binding="{Binding ExecutablePath}" Width="2*"><DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="ToolTip" Value="{Binding ExecutablePath}" /></Style></DataGridTextColumn.ElementStyle></DataGridTextColumn></DataGrid.Columns></DataGrid>
                         <TextBlock Text="{Binding NoCandidatesText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding NoCandidatesVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
