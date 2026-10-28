@@ -3,6 +3,44 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:lib="clr-namespace:FrameHub.App.ViewModels.Library"
              xmlns:opt="clr-namespace:FrameHub.App.ViewModels.GameOptimization">
+    <UserControl.Resources>
+        <!-- FH-100-002: scoped dark scan menu built only from existing theme brushes.
+             Normal/hover/disabled/focus states; Esc and keyboard navigation stay native.
+             No global Controls.xaml change; scanner commands are untouched. -->
+        <Style x:Key="LibraryScanContextMenu" TargetType="ContextMenu">
+            <Setter Property="Background" Value="{StaticResource BrushSurfaceRaised}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BrushBorderDefault}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+            <Setter Property="Padding" Value="4" />
+        </Style>
+        <Style x:Key="LibraryScanMenuItem" TargetType="MenuItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource BrushSurfaceHover}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource BrushFocus}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
         <StackPanel>
             <!-- Chapter heading: the single H1 of this page. -->
@@ -15,7 +53,7 @@
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="0" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
                 <!-- The catalog is primary. Scanning and manual management stay compact. -->
-                <StackPanel x:Name="LibraryCatalogPanel" Grid.Column="0" Grid.Row="0">
+                <StackPanel x:Name="LibraryCatalogPanel" Grid.Column="0" Grid.Row="0" MinWidth="300">
                 <Grid x:Name="LibraryTopRow" Margin="0,0,0,16">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
@@ -31,12 +69,12 @@
                             <Button Style="{StaticResource PrimaryButton}" Content="{Binding ScanMenuText}" Command="{Binding ScanAllCommand}" AutomationProperties.Name="{Binding ScanAllText}" Padding="14,8,10,8" />
                             <Button x:Name="ScanMenuButton" Style="{StaticResource PrimaryButton}" Click="ScanMenuButton_Click" AutomationProperties.Name="{Binding ScanMenuText}" Margin="2,0,0,0" Padding="10,8">
                                 <Button.ContextMenu>
-                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                        <MenuItem Header="{Binding ScanAllText}" Command="{Binding ScanAllCommand}" />
-                                        <MenuItem Header="{Binding ScanSteamText}" Command="{Binding ScanSteamCommand}" />
-                                        <MenuItem Header="{Binding ScanEpicText}" Command="{Binding ScanEpicCommand}" />
-                                        <MenuItem Header="{Binding ScanRiotText}" Command="{Binding ScanRiotCommand}" />
-                                        <MenuItem Header="{Binding ScanCustomText}" Command="{Binding ScanCustomCommand}" />
+                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Style="{StaticResource LibraryScanContextMenu}">
+                                        <MenuItem Style="{StaticResource LibraryScanMenuItem}" Header="{Binding ScanAllText}" Command="{Binding ScanAllCommand}" />
+                                        <MenuItem Style="{StaticResource LibraryScanMenuItem}" Header="{Binding ScanSteamText}" Command="{Binding ScanSteamCommand}" />
+                                        <MenuItem Style="{StaticResource LibraryScanMenuItem}" Header="{Binding ScanEpicText}" Command="{Binding ScanEpicCommand}" />
+                                        <MenuItem Style="{StaticResource LibraryScanMenuItem}" Header="{Binding ScanRiotText}" Command="{Binding ScanRiotCommand}" />
+                                        <MenuItem Style="{StaticResource LibraryScanMenuItem}" Header="{Binding ScanCustomText}" Command="{Binding ScanCustomCommand}" />
                                     </ContextMenu>
                                 </Button.ContextMenu>
                                 <Path Data="{StaticResource IconChevronDown}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="{StaticResource IconSizeChrome}" Height="{StaticResource IconSizeChrome}" Stretch="Uniform" />
@@ -64,7 +102,7 @@
                                 <TextBlock Text="{Binding SafetyNoteDescription}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,16" />
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="1*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="1.4*" /></Grid.ColumnDefinitions>
-                                    <StackPanel><TextBlock Text="{Binding DisplayNameLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><TextBox Text="{Binding NewDisplayName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding DisplayNameLabel}" ToolTip="{Binding DisplayNameLabel}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="{Binding DisplayNameLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><TextBox x:Name="ManualDisplayNameBox" Text="{Binding NewDisplayName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding DisplayNameLabel}" ToolTip="{Binding DisplayNameLabel}" /></StackPanel>
                                     <StackPanel Grid.Column="2"><TextBlock Text="{Binding ExecutableLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding NewExecutablePath, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding ExecutableLabel}" ToolTip="{Binding ExecutableLabel}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding BrowseText}" Command="{Binding BrowseExecutableCommand}" Margin="8,0,0,0" /></Grid></StackPanel>
                                 </Grid>
                                 <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><ComboBox ItemsSource="{Binding AvailableTypes}" SelectedItem="{Binding NewItemType}" Width="180" HorizontalAlignment="Left" AutomationProperties.Name="{Binding TypeLabel}" ToolTip="{Binding TypeLabel}" /><Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="{Binding AddManualText}" Command="{Binding AddManualCommand}" /></Grid>
@@ -96,6 +134,9 @@
                             <TextBlock Grid.Column="1" Text="{Binding FilterLabel}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" Margin="12,0,8,0" />
                             <ComboBox Grid.Column="2" ItemsSource="{Binding FilterLabels}" SelectedIndex="{Binding SelectedFilterIndex, Mode=TwoWay}" MinWidth="160" AutomationProperties.Name="{Binding FilterLabel}" />
                         </Grid>
+                        <!-- FH-100-007: visible hint — selecting a row opens CPU configuration, never launches anything. -->
+                        <TextBlock Text="{Binding SelectHintText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="20,0,16,12"
+                                   Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}" />
                         <ListBox x:Name="LibraryItems" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem, Mode=OneWay}" SelectionChanged="LibraryItems_SelectionChanged" Margin="12,0,12,12" MaxHeight="520" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem">
@@ -119,7 +160,7 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="{x:Type lib:LibraryItemViewModel}">
                                     <Grid MinHeight="56">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                         <Border Width="56" Height="56" CornerRadius="4" Background="{StaticResource BrushSurfaceInteractive}" Margin="0,0,16,0">
                                             <Grid>
                                                 <TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource BrushBorderStrong}" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -132,6 +173,8 @@
                                             <TextBlock Text="{Binding ProfileText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding ProfileText}" />
                                         </StackPanel>
                                         <TextBlock Grid.Column="2" Text="{Binding StatusText}" Style="{StaticResource StatusText}" VerticalAlignment="Center" Margin="12,0,0,0" MaxWidth="160" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusText}" />
+                                        <!-- FH-100-007: discreet configure affordance; row selection only selects, never launches. -->
+                                        <TextBlock Grid.Column="3" Text="{Binding DataContext.ConfigureActionText, RelativeSource={RelativeSource AncestorType=ListBox}}" Style="{StaticResource CaptionText}" Foreground="{StaticResource BrushAccentPrimary}" VerticalAlignment="Center" Margin="12,0,0,0" />
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -210,7 +253,7 @@
                 </StackPanel>
 
                 <!-- Game inspector: selection opens the working panel beside the catalog (below it when narrow). -->
-                <StackPanel x:Name="LibraryInspectorPanel" Grid.Column="2" Grid.Row="0"
+                <StackPanel x:Name="LibraryInspectorPanel" Grid.Column="2" Grid.Row="0" MinWidth="380"
                             Visibility="{Binding ShowSelectedDetail, Converter={StaticResource BoolToVisibilityConverter}}">
                 <Button Style="{StaticResource GhostButton}" Content="{Binding BackToLibraryText}" Command="{Binding BackToLibraryCommand}" HorizontalAlignment="Left" Margin="0,0,0,16" />
 
@@ -224,7 +267,8 @@
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <Border Width="56" Height="56" CornerRadius="8" Background="{StaticResource BrushSurfaceInteractive}" Margin="0,0,16,0"><Grid><Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="38" Height="38" Opacity="0.2" /><Image Source="{Binding SelectedItem.IconSource}" Width="42" Height="42" RenderOptions.BitmapScalingMode="HighQuality" /></Grid></Border>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding SelectedItemTitle}" Style="{StaticResource PageTitleText}" TextWrapping="Wrap" />
+                            <!-- FH-100-007: explicit "Optimization: [game]" headline after selection. -->
+                            <TextBlock Text="{Binding InspectorTitle}" Style="{StaticResource PageTitleText}" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding SelectedItem.ExecutablePath}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
                             <StackPanel Margin="0,10,0,0" Visibility="{Binding SelectedItem.IsBackgroundApp, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <CheckBox Content="{Binding RemoteControlOptInText}" IsChecked="{Binding SelectedItem.AllowRemoteControl, Mode=TwoWay}" />
