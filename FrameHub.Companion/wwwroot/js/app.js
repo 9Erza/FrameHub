@@ -158,7 +158,7 @@
             if (item.el) {
                 const isActive = item.tab === activeTab;
                 item.el.classList.toggle('active', isActive);
-                item.el.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                item.el.setAttribute('aria-current', isActive ? 'page' : 'false');
             }
         });
 
@@ -166,7 +166,7 @@
         document.querySelectorAll('.side-nav-item').forEach(function (btn) {
             const isActive = btn.getAttribute('data-tab') === activeTab;
             btn.classList.toggle('active', isActive);
-            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            btn.setAttribute('aria-current', isActive ? 'page' : 'false');
         });
 
         if (activeTab === 'library') {
