@@ -2,6 +2,16 @@
 
 [English](USER_GUIDE.md)
 
+## Instalacja lub aktualizacja do v1.0.0
+
+Po opublikowaniu wydania pobierz `FrameHub-Setup-1.0.0.exe` z sekcji **Assets** na [oficjalnej stronie GitHub Releases](https://github.com/9Erza/FrameHub/releases). Automatyczne archiwum ZIP ze źródłami nie jest instalatorem. Wymagany jest Windows 10/11 x64 oraz akceptacja uprawnień administratora. Instalator zawiera Intel PresentMon 2.5.1 potrzebny do benchmarków.
+
+Jeśli FrameHub był już zainstalowany przez Inno Setup, **zamknij program i uruchom nowy instalator bez odinstalowywania poprzedniego**. Historyczny identyfikator instalacji `AppId` jest zachowany, podobnie jak poprzednia lokalizacja. Ustawienia, profile i biblioteka znajdują się osobno w `%APPDATA%\\FrameHub`, a historia benchmarków w `%LOCALAPPDATA%\\FrameHub\\Benchmarks`. Przed większą aktualizacją warto wykonać kopię ustawień.
+
+Zobacz [opis wydania v1.0.0 (PL/EN)](RELEASE_NOTES_1.0.0.md). Program jedynie sprawdza dostępność nowej wersji i kieruje na GitHub — nie pobiera ani nie uruchamia instalatora automatycznie.
+
+---
+
 Po pierwszym uruchomieniu przeskanuj **Gry i optymalizacja** (Bibliotekę gier). Dodaj folder lub plik EXE ręcznie, jeśli launcher nie wykrył gry. Zapis profilu utrwala regułę; **Optymalizuj/Zastosuj** próbuje zmienić pasujące, uruchomione procesy. Możesz także użyć funkcji **Szybki start** na Panelu głównym, aby uruchomić grę i zastosować Optymalizację sesji jednym kliknięciem.
 
 W **Optymalizacji sesji** wybierasz procesy w tle do wstrzymania, sprawdzasz podgląd i uruchamiasz sesję ręcznie albo automatycznie. FrameHub zapisuje wstrzymane procesy i wznawia je bezpiecznie przy zakończeniu lub odzyskiwaniu — nie kończy ich działania.
