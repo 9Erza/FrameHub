@@ -2,10 +2,16 @@
 
 ## [Unreleased]
 
-## [1.0.0] - prepared, not yet released
+## [1.0.0] - 2026-10-28
 
-> This release is implemented in code (`version.txt` reads `1.0.0`, all surfaces report it).
-> No public GitHub Release and no `v1.0.0` tag have been published.
+Release notes (English and Polish): [FrameHub v1.0.0](docs/RELEASE_NOTES_1.0.0.md). Official Windows installer: `FrameHub-Setup-1.0.0.exe` on the [GitHub Releases page](https://github.com/9Erza/FrameHub/releases) once the asset is published.
+
+### Highlights
+
+- Major Desktop UI/UX overhaul (**Ember Signal**): new grouped navigation rail, Dashboard with actionable metrics and process preview, guided Session Optimization and benchmark flow, refreshed Processes/Profiles/Hardware/Settings, consistent EN/PL language behavior.
+- New coherent **Frame Core** branding throughout the Windows application and Companion browser UI.
+- Companion experience expanded to wide desktop browsers without sacrificing the fixed-navigation mobile layout; safer pairing, telemetry and navigation states.
+- Existing Game Library, per-game CPU rules, reversible Session Optimization, active-game CPU Assignment, CS2 safety workflows and local benchmarking remain available.
 
 ### Added
 
@@ -28,6 +34,14 @@
 
 - Stale Polish strings surviving a desktop-language sync (e.g. benchmark history empty-state) are re-rendered after the switch.
 - Hardware telemetry section no longer shows placeholder tiles before the first state arrives.
+
+### Distribution and upgrades
+
+- Distributed as a single Windows 10/11 x64 Inno Setup executable; Intel PresentMon Shared Service/API v2.5.1 is bundled for benchmarking and is installed or reused as appropriate.
+- The installer keeps the historical FrameHub `AppId` (`A073F5F3-E7D0-45C7-A233-8A98B033385B`) from the previous installer family (0.4.0; originally recovered from 0.3.1). Existing Inno Setup installations can be upgraded in place without first uninstalling.
+- User preferences, profiles and library files remain in `%APPDATA%\FrameHub`; benchmark history remains in `%LOCALAPPDATA%\FrameHub\Benchmarks`. Back up user settings before major upgrades.
+- The desktop update checker notifies and opens the official release page; it does not silently download or execute installers. GitHub-generated source ZIP files are not the Windows installer.
+- No bundled cloud account, cloud telemetry or automatic upload of benchmark recordings. Compatibility with individual games/anti-cheat environments is not guaranteed.
 
 History of earlier releases is preserved below unchanged.
 
