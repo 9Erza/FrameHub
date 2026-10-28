@@ -1,7 +1,8 @@
-# FrameHub desktop design — work in progress
+# FrameHub desktop design — current 1.0.0
 
-This document records the elements currently implemented in the WPF app. It is
-not a claim that the 3.0 redesign is complete.
+This document records the implemented WPF design direction in FrameHub 1.0.0.
+The desktop redesign and the matching Companion theme are part of the current
+source tree; documented QA limitations and future refinements remain separate.
 
 ## Direction
 
@@ -46,5 +47,7 @@ addition to color for state, and avoid decorative movement.
   remain under General. Process table numbers align right and cells and headers
   use consistent spacing.
 
-Other views still need their intended structural redesign and verification.
-The resources alone do not constitute a complete design system migration.
+The current release includes the WPF and Companion design updates; this file
+is a design reference rather than a visual-test certificate. Keep future
+changes grounded in actual rendered screens, accessibility checks and the
+QA evidence, not in palette changes alone.
