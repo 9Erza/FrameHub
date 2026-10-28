@@ -24,11 +24,14 @@ serwer LAN Companion, konfiguracja CS2 oraz monitoring sprzętu w jednej aplikac
 
 ### Co nowego w 1.0.0
 
-- **Tożsamość wizualna Frame Core**: jeden oficjalny znak (ciemny grafit/bursztyn) w pliku EXE, na pasku zadań, w zasobniku, instalatorze, widokach WPF i interfejsie web Companion.
-- **Ujednolicenie wersji**: każda część produktu zgłasza **1.0.0** z jednego źródła `version.txt`.
-- **Przeprojektowany Companion**: pełna kompozycja desktopowa z boczną nawigacją na szerokich ekranach oraz mobilna powłoka aplikacji (stały nagłówek, jeden region przewijania, dolna nawigacja, safe-area) — ten sam lekki frontend vanilla HTML/CSS/JS, bez nowych pętli odpytań i właścicieli backendu.
-- **Dopracowany codzienny UX**: uczciwe stany puste, lokalizowane placeholdery, obsługa klawiatury i reduced-motion, paleta w kontraście AA, wygodne cele dotykowe.
-- **Dopracowany interfejs Desktop i Companion**: uporządkowany pulpit programu, dostępna nawigacja mobilna i desktopowa Companion, spójne informacje o wersji oraz czytelne błędy i stany puste.
+- **Ustawienia i sieć:** diagnostyka DNS tylko do odczytu, lista kart i resolverów oraz porównanie opóźnień IPv4/IPv6/DoH — bez automatycznej zmiany DNS.
+- **Benchmarki:** eksport porównań sesji do CSV/Markdown, czytelniejsze przyczyny blokady pomiaru i obsługa błędów zapisu.
+- **Procesy i profile:** wyszukiwanie, sortowanie i reguły, ostrzeżenia o konfliktach, naprawiony zapis przełączania profili i ochrona procesów podczas aktywnego benchmarku.
+- **Stabilność sesji i restartu:** bezpieczniejsze przywracanie procesów, kontrolowane zamykanie, restart z informacją o wyniku oraz poprawki operacji równoległych.
+- **Monitoring i diagnostyka:** opcjonalne czujniki dysków, podgląd timera Windows bez modyfikacji systemu, filtry/wyszukiwanie w Dzienniku i lepsze komunikaty błędów.
+- **Desktop i Companion:** dopracowane ścieżki obsługi, lokalizacja PL/EN, wersja mobilna i desktopowa Companion oraz spójny wygląd Frame Core.
+
+To usprawnienia istniejącego produktu, którego fundamentami pozostają Biblioteka gier, kontrola CPU Sets/Affinity, Optymalizacja sesji, benchmarki PresentMon i Companion. [Pełny opis wydania PL/EN](docs/RELEASE_NOTES_1.0.0.md) rozdziela nowości od starszych funkcji.
 
 ---
 

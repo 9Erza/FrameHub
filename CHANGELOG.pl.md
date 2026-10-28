@@ -8,13 +8,26 @@
 
 Wydanie dla Windows 10/11 x64: `FrameHub-Setup-1.0.0.exe` będzie dostępne w sekcji **Assets** na [GitHub Releases](https://github.com/9Erza/FrameHub/releases) po jego opublikowaniu.
 
-### Najważniejsze zmiany
+### Nowe możliwości i poprawki funkcjonalne (październik 2026)
 
-- **Gruntowny redesign aplikacji Desktop (Ember Signal)**: nawigacja modułów, Panel główny, biblioteka gier, czteroetapowa Optymalizacja sesji, benchmarki, procesy, profile, monitoring i ustawienia.
-- **Nowy wygląd Frame Core**: grafitowo-bursztynowy styl i spójne logo w aplikacji Windows, instalatorze, skrótach oraz Companion.
-- **Przeprojektowany Companion**: układ desktopowy dla szerokich ekranów, dopracowany interfejs mobilny ze stałą nawigacją, obsługa safe-area oraz dostępność klawiaturą.
-- **Spójna wersja 1.0.0**: Windows, Companion, API, dane benchmarków i instalator odczytują wersję z jednego źródła.
-- Zachowane moduły: wykrywanie gier, profile i reguły CPU, bezpieczne wstrzymywanie procesów w sesji, przydział CPU aktywnej gry, CS2, lokalne benchmarki i opcjonalny monitoring.
+- **Diagnostyka DNS tylko do odczytu:** karty sieciowe, aktualne resolvery DHCP/ręczne, podgląd poleceń oraz porównanie opóźnień IPv4/IPv6/DoH. Bez zmiany DNS w Windows.
+- **Eksport porównań benchmarków do CSV i Markdown** z metadanymi środowiska; czytelniejsze komunikaty niedostępności silnika i błędów zapisu.
+- **Procesy i CPU:** wyszukiwanie, sortowanie, widoczne reguły oraz ponowna weryfikacja tożsamości przed zastosowaniem zmian. **Profile:** walidacja, ostrzeżenia o konfliktach, włączanie/wyłączanie i poprawiony zapis stanu.
+- **Optymalizacja sesji:** bezpieczniejsze wznawianie procesów, synchronizacja zdarzeń i poprawki błędów przy równoległym odświeżaniu oraz anulowaniu operacji.
+- **Restart i zamykanie:** uruchomienie nowej instancji w kontrolowany sposób, limity czasu, komunikaty o odmowie/uprawnieniach i ciągłość logowania.
+- **Monitor sprzętu:** opcjonalne czujniki dysków, czytelne stany WŁ./WYŁ./NIEDOSTĘPNY i diagnostyczny (niemodyfikujący) podgląd timera Windows.
+- **Dziennik:** filtrowanie po ważności, wyszukiwanie, limit widocznych wpisów i potwierdzenie czyszczenia.
+- **Biblioteka i Companion:** lepsze informacje o skanowaniu i brakujących plikach, dopracowane parowanie, telemetria i obsługa uprawnień.
+
+### Przebudowany interfejs
+
+- Desktop: odświeżone ekrany Panelu głównego, Gry i optymalizacji, Sesji, Benchmarków, Procesów, Profili, Monitora, Dziennika i Ustawień.
+- Companion: wygodniejszy układ desktopowy i mobilny, dostępność klawiaturą oraz spójna lokalizacja PL/EN.
+- Nowy styl Frame Core, jednolita wersja 1.0.0 w aplikacji i instalatorze.
+
+### Funkcje zachowane z wcześniejszych wydań
+
+Biblioteka Steam/Epic, Quick Start, profile CPU, CPU Sets/Affinity, automatyczna i ręczna Optymalizacja sesji, lokalne benchmarki Intel PresentMon, historia i porównania, Companion w LAN oraz bezpieczna obsługa konfiguracji CS2. **Nie przedstawiamy tych funkcji jako wszystkich nowo dodanych w 1.0.0.**
 
 ### Usprawnienia i poprawki
 
