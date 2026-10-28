@@ -4,8 +4,7 @@ namespace FrameHub.Tests;
 
 /// <summary>
 /// FrameHub 1.0 release-docs consistency: both READMEs point at the new logo,
-/// declare 1.0.0 (never the retired number as current), and the changelog keeps
-/// a prepared-not-published 1.0.0 section above untouched history.
+/// declare 1.0.0, and the release notes, changelogs and installer identity stay consistent.
 /// </summary>
 [TestClass]
 public sealed class ReleaseDocsTests
@@ -51,15 +50,43 @@ public sealed class ReleaseDocsTests
     }
 
     [TestMethod]
-    public void Changelog_PreparesOneDotOhWithoutRewritingHistory()
+    public void Changelog_RecordsOneDotOhWithoutRewritingHistory()
     {
         string changelog = ReadRootFile("CHANGELOG.md");
         StringAssert.Contains(changelog, "## [1.0.0]", "CHANGELOG must contain the 1.0.0 section.");
-        StringAssert.Contains(changelog, "not yet released", "1.0.0 must be marked prepared, not published.");
+        StringAssert.Contains(changelog, "## [1.0.0] - 2026-10-28", "1.0.0 entry must have its intended release date.");
+        StringAssert.Contains(changelog, "docs/RELEASE_NOTES_1.0.0.md", "Release notes must be linked.");
+        Assert.IsFalse(changelog.Contains("prepared, not yet released", StringComparison.OrdinalIgnoreCase), "Do not keep the outdated release-preparation notice.");
         StringAssert.Contains(changelog, "## [0.7.1]", "History of the 0.7.1 release must stay intact.");
         Assert.IsTrue(changelog.IndexOf("## [1.0.0]", StringComparison.Ordinal)
             < changelog.IndexOf("## [0.7.1]", StringComparison.Ordinal),
             "The 1.0.0 section must lead the release history.");
+    }
+
+    [TestMethod]
+    public void BilingualReleaseNotes_AndPolishChangelog_AreLinked()
+    {
+        string readme = ReadRootFile("README.md");
+        string readmePl = ReadRootFile("README.pl.md");
+        string notes = ReadRootFile("docs/RELEASE_NOTES_1.0.0.md");
+        string changelogPl = ReadRootFile("CHANGELOG.pl.md");
+
+        StringAssert.Contains(readme, "docs/RELEASE_NOTES_1.0.0.md");
+        StringAssert.Contains(readmePl, "docs/RELEASE_NOTES_1.0.0.md");
+        StringAssert.Contains(readmePl, "CHANGELOG.pl.md");
+        StringAssert.Contains(notes, "## English");
+        StringAssert.Contains(notes, "## Polski");
+        StringAssert.Contains(notes, "FrameHub-Setup-1.0.0.exe");
+        StringAssert.Contains(changelogPl, "## [1.0.0]");
+    }
+
+    [TestMethod]
+    public void Installer_PreservesExistingUpgradeIdentity()
+    {
+        string installer = ReadRootFile("installer/FrameHub.iss");
+        StringAssert.Contains(installer, "AppId={{A073F5F3-E7D0-45C7-A233-8A98B033385B}");
+        StringAssert.Contains(installer, "UsePreviousAppDir=yes");
+        StringAssert.Contains(installer, "PrivilegesRequired=admin");
     }
 
     [TestMethod]
