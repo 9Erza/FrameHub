@@ -6,7 +6,7 @@
 
 Download `FrameHub-Setup-1.0.0.exe` from the **Assets** section of the official [GitHub Releases](https://github.com/9Erza/FrameHub/releases) page once published. Do not use the automatically generated source ZIP as an installer. The installer requires Windows 10/11 x64 and administrator permission, and includes the pinned PresentMon 2.5.1 MSI needed for benchmarking.
 
-For an existing FrameHub Inno Setup installation, **close FrameHub and run the new installer without uninstalling the old version**. The historical Inno Setup `AppId` and previous directory are reused. The user's configuration, profiles and library are kept separately under `%APPDATA%\\FrameHub`; benchmark history is under `%LOCALAPPDATA%\\FrameHub\\Benchmarks`. A backup of personal settings is recommended before a major version upgrade.
+For an existing FrameHub Inno Setup installation, **close FrameHub and run the new installer without uninstalling the old version**. The historical Inno Setup `AppId` and previous directory are reused. The user's configuration, profiles and library are kept separately under `%APPDATA%\FrameHub`; benchmark history is under `%LOCALAPPDATA%\FrameHub\Benchmarks`. A backup of personal settings is recommended before a major version upgrade.
 
 See the [v1.0.0 release notes (EN/PL)](RELEASE_NOTES_1.0.0.md). The application only checks for updates and directs you to GitHub; it does not download or execute the installer automatically.
 
