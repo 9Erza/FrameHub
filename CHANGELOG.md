@@ -22,6 +22,10 @@
 
 ### Fixed
 
+- Final polish: Companion pairing failures are localized in EN/PL, mobile RAM/VRAM units stay with their values, and narrow-phone header density is improved.
+- Companion navigation exposes `aria-current` semantics; skip link meets the 44 px touch-target baseline and JavaScript asset URLs use versioned cache-busting.
+- Windows EXE metadata now uses `FrameHub` instead of `FrameHub.App`; benchmark capture uses the same central product version as the rest of the application.
+
 - Stale Polish strings surviving a desktop-language sync (e.g. benchmark history empty-state) are re-rendered after the switch.
 - Hardware telemetry section no longer shows placeholder tiles before the first state arrives.
 
