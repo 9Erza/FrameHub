@@ -27,6 +27,20 @@ public sealed class ProductVersionTests
     }
 
     [TestMethod]
+    public void DesktopMetadata_UsesPublicProductNameAndCentralBenchmarkVersion()
+    {
+        string root = Path.GetDirectoryName(FindVersionFile())!;
+        string project = File.ReadAllText(Path.Combine(root, "FrameHub.App", "FrameHub.App.csproj"));
+        StringAssert.Contains(project, "<AssemblyTitle>FrameHub</AssemblyTitle>");
+        StringAssert.Contains(project, "<Product>FrameHub</Product>");
+
+        string provider = File.ReadAllText(Path.Combine(root, "FrameHub.App", "Services", "AppBenchmarkProvider.cs"));
+        StringAssert.Contains(provider, "new AppInfo().Version");
+        Assert.IsFalse(provider.Contains("\"0.7.0\"", StringComparison.Ordinal),
+            "Benchmarks must use the shared app version, never an obsolete fallback.");
+    }
+
+    [TestMethod]
     public void VersionFile_DeclaresCurrentRelease()
     {
         string version = File.ReadAllText(FindVersionFile()).Trim();
