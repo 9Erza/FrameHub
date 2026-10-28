@@ -20,7 +20,7 @@ LAN Companion server, CS2 configuration and hardware monitoring in one desktop a
 </div>
 
 > [!NOTE]
-> **Current release: v1.0.0** (prepared in code; no public GitHub Release published yet). See the [Changelog](CHANGELOG.md) for release details and the [Roadmap](docs/ROADMAP.md) for future work.
+> **Version: v1.0.0.** Get the official Windows installer from [GitHub Releases](https://github.com/9Erza/FrameHub/releases) when the release asset is available. Read the [1.0.0 release notes](docs/RELEASE_NOTES_1.0.0.md), [Changelog](CHANGELOG.md) and [Roadmap](docs/ROADMAP.md).
 
 ### What's new in 1.0.0
 
@@ -28,7 +28,19 @@ LAN Companion server, CS2 configuration and hardware monitoring in one desktop a
 - **Product-wide version unification**: every surface reports **1.0.0** from the single `version.txt` source.
 - **Companion redesign**: a real desktop web composition with side navigation on wide screens plus the mobile app shell (fixed header, single scroll region, bottom navigation, safe-area support) — same lightweight vanilla HTML/CSS/JS frontend, no new polling or backend owners.
 - **Hardened everyday UX**: honest empty states, localized placeholders, keyboard focus and reduced-motion support, AA-contrast palette, comfortable touch targets.
-- **Documentation refresh**: both READMEs, the changelog and both user guides describe the 1.0.0 product as it actually behaves.
+- **Desktop and Companion polish**: a reorganized desktop workspace, accessible mobile/desktop Companion navigation, consistent version reporting and clearer error and empty states.
+
+---
+
+## Download, install and upgrade
+
+1. Open the [official GitHub Releases page](https://github.com/9Erza/FrameHub/releases). When v1.0.0 is published, expand **Assets** and download **`FrameHub-Setup-1.0.0.exe`**. The GitHub-generated source-code ZIP is **not** the Windows installer.
+2. Run the installer on **Windows 10/11 x64** and approve the administrator prompt. The single installer bundles the pinned Intel PresentMon 2.5.1 prerequisite used by benchmarks.
+3. **Upgrading from an earlier Inno Setup installation:** run the new installer normally; do not uninstall first. FrameHub retains the installation identity (`AppId`) used since 0.4.0 and recovered from 0.3.1, and Inno Setup reuses the previous installation directory. Your settings and library are stored separately under `%APPDATA%\FrameHub`; benchmarks are stored under `%LOCALAPPDATA%\FrameHub\Benchmarks`.
+
+Close the running FrameHub application before upgrading; the installer may ask to close it. For a major upgrade, backing up your user settings first is recommended. The release page provides the canonical installer; there is no in-app automatic installer execution.
+
+For a summary of features, compatibility and limitations, see the [bilingual v1.0.0 release notes](docs/RELEASE_NOTES_1.0.0.md).
 
 ---
 
