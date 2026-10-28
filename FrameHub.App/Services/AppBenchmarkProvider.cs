@@ -1,11 +1,11 @@
 using FrameHub.Companion.Models;
 using FrameHub.Companion.Providers;
+using FrameHub.Core.Models;
 using FrameHub.Core.Models.Benchmarking;
 using FrameHub.Core.Models.Library;
 using FrameHub.Core.Services;
 using FrameHub.Core.Services.Benchmarking;
 using FrameHub.Core.Services.Library;
-using System.Reflection;
 
 namespace FrameHub.App.Services;
 
@@ -105,7 +105,7 @@ public sealed class AppBenchmarkProvider : ICompanionBenchmarkProvider
                 StringComparison.OrdinalIgnoreCase));
         bool optActive = _runtime.SessionOptimizationCoordinator.IsSessionActive;
 
-        string appVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.7.0";
+        string appVersion = new AppInfo().Version;
 
         var captureRequest = new BenchmarkCaptureRequest
         {
