@@ -290,8 +290,10 @@ public sealed class Ui30BoundedRefinementTests
     public void SessionXaml_SingleGamePicker_NoThinSeparators()
     {
         string xaml = ReadView("SessionOptimizationView.xaml");
-        Assert.AreEqual(1, CountOccurrences(xaml, "SelectedItem=\"{Binding SelectedGame, Mode=TwoWay}\""),
-            "Session must keep a single game picker (Manual card); automation reuses the same selection.");
+        Assert.AreEqual(2, CountOccurrences(xaml, "SelectedItem=\"{Binding SelectedGame, Mode=TwoWay}\""),
+            "Session keeps one shared selection: the Manual ComboBox and the FH-100-015 automation ListBox both bind the same SelectedGame (list keyboard/selection required at 100+ games). No divergent second selection is allowed.");
+        Assert.AreEqual(0, CountOccurrences(xaml, "SelectedManualGame"),
+            "The legacy SelectedManualGame alias must not be bound in XAML; SelectedGame is the single selection.");
         Assert.AreEqual(0, CountOccurrences(xaml, "Height=\"1\" Background=\"{StaticResource BrushBorderSubtle}\" Margin=\"0,12\""),
             "Advanced options must group by spacing, not 1px hairlines.");
         StringAssert.Contains(xaml, "ReloadLibraryButtonText", "Reload action must survive the picker dedupe.");
