@@ -97,6 +97,7 @@
             else text = i18n.t('auth.disconnected');
         }
         elements.authText.textContent = text;
+        elements.authBadge.title = text;
 
         const authStateChanged = lastAuthUiPaired !== isPaired;
         lastAuthUiPaired = isPaired;
@@ -194,17 +195,35 @@
                     resetTelemetryTransportForNewCredential();
                     initTelemetryConnection();
                 } else {
-                    throw new Error('Server response contained no credential.');
+                    throw new Error(window.FrameHubI18n
+                        ? window.FrameHubI18n.t('pairing.missingCredential')
+                        : 'The server did not return a pairing credential.');
                 }
             } else {
                 let errorData = null;
                 try { errorData = await response.json(); } catch (_) { }
-                const msg = errorData && errorData.message ? errorData.message : 'Pairing failed (Status: ' + response.status + ')';
+                const i18n = window.FrameHubI18n;
+                const fallback = i18n
+                    ? i18n.t('pairing.failedStatus', 'Pairing failed (HTTP {status}).')
+                    : 'Pairing failed (HTTP {status}).';
+                // Backend descriptions are not guaranteed to be localized. Preserve
+                // their detail in English, but never leak English-only text into PL.
+                const serverMessage = errorData && typeof errorData.message === 'string'
+                    ? errorData.message.trim() : '';
+                const msg = serverMessage && (!i18n || i18n.getCurrentLanguage() === 'en')
+                    ? serverMessage : fallback.replace('{status}', String(response.status));
                 elements.pairingError.textContent = msg;
                 elements.pairingError.classList.remove('hidden');
             }
         } catch (err) {
-            elements.pairingError.textContent = getFriendlyErrorMessage(err, 'Network error during pairing request.');
+            const i18n = window.FrameHubI18n;
+            const fallback = i18n
+                ? i18n.t('pairing.networkError', 'Network error during pairing request.')
+                : 'Network error during pairing request.';
+            elements.pairingError.textContent = i18n && i18n.getCurrentLanguage() === 'pl'
+                ? (err && err.message && err.message === i18n.t('pairing.missingCredential')
+                    ? err.message : fallback)
+                : getFriendlyErrorMessage(err, fallback);
             elements.pairingError.classList.remove('hidden');
         } finally {
             elements.btnPair.disabled = false;

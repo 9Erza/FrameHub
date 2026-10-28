@@ -94,6 +94,9 @@ body {
 
 /* Skip link: visible only on keyboard focus. */
 .skip-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
     position: absolute;
     left: 0.75rem;
     top: -4rem;
@@ -1367,23 +1370,34 @@ input:focus, select:focus {
     }
 
     .brand-text h1 {
-        font-size: 1.1rem;
+        font-size: 0.9rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
+    /* The product name + connection state have priority on narrow phones. */
     .brand-text .sub-title {
-        font-size: 0.75rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        display: none;
     }
 
     .auth-status-badge {
-        padding: 0.3rem 0.6rem;
+        padding: 0.3rem 0.55rem;
         font-size: 0.75rem;
         flex-shrink: 1;
+        max-width: 145px;
+        margin-left: auto;
+    }
+
+    /* Smaller sensor tiles retain the full number and keep GB with its value. */
+    .hardware-grid .stat-card {
+        padding: 0.7rem;
+    }
+    .hardware-grid .stat-value {
+        font-size: clamp(0.875rem, 3.6vw, 1.1rem);
+        letter-spacing: -0.02em;
+        overflow-wrap: normal;
+        word-break: normal;
     }
 
     .app-scroll-region {

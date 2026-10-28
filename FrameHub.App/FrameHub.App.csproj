@@ -20,6 +20,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>Assets\FrameHub.ico</ApplicationIcon>
+    <AssemblyTitle>FrameHub</AssemblyTitle>
+    <Product>FrameHub</Product>
+    <Description>FrameHub - Game Performance and Optimization</Description>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
