@@ -6,7 +6,18 @@
 
 Release notes (English and Polish): [FrameHub v1.0.0](docs/RELEASE_NOTES_1.0.0.md). Official Windows installer: `FrameHub-Setup-1.0.0.exe` on the [GitHub Releases page](https://github.com/9Erza/FrameHub/releases) once the asset is published.
 
-### Highlights
+### Functionality and reliability (October 2026)
+
+- Added a **read-only DNS diagnostics panel** in Settings > Companion & Network: adapter/DHCP/static DNS information, resolver command previews and IPv4/IPv6/DoH latency comparison. It deliberately does not apply DNS changes.
+- Added deterministic **CSV/Markdown benchmark comparison export**, including environment-difference context; improved owned save dialogs and error reporting.
+- Improved **Processes & CPU** search, sorting, rule visibility and identity revalidation, plus **Profiles & Rules** conflict/validation feedback, enable toggles and persistence fixes.
+- Improved Session Optimization recovery and process-resume checks; fixed UI-dispatcher synchronization, cancellation/disposal races and serialized process refresh/benchmark comparison rebuilds.
+- Added **cooperative application restart** with approved arguments, bounded shutdown and feedback for success/timeouts/refused elevation, including logging continuity across restart.
+- Added optional storage sensors and a **read-only timer-resolution display** to Hardware Monitor; clarified OFF/ON/UNAVAILABLE states.
+- Added log severity filters, search, bounded display and clear confirmation; expanded localized error, status, empty and permission states.
+- Improved Library scanning/filtering/ready-state feedback and Companion pairing/telemetry state handling. Existing core engines, benchmark math and safety boundaries were retained.
+
+### Visual design and UX
 
 - Major Desktop UI/UX overhaul (**Ember Signal**): new grouped navigation rail, Dashboard with actionable metrics and process preview, guided Session Optimization and benchmark flow, refreshed Processes/Profiles/Hardware/Settings, consistent EN/PL language behavior.
 - New coherent **Frame Core** branding throughout the Windows application and Companion browser UI.

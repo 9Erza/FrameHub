@@ -24,11 +24,14 @@ LAN Companion server, CS2 configuration and hardware monitoring in one desktop a
 
 ### What's new in 1.0.0
 
-- **Frame Core visual identity**: one official dark-graphite/amber mark across the desktop EXE, taskbar, tray, installer, WPF views and the Companion web UI.
-- **Product-wide version unification**: every surface reports **1.0.0** from the single `version.txt` source.
-- **Companion redesign**: a real desktop web composition with side navigation on wide screens plus the mobile app shell (fixed header, single scroll region, bottom navigation, safe-area support) — same lightweight vanilla HTML/CSS/JS frontend, no new polling or backend owners.
-- **Hardened everyday UX**: honest empty states, localized placeholders, keyboard focus and reduced-motion support, AA-contrast palette, comfortable touch targets.
-- **Desktop and Companion polish**: a reorganized desktop workspace, accessible mobile/desktop Companion navigation, consistent version reporting and clearer error and empty states.
+- **Settings and network tools:** new read-only DNS diagnostics with adapter/resolver details and IPv4/IPv6/DoH latency comparison; no DNS settings are modified.
+- **Benchmark workflows:** export same-game comparisons to CSV/Markdown and receive clearer capture-readiness and save-error feedback.
+- **Process and profile management:** improved search/sort/rule views, conflict warnings, enable/disable persistence and safety checks for protected or benchmark-active processes.
+- **More reliable sessions and restarts:** safer resume/recovery, bounded shutdown, cooperative restart with status/permission feedback and fixes for concurrent operations.
+- **Monitoring and diagnostics:** optional storage sensors, read-only timer-resolution display, searchable/filterable logs and more explicit unavailable/error states.
+- **Desktop and LAN Companion polish:** refreshed workflows, consistent Polish/English localization, mobile/wide-screen usability and Frame Core visual identity.
+
+These changes build on existing Game Library, CPU Sets/Affinity, Session Optimization, PresentMon benchmarks and Companion functionality. See the [full bilingual release notes](docs/RELEASE_NOTES_1.0.0.md) for the distinction between new work and earlier features.
 
 ---
 
