@@ -56,6 +56,26 @@ public sealed class CompanionMobileShellTests
     }
 
     [TestMethod]
+    public async Task FinalPolish_LocalizesPairingErrorsAndUsesNavigationLandmarks()
+    {
+        var (html, css, i18n) = await GetFrontendAsync();
+        StringAssert.Contains(i18n, "'pairing.failedStatus': 'Pairing failed (HTTP {status}).'");
+        StringAssert.Contains(i18n, "'pairing.failedStatus': 'Nie udało się sparować urządzenia (HTTP {status}).'");
+        StringAssert.Contains(i18n, "'pairing.networkError': 'Błąd sieci podczas wysyłania prośby o parowanie.'");
+
+        Assert.IsFalse(html.Contains("aria-selected=", StringComparison.Ordinal),
+            "Navigation buttons must not advertise tab selection semantics without a tablist.");
+        StringAssert.Contains(html, "aria-current=\"page\"",
+            "Current location must be exposed through aria-current.");
+        StringAssert.Contains(css, ".hardware-grid .stat-value",
+            "Mobile sensor values must have dedicated density handling.");
+        StringAssert.Contains(css, "min-height: 44px;",
+            "Keyboard skip link and mobile controls must meet the 44px target.");
+        StringAssert.Contains(html, "/js/auth-transport.js?v=1.0.0",
+            "Updated frontend scripts must use the same asset version as CSS and logos.");
+    }
+
+    [TestMethod]
     public async Task ViewportMeta_IncludesViewportFitCover_ForSafeAreas()
     {
         var (html, _, _) = await GetFrontendAsync();
