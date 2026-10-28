@@ -161,9 +161,104 @@ public sealed class LibraryW1FixTests
         string xaml = File.ReadAllText(Path.Combine(repoRoot, "FrameHub.App", "Views", "LibraryView.xaml"));
         StringAssert.Contains(xaml, "LibraryScanContextMenu", "FH-100-002: scoped dark ContextMenu style must exist.");
         StringAssert.Contains(xaml, "LibraryScanMenuItem", "FH-100-002: scoped dark MenuItem style must exist.");
+        StringAssert.Contains(xaml, "LibraryScanSeparator", "FH-100-002: scoped separator style must exist.");
+        StringAssert.Contains(xaml, "<ControlTemplate TargetType=\"ContextMenu\">", "FH-100-002: ContextMenu must carry an explicit template (Border + ItemsPresenter), otherwise Aero2 paints the system gutter.");
+        StringAssert.Contains(xaml, "<ItemsPresenter", "FH-100-002: ContextMenu template must host an ItemsPresenter.");
+        Assert.IsFalse(xaml.Contains("MenuBrush"), "FH-100-002: no system menu brush may be referenced in the scan menu.");
         StringAssert.Contains(xaml, "{Binding SelectHintText}", "FH-100-007: visible selection hint must stay bound.");
         StringAssert.Contains(xaml, "ConfigureActionText", "FH-100-007: discreet row affordance must stay bound.");
         StringAssert.Contains(xaml, "{Binding InspectorTitle}", "FH-100-007: inspector headline must stay bound.");
+    }
+
+    [TestMethod]
+    public void ProfileEditor_KeepsAllCpuOptionsAndReachableSave()
+    {
+        string? repoRoot = FindRepoRoot();
+        if (repoRoot == null)
+        {
+            Assert.Inconclusive("Repository source root was not discoverable from the test assembly location.");
+        }
+
+        string xaml = File.ReadAllText(Path.Combine(repoRoot, "FrameHub.App", "Views", "LibraryView.xaml"));
+
+        // All CPU editor bindings must survive the FH-100-005 reachability fix.
+        foreach (string binding in new[]
+        {
+            "{Binding PhysicalCores}",
+            "{Binding ThreadCores}",
+            "{Binding AvailableOptimizationModes}",
+            "{Binding AvailablePriorities}",
+            "{Binding SelectAllCoresCommand}",
+            "{Binding ClearAllCoresCommand}",
+            "{Binding DisableSmtCommand}",
+            "{Binding DisableECoresCommand}",
+        })
+        {
+            StringAssert.Contains(xaml, binding, $"FH-100-005: CPU option binding {binding} must be preserved.");
+        }
+
+        // Exactly one existing save CTA, still wired to the same command.
+        int saveCount = CountOccurrences(xaml, "{Binding CreateUpdateProfileCommand}");
+        Assert.AreEqual(1, saveCount, "FH-100-005: the single existing save CTA must stay wired to CreateUpdateProfileCommand (no duplication, no removal).");
+
+        // Core lists must be bounded so the CTA stays reachable without
+        // scrolling past every core row; horizontal scroll stays off.
+        StringAssert.Contains(xaml, "MaxHeight=\"240\"", "FH-100-005: core lists must be height-bounded.");
+        Assert.IsTrue(CountOccurrences(xaml, "MaxHeight=\"240\"") >= 2, "FH-100-005: both physical and thread core lists must be bounded.");
+    }
+
+    [TestMethod]
+    public void CreateUpdateProfile_SavesAndReadsBackInIsolatedData()
+    {
+        // Isolated data dir: profiles.json round-trips through this directory only.
+        string? previousDataDir = Environment.GetEnvironmentVariable("FRAMEHUB_DATA_DIR");
+        string isolatedDir = Path.Combine(_tempDirectory, "data");
+        Directory.CreateDirectory(isolatedDir);
+        Environment.SetEnvironmentVariable("FRAMEHUB_DATA_DIR", isolatedDir);
+        try
+        {
+            using var host = CreateHost();
+            var game = host.Items.First(item => item.Id == "doom");
+
+            // Dummy process name that cannot match any live process, so the
+            // trailing ApplyProfileNow inside the command is a fail-closed no-op.
+            game.Item.ProcessName = "FrameHubW1DummyNoSuchProc";
+            game.Item.ExecutablePath = @"C:\FrameHubW1Dummy\Game.exe";
+
+            host.ViewModel.SelectItemCommand.Execute(game);
+            Assert.IsTrue(host.ViewModel.CreateUpdateProfileCommand.CanExecute(null), "FH-100-005: save CTA must be enabled once a game with a process name is selected.");
+
+            host.ViewModel.CreateUpdateProfileCommand.Execute(null);
+
+            Assert.IsNotNull(host.ViewModel.SelectedOptimizationProfile, "FH-100-005: executing the save CTA must produce a profile.");
+            Assert.AreEqual("FrameHubW1DummyNoSuchProc", host.ViewModel.SelectedOptimizationProfile.ProcessName, true, "FH-100-005: saved profile must carry the normalized process identity.");
+            Assert.AreNotEqual(0, host.ViewModel.SelectedOptimizationProfile.AffinityMask, "FH-100-005: saved profile must carry a core mask.");
+            Assert.IsTrue(host.ViewModel.HasSelectedOptimizationProfile, "FH-100-005: editor must report a linked profile after save.");
+
+            // Runtime re-reads profiles.json from disk after every save, so the
+            // in-memory collection below is already the on-disk readback.
+            var reread = host.Runtime.Profiles.FirstOrDefault(p => p.Id.Equals(host.ViewModel.SelectedOptimizationProfile.Id, StringComparison.OrdinalIgnoreCase));
+            Assert.IsNotNull(reread, "FH-100-005: saved profile must read back from isolated storage.");
+            Assert.AreEqual(host.ViewModel.SelectedOptimizationProfile.AffinityMask, reread.AffinityMask, "FH-100-005: read-back mask must match the saved mask.");
+            Assert.IsTrue(File.Exists(Path.Combine(isolatedDir, "profiles.json")), "FH-100-005: profiles must persist inside the isolated data dir.");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("FRAMEHUB_DATA_DIR", previousDataDir);
+        }
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        int count = 0;
+        int index = 0;
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
     }
 
     private static string? FindRepoRoot()
