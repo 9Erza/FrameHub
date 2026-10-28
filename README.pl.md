@@ -20,7 +20,7 @@ serwer LAN Companion, konfiguracja CS2 oraz monitoring sprzętu w jednej aplikac
 </div>
 
 > [!NOTE]
-> **Wersja: v1.0.0.** Oficjalny instalator Windows znajdziesz w [GitHub Releases](https://github.com/9Erza/FrameHub/releases), gdy plik wydania będzie dostępny. Zobacz [opis wydania 1.0.0](docs/RELEASE_NOTES_1.0.0.md), [Changelog](CHANGELOG.md) i [Roadmapę](docs/ROADMAP.md).
+> **Wersja: v1.0.0.** Oficjalny instalator Windows znajdziesz w [GitHub Releases](https://github.com/9Erza/FrameHub/releases), gdy plik wydania będzie dostępny. Zobacz [opis wydania 1.0.0](docs/RELEASE_NOTES_1.0.0.md), [listę zmian PL](CHANGELOG.pl.md), [Changelog EN](CHANGELOG.md) i [Roadmapę](docs/ROADMAP.md).
 
 ### Co nowego w 1.0.0
 
@@ -36,7 +36,7 @@ serwer LAN Companion, konfiguracja CS2 oraz monitoring sprzętu w jednej aplikac
 
 1. Wejdź na [oficjalną stronę GitHub Releases](https://github.com/9Erza/FrameHub/releases). Po opublikowaniu v1.0.0 rozwiń **Assets** i pobierz **`FrameHub-Setup-1.0.0.exe`**. Automatyczne archiwum ZIP z kodem źródłowym na GitHubie **nie jest instalatorem** Windows.
 2. Uruchom instalator w **Windows 10/11 x64** i zaakceptuj wymagane uprawnienia administratora. Jeden plik instalacyjny zawiera Intel PresentMon 2.5.1 używany przez benchmarki.
-3. **Aktualizacja starszej instalacji Inno Setup:** uruchom nowy instalator bez wcześniejszego odinstalowywania. FrameHub zachowuje identyfikator instalacji (`AppId`) używany od 0.4.0, odzyskany wcześniej z 0.3.1. Inno Setup wykorzystuje poprzedni katalog instalacji. Ustawienia i biblioteka znajdują się osobno w `%APPDATA%\\FrameHub`, a benchmarki w `%LOCALAPPDATA%\\FrameHub\\Benchmarks`.
+3. **Aktualizacja starszej instalacji Inno Setup:** uruchom nowy instalator bez wcześniejszego odinstalowywania. FrameHub zachowuje identyfikator instalacji (`AppId`) używany od 0.4.0, odzyskany wcześniej z 0.3.1. Inno Setup wykorzystuje poprzedni katalog instalacji. Ustawienia i biblioteka znajdują się osobno w `%APPDATA%\FrameHub`, a benchmarki w `%LOCALAPPDATA%\FrameHub\Benchmarks`.
 
 Przed aktualizacją zamknij FrameHub — instalator może poprosić o jego zamknięcie. Przy większej aktualizacji warto wcześniej zrobić kopię swoich ustawień. Instalator pobieraj z oficjalnego wydania; aplikacja nie pobiera ani nie uruchamia go automatycznie.
 
@@ -326,8 +326,11 @@ Obejmuje to:
 - **[Roadmapa](docs/ROADMAP.md)**
   Planowane i zrealizowane funkcje.
 
-- **[Changelog](CHANGELOG.md)**
-  Historia zmian i wydań.
+- **[Lista zmian po polsku](CHANGELOG.pl.md)**
+  Opis wydania 1.0.0 po polsku.
+
+- **[Changelog (EN)](CHANGELOG.md)**
+  Pełna historia wcześniejszych zmian.
 
 - **[Współtworzenie](CONTRIBUTING.md)**
   Zasady rozwoju projektu.
