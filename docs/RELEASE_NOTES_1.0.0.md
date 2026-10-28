@@ -50,7 +50,7 @@ FrameHub is a free, open-source Windows gaming and performance utility built aro
 
 ## Polski
 
-### FrameHub 1.0.0 — gotowy do wydania
+### FrameHub 1.0.0 — nowe wydanie
 
 FrameHub to darmowe, otwartoźródłowe narzędzie do kontroli wydajności i optymalizacji gier w Windows. Zmiany są świadome, kontrolowane przez użytkownika i w miarę możliwości odwracalne. Wersja 1.0.0 wprowadza spójny wygląd aplikacji i Companiona oraz znacząco dopracowany interfejs, zachowując dostępne wcześniej moduły optymalizacji i benchmarków.
 
