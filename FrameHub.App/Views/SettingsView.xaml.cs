@@ -13,6 +13,12 @@ public partial class SettingsView : WpfUserControl
     {
         InitializeComponent();
         SizeChanged += (_, _) => UpdateResponsiveLayout();
+        DataContextChanged += (_, e) =>
+        {
+            if (e.OldValue is SettingsViewModel oldViewModel) oldViewModel.PropertyChanged -= SettingsPropertyChanged;
+            if (e.NewValue is SettingsViewModel newViewModel) newViewModel.PropertyChanged += SettingsPropertyChanged;
+            UpdateResponsiveLayout();
+        };
         IsVisibleChanged += (_, _) =>
         {
             if (IsVisible) Dispatcher.BeginInvoke(SettingsScroll.ScrollToTop, DispatcherPriority.Loaded);
@@ -22,6 +28,11 @@ public partial class SettingsView : WpfUserControl
             UpdateResponsiveLayout();
             SettingsScroll.ScrollToTop();
         };
+    }
+
+    private void SettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SettingsViewModel.SelectedSettingsCategoryIndex)) UpdateResponsiveLayout();
     }
 
     private void RecordBenchmarkHotkeyButton_Click(object sender, RoutedEventArgs e)
@@ -54,6 +65,12 @@ public partial class SettingsView : WpfUserControl
         bool compact = ActualWidth > 0 && ActualWidth < 1100;
         if (SettingsIndexBorder != null) SettingsIndexBorder.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         if (CategoryCombo != null) CategoryCombo.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
+        bool wide = ActualWidth >= 1500 && DataContext is SettingsViewModel vm
+            && (vm.IsGeneralVisible || vm.IsStartupWindowVisible || vm.IsCompanionNetworkVisible);
+        SettingsColumns.ColumnDefinitions[1].Width = new GridLength(wide ? 16 : 0);
+        SettingsColumns.ColumnDefinitions[2].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        Grid.SetColumn(RightSettingsColumn, wide ? 2 : 0);
+        Grid.SetRow(RightSettingsColumn, wide ? 0 : 1);
         if (SettingsIndexLayout != null)
         {
             SettingsIndexLayout.ColumnDefinitions[0].Width = new GridLength(compact ? 1 : 240, compact ? GridUnitType.Star : GridUnitType.Pixel);

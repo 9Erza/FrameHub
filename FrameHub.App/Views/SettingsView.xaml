@@ -3,12 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              UseLayoutRounding="True"
              SnapsToDevicePixels="False">
+    <UserControl.Resources>
+        <Style x:Key="SettingsKeyboardFocus" TargetType="Control">
+            <Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="{StaticResource BrushFocus}" BorderThickness="2" CornerRadius="6" Margin="1" /></ControlTemplate></Setter.Value></Setter>
+        </Style>
+    </UserControl.Resources>
     <!-- Chapter heading lives at the top of this view; the index is local to Settings. -->
-    <!-- UI 3.0 bounded (QA t_ca0f6d2d P3-3): the 960-DIP readable column is
-         LEFT-anchored so its H1/gutter matches the other seven screens (245 DIP
-         at 1540 wide) instead of centering 157 DIP inward; at narrow widths
-         MaxWidth never binds and the layout is unchanged. -->
-    <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" HorizontalAlignment="Left" MaxWidth="960" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=UserControl}}">
+    <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch">
         <Grid x:Name="ContentLayout" HorizontalAlignment="Stretch" Margin="0,0,0,24">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <StackPanel Grid.Row="0">
@@ -36,7 +37,7 @@
                                 <Setter Property="Background" Value="Transparent" />
                                 <Setter Property="BorderThickness" Value="0" />
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                <Setter Property="FocusVisualStyle" Value="{StaticResource SettingsKeyboardFocus}" />
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="ListBoxItem">
@@ -48,7 +49,6 @@
                                                         <ContentPresenter Grid.Column="2" VerticalAlignment="Center" />
                                                     </Grid>
                                                 </Border>
-                                                <Border x:Name="FocusRing" BorderBrush="{StaticResource BrushFocus}" BorderThickness="2" CornerRadius="8" Margin="-2" Opacity="0" IsHitTestVisible="False" />
                                             </Grid>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="{StaticResource BrushSurfaceHover}" /></Trigger>
@@ -56,7 +56,6 @@
                                                     <Setter TargetName="Row" Property="Background" Value="{StaticResource BrushAccentSoft}" />
                                                     <Setter TargetName="Rail" Property="Background" Value="{StaticResource BrushAccentPrimary}" />
                                                 </Trigger>
-                                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusRing" Property="Opacity" Value="1" /></Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </Setter.Value>
@@ -70,7 +69,7 @@
                 <StackPanel>
                 <TextBlock Text="{Binding SelectedItem, ElementName=IndexList}" Style="{StaticResource PageTitleText}" Margin="0,0,0,20" TextWrapping="Wrap" />
 
-            <StackPanel x:Name="LeftSettingsColumn">
+            <Grid x:Name="SettingsColumns"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="0" /><ColumnDefinition Width="0" /></Grid.ColumnDefinitions><StackPanel x:Name="LeftSettingsColumn" Grid.Column="0">
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsLanguageVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding LanguageTitle}" Style="{StaticResource SectionTitleText}" />
@@ -319,6 +318,9 @@
                     </StackPanel>
                 </Border>
 
+            </StackPanel>
+
+            <StackPanel x:Name="RightSettingsColumn" Grid.Column="0" Grid.Row="1">
                 <Border x:Name="DnsSectionBorder" Style="{StaticResource SettingsSectionSurface}" Margin="0,16,0,0" Visibility="{Binding IsCompanionNetworkVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel x:Name="DnsSectionContent" DataContext="{Binding Dns}">
                         <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitleText}" />
@@ -326,6 +328,8 @@
                         <Border Padding="10" CornerRadius="8" Background="{StaticResource BrushAccentSoft}" Margin="0,0,0,12">
                             <TextBlock Text="{Binding ReadOnlyNotice}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" />
                         </Border>
+                        <TextBlock Text="{Binding ActiveSummary}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <Expander Header="{Binding DetailsText}" Margin="0,0,0,12"><StackPanel Margin="0,8,0,0">
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <TextBlock Text="{Binding AdaptersTitle}" Style="{StaticResource DataTitleText}" VerticalAlignment="Center" />
@@ -363,6 +367,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                         <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,4,0,12" />
+                        </StackPanel></Expander>
                         <TextBlock Text="{Binding CompareTitle}" Style="{StaticResource DataTitleText}" Margin="0,0,0,8" />
                         <TextBlock Text="{Binding HostnameLabel}" Style="{StaticResource TinyCapsText}" />
                         <TextBox Text="{Binding Hostname, UpdateSourceTrigger=PropertyChanged}" MinHeight="30" VerticalContentAlignment="Center" Margin="0,4,0,8" AutomationProperties.Name="{Binding HostnameLabel}" />
@@ -388,9 +393,7 @@
                         <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
                 </Border>
-            </StackPanel>
 
-            <StackPanel x:Name="RightSettingsColumn">
                 <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsBenchmarksVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="{Binding BenchmarkEngineTitle}" Style="{StaticResource SectionTitleText}" />
@@ -482,6 +485,7 @@
                 </Border>
                 </Expander>
                 </StackPanel>
+            </Grid>
             </StackPanel>
             </Border>
         </Grid>

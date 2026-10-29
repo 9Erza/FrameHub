@@ -248,6 +248,50 @@ public sealed class LibraryW1FixTests
         }
     }
 
+    [TestMethod]
+    public void LocalizedTypeLabels_PreserveEnumSelection()
+    {
+        using var host = CreateHost();
+        host.ViewModel.NewItemType = LibraryItemType.BackgroundApp;
+        host.ViewModel.RefreshTexts();
+        Assert.AreEqual(LibraryItemType.BackgroundApp, host.ViewModel.NewItemType);
+        foreach (string key in new[] { "Library.Type.Game", "Library.Type.App", "Library.Type.BackgroundApp", "Library.Type.Launcher" })
+        {
+            Assert.AreNotEqual(key, LocalizationService.Translate(key, "pl"));
+            Assert.AreNotEqual(key, LocalizationService.Translate(key, "en"));
+        }
+    }
+
+    [TestMethod]
+    public void LanguageChange_PreservesTypeAndJumpMode()
+    {
+        using var host = CreateHost();
+        host.Localization.SetLanguage("pl");
+        host.ViewModel.RefreshTexts();
+        host.ViewModel.NewItemType = LibraryItemType.Launcher;
+        host.ViewModel.SelectedCs2JumpBindMode = host.ViewModel.Cs2JumpBindModes[1];
+        host.Localization.SetLanguage("en");
+        host.ViewModel.RefreshTexts();
+        Assert.AreEqual(LibraryItemType.Launcher, host.ViewModel.NewItemType);
+        Assert.AreEqual("Scroll down", host.ViewModel.SelectedCs2JumpBindMode);
+        Assert.AreEqual("Game", host.ViewModel.GameTypeText);
+        Assert.AreEqual("Launcher", host.ViewModel.LauncherTypeText);
+        host.Localization.SetLanguage("pl");
+        host.ViewModel.RefreshTexts();
+        Assert.AreEqual("Scroll w dół", host.ViewModel.SelectedCs2JumpBindMode);
+        Assert.AreEqual("Gra", host.ViewModel.GameTypeText);
+        Assert.AreEqual(LibraryItemType.Launcher, host.ViewModel.NewItemType);
+    }
+
+    [TestMethod]
+    public void CloseDetails_DeselectsWithoutLaunching()
+    {
+        using var host = CreateHost();
+        host.ViewModel.SelectItemCommand.Execute(host.Items[0]);
+        host.ViewModel.BackToLibraryCommand.Execute(null);
+        Assert.IsNull(host.ViewModel.SelectedItem);
+        Assert.AreEqual(0, host.Launcher.LaunchCalls);
+    }
     private static int CountOccurrences(string text, string value)
     {
         int count = 0;
@@ -312,14 +356,15 @@ public sealed class LibraryW1FixTests
         var runtime = new AppRuntimeService(settingsPath);
         var localization = new LocalizationService(runtime.SettingsService);
         var viewModel = new LibraryViewModel(localization, runtime, libraryService, scanner, launcher);
-        return new Host(viewModel, runtime, launcher, viewModel.Items.ToList());
+        return new Host(viewModel, runtime, launcher, viewModel.Items.ToList(), localization);
     }
 
     private sealed record Host(
         LibraryViewModel ViewModel,
         AppRuntimeService Runtime,
         CountingLaunchService Launcher,
-        List<LibraryItemViewModel> Items) : IDisposable
+        List<LibraryItemViewModel> Items,
+        LocalizationService Localization) : IDisposable
     {
         public void Dispose()
         {

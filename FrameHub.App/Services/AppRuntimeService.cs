@@ -403,14 +403,16 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         // thread's dispatcher; logging below stays synchronous and thread-safe.
         DispatchActivityIfRequired(() =>
         {
-            Activity.Insert(0, new ActivityItemViewModel
+            var activity = new ActivityItemViewModel
             {
                 Time = DateTime.Now.ToString("HH:mm"),
                 Message = message,
                 Level = level,
                 LocalizationKey = localizationKey,
                 LocalizationArguments = arguments
-            });
+            };
+            activity.Relocalize(Settings.Language);
+            Activity.Insert(0, activity);
 
             while (Activity.Count > 200)
             {

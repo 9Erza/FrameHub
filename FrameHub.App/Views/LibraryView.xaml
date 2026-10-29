@@ -2,7 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:lib="clr-namespace:FrameHub.App.ViewModels.Library"
-             xmlns:opt="clr-namespace:FrameHub.App.ViewModels.GameOptimization">
+             xmlns:opt="clr-namespace:FrameHub.App.ViewModels.GameOptimization" xmlns:models="clr-namespace:FrameHub.Core.Models.Library;assembly=FrameHub.Core">
     <UserControl.Resources>
         <!-- FH-100-002: scoped dark scan menu built only from existing theme brushes.
              The explicit ControlTemplate (Border + ItemsPresenter) replaces the
@@ -139,7 +139,7 @@
                                     <StackPanel><TextBlock Text="{Binding DisplayNameLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><TextBox x:Name="ManualDisplayNameBox" Text="{Binding NewDisplayName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding DisplayNameLabel}" ToolTip="{Binding DisplayNameLabel}" /></StackPanel>
                                     <StackPanel Grid.Column="2"><TextBlock Text="{Binding ExecutableLabel}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,6" /><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBox Text="{Binding NewExecutablePath, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding ExecutableLabel}" ToolTip="{Binding ExecutableLabel}" /><Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="{Binding BrowseText}" Command="{Binding BrowseExecutableCommand}" Margin="8,0,0,0" /></Grid></StackPanel>
                                 </Grid>
-                                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><ComboBox ItemsSource="{Binding AvailableTypes}" SelectedItem="{Binding NewItemType}" Width="180" HorizontalAlignment="Left" AutomationProperties.Name="{Binding TypeLabel}" ToolTip="{Binding TypeLabel}" /><Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="{Binding AddManualText}" Command="{Binding AddManualCommand}" /></Grid>
+                                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding TypeLabel}" Style="{StaticResource TinyCapsText}" /><ComboBox SelectedValuePath="Tag" SelectedValue="{Binding NewItemType, Mode=TwoWay}" Width="200" HorizontalAlignment="Left" AutomationProperties.Name="{Binding TypeLabel}"><ComboBoxItem Tag="{x:Static models:LibraryItemType.Game}" Content="{Binding GameTypeText}" /><ComboBoxItem Tag="{x:Static models:LibraryItemType.App}" Content="{Binding AppTypeText}" /><ComboBoxItem Tag="{x:Static models:LibraryItemType.BackgroundApp}" Content="{Binding BackgroundAppTypeText}" /><ComboBoxItem Tag="{x:Static models:LibraryItemType.Launcher}" Content="{Binding LauncherTypeText}" /></ComboBox></StackPanel><Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="{Binding AddManualText}" Command="{Binding AddManualCommand}" /></Grid>
                             </StackPanel>
                             <Border Grid.Column="1" Width="1" Background="{StaticResource BrushBorderSubtle}" Margin="24,0" />
                             <StackPanel Grid.Column="2">
@@ -179,13 +179,13 @@
                                     <Setter Property="Padding" Value="0" />
                                     <Setter Property="Template">
                                         <Setter.Value><ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="SelectionSurface" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="4" Padding="8,8">
+                                            <Border x:Name="SelectionSurface" Background="Transparent" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" CornerRadius="4" Padding="8,8">
                                                 <ContentPresenter HorizontalAlignment="Stretch" />
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="SelectionSurface" Property="Background" Value="{StaticResource BrushSurfaceInteractive}" /></Trigger>
-                                                <Trigger Property="IsSelected" Value="True"><Setter TargetName="SelectionSurface" Property="Background" Value="{StaticResource BrushSurfaceRaised}" /><Setter TargetName="SelectionSurface" Property="BorderBrush" Value="{StaticResource BrushBorderStrong}" /></Trigger>
-                                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="SelectionSurface" Property="BorderBrush" Value="{StaticResource BrushFocus}" /></Trigger>
+                                                <Trigger Property="IsSelected" Value="True"><Setter TargetName="SelectionSurface" Property="BorderThickness" Value="1" /><Setter TargetName="SelectionSurface" Property="Background" Value="{StaticResource BrushSurfaceRaised}" /><Setter TargetName="SelectionSurface" Property="BorderBrush" Value="{StaticResource BrushBorderStrong}" /></Trigger>
+                                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="SelectionSurface" Property="BorderThickness" Value="1" /><Setter TargetName="SelectionSurface" Property="BorderBrush" Value="{StaticResource BrushFocus}" /></Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate></Setter.Value>
                                     </Setter>
@@ -358,6 +358,7 @@
                                         </StackPanel>
                                     </Grid>
 
+                                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding CreateUpdateProfileText}" Command="{Binding CreateUpdateProfileCommand}" HorizontalAlignment="Stretch" Margin="0,16,0,0" />
                                     <WrapPanel Margin="0,0,0,12">
                                         <Button Style="{StaticResource SecondaryButton}" Content="{Binding SelectAllText}" Command="{Binding SelectAllCoresCommand}" Margin="0,0,8,8" />
                                         <Button Style="{StaticResource SecondaryButton}" Content="{Binding ClearAllText}" Command="{Binding ClearAllCoresCommand}" Margin="0,0,8,8" />
@@ -422,7 +423,7 @@
                                             </StackPanel>
                                         </Border>
                                     </Grid>
-                                    <Button Style="{StaticResource PrimaryButton}" Content="{Binding CreateUpdateProfileText}" Command="{Binding CreateUpdateProfileCommand}" HorizontalAlignment="Stretch" Margin="0,16,0,0" />
+
                                 </StackPanel>
                             </Border>
 

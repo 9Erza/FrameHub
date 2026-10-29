@@ -34,9 +34,9 @@
                     <DataTemplate>
                         <Border Style="{StaticResource InlineRow}" Padding="10,8">
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="72" /><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="72" /><ColumnDefinition Width="112" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                 <TextBlock Text="{Binding Time}" FontFamily="{StaticResource FontMono}" FontSize="12" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="1" Text="{Binding Level}" FontWeight="SemiBold" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="1" Text="{Binding LevelDisplay}" FontWeight="SemiBold" VerticalAlignment="Center">
                                     <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}"><Style.Triggers><DataTrigger Binding="{Binding Level}" Value="Warn"><Setter Property="Foreground" Value="{StaticResource BrushWarning}" /></DataTrigger><DataTrigger Binding="{Binding Level}" Value="Error"><Setter Property="Foreground" Value="{StaticResource BrushError}" /></DataTrigger><DataTrigger Binding="{Binding Level}" Value="Fatal"><Setter Property="Foreground" Value="{StaticResource BrushError}" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                                 </TextBlock>
                                 <TextBlock Grid.Column="2" Text="{Binding Message}" Style="{StaticResource BodyText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Message}" VerticalAlignment="Center" />
@@ -54,7 +54,7 @@
             <Border Grid.Row="3" Margin="16,0,14,10" Padding="12" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,1,0,0">
                 <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding SelectedItem, ElementName=ActivityList}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
                 <StackPanel DataContext="{Binding SelectedItem, ElementName=ActivityList}">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6"><TextBlock Text="{Binding Time}" FontFamily="{StaticResource FontMono}" Style="{StaticResource CaptionText}"/><TextBlock Text="{Binding Level}" Style="{StaticResource StatusText}" Margin="12,0,0,0"/></StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6"><TextBlock Text="{Binding Time}" FontFamily="{StaticResource FontMono}" Style="{StaticResource CaptionText}"/><TextBlock Text="{Binding LevelDisplay}" Style="{StaticResource StatusText}" Margin="12,0,0,0"/></StackPanel>
                     <TextBox Text="{Binding Message, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="120" VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent" AutomationProperties.Name="{Binding Message}" />
                 </StackPanel>
             </Border>

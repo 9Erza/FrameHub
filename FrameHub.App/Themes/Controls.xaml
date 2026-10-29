@@ -1,5 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style x:Key="NavigationKeyboardFocus" TargetType="Control">
+        <Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="{StaticResource BrushFocus}" BorderThickness="2" CornerRadius="6" Margin="1" /></ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style x:Key="ChromeButton" TargetType="Button">
         <Setter Property="Width" Value="46" />
         <Setter Property="Height" Value="44" />
@@ -401,7 +404,7 @@
     </Style>
 
     <Style x:Key="FrameHubTabItem" TargetType="{x:Type TabItem}">
-        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource NavigationKeyboardFocus}" />
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
@@ -432,10 +435,6 @@
                             <Setter TargetName="Root" Property="Background" Value="{StaticResource BrushAccentSoft}" />
                             <Setter TargetName="SelectionRail" Property="Background" Value="{StaticResource BrushAccentPrimary}" />
                             <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Root" Property="Background" Value="{StaticResource BrushSurfaceHover}" />
-                            <Setter TargetName="SelectionRail" Property="Background" Value="{StaticResource BrushTextPrimary}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.45" />
@@ -1206,7 +1205,7 @@
     <!-- ============ Ember Ledger (v2 prototyp: shell + Dashboard + Library) ============ -->
     <!-- Sidebar navigation: amber 3px bar + tint + semibold; focus is a separate 2px ring. -->
     <Style x:Key="LedgerNavItem" TargetType="RadioButton">
-        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource NavigationKeyboardFocus}" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
@@ -1238,9 +1237,6 @@
                             <Setter TargetName="Root" Property="Background" Value="{StaticResource BrushSurfaceSelected}" />
                             <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
                             <Setter Property="FontWeight" Value="SemiBold" />
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="{StaticResource BrushTextDisabled}" />

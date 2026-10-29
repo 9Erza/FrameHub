@@ -99,7 +99,7 @@ public partial class LibraryView : WpfUserControl
         CatalogWorkspace.ColumnDefinitions[2].Width = sideBySide
             ? new GridLength(1.2, GridUnitType.Star)
             : new GridLength(0);
-        CatalogWorkspace.RowDefinitions[1].Height = new GridLength(sideBySide ? 0 : 16);
+        CatalogWorkspace.RowDefinitions[1].Height = new GridLength(sideBySide || _viewModel?.ShowSelectedDetail != true ? 0 : 16);
         CatalogWorkspace.RowDefinitions[2].Height = new GridLength(sideBySide ? 0 : 1, GridUnitType.Star);
         System.Windows.Controls.Grid.SetColumn(LibraryCatalogPanel, 0);
         System.Windows.Controls.Grid.SetRow(LibraryCatalogPanel, 0);

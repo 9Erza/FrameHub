@@ -387,6 +387,9 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
                 ? _localization.T("Session.State.Automatic")
                 : _localization.T("Session.State.Active"))
             : _localization.T("Session.State.Idle");
+    public string CandidateSummary => IsPolish
+        ? $"Procesy do wstrzymania: {Candidates.Count} · Nazwy procesów: {Candidates.Select(c => c.ProcessName).Distinct(StringComparer.OrdinalIgnoreCase).Count()}"
+        : $"Processes to suspend: {Candidates.Count} · Process names: {Candidates.Select(c => c.ProcessName).Distinct(StringComparer.OrdinalIgnoreCase).Count()}";
     public bool HasCandidates => Candidates.Count > 0;
     public bool HasSuspendedProcesses => SuspendedProcesses.Count > 0;
     public bool HasRunningProcesses => RunningProcesses.Count > 0;
@@ -621,6 +624,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SessionOptionsTitle));
         OnPropertyChanged(nameof(BackgroundRulesTitle));
         OnPropertyChanged(nameof(RunningProcessesTitle));
+        OnPropertyChanged(nameof(CandidateSummary));
         OnPropertyChanged(nameof(CandidateTitle));
         OnPropertyChanged(nameof(ActiveSessionTitle));
         OnPropertyChanged(nameof(AutoModeSwitchLabel));
@@ -961,6 +965,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             Candidates.Add(new SuspendCandidateViewModel(candidate, _localization));
         }
 
+        OnPropertyChanged(nameof(CandidateSummary));
         OnPropertyChanged(nameof(HasCandidates));
         OnPropertyChanged(nameof(NoCandidatesVisible));
         CommandManager.InvalidateRequerySuggested();
@@ -1319,6 +1324,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsRecoveryPending));
         OnPropertyChanged(nameof(SessionStateDisplay));
         OnPropertyChanged(nameof(ActiveSessionInfo));
+        OnPropertyChanged(nameof(CandidateSummary));
         OnPropertyChanged(nameof(HasCandidates));
         OnPropertyChanged(nameof(NoCandidatesVisible));
         OnPropertyChanged(nameof(HasSuspendedProcesses));

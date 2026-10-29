@@ -86,7 +86,11 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public string IndividualSourcesText => _localization.T("Library.IndividualSources");
     public string DisplayNameLabel => _localization.T("Library.DisplayName");
     public string ExecutableLabel => _localization.T("Library.Executable");
-    public string TypeLabel => _localization.T("Library.Type");
+    public string TypeLabel => IsPolish ? "Rodzaj dodawanej pozycji" : "Item type";
+    public string GameTypeText => _localization.T("Library.Type.Game");
+    public string AppTypeText => _localization.T("Library.Type.App");
+    public string BackgroundAppTypeText => _localization.T("Library.Type.BackgroundApp");
+    public string LauncherTypeText => _localization.T("Library.Type.Launcher");
     public string BrowseText => _localization.T("Library.Browse");
     public string ReadyBadgeText => _localization.T("Badge.Ready");
     public string AddManualText => _localization.T("Library.AddManual");
@@ -177,7 +181,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public string Cs2AutoexecRadarText => _localization.T("CS2.Autoexec.AddRadar");
     public string Cs2AutoexecFpsText => _localization.T("CS2.Autoexec.AddFps");
     public string Cs2AutoexecFpsLabel => _localization.T("CS2.Autoexec.FpsLabel");
-    public string BackToLibraryText => IsPolish ? "← Wróć do biblioteki" : "← Back to Library";
+    public string BackToLibraryText => IsPolish ? "Zamknij szczegóły" : "Close details";
     public string CpuTabTitle => IsPolish ? "Optymalizacja procesora" : "CPU optimization";
     public string GraphicsTabTitle => IsPolish ? "Ustawienia graficzne" : "Graphics settings";
     public string ConfigTabTitle => "Config";
@@ -666,6 +670,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public LibraryViewModel(LocalizationService localization, AppRuntimeService runtime, LibraryService? libraryService = null, ProcessScannerService? processScanner = null, IAppLibraryLaunchService? launchService = null)
     {
         _localization = localization;
+        RefreshJumpBindModes();
         _runtime = runtime;
         _cs2Service = new Cs2OptimizationService(arbiter: runtime.BenchmarkCoordinator);
         _libraryService = libraryService ?? new LibraryService();
@@ -742,6 +747,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
 
     public void RefreshTexts()
     {
+        RefreshJumpBindModes();
         foreach (var item in Items) item.RefreshTexts();
         foreach (var change in Cs2SettingChanges) change.RefreshTexts();
         foreach (var mode in AvailableOptimizationModes) mode.RefreshTexts();
@@ -1853,16 +1859,24 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         UpsertFrameHubCommand($"bind_{blockKey}", "// Binds", new[] { $"bind \"{key}\" \"{command}\"" });
     }
 
+    private void RefreshJumpBindModes()
+    {
+        int selectedIndex = Math.Max(0, Cs2JumpBindModes.IndexOf(SelectedCs2JumpBindMode));
+        string[] labels = IsPolish ? ["Oba", "Scroll w dół", "Scroll w górę"] : ["Both", "Scroll down", "Scroll up"];
+        Cs2JumpBindModes.Clear();
+        foreach (string label in labels) Cs2JumpBindModes.Add(label);
+        SelectedCs2JumpBindMode = labels[Math.Min(selectedIndex, labels.Length - 1)];
+    }
     private void InsertCs2JumpBind()
     {
         if (!EnsureCs2CanEdit("insert jump bind")) return;
         string mode = SelectedCs2JumpBindMode ?? string.Empty;
         var lines = new List<string>();
-        if (mode.Contains("dół", StringComparison.OrdinalIgnoreCase) || mode.Contains("down", StringComparison.OrdinalIgnoreCase) || mode.Equals("Oba", StringComparison.OrdinalIgnoreCase))
+        if (mode.Contains("dół", StringComparison.OrdinalIgnoreCase) || mode.Contains("down", StringComparison.OrdinalIgnoreCase) || (mode.Equals("Oba", StringComparison.OrdinalIgnoreCase) || mode.Equals("Both", StringComparison.OrdinalIgnoreCase)))
         {
             lines.Add("bind \"mwheeldown\" \"+jump\"");
         }
-        if (mode.Contains("gór", StringComparison.OrdinalIgnoreCase) || mode.Contains("up", StringComparison.OrdinalIgnoreCase) || mode.Equals("Oba", StringComparison.OrdinalIgnoreCase))
+        if (mode.Contains("gór", StringComparison.OrdinalIgnoreCase) || mode.Contains("up", StringComparison.OrdinalIgnoreCase) || (mode.Equals("Oba", StringComparison.OrdinalIgnoreCase) || mode.Equals("Both", StringComparison.OrdinalIgnoreCase)))
         {
             lines.Add("bind \"mwheelup\" \"+jump\"");
         }
