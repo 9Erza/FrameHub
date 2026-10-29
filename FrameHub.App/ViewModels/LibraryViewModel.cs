@@ -258,6 +258,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
 
     private string _searchText = string.Empty;
     private int _selectedFilterIndex;
+    private bool _rebuildingFilterLabels;
     private bool _showManageLibrary;
 
     /// <summary>
@@ -268,6 +269,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         get => _selectedFilterIndex;
         set
         {
+            if (_rebuildingFilterLabels) return;
             if (SetProperty(ref _selectedFilterIndex, value))
             {
                 RefreshFilteredItems();
@@ -380,11 +382,24 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private void RebuildFilterLabels()
     {
         string[] keys = ["Library.Filter.All", "Library.Filter.Ready", "Library.Filter.Running", "Library.Filter.Cs2", "Library.Filter.MissingExe"];
-        FilterLabels.Clear();
-        foreach (string key in keys)
+        int selectedIndex = _selectedFilterIndex;
+        _rebuildingFilterLabels = true;
+        try
         {
-            FilterLabels.Add(_localization.T(key));
+            _selectedFilterIndex = -1;
+            OnPropertyChanged(nameof(SelectedFilterIndex));
+            FilterLabels.Clear();
+            foreach (string key in keys)
+            {
+                FilterLabels.Add(_localization.T(key));
+            }
         }
+        finally
+        {
+            _selectedFilterIndex = selectedIndex;
+            _rebuildingFilterLabels = false;
+        }
+        OnPropertyChanged(nameof(SelectedFilterIndex));
     }
     public ObservableCollection<LibraryItemType> AvailableTypes { get; } = new()
     {

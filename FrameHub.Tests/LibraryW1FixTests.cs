@@ -263,6 +263,34 @@ public sealed class LibraryW1FixTests
     }
 
     [TestMethod]
+    public void FilterSelectionSurvivesTextRefreshWithBoundComboBox()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                using var host = CreateHost();
+                var combo = new System.Windows.Controls.ComboBox { ItemsSource = host.ViewModel.FilterLabels, DataContext = host.ViewModel };
+                combo.SetBinding(System.Windows.Controls.ComboBox.SelectedIndexProperty,
+                    new System.Windows.Data.Binding(nameof(LibraryViewModel.SelectedFilterIndex)) { Mode = System.Windows.Data.BindingMode.TwoWay });
+                combo.SelectedIndex = 2;
+                Assert.AreEqual(2, host.ViewModel.SelectedFilterIndex);
+                host.Localization.SetLanguage("pl");
+                host.ViewModel.RefreshTexts();
+                Assert.AreEqual(2, host.ViewModel.SelectedFilterIndex);
+                Assert.AreEqual(2, combo.SelectedIndex);
+                Assert.AreEqual(host.ViewModel.FilterLabels[2], combo.SelectedItem);
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.IsTrue(thread.Join(TimeSpan.FromSeconds(30)));
+        if (failure is not null) Assert.Fail(failure.ToString());
+    }
+
+    [TestMethod]
     public void LanguageChange_PreservesTypeAndJumpMode()
     {
         using var host = CreateHost();
