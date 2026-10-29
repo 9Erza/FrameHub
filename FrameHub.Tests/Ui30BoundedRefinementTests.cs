@@ -143,14 +143,12 @@ public sealed class Ui30BoundedRefinementTests
     }
 
     [TestMethod]
-    public void SettingsXaml_ProductColumnLeftAnchored()
+    public void SettingsXaml_FullWidthScrollKeepsLeftAlignedContent()
     {
-        // QA t_ca0f6d2d P3-3: the 960-DIP readable column must anchor LEFT so its
-        // H1/page gutter matches the other screens — centered MaxWidth pushed the
-        // Settings H1 157 DIP inward at 1540 wide.
         string xaml = ReadView("SettingsView.xaml");
-        StringAssert.Contains(xaml, "HorizontalAlignment=\"Left\" MaxWidth=\"960\"",
-            "Constrained Settings column must be left-anchored for a consistent page gutter, not centered.");
+        StringAssert.Contains(xaml, "x:Name=\"SettingsScroll\" VerticalScrollBarVisibility=\"Auto\"");
+        StringAssert.Contains(xaml, "x:Name=\"ContentLayout\" HorizontalAlignment=\"Stretch\"");
+        Assert.IsFalse(xaml.Contains("MaxWidth=\"960\""), "The scrollbar must reach the view edge on wide windows.");
     }
 
     [TestMethod]

@@ -42,7 +42,9 @@ public sealed class LivePerformanceTelemetryServiceTests
             delayProvider: InstantDelayProvider);
 
         service.Start();
-        await Task.Delay(100);
+        await WaitUntilAsync(() => service.CurrentSnapshot?.CurrentFps is > 0
+            && service.CurrentSnapshot?.OnePercentLowFps is not null
+            && service.CurrentSnapshot?.PointOnePercentLowFps is not null);
 
         var snapshot = service.CurrentSnapshot;
         Assert.IsNotNull(snapshot);

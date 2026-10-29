@@ -31,4 +31,15 @@ public sealed class ActivityLocalizationTests
         item.Relocalize("pl");
         Assert.AreEqual("driver error: code 42", item.Message);
     }
+    [TestMethod]
+    public void SeverityDisplayRelocalizesWithoutChangingFilterIdentifier()
+    {
+        var item = new ActivityItemViewModel { Time = "10:00", Message = "test", Level = "Warn" };
+        item.Relocalize("pl");
+        Assert.AreEqual("Ostrzeżenie", item.LevelDisplay);
+        Assert.AreEqual("Warn", item.Level);
+        item.Relocalize("en");
+        Assert.AreEqual("Warning", item.LevelDisplay);
+        Assert.AreEqual(2, LogsViewModel.ClassifyLevel(item.Level));
+    }
 }

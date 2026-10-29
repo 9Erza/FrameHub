@@ -7,15 +7,16 @@ using System.Linq;
 
 namespace FrameHub.App.ViewModels.GameOptimization;
 
-public sealed class Cs2SettingOptionViewModel
+public sealed class Cs2SettingOptionViewModel : ViewModelBase
 {
     public string Value { get; }
-    public string DisplayName { get; }
+    private string _displayName;
+    public string DisplayName { get => _displayName; set => SetProperty(ref _displayName, value); }
 
     public Cs2SettingOptionViewModel(string value, string displayName)
     {
         Value = value;
-        DisplayName = displayName;
+        _displayName = displayName;
     }
 
     public override string ToString() => DisplayName;
@@ -38,7 +39,7 @@ public sealed class Cs2SettingChangeViewModel : ViewModelBase
     public string CurrentDisplayValue => FormatValue(Change.Key, Change.CurrentValue);
     public string RecommendedDisplayValue => FormatValue(Change.Key, Change.RecommendedValue);
     public string Description => _localization.T($"CS2.Description.{Change.Key}");
-    public string RiskText => Change.RiskLevel.ToString();
+    public string RiskText => _localization.T($"CS2.Risk.{Change.RiskLevel}");
     public string StatusText => _localization.T($"CS2.Status.{Change.Status}");
     public string ApplyHint => CanApply ? _localization.T("CS2.ApplyThisSetting") : _localization.T("CS2.ReadOnlySetting");
     public bool IsOptional => Change.IsOptional;
@@ -98,6 +99,14 @@ public sealed class Cs2SettingChangeViewModel : ViewModelBase
 
     public void RefreshTexts()
     {
+        for (int i = 0; i < Options.Count && i < Change.Options.Count; i++)
+        {
+            var option = Change.Options[i];
+            Options[i].DisplayName = !string.IsNullOrWhiteSpace(option.DisplayOverride)
+                ? LocalizeDisplayOverride(option.DisplayOverride)
+                : FormatValue(Change.Key, option.Value);
+        }
+        OnPropertyChanged(nameof(RiskText));
         OnPropertyChanged(nameof(DisplayName));
         OnPropertyChanged(nameof(CurrentDisplayValue));
         OnPropertyChanged(nameof(RecommendedDisplayValue));

@@ -27,6 +27,7 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
     public sealed record PresetRow(string Id, string DisplayName, string Servers, string? DohTemplate);
     public sealed record CompareRow(string Resolver, string Hostname, string Outcome, bool Success);
 
+    public string DetailsText => _localization.T("Dns.Details");
     public string Title => _localization.T("Dns.Title");
     public string Description => _localization.T("Dns.Description");
     public string ReadOnlyNotice => _localization.T("Dns.ReadOnlyNotice");
@@ -42,6 +43,7 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
     public string CompareButtonText => _localization.T("Dns.Compare");
     public string CancelButtonText => _localization.T("Dns.CancelCompare");
     public string RefreshAdaptersText => _localization.T("Dns.RefreshAdapters");
+    public string ActiveSummary { get; private set; } = string.Empty;
     public string StatusText => _statusText;
     public bool IsComparing => _isComparing;
     public bool IsCompareIdle => !_isComparing;
@@ -93,6 +95,8 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
+            ActiveSummary = _localization.T("Dns.NoActive");
+            OnPropertyChanged(nameof(ActiveSummary));
             _statusText = string.Format(_localization.T("Dns.AdaptersFailed"), ex.Message);
             OnPropertyChanged(nameof(StatusText));
             return;
@@ -105,9 +109,16 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
                 ? _localization.T("Dns.NoResolver")
                 : string.Join(", ", info.DnsServers);
             string source = info.DnsFromDhcp ? _localization.T("Dns.SourceDhcp") : _localization.T("Dns.SourceStatic");
-            Adapters.Add(new AdapterRow(info.Name, info.Status.ToString(), addresses, servers, source));
+            Adapters.Add(new AdapterRow(info.Name, info.IsUp ? _localization.T("Dns.Up") : _localization.T("Dns.OtherStatus"), addresses, servers, source));
         }
 
+        var active = infos.Where(a => a.IsUp && a.DnsServers.Length > 0 &&
+            a.Ipv4Addresses.Concat(a.Ipv6Addresses).Any(address =>
+                System.Net.IPAddress.TryParse(address, out var ip) && !System.Net.IPAddress.IsLoopback(ip))).ToList();
+        ActiveSummary = active.Count == 0
+            ? _localization.T("Dns.NoActive")
+            : string.Format(_localization.T("Dns.ActiveSummary"), active.Count, string.Join(", ", active.SelectMany(a => a.DnsServers).Distinct()));
+        OnPropertyChanged(nameof(ActiveSummary));
         _statusText = _localization.T("Dns.StatusIdle");
         OnPropertyChanged(nameof(StatusText));
     }
@@ -115,6 +126,7 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
     public void RefreshTexts()
     {
         LoadPresets();
+        OnPropertyChanged(nameof(DetailsText));
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(ReadOnlyNotice));
