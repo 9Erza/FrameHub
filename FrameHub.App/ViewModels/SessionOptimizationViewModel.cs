@@ -5,8 +5,10 @@ using FrameHub.Core.Models.Library;
 using FrameHub.Core.Models.SessionOptimization;
 using FrameHub.Core.Services.SessionOptimization;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -26,6 +28,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     private ActiveSessionState? _activeSession;
     private readonly Dispatcher _uiDispatcher;
     private SessionGameOptionViewModel? _selectedGame;
+    private string _gameSearchText = string.Empty;
+    private ICollectionView? _gamesView;
     private string _statusText = string.Empty;
     private string _statusLevel = "Info";
     private bool _isBusy;
@@ -51,6 +55,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     public ICommand StopSessionCommand { get; }
     public ICommand ReloadLibraryCommand { get; }
     public ICommand TestDetectionCommand { get; }
+    public ICommand ClearGameSearchCommand { get; }
 
     public string Title => IsPolish ? "Optymalizacja sesji" : "Session Optimization";
     public string Subtitle => IsPolish
@@ -113,6 +118,30 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     public string NoCandidatesText => IsPolish ? "Brak pasujących procesów." : "No matching processes.";
     public string NoSuspendedText => IsPolish ? "Brak procesów ruszonych przez sesję." : "No processes touched by this session.";
     public string NoRunningProcessesText => IsPolish ? "Brak procesów do wyboru." : "No processes to select.";
+
+    // FH-100-015: bounded, searchable per-game automation list.
+    public string GameSearchLabel => IsPolish ? "Szukaj gry" : "Search games";
+    public string GameSearchPlaceholder => IsPolish ? "Filtruj po nazwie lub procesie…" : "Filter by name or process…";
+    public string ClearSearchButtonText => IsPolish ? "Wyczyść" : "Clear";
+    public string NoMatchingGamesText => IsPolish
+        ? "Brak gier pasujących do wyszukiwania."
+        : "No games match the search.";
+    public string AutoGamesSummary => IsPolish
+        ? $"Auto: {Games.Count(game => game.AutoEnabled)}/{Games.Count}"
+        : $"Auto: {Games.Count(game => game.AutoEnabled)}/{Games.Count}";
+    public bool NoMatchingGamesVisible => HasGames && _gamesView != null && _gamesView.IsEmpty;
+
+    // FH-100-016: short guide over the existing workflow (no new wizard).
+    public string WorkflowGuideTitle => IsPolish ? "Jak przebiega sesja" : "How a session works";
+    public string WorkflowGuideText => IsPolish
+        ? "1. Wybierz grę. 2. Sprawdź 'Co wstrzymywać' i podgląd poniżej. 3. Uruchom ręcznie przyciskiem Start albo włącz automatyzację (globalny przełącznik + przełączniki per-game). 4. Po grze użyj 'Przywróć sesję'."
+        : "1. Pick a game. 2. Review “What gets paused” and the preview below. 3. Start manually with the Start button or enable automation (global switch + per-game toggles). 4. After gaming, use “Restore session”.";
+    public string AutoVsManualHint => IsPolish
+        ? "Globalny przełącznik włącza wykrywanie, a przełączniki per-game wybierają gry. Ręczny Start działa zawsze, niezależnie od automatyzacji."
+        : "The global switch enables detection while per-game toggles pick the games. Manual Start always works, independently of automation.";
+    public string CandidateSafetyNote => IsPolish
+        ? "Wstrzymanie jest tymczasowe. Przywracanie wznawia to, co wstrzymała ta sesja; rzeczy zamkniętych lub zmienionych poza nią nie da się cofnąć."
+        : "Suspension is temporary. Restore resumes what this session suspended; anything closed or changed outside of it cannot be undone.";
 
     public string RefreshButtonText => IsPolish ? "Odśwież" : "Refresh";
     public string RefreshProcessListButtonText => IsPolish ? "Odśwież procesy" : "Refresh processes";
@@ -325,6 +354,22 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     public bool IsIdle => !IsSessionActive;
     public bool IsRecoveryPending => _activeSession?.IsRecoveryPending == true;
     public bool HasSelectedGame => SelectedGame != null;
+
+    // FH-100-015: search filter over the stable Games collection (VMs keep
+    // identity, so AutoEnabled/ID/per-game settings survive filter/refresh/recycle).
+    public ICollectionView? GamesView => _gamesView;
+    public string GameSearchText
+    {
+        get => _gameSearchText;
+        set
+        {
+            if (SetProperty(ref _gameSearchText, value ?? string.Empty))
+            {
+                _gamesView?.Refresh();
+                OnPropertyChanged(nameof(NoMatchingGamesVisible));
+            }
+        }
+    }
     public string RestoreFooterHint => IsSessionActive || IsRecoveryPending
         ? _localization.T("Session.Footer.RestoreReady")
         : _localization.T("Session.Footer.RestoreIdle");
@@ -414,8 +459,16 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         StopSessionCommand = new RelayCommand(_ => StopSession(), _ => !_isBusy && IsSessionActive);
         ReloadLibraryCommand = new RelayCommand(_ => ReloadGames());
         TestDetectionCommand = new RelayCommand(async _ => await TestDetectionAsync(), _ => !_isBusy && SelectedGame != null);
+        ClearGameSearchCommand = new RelayCommand(_ => GameSearchText = string.Empty);
 
         ReloadGames();
+        _gamesView = CollectionViewSource.GetDefaultView(Games);
+        if (_gamesView != null)
+        {
+            _gamesView.Filter = FilterGameOption;
+        }
+
+        Games.CollectionChanged += (_, _) => NotifyGameListChanged();
         LoadSelectedGameConfiguration();
         RebuildSuspendedList();
         RequestProcessRefresh(forceScan: true);
@@ -588,9 +641,16 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(BackgroundRulesHint));
         OnPropertyChanged(nameof(RunningProcessesHint));
         OnPropertyChanged(nameof(CandidateHint));
+        OnPropertyChanged(nameof(CandidateSafetyNote));
         OnPropertyChanged(nameof(NoCandidatesText));
         OnPropertyChanged(nameof(NoSuspendedText));
         OnPropertyChanged(nameof(NoRunningProcessesText));
+        OnPropertyChanged(nameof(GameSearchPlaceholder));
+        OnPropertyChanged(nameof(ClearSearchButtonText));
+        OnPropertyChanged(nameof(NoMatchingGamesText));
+        OnPropertyChanged(nameof(WorkflowGuideTitle));
+        OnPropertyChanged(nameof(WorkflowGuideText));
+        OnPropertyChanged(nameof(AutoVsManualHint));
         OnPropertyChanged(nameof(RefreshButtonText));
         OnPropertyChanged(nameof(RefreshProcessListButtonText));
         OnPropertyChanged(nameof(StartButtonText));
@@ -607,6 +667,9 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ActiveSessionInfo));
         OnPropertyChanged(nameof(IsRecoveryPending));
         OnPropertyChanged(nameof(SessionStateDisplay));
+        OnPropertyChanged(nameof(AutoGamesSummary));
+        OnPropertyChanged(nameof(NoMatchingGamesVisible));
+        OnPropertyChanged(nameof(GameSearchLabel));
 
         foreach (var rule in Rules)
         {
@@ -636,6 +699,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             ?? Games.FirstOrDefault();
 
         SyncLegacyAutoGameIds();
+        _gamesView?.Refresh();
+        NotifyGameListChanged();
         OnPropertyChanged(nameof(HasGames));
         SetStatus(Games.Count == 0
             ? (IsPolish ? "Brak gier w Bibliotece." : "No games in Library.")
@@ -703,6 +768,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
         SyncLegacyAutoGameIds();
         SaveSettings();
         RefreshCandidates();
+        NotifyGameListSummaryChanged();
 
         if (_activeSession?.IsActive == true
             && _activeSession.Trigger.Equals("Auto", StringComparison.OrdinalIgnoreCase)
@@ -1160,6 +1226,30 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     {
         _settings.AutoEnabledGameIds = Games.Where(x => x.AutoEnabled).Select(x => x.Id).ToList();
     }
+
+    private bool FilterGameOption(object item)
+    {
+        if (string.IsNullOrWhiteSpace(_gameSearchText))
+        {
+            return true;
+        }
+
+        if (item is not SessionGameOptionViewModel game)
+        {
+            return false;
+        }
+
+        return game.DisplayName.Contains(_gameSearchText, StringComparison.OrdinalIgnoreCase)
+            || game.ProcessName.Contains(_gameSearchText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void NotifyGameListChanged()
+    {
+        NotifyGameListSummaryChanged();
+        OnPropertyChanged(nameof(NoMatchingGamesVisible));
+    }
+
+    private void NotifyGameListSummaryChanged() => OnPropertyChanged(nameof(AutoGamesSummary));
 
     private void RebuildSuspendedList()
     {
