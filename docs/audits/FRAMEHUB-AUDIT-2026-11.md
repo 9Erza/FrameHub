@@ -140,8 +140,9 @@ covering them pass.
 
 - PR with fixes: https://github.com/9Erza/FrameHub/pull/24 (merged 2026-11-02,
   normal merge, required checks `build-and-test` + `supporter-compat` green).
-- GitHub `main` SHA: `5b61b356fd1615158fe60e762a88cb8b4f0a9631`.
-- Local `main` SHA: `5b61b356fd1615158fe60e762a88cb8b4f0a9631` (identical,
+- GitHub `main` SHA: `11b6e5dda5e86e71ec3c57a59fea3fdb885bca63` (PR #25 merge;
+  code content identical to `5b61b35` plus this report finalization).
+- Local `main` SHA: `11b6e5dda5e86e71ec3c57a59fea3fdb885bca63` (identical,
   fast-forward, on `main`, clean worktree).
 - Removed (verified safe, standard `git worktree remove`, no `--force`):
   `.worktrees/w1-window`, `.worktrees/w1-library`, `.worktrees/w1-session`,
