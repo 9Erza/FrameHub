@@ -4,7 +4,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace FrameHub.Tests;
 
 /// <summary>
-/// FrameHub 1.0.0 single-source-of-truth: version.txt is the only maintained
+/// FrameHub 1.0.1 single-source-of-truth: version.txt is the only maintained
 /// version definition; MSBuild props flow it into assembly metadata and
 /// <see cref="AppInfo"/> exposes it to WPF, Companion DTOs and the installer.
 /// Historical release numbers stay in CHANGELOG.md and are not asserted here.
@@ -44,7 +44,7 @@ public sealed class ProductVersionTests
     public void VersionFile_DeclaresCurrentRelease()
     {
         string version = File.ReadAllText(FindVersionFile()).Trim();
-        Assert.AreEqual("1.0.0", version, "version.txt must declare the current 1.0.0 release.");
+        Assert.AreEqual("1.0.1", version, "version.txt must declare the current 1.0.1 release.");
     }
 
     [TestMethod]

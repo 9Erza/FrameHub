@@ -15,12 +15,19 @@ serwer LAN Companion, konfiguracja CS2 oraz monitoring sprzętu w jednej aplikac
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![Licencja](https://img.shields.io/badge/licencja-MIT-2EA44F?style=flat-square)](LICENSE)
-![Wydanie](https://img.shields.io/badge/wydanie-v1.0.0-EAB45D?style=flat-square)
+![Wydanie](https://img.shields.io/badge/wydanie-v1.0.1-EAB45D?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Wersja: v1.0.0.** Oficjalny instalator Windows znajdziesz w [GitHub Releases](https://github.com/9Erza/FrameHub/releases), gdy plik wydania będzie dostępny. Zobacz [opis wydania 1.0.0](docs/RELEASE_NOTES_1.0.0.md), [listę zmian PL](CHANGELOG.pl.md), [Changelog EN](CHANGELOG.md) i [Roadmapę](docs/ROADMAP.md).
+> **Wersja: v1.0.1.** Oficjalny instalator Windows znajdziesz w [GitHub Releases](https://github.com/9Erza/FrameHub/releases), gdy plik wydania będzie dostępny. Zobacz [opis wydania 1.0.1](docs/RELEASE_NOTES_1.0.1.md), [listę zmian PL](CHANGELOG.pl.md), [Changelog EN](CHANGELOG.md) i [Roadmapę](docs/ROADMAP.md).
+
+### Co nowego w 1.0.1
+
+- **Dopracowany kreator pierwszego uruchomienia:** przewidywalny fokus klawiatury i działanie Enter na sześciu krokach, podsumowanie zawsze zgodne z wyborami oraz Live FPS, którego nie da się zostawić włączonego przy wyłączonym Companion.
+- **Uczciwe powiadomienia o aktualizacji:** sprawdzanie aktualizacji potwierdza, że pasujące wydanie GitHub jest rzeczywiście opublikowane, zanim pokaże powiadomienie — nie kieruje do strony wydania bez instalatora.
+- **Czytelniejsze Ustawienia:** sekcja danych i resetu ma własny nagłówek kreatora zamiast powtarzania etykiety przycisku.
+- **Bezpieczna aktualizacja:** ta sama tożsamość instalatora, te same lokalizacje danych, brak ponownego kreatora dla istniejących instalacji 1.0.0.
 
 ### Co nowego w 1.0.0
 
@@ -37,13 +44,13 @@ To usprawnienia istniejącego produktu, którego fundamentami pozostają Bibliot
 
 ## Pobieranie, instalacja i aktualizacja
 
-1. Wejdź na [oficjalną stronę GitHub Releases](https://github.com/9Erza/FrameHub/releases). Po opublikowaniu v1.0.0 rozwiń **Assets** i pobierz **`FrameHub-Setup-1.0.0.exe`**. Automatyczne archiwum ZIP z kodem źródłowym na GitHubie **nie jest instalatorem** Windows.
+1. Wejdź na [oficjalną stronę GitHub Releases](https://github.com/9Erza/FrameHub/releases). Po opublikowaniu v1.0.1 rozwiń **Assets** i pobierz **`FrameHub-Setup-1.0.1.exe`**. Automatyczne archiwum ZIP z kodem źródłowym na GitHubie **nie jest instalatorem** Windows.
 2. Uruchom instalator w **Windows 10/11 x64** i zaakceptuj wymagane uprawnienia administratora. Jeden plik instalacyjny zawiera Intel PresentMon 2.5.1 używany przez benchmarki.
 3. **Aktualizacja starszej instalacji Inno Setup:** uruchom nowy instalator bez wcześniejszego odinstalowywania. FrameHub zachowuje identyfikator instalacji (`AppId`) używany od 0.4.0, odzyskany wcześniej z 0.3.1. Inno Setup wykorzystuje poprzedni katalog instalacji. Ustawienia i biblioteka znajdują się osobno w `%APPDATA%\FrameHub`, a benchmarki w `%LOCALAPPDATA%\FrameHub\Benchmarks`.
 
 Przed aktualizacją zamknij FrameHub — instalator może poprosić o jego zamknięcie. Przy większej aktualizacji warto wcześniej zrobić kopię swoich ustawień. Instalator pobieraj z oficjalnego wydania; aplikacja nie pobiera ani nie uruchamia go automatycznie.
 
-Szczegóły zmian, wymagania i ograniczenia znajdziesz w [dwujęzycznym opisie wydania v1.0.0](docs/RELEASE_NOTES_1.0.0.md).
+Szczegóły zmian, wymagania i ograniczenia znajdziesz w [dwujęzycznym opisie wydania v1.0.1](docs/RELEASE_NOTES_1.0.1.md).
 
 ---
 

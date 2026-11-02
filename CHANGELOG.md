@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-02
+
+Patch release on top of 1.0.0: `FrameHub-Setup-1.0.1.exe` will appear in **Assets** on [GitHub Releases](https://github.com/9Erza/FrameHub/releases) once published. Upgrades keep the historical installer identity (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`), reuse the previous installation directory, preserve settings/profiles/library/benchmarks, do not re-run the first-run wizard for existing installations, and do not reinstall PresentMon unnecessarily.
+
+### Fixed
+
+- Desktop update check now verifies that the matching published (non-draft, non-prerelease) GitHub Release exists before notifying. A newer `version.txt` without a published release no longer points users at a release page without an installer; inconclusive network answers surface as an honest check failure instead of a false update.
+- First-run setup: initial keyboard focus lands on the visible primary action (Next, then Finish on the last step), Enter activates Finish on the summary step, and the summary always reflects choices made on earlier steps. Disabling Companion in the wizard now coerces Live FPS off so the draft can never persist the contradictory combination.
+- Settings > Application data & reset: the first-run setup block has its own heading instead of repeating the button label (new `Settings.DataReset.ReopenWizardTitle` key in EN/PL).
+- Companion web UI: static version placeholders and versioned asset cache-busting now declare 1.0.1; the running version is still served live from `/api/v1/status`.
+- Windows application manifest now declares 1.0.1.0 alongside the central `version.txt` source.
+
+### Changed
+
+- `version.txt` is now `1.0.1`; every user-visible surface reports 1.0.1 from this single source (WPF, Companion, installer file name, About, API status, benchmark metadata).
+
+History of earlier releases is preserved below unchanged.
+
 ## [1.0.0] - 2026-10-28
 
 Release notes (English and Polish): [FrameHub v1.0.0](docs/RELEASE_NOTES_1.0.0.md). Official Windows installer: `FrameHub-Setup-1.0.0.exe` on the [GitHub Releases page](https://github.com/9Erza/FrameHub/releases) once the asset is published.

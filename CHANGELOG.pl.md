@@ -1,8 +1,26 @@
 # Lista zmian / Changelog (PL)
 
-[English changelog — pełna historia wydań](CHANGELOG.md) · [Opis wydania v1.0.0 (PL/EN)](docs/RELEASE_NOTES_1.0.0.md)
+[English changelog — pełna historia wydań](CHANGELOG.md) · [Opis wydania v1.0.1 (PL/EN)](docs/RELEASE_NOTES_1.0.1.md)
 
 ## [Niewydane]
+
+## [1.0.1] — 2026-11-02
+
+Poprawkowe wydanie na bazie 1.0.0: `FrameHub-Setup-1.0.1.exe` pojawi się w sekcji **Assets** na [GitHub Releases](https://github.com/9Erza/FrameHub/releases) po opublikowaniu. Aktualizacja zachowuje historyczną tożsamość instalatora (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`), wykorzystuje poprzedni katalog instalacji, zachowuje ustawienia/profile/bibliotekę/benchmarki, nie uruchamia ponownie kreatora pierwszego uruchomienia w istniejących instalacjach i nie reinstaluje zbędnie PresentMon.
+
+### Poprawki
+
+- Sprawdzanie aktualizacji potwierdza istnienie opublikowanego (nie-szkicowego, nie-przedpremierowego) wydania GitHub, zanim pokaże powiadomienie. Nowszy `version.txt` bez opublikowanego wydania nie kieruje już do strony bez instalatora; niejednoznaczna odpowiedź sieci zgłasza uczciwy błąd sprawdzenia zamiast fałszywej aktualizacji.
+- Kreator pierwszego uruchomienia: początkowy fokus klawiatury trafia w widocznej akcji (Dalej, potem Zakończ na ostatnim kroku), Enter aktywuje Zakończ na podsumowaniu, a podsumowanie zawsze odzwierciedla wcześniejsze wybory. Wyłączenie Companion w kreatorze wyłącza też Live FPS, więc szkic nie zapisze sprzecznej kombinacji.
+- Ustawienia > Dane aplikacji i reset: blok kreatora ma własny nagłówek zamiast powtarzania etykiety przycisku (nowy klucz `Settings.DataReset.ReopenWizardTitle` w EN/PL).
+- Companion web UI: statyczne znaczniki wersji i wersjonowane cache-busting zasobów deklarują 1.0.1; działająca wersja nadal pochodzi na żywo z `/api/v1/status`.
+- Manifest aplikacji Windows deklaruje 1.0.1.0 obok centralnego źródła `version.txt`.
+
+### Zmiany
+
+- `version.txt` ma teraz `1.0.1`; każda widoczna powierzchnia raportuje 1.0.1 z tego jednego źródła (WPF, Companion, nazwa instalatora, About, status API, metadane benchmarków).
+
+Historia wcześniejszych wydań pozostaje poniżej bez zmian.
 
 ## [1.0.0] — 2026-10-28
 
