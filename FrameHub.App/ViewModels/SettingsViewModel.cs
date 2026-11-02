@@ -341,6 +341,7 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
     public string LiveTelemetryTitle => _localization.T("Settings.LiveTelemetryTitle");
     public string LiveTelemetryDescription => _localization.T("Settings.LiveTelemetryDescription");
     public string LiveTelemetryEnableLabel => _localization.T("Settings.LiveTelemetryEnable");
+    public string LiveTelemetryRequiresCompanionText => _localization.T("Settings.LiveTelemetryRequiresCompanion");
 
     /// <summary>
     /// Continuous live FPS monitoring (opt-in, default OFF). Takes effect only
@@ -663,10 +664,16 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
             _runtime.SaveSettings(new AppSettings());
             ReloadFromRuntime();
             await ApplyStartupAsync().ConfigureAwait(true);
+            string? startupError = await _runtime.ReconcileStartupRegistrationOffAsync().ConfigureAwait(true);
             _localization.Reload();
             _localization.SetLanguage(_runtime.Settings.Language);
             ReloadFromRuntime();
-            DataResetStatusMessage = _localization.T("Settings.DataReset.SettingsRestored");
+            DataResetStatusMessage = startupError is null
+                ? _localization.T("Settings.DataReset.SettingsRestored")
+                : string.Format(
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    _localization.T("Settings.DataReset.SettingsRestoredStartupRemains"),
+                    startupError);
         }
         catch (Exception ex)
         {
@@ -711,9 +718,20 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
                 return;
             }
 
+            if (result.StartupRemovalError is not null)
+            {
+                DataResetStatusMessage = string.Format(
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    _localization.T("Settings.DataReset.WipeCompleteStartupRemains"),
+                    result.StartupRemovalError);
+            }
+            else
+            {
+                DataResetStatusMessage = _localization.T("Settings.DataReset.WipeCompleteRestarting");
+            }
+
             FactoryResetConfirmationText = string.Empty;
             ReloadFromRuntime();
-            DataResetStatusMessage = _localization.T("Settings.DataReset.WipeCompleteRestarting");
             NormalRestartRequested?.Invoke();
         }
         finally
@@ -1049,6 +1067,7 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(LiveTelemetryTitle));
         OnPropertyChanged(nameof(LiveTelemetryDescription));
         OnPropertyChanged(nameof(LiveTelemetryEnableLabel));
+        OnPropertyChanged(nameof(LiveTelemetryRequiresCompanionText));
         OnPropertyChanged(nameof(LiveTelemetryEnabled));
         OnPropertyChanged(nameof(DataResetTitle));
         OnPropertyChanged(nameof(DataResetDescription));

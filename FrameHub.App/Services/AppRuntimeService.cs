@@ -676,13 +676,14 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         BenchmarkCoordinator.TryAcquireExternalMutation(out lease);
 
     /// <summary>
-    /// True while a benchmark capture or an active Session blocks destructive
-    /// data operations. Resets must wait for mutations to finish or be rolled
-    /// back per the standard lifecycle invariants — never wipe mid-mutation.
+    /// True while a benchmark capture or any unresolved session recovery state
+    /// blocks destructive data operations. Resets must wait for mutations to
+    /// finish or be rolled back per the standard lifecycle invariants — never
+    /// wipe mid-mutation and never delete a journal that recovery may need.
     /// </summary>
     public bool IsDestructiveResetBlocked =>
         BenchmarkCoordinator.IsActive
-        || (SessionOptimizationCoordinator.ActiveSession?.IsActive == true);
+        || SessionOptimizationCoordinator.HasUnresolvedRecoveryState;
 
     /// <summary>Test hook: true while the live PresentMon loop task runs.</summary>
     internal bool IsLiveTelemetryRunningForTesting => LiveTelemetryService.IsLoopRunningForTesting;
@@ -692,7 +693,8 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         bool Blocked,
         IReadOnlyList<string> DeletedFiles,
         IReadOnlyList<string> DeletedDirectories,
-        IReadOnlyList<string> Errors);
+        IReadOnlyList<string> Errors,
+        string? StartupRemovalError = null);
 
     /// <summary>
     /// Deletes all FrameHub user data (settings, profiles, library, session
@@ -720,6 +722,26 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
         try
         {
+            string userRoot = Path.GetFullPath(AppPaths.UserDataDirectory);
+            string localRoot = Path.GetFullPath(AppPaths.LocalDataDirectory);
+
+            // Pre-flight: refuse before deleting anything when a tree contains
+            // a link, so a refused wipe leaves zero changes behind.
+            foreach (string tree in new[]
+                {
+                    Path.Combine(localRoot, "Benchmarks"),
+                    Path.Combine(userRoot, "Backups", "CS2")
+                })
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string? link = GuardedTreeLink(tree);
+                if (link is not null)
+                {
+                    errors.Add($"Refused to delete '{tree}': contains a link at '{link}'. Remove it and re-run.");
+                    return new UserDataWipeResult(false, false, deletedFiles, deletedDirectories, errors);
+                }
+            }
+
             // Stop network/telemetry clients first so nothing writes mid-wipe.
             Settings.CompanionEnabled = false;
             Settings.LiveTelemetryEnabled = false;
@@ -746,9 +768,6 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             {
                 errors.Add($"Pairing store reset failed: {ex.Message}");
             }
-
-            string userRoot = Path.GetFullPath(AppPaths.UserDataDirectory);
-            string localRoot = Path.GetFullPath(AppPaths.LocalDataDirectory);
 
             var files = new List<string>
             {
@@ -795,14 +814,16 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
                 TruncateGuardedFile(Path.Combine(userRoot, logFileName), userRoot, deletedFiles, errors);
             }
 
-            foreach (string relativeDir in new[] { "Backups", string.Empty })
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                string target = relativeDir.Length == 0
-                    ? Path.Combine(localRoot, "Benchmarks")
-                    : Path.Combine(userRoot, relativeDir);
-                DeleteGuardedDirectory(target, relativeDir.Length == 0 ? localRoot : userRoot, deletedDirectories, errors);
-            }
+            // Benchmark history (local root) goes entirely. Under the user root
+            // only the owned CS2 backup subtree is deleted: Backups/ may hold
+            // user-placed entries outside CS2, which must survive. An emptied
+            // Backups/ directory itself is removed; a non-empty one is left in
+            // place and reported.
+            cancellationToken.ThrowIfCancellationRequested();
+            DeleteGuardedDirectory(Path.Combine(localRoot, "Benchmarks"), localRoot, deletedDirectories, errors);
+            cancellationToken.ThrowIfCancellationRequested();
+            DeleteGuardedDirectory(Path.Combine(userRoot, "Backups", "CS2"), userRoot, deletedDirectories, errors);
+            RemoveDirectoryIfEmpty(Path.Combine(userRoot, "Backups"), userRoot, deletedDirectories, errors);
 
             // Fresh defaults with onboarding reset: next launch shows the wizard.
             Settings = new AppSettings { OnboardingCompletedVersion = 0 };
@@ -813,6 +834,12 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             ProfilesChanged?.Invoke(this, EventArgs.Empty);
             ApplyRuntimeSettings();
             RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
+
+            string? startupError = await ReconcileStartupRegistrationOffAsync().ConfigureAwait(false);
+            if (startupError is not null)
+            {
+                errors.Add(startupError);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -825,7 +852,48 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             return new UserDataWipeResult(false, false, deletedFiles, deletedDirectories, errors);
         }
 
-        return new UserDataWipeResult(errors.Count == 0, false, deletedFiles, deletedDirectories, errors);
+        string? startupRemovalError = errors.FirstOrDefault(e => e.StartsWith("Startup registration", StringComparison.Ordinal));
+        return new UserDataWipeResult(errors.Count == 0, false, deletedFiles, deletedDirectories, errors, startupRemovalError);
+    }
+
+    /// <summary>
+    /// Removes Windows startup registration (Run key and scheduled task) and
+    /// verifies the removal by reading the actual state back. Writing
+    /// <c>StartWithWindows=false</c> alone is not enough: a previously
+    /// registered entry survives in the registry/scheduler. Returns null on
+    /// success, otherwise an honest error (e.g. elevation required for an
+    /// elevated task) that callers must surface instead of claiming success.
+    /// </summary>
+    public async Task<string?> ReconcileStartupRegistrationOffAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var coordinator = new StartupApplyCoordinator(SettingsService, LoggerService.Instance);
+            var desired = new DesiredStartupConfiguration(StartWithWindows: false, WindowMode: StartupWindowMode.Normal, RunElevated: false);
+            StartupApplyResult result = await coordinator.ApplyLatestAsync(desired, cancellationToken).ConfigureAwait(false);
+            ActualStartupConfiguration actual =
+                await SettingsService.ReadActualAsync(desired, cancellationToken).ConfigureAwait(false);
+            var evaluation = StartupConfigurationPlanner.Evaluate(desired, actual);
+            if (evaluation.State == StartupConfigurationState.Disabled)
+            {
+                return null;
+            }
+
+            if (result.WasElevationCancelled || result.WasElevationRequired)
+            {
+                return "Startup registration could not be removed: administrator elevation is required (elevated scheduled task remains).";
+            }
+
+            return $"Startup registration could not be fully removed (state: {evaluation.State}). Remove it manually in Settings if autostart persists.";
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return $"Startup registration removal failed: {ex.Message}";
+        }
     }
 
     private static string? SafeFileNameOf(string path, string root)
@@ -916,15 +984,127 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
                 return;
             }
 
-            if (Directory.Exists(full))
+            if (!Directory.Exists(full))
             {
-                Directory.Delete(full, recursive: true);
+                return;
+            }
+
+            // Fail closed on reparse points (symlinks/junctions): never let a
+            // recursive delete traverse a link the user (or another program)
+            // planted inside our data tree. Report and skip the whole subtree;
+            // re-running after removing the link completes the wipe.
+            string? link = FindFirstReparsePoint(full);
+            if (link is not null)
+            {
+                errors.Add($"Refused to delete '{full}': contains a link at '{link}'. Remove it and re-run.");
+                return;
+            }
+
+            Directory.Delete(full, recursive: true);
+            deleted.Add(full);
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"Could not delete directory {path}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Pre-flight link check for one deletable tree: null when the tree is
+    /// missing or link-free; otherwise a human-readable refusal reason.
+    /// Never throws.
+    /// </summary>
+    private static string? GuardedTreeLink(string tree)
+    {
+        try
+        {
+            string full = Path.GetFullPath(tree);
+            if (!Directory.Exists(full))
+            {
+                return null;
+            }
+
+            return FindFirstReparsePoint(full);
+        }
+        catch (Exception ex)
+        {
+            return tree + $" (scan failed: {ex.Message})";
+        }
+    }
+
+    private static string? FindFirstReparsePoint(string root)    {
+        // Iterative, top-down, never descending into links: a cyclic junction
+        // must not hang or explode the scan.
+        try
+        {
+            var pending = new Stack<string>();
+            pending.Push(root);
+            while (pending.Count > 0)
+            {
+                string directory = pending.Pop();
+                string[] entries;
+                try
+                {
+                    entries = Directory.GetFileSystemEntries(directory);
+                }
+                catch
+                {
+                    return directory + " (scan failed)";
+                }
+
+                foreach (string entry in entries)
+                {
+                    bool isLink;
+                    try
+                    {
+                        isLink = (File.GetAttributes(entry) & FileAttributes.ReparsePoint) != 0;
+                    }
+                    catch
+                    {
+                        return entry;
+                    }
+
+                    if (isLink)
+                    {
+                        return entry;
+                    }
+
+                    if (Directory.Exists(entry))
+                    {
+                        pending.Push(entry);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            return root + $" (scan failed: {ex.Message})";
+        }
+
+        return null;
+    }
+
+    private static void RemoveDirectoryIfEmpty(string path, string root, List<string> deleted, List<string> errors)
+    {
+        try
+        {
+            string full = Path.GetFullPath(path);
+            if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || full.Length <= root.Length + 1)
+            {
+                errors.Add($"Refused to delete directory outside data root: {path}");
+                return;
+            }
+
+            if (Directory.Exists(full) && !Directory.EnumerateFileSystemEntries(full).Any())
+            {
+                Directory.Delete(full);
                 deleted.Add(full);
             }
         }
         catch (Exception ex)
         {
-            errors.Add($"Could not delete directory {path}: {ex.Message}");
+            errors.Add($"Could not remove directory {path}: {ex.Message}");
         }
     }
 

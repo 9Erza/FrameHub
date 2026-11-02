@@ -124,6 +124,49 @@ public sealed class SessionOptimizationCoordinator : IDisposable, IAsyncDisposab
 
     public bool IsSessionActive => ActiveSession?.IsActive == true;
 
+    /// <summary>
+    /// True while session recovery data must be preserved and destructive data
+    /// operations (full user-data wipe) must refuse. Covers every state that
+    /// could still need to restore processes, taskbar, power plan or other
+    /// system mutations: an active session, a pending recovery even with
+    /// <c>IsActive == false</c>, any non-terminal recovery phase
+    /// (Prepared/Applying/Restoring/RollingBack), a session mutation running
+    /// right now, and a recovery journal loaded at startup that has not been
+    /// resolved yet.
+    /// </summary>
+    public bool HasUnresolvedRecoveryState
+    {
+        get
+        {
+            ActiveSessionState? session = ActiveSession;
+            if (session is not null)
+            {
+                if (session.IsActive || session.IsRecoveryPending)
+                {
+                    return true;
+                }
+
+                if (session.RecoveryPhase is SessionRecoveryPhase.Prepared
+                    or SessionRecoveryPhase.Applying
+                    or SessionRecoveryPhase.Restoring
+                    or SessionRecoveryPhase.RollingBack)
+                {
+                    return true;
+                }
+            }
+
+            lock (_lifecycleLock)
+            {
+                if (_activeOperations > 0)
+                {
+                    return true;
+                }
+            }
+
+            return _loadedStateRequiresConservativeRecovery;
+        }
+    }
+
     public event EventHandler<ActiveSessionState?>? SessionStateChanged;
 
     public SessionOptimizationCoordinator(
