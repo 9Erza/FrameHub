@@ -269,6 +269,7 @@ public sealed class FirstRunAndResetTests
     {
         await RunOnStaAsync(async () =>
         {
+            AssumeNoStartupResidue();
             SeedUserData(marker: 1);
             string outside = Path.Combine(Path.GetTempPath(), "FrameHub.WipeProbe." + Guid.NewGuid().ToString("N") + ".txt");
             File.WriteAllText(outside, "must survive");
@@ -444,6 +445,7 @@ public sealed class FirstRunAndResetTests
     {
         await RunOnStaAsync(async () =>
         {
+            AssumeNoStartupResidue();
             SeedUserData(marker: 1);
             using var runtime = CreateRuntime();
             SetActiveSession(runtime, new ActiveSessionState
@@ -466,6 +468,7 @@ public sealed class FirstRunAndResetTests
     {
         await RunOnStaAsync(async () =>
         {
+            AssumeNoStartupResidue();
             SeedUserData(marker: 1);
             using var runtime = CreateRuntime();
             var first = await runtime.WipeAllUserDataAsync();
@@ -518,6 +521,7 @@ public sealed class FirstRunAndResetTests
     {
         await RunOnStaAsync(async () =>
         {
+            AssumeNoStartupResidue();
             SeedUserData(marker: 1);
             string unmanaged = Path.Combine(_tempDirectory, "Backups", "my-manual-note.txt");
             File.WriteAllText(unmanaged, "user placed");
@@ -537,6 +541,7 @@ public sealed class FirstRunAndResetTests
     {
         await RunOnStaAsync(async () =>
         {
+            AssumeNoStartupResidue();
             SeedUserData(marker: 1);
             string link = Path.Combine(_tempDirectory, "Backups", "CS2", "x", "ext-link");
             if (!TryCreateJunction(link, _tempDirectory))
@@ -595,6 +600,160 @@ public sealed class FirstRunAndResetTests
             await runtime.SyncCompanionServerStateAsync();
             Assert.IsFalse(runtime.IsLiveTelemetryRunningForTesting,
                 "Live loop must never start while Companion is off, regardless of the live flag.");
+        });
+    }
+
+    [TestMethod]
+    public void WipeStatus_FullSuccess_RestartsWithoutWarning()
+    {
+        RunOnSta(() =>
+        {
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var vm = new SettingsViewModel(localization, runtime);
+            var result = new AppRuntimeService.UserDataWipeResult(
+                true, false, new[] { "settings.json" }, Array.Empty<string>(),
+                Array.Empty<string>(), null);
+            Assert.AreEqual(localization.T("Settings.DataReset.WipeCompleteRestarting"),
+                vm.BuildWipeStatusMessage(result));
+            Assert.IsTrue(SettingsViewModel.ShouldRestartAfterWipe(result));
+            vm.Dispose();
+        });
+    }
+
+    [TestMethod]
+    public void WipeStatus_StartupResidue_WarnsButStillRestarts()
+    {
+        RunOnSta(() =>
+        {
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var vm = new SettingsViewModel(localization, runtime);
+            var result = new AppRuntimeService.UserDataWipeResult(
+                true, false, new[] { "settings.json" }, Array.Empty<string>(),
+                Array.Empty<string>(), "elevated scheduled task remains");
+            string message = vm.BuildWipeStatusMessage(result);
+            Assert.IsTrue(message.Contains("elevated scheduled task remains", StringComparison.Ordinal),
+                "Residue must be named, not hidden. Got: " + message);
+            Assert.AreNotEqual(localization.T("Settings.DataReset.WipeCompleteRestarting"), message,
+                "Residue must never present as full success.");
+            Assert.IsTrue(SettingsViewModel.ShouldRestartAfterWipe(result),
+                "Data success must keep the restart path into the wizard.");
+            vm.Dispose();
+        });
+    }
+
+    [TestMethod]
+    public void WipeStatus_DataFailure_NeverRestarts()
+    {
+        RunOnSta(() =>
+        {
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var vm = new SettingsViewModel(localization, runtime);
+            var result = new AppRuntimeService.UserDataWipeResult(
+                false, false, Array.Empty<string>(), Array.Empty<string>(),
+                new[] { "Could not delete file x" }, null);
+            Assert.IsTrue(vm.BuildWipeStatusMessage(result).Contains("x", StringComparison.Ordinal));
+            Assert.IsFalse(SettingsViewModel.ShouldRestartAfterWipe(result));
+            vm.Dispose();
+        });
+    }
+
+    [TestMethod]
+    public void WipeStatus_Blocked_NeverRestarts()
+    {
+        RunOnSta(() =>
+        {
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var vm = new SettingsViewModel(localization, runtime);
+            var result = new AppRuntimeService.UserDataWipeResult(
+                false, true, Array.Empty<string>(), Array.Empty<string>(),
+                Array.Empty<string>(), null);
+            Assert.AreEqual(localization.T("Settings.DataReset.BlockedBusy"),
+                vm.BuildWipeStatusMessage(result));
+            Assert.IsFalse(SettingsViewModel.ShouldRestartAfterWipe(result));
+            vm.Dispose();
+        });
+    }
+
+    [TestMethod]
+    public async Task FactoryReset_FullSuccess_RestartsIntoWizard()
+    {
+        await RunOnStaAsync(async () =>
+        {
+            AssumeNoStartupResidue();
+            SeedUserData(marker: 1);
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var vm = new SettingsViewModel(localization, runtime);
+            bool restartRequested = false;
+            vm.NormalRestartRequested += () => restartRequested = true;
+            vm.FactoryResetConfirmationText = "RESET";
+            await vm.RunFactoryResetAsync();
+            Assert.IsTrue(restartRequested, "Data success must raise the restart into the wizard.");
+            Assert.AreEqual(localization.T("Settings.DataReset.WipeCompleteRestarting"),
+                vm.DataResetStatusMessage);
+            Assert.AreEqual(string.Empty, vm.FactoryResetConfirmationText);
+            vm.Dispose();
+        });
+    }
+
+    [TestMethod]
+    public async Task FactoryReset_DataFailure_KeepsConfirmationAndSkipsRestart()
+    {
+        await RunOnStaAsync(async () =>
+        {
+            SeedUserData(marker: 1);
+            string link = Path.Combine(_tempDirectory, "Backups", "CS2", "x", "ext-link");
+            if (!TryCreateJunction(link, _tempDirectory))
+            {
+                Assert.Inconclusive("Junction creation unavailable in this environment.");
+            }
+
+            try
+            {
+                using var runtime = CreateRuntime();
+                var localization = new LocalizationService(runtime.SettingsService);
+                var vm = new SettingsViewModel(localization, runtime);
+                bool restartRequested = false;
+                vm.NormalRestartRequested += () => restartRequested = true;
+                vm.FactoryResetConfirmationText = "RESET";
+                await vm.RunFactoryResetAsync();
+                Assert.IsFalse(restartRequested, "Data failure must not restart.");
+                Assert.AreEqual("RESET", vm.FactoryResetConfirmationText,
+                    "Arming must be kept so the user can retry after removing the link.");
+                Assert.IsTrue(vm.DataResetStatusMessage.Contains(
+                    localization.T("Settings.DataReset.WipeIncomplete").Split(':')[0],
+                    StringComparison.Ordinal));
+                vm.Dispose();
+            }
+            finally
+            {
+                try { if (Directory.Exists(link)) Directory.Delete(link); } catch { }
+            }
+        });
+    }
+
+    [TestMethod]
+    public async Task FactoryReset_BlockedSession_SkipsRestartAndKeepsData()
+    {
+        await RunOnStaAsync(async () =>
+        {
+            SeedUserData(marker: 1);
+            using var runtime = CreateRuntime();
+            SetActiveSession(runtime, new ActiveSessionState { IsActive = true, GameId = "g1", GameName = "Game 1" });
+            var localization = new LocalizationService(runtime.SettingsService);
+            var vm = new SettingsViewModel(localization, runtime);
+            bool restartRequested = false;
+            vm.NormalRestartRequested += () => restartRequested = true;
+            vm.FactoryResetConfirmationText = "RESET";
+            await vm.RunFactoryResetAsync();
+            Assert.IsFalse(restartRequested);
+            Assert.AreEqual(localization.T("Settings.DataReset.BlockedBusy"), vm.DataResetStatusMessage);
+            Assert.IsTrue(File.Exists(Path.Combine(_tempDirectory, "library.json")));
+            vm.Dispose();
         });
     }
 

@@ -708,6 +708,9 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     /// outside the two roots. Blocked during benchmark/session activity.
     /// Ends by writing fresh defaults with onboarding reset so the next launch
     /// shows the first-run wizard; the caller restarts the process.
+    /// <c>Success</c> reports data deletion only; a leftover startup entry is
+    /// reported separately via <c>StartupRemovalError</c> and must warn, never
+    /// fail the wipe or block the restart into the wizard.
     /// </summary>
     public async Task<UserDataWipeResult> WipeAllUserDataAsync(CancellationToken cancellationToken = default)
     {
@@ -719,6 +722,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
         var deletedFiles = new List<string>();
         var deletedDirectories = new List<string>();
         var errors = new List<string>();
+        string? startupRemovalError = null;
 
         try
         {
@@ -835,11 +839,9 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             ApplyRuntimeSettings();
             RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
 
-            string? startupError = await ReconcileStartupRegistrationOffAsync().ConfigureAwait(false);
-            if (startupError is not null)
-            {
-                errors.Add(startupError);
-            }
+            // Startup registration is tracked separately from data deletion:
+            // a leftover autostart entry must warn, never fail the wipe.
+            startupRemovalError = await ReconcileStartupRegistrationOffAsync().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -852,7 +854,6 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             return new UserDataWipeResult(false, false, deletedFiles, deletedDirectories, errors);
         }
 
-        string? startupRemovalError = errors.FirstOrDefault(e => e.StartsWith("Startup registration", StringComparison.Ordinal));
         return new UserDataWipeResult(errors.Count == 0, false, deletedFiles, deletedDirectories, errors, startupRemovalError);
     }
 
