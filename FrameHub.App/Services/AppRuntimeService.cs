@@ -10,7 +10,9 @@ using FrameHub.Core.Services.Library;
 using FrameHub.Core.Services.SessionOptimization;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows.Threading;
 
 namespace FrameHub.App.Services;
@@ -69,12 +71,18 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     {
     }
 
+    public const int CurrentOnboardingVersion = 1;
+
     public AppRuntimeService(SettingsService settingsService, IHardwareMonitorBackend? hardwareMonitor = null)
     {
         SettingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _uiDispatcher = Dispatcher.CurrentDispatcher;
         _hardwareMonitor = hardwareMonitor ?? new HardwareMonitorService();
         Settings = SettingsService.LoadSettings();
+        // Existence is read AFTER load: LoadSettings performs the legacy
+        // executable-directory migration, so an upgrade with only legacy files
+        // still counts as existing and never sees the wizard.
+        ResolveOnboardingState(SettingsService.HadExistingSettings());
         ConfigureLoggerFromSettings();
 
         Profiles = ProfileService.LoadProfiles();
@@ -141,6 +149,51 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
     public AppSessionOptimizationProvider SessionOptimizationProvider { get; }
     public AppCompanionHardwareMonitoringProvider HardwareMonitoringProvider { get; }
     public IGamingQuickActionService GamingQuickActions { get; }
+
+    /// <summary>
+    /// True while the first-run setup wizard must be shown: fresh installations
+    /// and interrupted onboardings. Upgrades (pre-existing settings file without
+    /// the marker) are stamped completed silently and never see the wizard.
+    /// </summary>
+    public bool IsFirstRun { get; private set; }
+
+    /// <summary>
+    /// Resolves the onboarding state at startup. Fresh data directory: mark
+    /// in-progress (0) and persist immediately so an interrupted first run
+    /// resumes instead of looking like an upgrade. Legacy files (marker -1):
+    /// stamp completed (1) and preserve every existing setting.
+    /// </summary>
+    private void ResolveOnboardingState(bool hadExistingSettings)
+    {
+        if (!hadExistingSettings)
+        {
+            Settings.OnboardingCompletedVersion = 0;
+            SettingsService.SaveSettings(Settings);
+            IsFirstRun = true;
+            return;
+        }
+
+        if (Settings.OnboardingCompletedVersion < 0)
+        {
+            Settings.OnboardingCompletedVersion = CurrentOnboardingVersion;
+            SettingsService.SaveSettings(Settings);
+            IsFirstRun = false;
+            return;
+        }
+
+        IsFirstRun = Settings.OnboardingCompletedVersion < CurrentOnboardingVersion;
+    }
+
+    /// <summary>
+    /// Marks onboarding finished (wizard Finish or Skip): persists the completed
+    /// marker through the normal settings path so runtime state stays truthful.
+    /// </summary>
+    public void CompleteOnboarding()
+    {
+        Settings.OnboardingCompletedVersion = CurrentOnboardingVersion;
+        SaveSettings(Settings);
+        IsFirstRun = false;
+    }
 
     public void SaveSettings(AppSettings settings)
     {
@@ -281,7 +334,20 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
                 if (started)
                 {
                     ActiveGameMonitor.Start();
-                    LiveTelemetryService.Start();
+                    // Live FPS is an explicit opt-in on top of Companion: the
+                    // 250 ms native PresentMon loop runs only when the user
+                    // enabled continuous monitoring. ActiveGame discovery stays
+                    // up regardless — Session lifecycle and phone telemetry
+                    // (non-FPS) depend on it. One-demand benchmark capture is
+                    // unaffected (separate preemption path).
+                    if (Settings.LiveTelemetryEnabled)
+                    {
+                        LiveTelemetryService.Start();
+                    }
+                    else
+                    {
+                        await LiveTelemetryService.StopAsync().ConfigureAwait(false);
+                    }
                     TelemetryProvider.Start();
                 }
                 else
@@ -608,6 +674,259 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
 
     internal bool TryAcquireProfileMutation(out IDisposable? lease) =>
         BenchmarkCoordinator.TryAcquireExternalMutation(out lease);
+
+    /// <summary>
+    /// True while a benchmark capture or an active Session blocks destructive
+    /// data operations. Resets must wait for mutations to finish or be rolled
+    /// back per the standard lifecycle invariants — never wipe mid-mutation.
+    /// </summary>
+    public bool IsDestructiveResetBlocked =>
+        BenchmarkCoordinator.IsActive
+        || (SessionOptimizationCoordinator.ActiveSession?.IsActive == true);
+
+    /// <summary>Test hook: true while the live PresentMon loop task runs.</summary>
+    internal bool IsLiveTelemetryRunningForTesting => LiveTelemetryService.IsLoopRunningForTesting;
+
+    public sealed record UserDataWipeResult(
+        bool Success,
+        bool Blocked,
+        IReadOnlyList<string> DeletedFiles,
+        IReadOnlyList<string> DeletedDirectories,
+        IReadOnlyList<string> Errors);
+
+    /// <summary>
+    /// Deletes all FrameHub user data (settings, profiles, library, session
+    /// state, benchmark history, logs, CS2 config backups, Companion pairings)
+    /// from the standard <c>AppPaths</c> roots only. Reuses the existing store
+    /// owners where they expose deletion (<c>SessionStateService.Clear</c>,
+    /// <c>DeviceRecordStore.ResetStore</c>); every other path is allow-listed
+    /// and verified to resolve inside the user-data or local-data root.
+    /// Never touches game folders, Steam/Epic/Riot data, CS2 live configs,
+    /// Windows settings, PresentMon, the install directory, or anything
+    /// outside the two roots. Blocked during benchmark/session activity.
+    /// Ends by writing fresh defaults with onboarding reset so the next launch
+    /// shows the first-run wizard; the caller restarts the process.
+    /// </summary>
+    public async Task<UserDataWipeResult> WipeAllUserDataAsync(CancellationToken cancellationToken = default)
+    {
+        if (IsDestructiveResetBlocked)
+        {
+            return new UserDataWipeResult(false, true, [], [], []);
+        }
+
+        var deletedFiles = new List<string>();
+        var deletedDirectories = new List<string>();
+        var errors = new List<string>();
+
+        try
+        {
+            // Stop network/telemetry clients first so nothing writes mid-wipe.
+            Settings.CompanionEnabled = false;
+            Settings.LiveTelemetryEnabled = false;
+            await SyncCompanionServerStateAsync().ConfigureAwait(false);
+
+            // Reuse store owners for their own deletion semantics.
+            try
+            {
+                if (!new SessionStateService().Clear())
+                {
+                    errors.Add("SessionStateService.Clear reported failure.");
+                }
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"Session recovery clear failed: {ex.Message}");
+            }
+
+            try
+            {
+                CompanionServer.DeviceStore.ResetStore();
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"Pairing store reset failed: {ex.Message}");
+            }
+
+            string userRoot = Path.GetFullPath(AppPaths.UserDataDirectory);
+            string localRoot = Path.GetFullPath(AppPaths.LocalDataDirectory);
+
+            var files = new List<string>
+            {
+                "settings.json", "settings.json.bak",
+                "profiles.json", "profiles.json.bak",
+                "library.json", "library.json.bak",
+                "session_optimization.json", "session_optimization.json.bak",
+                "active_session.json", "active_session.json.bak",
+                "paired-devices.json",
+            };
+
+            string logPath;
+            try
+            {
+                logPath = AppPaths.ResolveUserLogFilePath(Settings.LogFilePath);
+            }
+            catch
+            {
+                logPath = Path.Combine(userRoot, "FrameHub.log");
+            }
+
+            string? logFileName = SafeFileNameOf(logPath, userRoot);
+            if (logFileName is not null)
+            {
+                // Rollover archives are deleted normally; the active log is
+                // truncated below (logger holds it open).
+                for (int rollover = 1; rollover <= 3; rollover++)
+                {
+                    files.Add(logFileName + "." + rollover);
+                }
+            }
+
+            foreach (string name in files.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                DeleteGuardedFile(Path.Combine(userRoot, name), userRoot, deletedFiles, errors);
+            }
+
+            // The active log file is held open by LoggerService: deleting it
+            // would fail on Windows, so truncate it instead and report honestly.
+            // Rollover archives (.1/.2/.3) are deleted normally above.
+            if (logFileName is not null)
+            {
+                TruncateGuardedFile(Path.Combine(userRoot, logFileName), userRoot, deletedFiles, errors);
+            }
+
+            foreach (string relativeDir in new[] { "Backups", string.Empty })
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string target = relativeDir.Length == 0
+                    ? Path.Combine(localRoot, "Benchmarks")
+                    : Path.Combine(userRoot, relativeDir);
+                DeleteGuardedDirectory(target, relativeDir.Length == 0 ? localRoot : userRoot, deletedDirectories, errors);
+            }
+
+            // Fresh defaults with onboarding reset: next launch shows the wizard.
+            Settings = new AppSettings { OnboardingCompletedVersion = 0 };
+            SettingsService.SaveSettings(Settings);
+            // Drop in-memory profile truth as well: if the caller's restart
+            // does not happen, the watcher must not keep applying wiped profiles.
+            Profiles = ProfileService.LoadProfiles();
+            ProfilesChanged?.Invoke(this, EventArgs.Empty);
+            ApplyRuntimeSettings();
+            RuntimeStateChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (OperationCanceledException)
+        {
+            errors.Add("Wipe cancelled; some data may already be deleted. Re-run to complete.");
+            return new UserDataWipeResult(false, false, deletedFiles, deletedDirectories, errors);
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"Wipe failed: {ex.Message}");
+            return new UserDataWipeResult(false, false, deletedFiles, deletedDirectories, errors);
+        }
+
+        return new UserDataWipeResult(errors.Count == 0, false, deletedFiles, deletedDirectories, errors);
+    }
+
+    private static string? SafeFileNameOf(string path, string root)
+    {
+        try
+        {
+            string full = Path.GetFullPath(path);
+            if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            string relative = Path.GetRelativePath(root, full);
+            if (relative.Contains(Path.DirectorySeparatorChar) || relative.Contains(Path.AltDirectorySeparatorChar))
+            {
+                return null;
+            }
+
+            return relative;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void TruncateGuardedFile(string path, string root, List<string> truncated, List<string> errors)
+    {
+        try
+        {
+            string full = Path.GetFullPath(path);
+            if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add($"Refused to truncate outside data root: {path}");
+                return;
+            }
+
+            if (File.Exists(full))
+            {
+                // ReadWrite share: the logger holds the file open as
+                // Write/ReadWrite, so a default Read-share open would conflict.
+                using (var stream = new FileStream(full, FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite))
+                {
+                    stream.SetLength(0);
+                }
+
+                truncated.Add(full + " (truncated, logger holds the handle)");
+            }
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"Could not truncate file {path}: {ex.Message}");
+        }
+    }
+
+    private static void DeleteGuardedFile(string path, string root, List<string> deleted, List<string> errors)
+    {
+        try
+        {
+            string full = Path.GetFullPath(path);
+            if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add($"Refused to delete outside data root: {path}");
+                return;
+            }
+
+            if (File.Exists(full))
+            {
+                File.Delete(full);
+                deleted.Add(full);
+            }
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"Could not delete file {path}: {ex.Message}");
+        }
+    }
+
+    private static void DeleteGuardedDirectory(string path, string root, List<string> deleted, List<string> errors)
+    {
+        try
+        {
+            string full = Path.GetFullPath(path);
+            if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || full.Length <= root.Length + 1)
+            {
+                errors.Add($"Refused to delete directory outside data root: {path}");
+                return;
+            }
+
+            if (Directory.Exists(full))
+            {
+                Directory.Delete(full, recursive: true);
+                deleted.Add(full);
+            }
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"Could not delete directory {path}: {ex.Message}");
+        }
+    }
 
     private void AddWatcherStartupActivity()
     {

@@ -98,6 +98,28 @@ public partial class MainWindow : Window
         ApplyStartupWindowBehavior();
         RunAutomaticUpdateCheck();
         SignalRestartReadiness();
+        ShowFirstRunWizardIfNeeded();
+    }
+
+    /// <summary>
+    /// First-run setup wizard (fresh installs and interrupted onboardings).
+    /// Never breaks startup: any failure is logged and the app continues with
+    /// safe defaults. If the window started hidden (tray/minimized), it is
+    /// restored first so the modal wizard has a visible owner.
+    /// </summary>
+    private void ShowFirstRunWizardIfNeeded()
+    {
+        try
+        {
+            if (ViewModel?.Runtime.IsFirstRun != true) return;
+            if (!IsVisible) RestoreAndActivate();
+            var wizard = new FirstRunSetupViewModel(ViewModel.Localization, ViewModel.Runtime);
+            Views.FirstRunSetupWindow.Present(this, wizard);
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"First-run wizard could not be shown: {ex.Message}");
+        }
     }
 
     /// <summary>

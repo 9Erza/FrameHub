@@ -2,7 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using System.Windows.Input;
+using FrameHub.App.Services;
 using FrameHub.App.ViewModels;
+using FrameHub.Core.Logging;
 using WpfUserControl = System.Windows.Controls.UserControl;
 
 namespace FrameHub.App.Views;
@@ -15,8 +17,18 @@ public partial class SettingsView : WpfUserControl
         SizeChanged += (_, _) => UpdateResponsiveLayout();
         DataContextChanged += (_, e) =>
         {
-            if (e.OldValue is SettingsViewModel oldViewModel) oldViewModel.PropertyChanged -= SettingsPropertyChanged;
-            if (e.NewValue is SettingsViewModel newViewModel) newViewModel.PropertyChanged += SettingsPropertyChanged;
+            if (e.OldValue is SettingsViewModel oldViewModel)
+            {
+                oldViewModel.PropertyChanged -= SettingsPropertyChanged;
+                oldViewModel.ResetSettingsConfirmationRequested -= OnResetSettingsConfirmationRequested;
+                oldViewModel.SetupWizardRequested -= OnSetupWizardRequested;
+            }
+            if (e.NewValue is SettingsViewModel newViewModel)
+            {
+                newViewModel.PropertyChanged += SettingsPropertyChanged;
+                newViewModel.ResetSettingsConfirmationRequested += OnResetSettingsConfirmationRequested;
+                newViewModel.SetupWizardRequested += OnSetupWizardRequested;
+            }
             UpdateResponsiveLayout();
         };
         IsVisibleChanged += (_, _) =>
@@ -33,6 +45,37 @@ public partial class SettingsView : WpfUserControl
     private void SettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(SettingsViewModel.SelectedSettingsCategoryIndex)) UpdateResponsiveLayout();
+    }
+
+    private void OnResetSettingsConfirmationRequested()
+    {
+        if (DataContext is not SettingsViewModel viewModel) return;
+        Window? owner = Window.GetWindow(this);
+        if (ModernDialogService.ShowConfirm(
+            owner,
+            viewModel.ResetConfirmTitle,
+            viewModel.ResetConfirmMessage,
+            viewModel.ResetConfirmText,
+            viewModel.ResetCancelText))
+        {
+            _ = viewModel.ConfirmResetSettingsAsync();
+        }
+    }
+
+    private void OnSetupWizardRequested()
+    {
+        if (DataContext is not SettingsViewModel viewModel) return;
+        Window? owner = Window.GetWindow(this);
+        if (owner == null) return;
+        try
+        {
+            var wizard = new FirstRunSetupViewModel(viewModel.Localization, viewModel.Runtime);
+            FirstRunSetupWindow.Present(owner, wizard);
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"Setup wizard could not be shown from Settings: {ex.Message}");
+        }
     }
 
     private void RecordBenchmarkHotkeyButton_Click(object sender, RoutedEventArgs e)

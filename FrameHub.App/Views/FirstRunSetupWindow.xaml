@@ -1,0 +1,103 @@
+<Window x:Class="FrameHub.App.Views.FirstRunSetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="FrameHub"
+        Width="660" Height="600" MinWidth="560" MinHeight="520"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="Transparent"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+    <Border Background="{StaticResource BrushAppBackground}" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1" Margin="6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="24,20,24,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Width="44" Height="44" CornerRadius="10" Background="{StaticResource BrushAccentSoft}" Margin="0,0,14,0" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1" ClipToBounds="True" VerticalAlignment="Top">
+                    <Image Source="/FrameHub.App;component/Assets/FrameHubLogo.png" Width="36" Height="36" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
+                </Border>
+                <StackPanel Grid.Column="1" Margin="0,2,0,0">
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitleText}" />
+                    <TextBlock Text="{Binding StepIndicator}" Style="{StaticResource SmallMutedText}" Margin="0,4,0,0" />
+                </StackPanel>
+                <Button Grid.Column="2" Style="{StaticResource SubtleButton}" Content="{Binding SkipText}" AutomationProperties.Name="{Binding SkipText}" VerticalAlignment="Top" IsCancel="True" Click="SkipButton_Click" />
+            </Grid>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="24,16,24,0">
+                <StackPanel>
+                    <StackPanel Visibility="{Binding IsWelcomeVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding WelcomeTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding WelcomeText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <TextBlock Text="{Binding CoreTitle}" Style="{StaticResource DataTitleText}" Margin="0,16,0,0" />
+                        <TextBlock Text="{Binding CoreText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding LanguageTitle}" Style="{StaticResource DataTitleText}" Margin="0,16,0,0" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <RadioButton Content="{Binding EnglishLabel}" IsChecked="{Binding IsEnglish}" Margin="0,0,16,0" AutomationProperties.Name="{Binding EnglishLabel}" />
+                            <RadioButton Content="{Binding PolishLabel}" IsChecked="{Binding IsPolish}" AutomationProperties.Name="{Binding PolishLabel}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding IsHardwareVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding HardwareTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding HardwareText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <TextBlock Text="{Binding HardwareCostText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <CheckBox Content="{Binding HardwareEnableLabel}" IsChecked="{Binding HardwareMonitorEnabled, Mode=TwoWay}" Margin="0,14,0,0" AutomationProperties.Name="{Binding HardwareEnableLabel}" />
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding IsLiveFpsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding LiveFpsTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding LiveFpsText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <TextBlock Text="{Binding LiveFpsCostText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <CheckBox Content="{Binding LiveFpsEnableLabel}" IsChecked="{Binding LiveTelemetryEnabled, Mode=TwoWay}" Margin="0,14,0,0" AutomationProperties.Name="{Binding LiveFpsEnableLabel}" />
+                        <TextBlock Text="{Binding LiveFpsBenchmarkNote}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding IsCompanionVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding CompanionTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding CompanionText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <TextBlock Text="{Binding CompanionCostText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <CheckBox Content="{Binding CompanionEnableLabel}" IsChecked="{Binding CompanionEnabled, Mode=TwoWay}" Margin="0,14,0,0" AutomationProperties.Name="{Binding CompanionEnableLabel}" />
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding IsStartupVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding StartupTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding StartupText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <CheckBox Content="{Binding StartupEnableLabel}" IsChecked="{Binding StartWithWindows, Mode=TwoWay}" Margin="0,14,0,0" AutomationProperties.Name="{Binding StartupEnableLabel}" />
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding IsSummaryVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding SummaryTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding SummaryHint}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <Border Style="{StaticResource SectionSurface}" Margin="0,12,0,0">
+                            <TextBlock Text="{Binding SummaryText}" Style="{StaticResource BodyText}" TextWrapping="Wrap" FontFamily="{StaticResource FontMono}" />
+                        </Border>
+                        <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource StatusText}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding StartupStatus, Converter={StaticResource NonEmptyToVisibilityConverter}}" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Grid Grid.Row="2" Margin="24,16,24,22">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Style="{StaticResource SecondaryButton}" Content="{Binding BackText}" Command="{Binding BackCommand}" AutomationProperties.Name="{Binding BackText}" MinWidth="110" />
+                <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="{Binding NextText}" Command="{Binding NextCommand}" AutomationProperties.Name="{Binding NextText}" MinWidth="110" Margin="0,0,8,0" Visibility="{Binding IsLastStep, Converter={StaticResource InverseBoolToVisibilityConverter}}" IsDefault="True" />
+                <Button x:Name="FinishButton" Grid.Column="3" Style="{StaticResource PrimaryButton}" Content="{Binding FinishText}" Command="{Binding FinishCommand}" AutomationProperties.Name="{Binding FinishText}" MinWidth="140" Visibility="{Binding IsLastStep, Converter={StaticResource BoolToVisibilityConverter}}" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

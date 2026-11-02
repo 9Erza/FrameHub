@@ -63,6 +63,17 @@ namespace FrameHub.Core.Services
 
         public void Save(AppSettings settings) => SaveSettings(settings);
 
+        /// <summary>
+        /// Migration-aware existence check for first-run detection: true when a
+        /// settings file already exists in the user-data directory, including one
+        /// just migrated from the legacy executable directory. Must be called
+        /// after <see cref="LoadSettings"/> (which performs the migration).
+        /// A missing file means a fresh installation; an existing file without
+        /// the onboarding marker means an upgrade that must keep its settings
+        /// and must not see the first-run wizard.
+        /// </summary>
+        public bool HadExistingSettings() => File.Exists(_filePath);
+
         public AppSettings LoadSettings()
         {
             AppPaths.MigrateLegacyFileIfNeeded("settings.json");
@@ -464,6 +475,8 @@ namespace FrameHub.Core.Services
                 .Select(path => path.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            // Onboarding marker: -1 (legacy/unknown), 0 (in progress), >=1 completed.
+            if (settings.OnboardingCompletedVersion < -1) settings.OnboardingCompletedVersion = -1;
             return settings;
         }
 
