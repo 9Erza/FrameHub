@@ -4,7 +4,7 @@
 
 [English](#english) · [Polski](#polski) · [Complete changelog (EN)](../CHANGELOG.md) · [Lista zmian (PL)](../CHANGELOG.pl.md)
 
-> The official installer will appear as **`FrameHub-Setup-1.0.0.exe`** under **Assets** on [GitHub Releases](https://github.com/9Erza/FrameHub/releases) after publication. GitHub-generated source ZIP/TAR files are not installers. This document is the bilingual source for the GitHub Release description.
+> The official installer is **`FrameHub-Setup-1.0.0.exe`** under **Assets** on [GitHub Releases](https://github.com/9Erza/FrameHub/releases). GitHub-generated source ZIP/TAR files are not installers. This document is the bilingual source for the GitHub Release description.
 
 ---
 
@@ -78,7 +78,7 @@ These are important parts of FrameHub 1.0.0, **not all newly introduced in this 
 
 ### Installation and upgrading
 
-1. Open [GitHub Releases](https://github.com/9Erza/FrameHub/releases). Once v1.0.0 has been published, choose its **Assets** and download **`FrameHub-Setup-1.0.0.exe`**, not the source-code ZIP.
+1. Open [GitHub Releases](https://github.com/9Erza/FrameHub/releases). Choose the **v1.0.0 Assets** and download **`FrameHub-Setup-1.0.0.exe`**, not the source-code ZIP.
 2. Close FrameHub, run Setup on **Windows 10/11 x64**, and approve the administrator prompt. The single installer includes the pinned **Intel PresentMon v2.5.1** prerequisite and checks whether it can reuse an existing installation.
 3. For a previous **Inno Setup** installation, run the new Setup **over the old version without uninstalling first**. The historical installer `AppId` remains unchanged (used in v0.4.0 and recovered from v0.3.1). The previous application directory is reused.
 4. Backing up `%APPDATA%\FrameHub` before a major upgrade is recommended. Benchmark history is stored at `%LOCALAPPDATA%\FrameHub\Benchmarks`.
@@ -164,7 +164,7 @@ Te możliwości **są częścią FrameHub 1.0.0, ale nie wszystkie zostały doda
 
 ### Instalacja i aktualizacja
 
-1. Wejdź na [GitHub Releases](https://github.com/9Erza/FrameHub/releases). Gdy v1.0.0 zostanie opublikowane, pobierz w sekcji **Assets** plik **`FrameHub-Setup-1.0.0.exe`** — nie automatyczne archiwum ZIP z kodem.
+1. Wejdź na [GitHub Releases](https://github.com/9Erza/FrameHub/releases). W sekcji **Assets** wydania **v1.0.0** pobierz plik **`FrameHub-Setup-1.0.0.exe`** — nie automatyczne archiwum ZIP z kodem.
 2. Zamknij FrameHub, uruchom instalator w **Windows 10/11 x64** i zaakceptuj uprawnienia administratora. Jeden instalator zawiera **Intel PresentMon v2.5.1** i sprawdza możliwość wykorzystania istniejącej instalacji tej zależności.
 3. Starszą instalację wykonaną przez **Inno Setup** można zaktualizować **bez wcześniejszego odinstalowania**. Zachowano historyczny identyfikator instalatora `AppId` (używany w 0.4.0 i odzyskany wcześniej z 0.3.1) i poprzednią lokalizację aplikacji.
 4. Przed większą aktualizacją warto skopiować `%APPDATA%\FrameHub`. Historia benchmarków znajduje się w `%LOCALAPPDATA%\FrameHub\Benchmarks`.

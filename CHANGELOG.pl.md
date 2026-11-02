@@ -6,19 +6,30 @@
 
 ## [1.0.1] — 2026-11-02
 
-Poprawkowe wydanie na bazie 1.0.0: `FrameHub-Setup-1.0.1.exe` pojawi się w sekcji **Assets** na [GitHub Releases](https://github.com/9Erza/FrameHub/releases) po opublikowaniu. Aktualizacja zachowuje historyczną tożsamość instalatora (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`), wykorzystuje poprzedni katalog instalacji, zachowuje ustawienia/profile/bibliotekę/benchmarki, nie uruchamia ponownie kreatora pierwszego uruchomienia w istniejących instalacjach i nie reinstaluje zbędnie PresentMon.
+Zbiorcze wydanie na bazie opublikowanego instalatora 1.0.0: `FrameHub-Setup-1.0.1.exe` w sekcji **Assets** na [GitHub Releases](https://github.com/9Erza/FrameHub/releases). Aktualizacja zachowuje historyczną tożsamość instalatora (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`), wykorzystuje poprzedni katalog instalacji, zachowuje ustawienia/profile/bibliotekę/historię benchmarków/sparowane urządzenia, nie uruchamia ponownie kreatora w istniejących instalacjach i nigdy nie wymusza PresentMon po jego odznaczeniu.
+
+### Nowości
+
+- Sześciokrokowy kreator pierwszego uruchomienia (powitanie/język, monitor sprzętu, Companion, Live FPS, start z Windows, podsumowanie) dla świeżych instalacji i przerwanego onboardingu; aktualizacje oznaczane po cichu z zachowaniem ustawień. Zapis wyłącznie szkicu (przy Zakończ/Pomiń), lekkie domyślnie WYŁĄCZONE moduły, zawsze włączone sterowanie procesami/CPU i monitor profili, ponowne otwarcie z Ustawień.
+- Jawny Live FPS (`LiveTelemetryEnabled`, domyślnie WYŁ.) — natywna pętla PresentMon 250 ms działa tylko przy włączonym Companion i Live FPS; jednorazowe benchmarki niezależne; wyłączenie Companion wyłącza Live FPS.
+- Sekcja danych aplikacji i resetu (siódma kategoria): przywracanie domyślnych z zachowaniem biblioteki/profili/historii/parowań; pełne czyszczenie po wpisaniu `RESET` tylko danych FrameHub, blokowane podczas benchmarku/sesji/odzyskiwania, pozostały wpis autostartu ostrzega bez psucia czyszczenia, restart do kreatora.
+- Opcjonalny krok instalacji PresentMon (domyślnie zaznaczony): odznaczenie nic nie instaluje/naprawia i nie uruchamia `msiexec` dla PresentMon; zweryfikowana usługa/API v2.5.1 wykorzystywana ponownie, inaczej cichy MSI (`/qn /norestart`); nowsze/niezweryfikowane instalacje nigdy nie obniżane; PresentMon nie usuwany z FrameHub.
+- Uczciwe powiadomienia o aktualizacji: tylko gdy pasujący tag wydania GitHub jest opublikowany (nie szkic, nie prerelease) i zawiera oczekiwany asset `FrameHub-Setup-X.Y.Z.exe`; niejednoznaczna weryfikacja zgłasza uczciwy błąd; brak pobierania i uruchamiania.
 
 ### Poprawki
 
-- Sprawdzanie aktualizacji potwierdza istnienie opublikowanego (nie-szkicowego, nie-przedpremierowego) wydania GitHub, zanim pokaże powiadomienie. Nowszy `version.txt` bez opublikowanego wydania nie kieruje już do strony bez instalatora; niejednoznaczna odpowiedź sieci zgłasza uczciwy błąd sprawdzenia zamiast fałszywej aktualizacji.
-- Kreator pierwszego uruchomienia: początkowy fokus klawiatury trafia w widocznej akcji (Dalej, potem Zakończ na ostatnim kroku), Enter aktywuje Zakończ na podsumowaniu, a podsumowanie zawsze odzwierciedla wcześniejsze wybory. Wyłączenie Companion w kreatorze wyłącza też Live FPS, więc szkic nie zapisze sprzecznej kombinacji.
-- Ustawienia > Dane aplikacji i reset: blok kreatora ma własny nagłówek zamiast powtarzania etykiety przycisku (nowy klucz `Settings.DataReset.ReopenWizardTitle` w EN/PL).
-- Companion web UI: statyczne znaczniki wersji i wersjonowane cache-busting zasobów deklarują 1.0.1; działająca wersja nadal pochodzi na żywo z `/api/v1/status`.
-- Manifest aplikacji Windows deklaruje 1.0.1.0 obok centralnego źródła `version.txt`.
+- Obsługa klawiatury kreatora (fokus na widocznej akcji Dalej/Zakończ, Enter na podsumowaniu, podsumowanie zgodne z wyborami, Esc/Pomiń z lekką konfiguracją).
+- Zarządzanie oknami W1 (FH-100-001/002/003/005/007/015/016): clamp `WM_GETMINMAXINFO` do obszaru roboczego, ciemne menu skanowania biblioteki, ograniczone wirtualizowane listy gier, przewodnik sesji, zachowanie filtrów.
+- Dopracowanie interfejsu i lokalizacji W2.
+- Podział statusu pełnego czyszczenia: pozostałość autostartu ostrzega bez psucia usuwania i bez blokowania restartu do kreatora.
+- Przecieki view-modeli i nieograniczone cache (współdzielony LRU ikon 96 wpisów, cache blob-URL Companion 200 wpisów ze zwalnianiem, odpinanie lifecycle przy usuwaniu).
+- Uzgadnianie rejestracji autostartu (Rejestr / zadanie z podwyższeniem / konflikt / uszkodzony względem stanu rzeczywistego, informacja o anulowaniu UAC).
 
 ### Zmiany
 
 - `version.txt` ma teraz `1.0.1`; każda widoczna powierzchnia raportuje 1.0.1 z tego jednego źródła (WPF, Companion, nazwa instalatora, About, status API, metadane benchmarków).
+- Silnik benchmarków (przechwytywanie/analiza) bez zmian (wirtualizacja i cache ikon tylko w prezentacji).
+- Manifest Windows deklaruje 1.0.1.0; statyczne znaczniki wersji Companion i cache-busting assetów deklarują 1.0.1.
 
 Historia wcześniejszych wydań pozostaje poniżej bez zmian.
 

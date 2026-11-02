@@ -103,6 +103,70 @@ public sealed class ReleaseDocsTests
     }
 
     [TestMethod]
+    public void Documentation_OneDotOne_IsBilingualAndLinked()
+    {
+        string notes = ReadRootFile("docs/RELEASE_NOTES_1.0.1.md");
+        StringAssert.Contains(notes, "## English", "1.0.1 notes must carry the English section.");
+        StringAssert.Contains(notes, "## Polski", "1.0.1 notes must carry the Polish section.");
+        StringAssert.Contains(notes, "Known limitations", "1.0.1 notes must document known limitations.");
+        StringAssert.Contains(notes, "Znane ograniczenia", "1.0.1 notes must document known limitations in Polish.");
+        StringAssert.Contains(notes, "Application data & reset", "1.0.1 notes must cover data & reset in English.");
+        StringAssert.Contains(notes, "Dane aplikacji i reset", "1.0.1 notes must cover data & reset in Polish.");
+
+        foreach (string guide in new[] { "docs/USER_GUIDE.md", "docs/USER_GUIDE.pl.md" })
+        {
+            string text = ReadRootFile(guide);
+            StringAssert.Contains(text, "1.0.1", $"{guide} must describe the current release.");
+            StringAssert.Contains(text, "RESET", $"{guide} must document the wipe confirmation.");
+            StringAssert.Contains(text, "PresentMon", $"{guide} must document the optional prerequisite.");
+        }
+
+        foreach (string readme in new[] { "README.md", "README.pl.md" })
+        {
+            string text = ReadRootFile(readme);
+            StringAssert.Contains(text, "docs/RELEASE_NOTES_1.0.1.md", $"{readme} must link the 1.0.1 notes.");
+        }
+    }
+
+    [TestMethod]
+    public void Documentation_LocalMarkdownLinks_Resolve()
+    {
+        string root = FindRepoRoot();
+        var broken = new List<string>();
+        foreach (string doc in new[]
+        {
+            "README.md", "README.pl.md", "CHANGELOG.md", "CHANGELOG.pl.md",
+            "docs/RELEASE_NOTES_1.0.0.md", "docs/RELEASE_NOTES_1.0.1.md",
+            "docs/USER_GUIDE.md", "docs/USER_GUIDE.pl.md"
+        })
+        {
+            string text = File.ReadAllText(Path.Combine(root, doc));
+            string? docDir = Path.GetDirectoryName(Path.Combine(root, doc));
+            foreach (System.Text.RegularExpressions.Match match in
+                System.Text.RegularExpressions.Regex.Matches(text, @"\[[^\]]*\]\(([^)]+)\)"))
+            {
+                string target = match.Groups[1].Value.Trim();
+                if (target.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                    || target.StartsWith('#')
+                    || target.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string path = target.Split('#')[0];
+                if (string.IsNullOrWhiteSpace(path)) continue;
+                string resolved = Path.GetFullPath(Path.Combine(docDir!, path.Replace('/', Path.DirectorySeparatorChar)));
+                if (!File.Exists(resolved) && !Directory.Exists(resolved))
+                {
+                    broken.Add($"{doc} -> {target}");
+                }
+            }
+        }
+
+        Assert.AreEqual(0, broken.Count,
+            "Broken local Markdown links:\n" + string.Join("\n", broken.Take(20)));
+    }
+    [TestMethod]
     public void CurrentRelease_IsOneDotOne_WithHistoryIntact()
     {
         string changelog = ReadRootFile("CHANGELOG.md");

@@ -65,10 +65,12 @@ namespace FrameHub.Core.Services
                 // GitHub Release (installer asset) is published separately. Reporting an
                 // update before the release exists would point users at a page without
                 // the asset, so a newer version.txt alone never notifies: the matching
-                // published (non-draft, non-prerelease) release tag must exist first.
-                // A definitive "not published" suppresses silently; an inconclusive
-                // network failure surfaces as Error (automatic checks stay silent,
-                // manual checks report the failure honestly).
+                // published (non-draft, non-prerelease) release tag must exist first
+                // and must carry the expected FrameHub-Setup-X.Y.Z.exe installer asset.
+                // A definitive "not ready" (no tag, draft, prerelease, tag mismatch, or
+                // missing asset) suppresses silently; an inconclusive network failure
+                // surfaces as Error (automatic checks stay silent, manual checks report
+                // the failure honestly).
                 bool? published = await IsReleasePublishedAsync(client, latestVersionStr).ConfigureAwait(false);
                 if (published == true)
                 {
@@ -115,11 +117,15 @@ namespace FrameHub.Core.Services
 
         /// <returns>
         /// True when a published (non-draft, non-prerelease) release exists for the
-        /// version tag, false when it definitively does not, null when the network
-        /// answer was inconclusive.
+        /// version tag, its tag matches, and it carries the expected installer asset
+        /// (<c>FrameHub-Setup-X.Y.Z.exe</c>). False when it definitively does not
+        /// (missing tag, draft, prerelease, tag mismatch, or no installer asset —
+        /// a release without the installer is not a ready update). Null when the
+        /// network answer was inconclusive.
         /// </returns>
         private async Task<bool?> IsReleasePublishedAsync(HttpClient client, string version)
         {
+            string expectedAsset = $"FrameHub-Setup-{version}.exe";
             foreach (string tag in new[] { "v" + version, version })
             {
                 HttpResponseMessage response;
@@ -159,6 +165,18 @@ namespace FrameHub.Core.Services
                         using var document = JsonDocument.Parse(
                             await response.Content.ReadAsStringAsync().ConfigureAwait(false));
                         JsonElement root = document.RootElement;
+
+                        string? tagName = root.TryGetProperty("tag_name", out JsonElement tagElement) &&
+                            tagElement.ValueKind == JsonValueKind.String
+                            ? tagElement.GetString()
+                            : null;
+                        if (!string.Equals(tagName, "v" + version, StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(tagName, version, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger.Debug($"Release tag mismatch: expected {tag}, got {tagName ?? "<none>"}.");
+                            return false;
+                        }
+
                         if (root.TryGetProperty("draft", out JsonElement draft) &&
                             draft.ValueKind == JsonValueKind.True)
                         {
@@ -170,7 +188,23 @@ namespace FrameHub.Core.Services
                             return false;
                         }
 
-                        return true;
+                        if (root.TryGetProperty("assets", out JsonElement assets) &&
+                            assets.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (JsonElement asset in assets.EnumerateArray())
+                            {
+                                if (asset.ValueKind == JsonValueKind.Object &&
+                                    asset.TryGetProperty("name", out JsonElement name) &&
+                                    name.ValueKind == JsonValueKind.String &&
+                                    string.Equals(name.GetString(), expectedAsset, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+
+                        _logger.Debug($"Release {tagName} carries no {expectedAsset}; not a ready update.");
+                        return false;
                     }
                     catch (Exception ex)
                     {

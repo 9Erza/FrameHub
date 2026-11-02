@@ -2,13 +2,23 @@
 
 [Polski](USER_GUIDE.pl.md)
 
-## Installing or upgrading v1.0.0
+## Installing or upgrading (v1.0.1)
 
-Download `FrameHub-Setup-1.0.0.exe` from the **Assets** section of the official [GitHub Releases](https://github.com/9Erza/FrameHub/releases) page once published. Do not use the automatically generated source ZIP as an installer. The installer requires Windows 10/11 x64 and administrator permission, and includes the pinned PresentMon 2.5.1 MSI needed for benchmarking.
+Download `FrameHub-Setup-1.0.1.exe` from the **Assets** section of the **v1.0.1** [GitHub Releases](https://github.com/9Erza/FrameHub/releases) page. Do not use the automatically generated source ZIP as an installer. The installer requires Windows 10/11 x64 and administrator permission.
 
-For an existing FrameHub Inno Setup installation, **close FrameHub and run the new installer without uninstalling the old version**. The historical Inno Setup `AppId` and previous directory are reused. The user's configuration, profiles and library are kept separately under `%APPDATA%\FrameHub`; benchmark history is under `%LOCALAPPDATA%\FrameHub\Benchmarks`. A backup of personal settings is recommended before a major version upgrade.
+The installer offers **Intel PresentMon 2.5.1** as a checked-by-default optional component. When selected, Setup reuses a verified v2.5.1 shared service/API installation or installs the embedded MSI silently (`/qn /norestart`); a newer or unverified shared installation is never downgraded automatically. When deselected, Setup installs nothing, repairs nothing and never starts `msiexec` for PresentMon — an already installed PresentMon is left untouched and may still be used. PresentMon is a shared prerequisite and may remain installed after FrameHub is removed. Without PresentMon the application runs normally, while live FPS preview and benchmark capture report the missing dependency with its cause instead of failing.
 
-See the [v1.0.0 release notes (EN/PL)](RELEASE_NOTES_1.0.0.md). The application only checks for updates and directs you to GitHub; it does not download or execute the installer automatically.
+For an existing FrameHub Inno Setup installation (including 1.0.0), **close FrameHub and run the new installer without uninstalling the old version**. The historical Inno Setup `AppId` and previous directory are reused. The user's configuration, profiles and library are kept separately under `%APPDATA%\FrameHub`; benchmark history is under `%LOCALAPPDATA%\FrameHub\Benchmarks`. The first-run wizard does not reappear for existing installations. On upgrade from 1.0.0 the PresentMon step defaults to selected (1.0.0 had no such choice); on later upgrades the previous selection is pre-selected. A backup of personal settings is recommended before a major version upgrade.
+
+See the [v1.0.1 release notes (EN/PL)](RELEASE_NOTES_1.0.1.md). The application only checks for updates and directs you to GitHub; it does not download or execute the installer automatically.
+
+---
+
+## First-run setup (v1.0.1)
+
+On a fresh installation (or after full data erase) FrameHub shows a six-step wizard: welcome/language, Hardware monitoring, Companion, Live FPS, Start with Windows, and a summary. Optional modules default OFF for a light footprint; core process/CPU control, profiles and the profile watcher stay always on and are not toggleable here. The wizard works on a draft saved only on Finish/Skip, so closing it cannot corrupt settings; an interrupted first run resumes the wizard on next launch.
+
+Upgrades never show the wizard. You can reopen it any time from **Settings → Application data & reset → First-run setup**. Keyboard flow is predictable: focus starts on the visible primary action, Enter activates Finish on the summary, Esc activates Skip. Disabling Companion in the wizard also disables Live FPS, since Live FPS requires Companion.
 
 ---
 
@@ -51,16 +61,21 @@ and PresentMon state plus `MIT · version`. The rail footer links the author (`9
   (`EnableStorageSensors`) and a read-only timer-resolution card.
 - **Logs**: severity filter + search, a visible 200-of-N cap and a Clear action that asks
   for confirmation.
-- **Settings**: 6 categories (General, Language, Startup & Window, Companion & Network,
-  Benchmarks, Advanced & Diagnostics). **Companion & Network** hosts the read-only network
+- **Settings**: 7 categories (General, Language, Startup & Window, Companion & Network,
+  Benchmarks, Advanced & Diagnostics, Application data & reset). **Companion & Network** hosts the read-only network
   diagnostics panel: adapters, current resolvers (automatic/DHCP or static), popular providers
   (Cloudflare, Google Public DNS, Quad9, OpenDNS) with IPv4/IPv6/DoH latency comparison.
   The panel states explicitly that nothing is applied — there is no mutation code by design.
   Restart offers normal cooperative restart (successor-first, settings preserved) and
   restart-as-administrator, both with success/timeout/refusal feedback.
+- **Application data & reset**: restore default settings (library, profiles, benchmark
+  history and paired devices are kept) or fully erase FrameHub-owned data after typing
+  `RESET`. Erase is blocked while a benchmark capture or session/recovery is active, warns
+  on a leftover Windows startup entry without failing the wipe, then restarts into the
+  first-run wizard.
 
 Language: **Settings > Language** (or the tray/Settings switch) persists `Language: pl|en`
-to `settings.json` (default `en`). The full Desktop dictionary holds 1005 keys per language
+to `settings.json` (default `en`). The full Desktop dictionary holds 1108 keys per language
 with no gaps; Companion has its own parity-tested dictionary. Export files always use
 invariant formatting and UTC timestamps regardless of UI language.
 
@@ -74,6 +89,10 @@ invariant formatting and UTC timestamps regardless of UI language.
 4. Complete the one-time pairing to establish a secure session token.
 5. In the Companion web interface:
    - **Telemetry**: View real-time CPU, GPU, RAM, and live PresentMon telemetry streamed over WebSocket.
+     Live FPS preview is a separate opt-in (**Settings > Companion & Network > Live FPS monitoring**,
+     default OFF): the continuous PresentMon loop runs only while Companion is enabled **and**
+     Live FPS is enabled. Disabling Companion switches Live FPS off as well. One-demand benchmark
+     capture works regardless of this switch.
    - **Library & Quick Actions**: Browse detected games and launch them remotely.
    - **Game CPU Assignment**: When a game is active, temporarily adjust CPU core scheduling using topology presets (All Cores, Physical Only, Clear) or custom CPU Sets.
    - **Session Optimization**: Monitor and control background app suspension.
@@ -84,7 +103,7 @@ invariant formatting and UTC timestamps regardless of UI language.
 
 ## Update Checks
 
-With **Settings > Check for updates at startup** enabled, FrameHub checks for a new release once per application run — but only after the main window is actually shown to you. It never interrupts silent tray/minimized startup, stays silent when you are up to date or offline, and shows a FrameHub-styled dialog with a direct link to the release page when a new version is available. **Settings > Check now** performs a manual check at any time and uses the same dialog; no installers are downloaded or executed automatically.
+With **Settings > Check for updates at startup** enabled, FrameHub checks for a new release once per application run — but only after the main window is actually shown to you. It never interrupts silent tray/minimized startup, stays silent when you are up to date or offline, and shows a FrameHub-styled dialog with a direct link to the release page when a new version is available. A notification appears only when the matching GitHub Release is actually published and carries the expected `FrameHub-Setup-X.Y.Z.exe` installer asset — a newer version number without a ready release never triggers the dialog. **Settings > Check now** performs a manual check at any time and uses the same dialog; no installers are downloaded or executed automatically.
 
 ---
 
@@ -105,4 +124,4 @@ The hotkey uses the selected running library game. If none is selected, FrameHub
 
 Average FPS describes throughput; 1%/0.1% Low and high frame-time percentiles help expose intermittent stutter and pacing problems. They do not identify the cause by themselves. Capture records the current CPU profile, Session Optimization state, and system environment metadata, but never changes game processes directly. **History** includes local WPF and developer-harness schema-v1 sessions, can open their folder, and can permanently delete one validated session.
 
-Data remains under `%LOCALAPPDATA%\FrameHub\Benchmarks`; settings and logs remain under `%APPDATA%\FrameHub`. No benchmark data is uploaded. If the benchmark engine is unavailable, the Benchmarks view names the specific cause (no game selected/running, missing PresentMon service, no permission, or hotkey unset) instead of a generic reinstall hint. The single Setup contains the pinned PresentMon prerequisite — repair or reinstall it only when the engine panel reports the service itself missing. FrameHub itself does not inject into games or read game memory; compatibility with a particular game or anti-cheat may vary.
+Data remains under `%LOCALAPPDATA%\FrameHub\Benchmarks`; settings and logs remain under `%APPDATA%\FrameHub`. No benchmark data is uploaded. If the benchmark engine is unavailable, the Benchmarks view names the specific cause (no game selected/running, missing PresentMon service, no permission, or hotkey unset) instead of a generic reinstall hint. The 1.0.1 installer offers the pinned PresentMon prerequisite as a checked-by-default optional component — keep it selected unless you manage PresentMon yourself, and reinstall it only when the engine panel reports the service itself missing. FrameHub itself does not inject into games or read game memory; compatibility with a particular game or anti-cheat may vary.

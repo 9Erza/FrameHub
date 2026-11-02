@@ -1,7 +1,7 @@
-# Benchmarking architecture (FrameHub v0.6.0–v1.0.0)
+# Benchmarking architecture (FrameHub v0.6.0–v1.0.1)
 
 This document is the implementation contract for the released benchmarking subsystem
-(introduced in v0.6.0, unchanged through v1.0.0 per `docs/ROADMAP.md`) and its WPF user workflow.
+(introduced in v0.6.0, engine unchanged through v1.0.1 per `docs/ROADMAP.md`) and its WPF user workflow.
 
 ## Production capture architecture
 

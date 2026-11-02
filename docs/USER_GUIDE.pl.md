@@ -2,13 +2,23 @@
 
 [English](USER_GUIDE.md)
 
-## Instalacja lub aktualizacja do v1.0.0
+## Instalacja lub aktualizacja (v1.0.1)
 
-Po opublikowaniu wydania pobierz `FrameHub-Setup-1.0.0.exe` z sekcji **Assets** na [oficjalnej stronie GitHub Releases](https://github.com/9Erza/FrameHub/releases). Automatyczne archiwum ZIP ze źródłami nie jest instalatorem. Wymagany jest Windows 10/11 x64 oraz akceptacja uprawnień administratora. Instalator zawiera Intel PresentMon 2.5.1 potrzebny do benchmarków.
+Po opublikowaniu wydania pobierz `FrameHub-Setup-1.0.1.exe` z sekcji **Assets** wydania **v1.0.1** na [oficjalnej stronie GitHub Releases](https://github.com/9Erza/FrameHub/releases). Automatyczne archiwum ZIP ze źródłami nie jest instalatorem. Wymagany jest Windows 10/11 x64 oraz akceptacja uprawnień administratora.
 
-Jeśli FrameHub był już zainstalowany przez Inno Setup, **zamknij program i uruchom nowy instalator bez odinstalowywania poprzedniego**. Historyczny identyfikator instalacji `AppId` jest zachowany, podobnie jak poprzednia lokalizacja. Ustawienia, profile i biblioteka znajdują się osobno w `%APPDATA%\FrameHub`, a historia benchmarków w `%LOCALAPPDATA%\FrameHub\Benchmarks`. Przed większą aktualizacją warto wykonać kopię ustawień.
+Instalator oferuje **Intel PresentMon 2.5.1** jako domyślnie zaznaczony komponent opcjonalny. Po zaznaczeniu instalator wykorzystuje zweryfikowaną współdzieloną usługę/API v2.5.1 albo instaluje osadzony MSI po cichu (`/qn /norestart`); nowsza lub niezweryfikowana współdzielona instalacja nigdy nie jest automatycznie obniżana. Po odznaczeniu instalator nic nie instaluje, niczego nie naprawia i nie uruchamia `msiexec` dla PresentMon — istniejący PresentMon zostaje nietknięty i nadal może być używany. PresentMon jest współdzielonym składnikiem i może pozostać w systemie po usunięciu FrameHub. Bez PresentMon aplikacja działa normalnie, a podgląd FPS i benchmarki zgłaszają brak zależności z podaniem przyczyny.
 
-Zobacz [opis wydania v1.0.0 (PL/EN)](RELEASE_NOTES_1.0.0.md). Program jedynie sprawdza dostępność nowej wersji i kieruje na GitHub — nie pobiera ani nie uruchamia instalatora automatycznie.
+Jeśli FrameHub był już zainstalowany przez Inno Setup (także 1.0.0), **zamknij program i uruchom nowy instalator bez odinstalowywania poprzedniego**. Historyczny identyfikator instalacji `AppId` jest zachowany, podobnie jak poprzednia lokalizacja. Ustawienia, profile i biblioteka znajdują się osobno w `%APPDATA%\FrameHub`, a historia benchmarków w `%LOCALAPPDATA%\FrameHub\Benchmarks`. Kreator pierwszego uruchomienia nie pojawia się ponownie w istniejących instalacjach. Przy aktualizacji z 1.0.0 krok PresentMon jest domyślnie zaznaczony (1.0.0 nie miało takiego wyboru); przy kolejnych aktualizacjach wybór jest wstępnie zaznaczany z poprzedniej instalacji. Przed większą aktualizacją warto wykonać kopię ustawień.
+
+Zobacz [opis wydania v1.0.1 (PL/EN)](RELEASE_NOTES_1.0.1.md). Program jedynie sprawdza dostępność nowej wersji i kieruje na GitHub — nie pobiera ani nie uruchamia instalatora automatycznie.
+
+---
+
+## Pierwsze uruchomienie (v1.0.1)
+
+Przy świeżej instalacji (lub po pełnym wyczyszczeniu danych) FrameHub pokazuje sześciokrokowy kreator: powitanie/język, monitor sprzętu, Companion, Live FPS, start z Windows i podsumowanie. Moduły opcjonalne są domyślnie WYŁĄCZONE (lekki ślad); bazowe sterowanie procesami/CPU, profile i monitor profili są zawsze włączone i nie ma ich tu do przełączenia. Kreator pracuje na szkicu zapisywanym dopiero przy Zakończ/Pomiń, więc jego zamknięcie nie uszkodzi ustawień; przerwane pierwsze uruchomienie wznawia kreatora przy kolejnym starcie.
+
+Aktualizacje nigdy nie pokazują kreatora. Możesz go otworzyć w każdej chwili z **Ustawienia → Dane aplikacji i reset → Kreator pierwszego uruchomienia**. Obsługa klawiatury jest przewidywalna: fokus startuje na widocznej akcji, Enter aktywuje Zakończ na podsumowaniu, Esc aktywuje Pomiń. Wyłączenie Companion w kreatorze wyłącza też Live FPS, bo Live FPS wymaga Companion.
 
 ---
 
@@ -53,16 +63,21 @@ wsparcie projektu i O programie/licencje.
   (`EnableStorageSensors`) i karta timer resolution tylko do odczytu.
 - **Dziennik**: filtr severity + wyszukiwarka, widoczny limit 200 z N oraz akcja Wyczyść
   wymagająca potwierdzenia.
-- **Ustawienia**: 6 kategorii (Ogólne, Język, Start i okno, Companion i sieć, Benchmarki,
-  Zaawansowane i diagnostyka). **Companion i sieć** zawiera panel diagnostyki sieci tylko
+- **Ustawienia**: 7 kategorii (Ogólne, Język, Start i okno, Companion i sieć, Benchmarki,
+  Zaawansowane i diagnostyka, Dane aplikacji i reset). **Companion i sieć** zawiera panel diagnostyki sieci tylko
   do odczytu: karty, bieżące resolvery (automatyczne/DHCP lub statyczne), popularni
   dostawcy (Cloudflare, Google Public DNS, Quad9, OpenDNS) z porównaniem opóźnień
   IPv4/IPv6/DoH. Panel wprost mówi, że niczego nie stosuje — kodu mutacji nie ma z projektu.
   Restart oferuje zwykły restart kooperacyjny (najpierw następca, ustawienia zachowane)
   i restart jako administrator, oba z informacją o wyniku/odmowie.
+- **Dane aplikacji i reset**: przywracanie ustawień domyślnych (biblioteka, profile, historia
+  benchmarków i sparowane urządzenia zostają zachowane) albo pełne usunięcie danych FrameHub
+  po wpisaniu `RESET`. Czyszczenie jest blokowane podczas benchmarku/sesji/odzyskiwania,
+  ostrzega o pozostałym wpisie autostartu Windows bez psucia czyszczenia, a na końcu restartuje
+  do kreatora pierwszego uruchomienia.
 
 Język: **Ustawienia > Język** (lub przełącznik w zasobniku/Ustawieniach) zapisuje
-`Language: pl|en` w `settings.json` (domyślnie `en`). Pełny słownik desktopowy to 1005 kluczy
+`Language: pl|en` w `settings.json` (domyślnie `en`). Pełny słownik desktopowy to 1108 kluczy
 na język bez luk; Companion ma własny, testowany parytetowo słownik. Pliki eksportu zawsze
 używają formatu invariant i znaczników czasu UTC niezależnie od języka UI.
 
@@ -76,6 +91,9 @@ używają formatu invariant i znaczników czasu UTC niezależnie od języka UI.
 4. Przeprowadź jednorazowe parowanie, aby utworzyć bezpieczny token sesji.
 5. W interfejsie mobilnym Companion:
    - **Telemetria**: Przeglądaj telemetrię CPU, GPU, RAM i czasu klatek strumieniowaną w czasie rzeczywistym przez WebSocket.
+     Podgląd Live FPS to osobna zgoda (**Ustawienia > Companion i sieć > monitorowanie Live FPS**, domyślnie WYŁ.):
+     ciągła pętla PresentMon działa tylko przy włączonym Companion **i** Live FPS. Wyłączenie Companion wyłącza
+     też Live FPS. Jednorazowe benchmarki działają niezależnie od tego przełącznika.
    - **Biblioteka i Szybki start**: Przeglądaj wykryte gry i uruchamiaj je zdalnie.
    - **Przydział CPU dla gry**: Przy aktywnej grze tymczasowo dostosuj przydział rdzeni procesora przy użyciu presetów topologii (Wszystkie rdzenie, Tylko fizyczne, Wyczyść) lub CPU Sets.
    - **Optymalizacja sesji**: Monitoruj i kontroluj stan wstrzymania aplikacji w tle.
@@ -86,7 +104,7 @@ używają formatu invariant i znaczników czasu UTC niezależnie od języka UI.
 
 ## Sprawdzanie aktualizacji
 
-Po włączeniu **Ustawienia > Sprawdzaj aktualizacje przy starcie** FrameHub sprawdza dostępność nowej wersji raz na uruchomienie aplikacji — ale dopiero wtedy, gdy okno główne zostanie faktycznie pokazane. Nie przerywa cichego startu do zasobnika/zminimalizowanego, milczy, gdy wersja jest aktualna lub brakuje internetu, a przy nowej wersji wyświetla okno w stylu FrameHub z bezpośrednim odnośnikiem do strony wydania. Przycisk **Ustawienia > Sprawdź teraz** wykonuje ręczne sprawdzenie w dowolnym momencie i używa tego samego okna; instalatory nie są pobierane ani uruchamiane automatycznie.
+Po włączeniu **Ustawienia > Sprawdzaj aktualizacje przy starcie** FrameHub sprawdza dostępność nowej wersji raz na uruchomienie aplikacji — ale dopiero wtedy, gdy okno główne zostanie faktycznie pokazane. Nie przerywa cichego startu do zasobnika/zminimalizowanego, milczy, gdy wersja jest aktualna lub brakuje internetu, a przy nowej wersji wyświetla okno w stylu FrameHub z bezpośrednim odnośnikiem do strony wydania. Powiadomienie pojawia się tylko, gdy pasujące wydanie GitHub jest rzeczywiście opublikowane i zawiera oczekiwany asset `FrameHub-Setup-X.Y.Z.exe` — sam nowszy numer wersji bez gotowego wydania nigdy nie wywołuje dialogu. Przycisk **Ustawienia > Sprawdź teraz** wykonuje ręczne sprawdzenie w dowolnym momencie i używa tego samego okna; instalatory nie są pobierane ani uruchamiane automatycznie.
 
 ---
 
@@ -107,4 +125,4 @@ Skrót używa wybranej, uruchomionej gry z biblioteki. Jeśli żadnej nie wybran
 
 Średnie FPS opisuje przepustowość, natomiast 1%/0,1% Low i wysokie percentyle czasu klatki pomagają zauważyć okresowe przycięcia i problemy z płynnością. Same nie wskazują ich przyczyny. Pomiar zapisuje aktywny profil CPU, stan Optymalizacji sesji oraz metadane środowiska, ale nie zmienia procesów gry. **Historia** rozpoznaje lokalne sesje schema-v1 utworzone przez aplikację i narzędzie deweloperskie, pozwala otworzyć folder oraz trwale usunąć jedną zweryfikowaną sesję.
 
-Dane pozostają w `%LOCALAPPDATA%\FrameHub\Benchmarks`; ustawienia i logi w `%APPDATA%\FrameHub`. Wyniki nie są wysyłane do chmury. Gdy silnik benchmarków jest niedostępny, widok Benchmarki nazywa konkretną przyczynę (nie wybrano/uruchomiono gry, brak serwisu PresentMon, brak uprawnień albo nieustawiony skrót) zamiast ogólnej podpowiedzi o reinstalacji. Jeden instalator Setup zawiera wymagany PresentMon — naprawiaj lub instaluj ponownie tylko wtedy, gdy panel silnika zgłasza brak samego serwisu. Sam FrameHub nie wstrzykuje kodu do gier ani nie odczytuje pamięci gry; zgodność z konkretną grą lub anti-cheat może się różnić.
+Dane pozostają w `%LOCALAPPDATA%\FrameHub\Benchmarks`; ustawienia i logi w `%APPDATA%\FrameHub`. Wyniki nie są wysyłane do chmury. Gdy silnik benchmarków jest niedostępny, widok Benchmarki nazywa konkretną przyczynę (nie wybrano/uruchomiono gry, brak serwisu PresentMon, brak uprawnień albo nieustawiony skrót) zamiast ogólnej podpowiedzi o reinstalacji. Instalator 1.0.1 oferuje wymagany PresentMon jako domyślnie zaznaczony komponent opcjonalny — zostaw go zaznaczonego, chyba że zarządzasz PresentMon samodzielnie; naprawiaj lub instaluj ponownie tylko wtedy, gdy panel silnika zgłasza brak samego serwisu. Sam FrameHub nie wstrzykuje kodu do gier ani nie odczytuje pamięci gry; zgodność z konkretną grą lub anti-cheat może się różnić.
