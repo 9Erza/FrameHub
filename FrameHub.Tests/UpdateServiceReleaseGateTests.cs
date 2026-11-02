@@ -40,11 +40,12 @@ public sealed class UpdateServiceReleaseGateTests
     private static UpdateService CreateService(FakeHandler handler)
         => new(new HttpClient(handler));
 
-    private static HttpResponseMessage PublishedRelease(string tag = "v1.0.1")
+    private static HttpResponseMessage PublishedRelease(
+        string tag = "v1.0.1", string asset = "FrameHub-Setup-1.0.1.exe")
         => new(HttpStatusCode.OK)
         {
             Content = new StringContent(
-                $"{{\"tag_name\":\"{tag}\",\"draft\":false,\"prerelease\":false}}")
+                $"{{\"tag_name\":\"{tag}\",\"draft\":false,\"prerelease\":false,\"assets\":[{{\"name\":\"{asset}\"}}]}}")
         };
 
     [TestMethod]
@@ -58,6 +59,75 @@ public sealed class UpdateServiceReleaseGateTests
         Assert.IsTrue(string.IsNullOrWhiteSpace(result.Error));
         Assert.IsTrue(handler.RequestedUrls.Any(u => u.Contains("api.github.com", StringComparison.OrdinalIgnoreCase)),
             "The release tag must be verified through the releases API.");
+    }
+
+    [TestMethod]
+    public async Task NewerVersion_ReleaseWithoutInstaller_SuppressesSilently()
+    {
+        var handler = new FakeHandler
+        {
+            ReleaseResponder = _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"tag_name\":\"v1.0.1\",\"draft\":false,\"prerelease\":false,\"assets\":[]}")
+            }
+        };
+        var result = await CreateService(handler).CheckForUpdatesAsync("1.0.0");
+
+        Assert.IsFalse(result.IsUpdateAvailable, "A release without the installer is not a ready update.");
+        Assert.IsTrue(string.IsNullOrWhiteSpace(result.Error));
+    }
+
+    [TestMethod]
+    public async Task NewerVersion_WrongAssetName_SuppressesSilently()
+    {
+        var handler = new FakeHandler
+        {
+            ReleaseResponder = _ => PublishedRelease(asset: "FrameHub-Setup-1.0.0.exe")
+        };
+        var result = await CreateService(handler).CheckForUpdatesAsync("1.0.0");
+
+        Assert.IsFalse(result.IsUpdateAvailable, "An unrelated asset must not count as the 1.0.1 installer.");
+        Assert.IsTrue(string.IsNullOrWhiteSpace(result.Error));
+    }
+
+    [TestMethod]
+    public async Task NewerVersion_WrongTag_SuppressesSilently()
+    {
+        var handler = new FakeHandler
+        {
+            ReleaseResponder = _ => PublishedRelease(tag: "v9.9.9", asset: "FrameHub-Setup-9.9.9.exe")
+        };
+        var result = await CreateService(handler).CheckForUpdatesAsync("1.0.0");
+
+        Assert.IsFalse(result.IsUpdateAvailable, "A mismatched tag must not notify.");
+        Assert.IsTrue(string.IsNullOrWhiteSpace(result.Error));
+    }
+
+    [TestMethod]
+    public async Task NewerVersion_ReleaseApiError_SurfacesError()
+    {
+        var handler = new FakeHandler
+        {
+            ReleaseResponder = _ => new HttpResponseMessage(HttpStatusCode.InternalServerError)
+        };
+        var result = await CreateService(handler).CheckForUpdatesAsync("1.0.0");
+
+        Assert.IsFalse(result.IsUpdateAvailable);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.Error), "Inconclusive verification must surface honestly.");
+    }
+
+    [TestMethod]
+    public async Task NewerVersion_ReleaseApiTimeout_SurfacesError()
+    {
+        var handler = new FakeHandler
+        {
+            ReleaseResponder = _ => throw new TaskCanceledException("Simulated timeout.")
+        };
+        var result = await CreateService(handler).CheckForUpdatesAsync("1.0.0");
+
+        Assert.IsFalse(result.IsUpdateAvailable);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.Error), "A timeout must surface honestly, never as an update.");
     }
 
     [TestMethod]

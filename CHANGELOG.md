@@ -4,19 +4,30 @@
 
 ## [1.0.1] - 2026-11-02
 
-Patch release on top of 1.0.0: `FrameHub-Setup-1.0.1.exe` will appear in **Assets** on [GitHub Releases](https://github.com/9Erza/FrameHub/releases) once published. Upgrades keep the historical installer identity (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`), reuse the previous installation directory, preserve settings/profiles/library/benchmarks, do not re-run the first-run wizard for existing installations, and do not reinstall PresentMon unnecessarily.
+Cumulative release on top of the published 1.0.0 installer: `FrameHub-Setup-1.0.1.exe` in **Assets** on [GitHub Releases](https://github.com/9Erza/FrameHub/releases). Upgrades keep the historical installer identity (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`), reuse the previous installation directory, preserve settings/profiles/library/benchmark history/paired devices, do not re-run the first-run wizard for existing installations, and never force PresentMon on users who deselected it.
+
+### Added
+
+- Six-step first-run setup wizard (welcome/language, Hardware monitoring, Companion, Live FPS, Start with Windows, summary) for fresh installs and interrupted onboardings; upgrades are stamped complete silently with all settings preserved. Draft-only persistence (saved on Finish/Skip), light OFF-by-default optional modules, always-on core process/CPU control and profile watcher, reopenable any time from Settings.
+- Explicit Live FPS opt-in (`LiveTelemetryEnabled`, default OFF): the 250 ms native PresentMon loop runs only while Companion is enabled and Live FPS is enabled; one-demand benchmark capture is independent; disabling Companion coerces Live FPS off.
+- Application data & reset workspace (seventh settings category): restore defaults keeping library/profiles/history/pairings; full `RESET`-armed wipe of FrameHub-owned data only, blocked during benchmark/session/recovery activity, leftover startup entry warns without failing the wipe, restart into the wizard.
+- Optional PresentMon install step (checked by default): deselecting installs/repairs nothing and never starts `msiexec` for PresentMon; verified v2.5.1 shared service/API reused, otherwise embedded MSI installs silently (`/qn /norestart`); newer/unverified shared installs never downgraded; PresentMon never removed with FrameHub.
+- Honest update notifications: notify only when the matching GitHub Release tag is published (non-draft, non-prerelease) and carries the expected `FrameHub-Setup-X.Y.Z.exe` asset; inconclusive verification surfaces an honest error instead of a false update; no downloads or executions.
 
 ### Fixed
 
-- Desktop update check now verifies that the matching published (non-draft, non-prerelease) GitHub Release exists before notifying. A newer `version.txt` without a published release no longer points users at a release page without an installer; inconclusive network answers surface as an honest check failure instead of a false update.
-- First-run setup: initial keyboard focus lands on the visible primary action (Next, then Finish on the last step), Enter activates Finish on the summary step, and the summary always reflects choices made on earlier steps. Disabling Companion in the wizard now coerces Live FPS off so the draft can never persist the contradictory combination.
-- Settings > Application data & reset: the first-run setup block has its own heading instead of repeating the button label (new `Settings.DataReset.ReopenWizardTitle` key in EN/PL).
-- Companion web UI: static version placeholders and versioned asset cache-busting now declare 1.0.1; the running version is still served live from `/api/v1/status`.
-- Windows application manifest now declares 1.0.1.0 alongside the central `version.txt` source.
+- First-run keyboard flow (initial focus on the visible Next/Finish action, Enter on the summary, summary reflecting earlier choices, Esc/Skip light configuration).
+- Window management W1 (FH-100-001/002/003/005/007/015/016): `WM_GETMINMAXINFO` work-area clamp for maximized windows, dark Library scan menu, bounded virtualized game lists, session workflow guide, library filter preservation.
+- Desktop usability and localization refinements W2.
+- Full-wipe status split: startup residue warns without failing data deletion or blocking the wizard restart.
+- View-model retention and unbounded caches (shared 96-entry LRU icon cache, 200-entry Companion blob-URL cache with revocation, lifecycle detach on disposal).
+- Startup registration reconciliation (Registry / elevated scheduled task / conflict / broken evaluated against real state, UAC-cancel feedback).
 
 ### Changed
 
 - `version.txt` is now `1.0.1`; every user-visible surface reports 1.0.1 from this single source (WPF, Companion, installer file name, About, API status, benchmark metadata).
+- Benchmark capture/analyzer engine unchanged (presentation-only virtualization and icon-cache work on top).
+- Windows application manifest declares 1.0.1.0; Companion static version placeholders and asset cache-busting declare 1.0.1.
 
 History of earlier releases is preserved below unchanged.
 

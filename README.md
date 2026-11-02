@@ -24,10 +24,14 @@ LAN Companion server, CS2 configuration and hardware monitoring in one desktop a
 
 ### What's new in 1.0.1
 
-- **First-run setup polish:** predictable keyboard focus and Enter behavior across the six wizard steps, a summary that always reflects your choices, and Live FPS that can no longer stay enabled while Companion is off.
-- **Honest update notifications:** the desktop update check now verifies that the matching GitHub Release is actually published before notifying, so you are never pointed at a release page without an installer.
-- **Settings clarity:** the data & reset section gives the first-run setup its own heading instead of repeating the button label.
-- **Upgrade-safe patch:** same installer identity, same data locations, no re-onboarding for existing 1.0.0 installations.
+- **First-run setup wizard:** six guided steps (language, Hardware monitoring, Companion, Live FPS, Start with Windows, summary) on fresh installs, with light OFF-by-default optional modules and a core that stays always on. Upgrades never see it.
+- **Explicit Live FPS opt-in:** continuous PresentMon preview runs only with Companion **and** Live FPS enabled; one-demand benchmarks stay independent.
+- **Application data & reset:** restore defaults or fully erase FrameHub-owned data (`RESET` confirmation), blocked during benchmark/session/recovery, with startup-residue warnings that never fail the wipe.
+- **Optional PresentMon install:** checked-by-default component — deselect to install nothing; verified v2.5.1 is reused, newer installs are never downgraded, and the app runs without it.
+- **Honest update notifications:** the desktop notifies only when the matching published GitHub Release carries the expected installer asset.
+- **Window, stability and memory fixes (W1/W2/audit):** maximized-window work-area clamp, bounded virtualized lists, view-model lifecycle fixes, bounded icon caches, startup-registration reconciliation and localization polish.
+
+See the [1.0.1 release notes](docs/RELEASE_NOTES_1.0.1.md) for the complete list since the published 1.0.0 installer.
 
 ### What's new in 1.0.0
 

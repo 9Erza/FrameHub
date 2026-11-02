@@ -24,10 +24,14 @@ serwer LAN Companion, konfiguracja CS2 oraz monitoring sprzętu w jednej aplikac
 
 ### Co nowego w 1.0.1
 
-- **Dopracowany kreator pierwszego uruchomienia:** przewidywalny fokus klawiatury i działanie Enter na sześciu krokach, podsumowanie zawsze zgodne z wyborami oraz Live FPS, którego nie da się zostawić włączonego przy wyłączonym Companion.
-- **Uczciwe powiadomienia o aktualizacji:** sprawdzanie aktualizacji potwierdza, że pasujące wydanie GitHub jest rzeczywiście opublikowane, zanim pokaże powiadomienie — nie kieruje do strony wydania bez instalatora.
-- **Czytelniejsze Ustawienia:** sekcja danych i resetu ma własny nagłówek kreatora zamiast powtarzania etykiety przycisku.
-- **Bezpieczna aktualizacja:** ta sama tożsamość instalatora, te same lokalizacje danych, brak ponownego kreatora dla istniejących instalacji 1.0.0.
+- **Kreator pierwszego uruchomienia:** sześć kroków (język, monitor sprzętu, Companion, Live FPS, start z Windows, podsumowanie) przy świeżej instalacji; lekkie domyślnie WYŁĄCZONE moduły, rdzeń zawsze włączony. Aktualizacje go nie pokazują.
+- **Jawny Live FPS:** ciągły podgląd PresentMon tylko przy włączonym Companion **i** Live FPS; jednorazowe benchmarki niezależne.
+- **Dane aplikacji i reset:** przywracanie domyślnych lub pełne czyszczenie danych FrameHub (potwierdzenie `RESET`), blokowane podczas benchmarku/sesji/odzyskiwania, z ostrzeżeniami o autostarcie bez psucia czyszczenia.
+- **Opcjonalny PresentMon:** domyślnie zaznaczony komponent — odznaczenie nic nie instaluje; zweryfikowane v2.5.1 wykorzystywane ponownie, nowsze nigdy nie obniżane, aplikacja działa i bez niego.
+- **Uczciwe powiadomienia o aktualizacji:** powiadomienie tylko, gdy pasujące opublikowane wydanie GitHub zawiera oczekiwany asset instalatora.
+- **Poprawki okien, stabilności i pamięci (W1/W2/audyt):** clamp zmaksymalizowanych okien do obszaru roboczego, ograniczone wirtualizowane listy, poprawki lifecycle view-modeli, ograniczone cache ikon, uzgadnianie autostartu i szlif lokalizacji.
+
+Pełną listę od opublikowanego instalatora 1.0.0 znajdziesz w [opisie wydania 1.0.1](docs/RELEASE_NOTES_1.0.1.md).
 
 ### Co nowego w 1.0.0
 
