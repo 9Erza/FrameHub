@@ -95,9 +95,9 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Style="{StaticResource SecondaryButton}" Content="{Binding BackText}" Command="{Binding BackCommand}" AutomationProperties.Name="{Binding BackText}" MinWidth="110" />
-                <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="{Binding NextText}" Command="{Binding NextCommand}" AutomationProperties.Name="{Binding NextText}" MinWidth="110" Margin="0,0,8,0" Visibility="{Binding IsLastStep, Converter={StaticResource InverseBoolToVisibilityConverter}}" IsDefault="True" />
-                <Button x:Name="FinishButton" Grid.Column="3" Style="{StaticResource PrimaryButton}" Content="{Binding FinishText}" Command="{Binding FinishCommand}" AutomationProperties.Name="{Binding FinishText}" MinWidth="140" Visibility="{Binding IsLastStep, Converter={StaticResource BoolToVisibilityConverter}}" />
+                <Button Grid.Column="0" x:Name="BackButton" Style="{StaticResource SecondaryButton}" Content="{Binding BackText}" Command="{Binding BackCommand}" AutomationProperties.Name="{Binding BackText}" MinWidth="110" />
+                <Button Grid.Column="2" x:Name="NextButton" Style="{StaticResource SecondaryButton}" Content="{Binding NextText}" Command="{Binding NextCommand}" AutomationProperties.Name="{Binding NextText}" MinWidth="110" Margin="0,0,8,0" Visibility="{Binding IsLastStep, Converter={StaticResource InverseBoolToVisibilityConverter}}" IsDefault="True" />
+                <Button x:Name="FinishButton" Grid.Column="3" Style="{StaticResource PrimaryButton}" Content="{Binding FinishText}" Command="{Binding FinishCommand}" AutomationProperties.Name="{Binding FinishText}" MinWidth="140" Visibility="{Binding IsLastStep, Converter={StaticResource BoolToVisibilityConverter}}" IsDefault="True" />
             </Grid>
         </Grid>
     </Border>

@@ -608,6 +608,7 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
     public string FactoryResetConfirmHint => _localization.T("Settings.DataReset.FactoryResetConfirmHint");
     public string FactoryResetButton => _localization.T("Settings.DataReset.FactoryResetButton");
     public string ReopenWizardButton => _localization.T("Settings.DataReset.ReopenWizardButton");
+    public string ReopenWizardTitle => _localization.T("Settings.DataReset.ReopenWizardTitle");
     public string ReopenWizardDescription => _localization.T("Settings.DataReset.ReopenWizardDescription");
     public string ResetConfirmTitle => _localization.T("Settings.DataReset.ResetConfirmTitle");
     public string ResetConfirmMessage => _localization.T("Settings.DataReset.ResetConfirmMessage");
@@ -1098,6 +1099,7 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(FactoryResetConfirmHint));
         OnPropertyChanged(nameof(FactoryResetButton));
         OnPropertyChanged(nameof(ReopenWizardButton));
+        OnPropertyChanged(nameof(ReopenWizardTitle));
         OnPropertyChanged(nameof(ReopenWizardDescription));
         OnPropertyChanged(nameof(ResetConfirmTitle));
         OnPropertyChanged(nameof(ResetConfirmMessage));

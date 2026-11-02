@@ -842,6 +842,94 @@ public sealed class FirstRunAndResetTests
         if (failure is not null) Assert.Fail(failure.ToString());
     }
 
+    [TestMethod]
+    public void WizardCompanionOff_CoercesLiveFpsOffAndRefreshesSummary()
+    {
+        RunOnSta(() =>
+        {
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var wizard = new FirstRunSetupViewModel(localization, runtime);
+            wizard.CompanionEnabled = true;
+            wizard.LiveTelemetryEnabled = true;
+            string before = wizard.SummaryText;
+            Assert.IsTrue(before.Contains(localization.T("FirstRun.Summary.On"), StringComparison.Ordinal));
+            wizard.CompanionEnabled = false;
+            Assert.IsFalse(wizard.LiveTelemetryEnabled,
+                "Live FPS requires Companion; turning Companion off must coerce it off in the draft.");
+            Assert.AreNotEqual(before, wizard.SummaryText,
+                "The summary step must reflect choice changes made earlier in the wizard.");
+        });
+    }
+
+    [TestMethod]
+    public async Task WizardFinish_CoercesLiveFpsWhenCompanionOff()
+    {
+        await RunOnStaAsync(async () =>
+        {
+            AssumeNoStartupResidue();
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            var wizard = new FirstRunSetupViewModel(localization, runtime);
+            wizard.CompanionEnabled = true;
+            wizard.LiveTelemetryEnabled = true;
+            wizard.CompanionEnabled = false;
+            await wizard.FinishAsync();
+            Assert.IsFalse(runtime.Settings.CompanionEnabled);
+            Assert.IsFalse(runtime.Settings.LiveTelemetryEnabled,
+                "Finish must never persist Live FPS on while Companion is off.");
+        });
+    }
+
+    [TestMethod]
+    public void ReopenWizardTitle_IsDistinctAndLocalized()
+    {
+        RunOnSta(() =>
+        {
+            using var runtime = CreateRuntime();
+            var localization = new LocalizationService(runtime.SettingsService);
+            localization.SetLanguage("en");
+            string enTitle = localization.T("Settings.DataReset.ReopenWizardTitle");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(enTitle) || enTitle == "Settings.DataReset.ReopenWizardTitle");
+            Assert.AreNotEqual(localization.T("Settings.DataReset.ReopenWizardButton"), enTitle,
+                "Section title and button must not share one label.");
+            localization.SetLanguage("pl");
+            string plTitle = localization.T("Settings.DataReset.ReopenWizardTitle");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(plTitle) || plTitle == "Settings.DataReset.ReopenWizardTitle");
+            Assert.AreNotEqual(localization.T("Settings.DataReset.ReopenWizardButton"), plTitle);
+            var vm = new SettingsViewModel(localization, runtime);
+            try
+            {
+                Assert.AreEqual(plTitle, vm.ReopenWizardTitle);
+            }
+            finally
+            {
+                vm.Dispose();
+            }
+        });
+    }
+
+    [TestMethod]
+    public void FirstRunDialog_FocusesVisiblePrimaryActionAndFinishesWithEnter()
+    {
+        string? directory = Path.GetDirectoryName(typeof(FirstRunAndResetTests).Assembly.Location);
+        while (directory != null && !Directory.Exists(Path.Combine(directory, "FrameHub.App")))
+        {
+            directory = Path.GetDirectoryName(directory);
+        }
+
+        if (directory == null) Assert.Inconclusive("Repository source root was not discoverable.");
+        string xaml = File.ReadAllText(Path.Combine(directory!, "FrameHub.App", "Views", "FirstRunSetupWindow.xaml"));
+        StringAssert.Contains(xaml, "x:Name=\"NextButton\"", "The wizard must name the Next step button for focus control.");
+        StringAssert.Contains(xaml, "IsDefault=\"True\"", "Enter must trigger the visible primary action.");
+        StringAssert.Contains(xaml, "AutomationProperties.Name=\"{Binding FinishText}\"",
+            "Finish must keep its accessible name.");
+        string codeBehind = File.ReadAllText(Path.Combine(directory!, "FrameHub.App", "Views", "FirstRunSetupWindow.xaml.cs"));
+        StringAssert.Contains(codeBehind, "NextButton.Focus()", "Initial focus must land on the visible Next action.");
+        StringAssert.Contains(codeBehind, "FinishButton.Focus()", "Focus must move to Finish on the last step.");
+        StringAssert.Contains(codeBehind, "IsLastStep", "Focus must follow step navigation.");
+    }
+
     private void SeedUserData(int marker)
     {
         File.WriteAllText(Path.Combine(_tempDirectory, "settings.json"),

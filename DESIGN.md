@@ -1,6 +1,8 @@
-# FrameHub desktop design — current 1.0.0
+# FrameHub desktop design — current 1.0.1
 
-This document records the implemented WPF design direction in FrameHub 1.0.0.
+This document records the implemented WPF design direction in FrameHub 1.0.0,
+retained unchanged in 1.0.1 (1.0.1 is a behavioral patch; it introduces no
+new tokens, controls or visual language).
 The desktop redesign and the matching Companion theme are part of the current
 source tree; documented QA limitations and future refinements remain separate.
 

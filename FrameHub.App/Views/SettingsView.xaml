@@ -488,7 +488,7 @@
                         <Button Style="{StaticResource DangerButton}" Content="{Binding FactoryResetButton}" Command="{Binding FactoryResetCommand}" AutomationProperties.Name="{Binding FactoryResetButton}" HorizontalAlignment="Left" Margin="0,10,0,0" IsEnabled="{Binding IsFactoryResetArmed}" />
                         <TextBlock Text="{Binding DataResetStatusMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding DataResetStatusMessage, Converter={StaticResource NonEmptyToVisibilityConverter}}" />
                         <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,12,0,12" />
-                        <TextBlock Text="{Binding ReopenWizardButton}" Style="{StaticResource DataTitleText}" />
+                        <TextBlock Text="{Binding ReopenWizardTitle}" Style="{StaticResource DataTitleText}" />
                         <TextBlock Text="{Binding ReopenWizardDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,8" />
                         <Button Style="{StaticResource SubtleButton}" Content="{Binding ReopenWizardButton}" Command="{Binding ReopenSetupWizardCommand}" AutomationProperties.Name="{Binding ReopenWizardButton}" HorizontalAlignment="Left" />
                     </StackPanel>

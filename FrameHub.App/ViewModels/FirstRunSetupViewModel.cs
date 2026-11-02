@@ -131,25 +131,67 @@ public sealed class FirstRunSetupViewModel : ViewModelBase
     public bool HardwareMonitorEnabled
     {
         get => Draft.HardwareMonitorEnabled;
-        set { if (Draft.HardwareMonitorEnabled != value) { Draft.HardwareMonitorEnabled = value; OnPropertyChanged(); } }
+        set
+        {
+            if (Draft.HardwareMonitorEnabled != value)
+            {
+                Draft.HardwareMonitorEnabled = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SummaryText));
+            }
+        }
     }
 
     public bool LiveTelemetryEnabled
     {
         get => Draft.LiveTelemetryEnabled;
-        set { if (Draft.LiveTelemetryEnabled != value) { Draft.LiveTelemetryEnabled = value; OnPropertyChanged(); } }
+        set
+        {
+            if (Draft.LiveTelemetryEnabled != value)
+            {
+                Draft.LiveTelemetryEnabled = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SummaryText));
+            }
+        }
     }
 
     public bool CompanionEnabled
     {
         get => Draft.CompanionEnabled;
-        set { if (Draft.CompanionEnabled != value) { Draft.CompanionEnabled = value; OnPropertyChanged(); } }
+        set
+        {
+            if (Draft.CompanionEnabled != value)
+            {
+                Draft.CompanionEnabled = value;
+                OnPropertyChanged();
+                if (!value && Draft.LiveTelemetryEnabled)
+                {
+                    // Live FPS runs on top of Companion: keeping it enabled while
+                    // Companion is off would persist a contradictory draft and show
+                    // a misleading summary. Coerce it off (the user can re-enable
+                    // it after turning Companion back on).
+                    Draft.LiveTelemetryEnabled = false;
+                    OnPropertyChanged(nameof(LiveTelemetryEnabled));
+                }
+
+                OnPropertyChanged(nameof(SummaryText));
+            }
+        }
     }
 
     public bool StartWithWindows
     {
         get => Draft.StartWithWindows;
-        set { if (Draft.StartWithWindows != value) { Draft.StartWithWindows = value; OnPropertyChanged(); } }
+        set
+        {
+            if (Draft.StartWithWindows != value)
+            {
+                Draft.StartWithWindows = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SummaryText));
+            }
+        }
     }
 
     public string SummaryText => string.Join(
@@ -185,6 +227,13 @@ public sealed class FirstRunSetupViewModel : ViewModelBase
                 Draft.CompanionEnabled = false;
                 Draft.CompanionLanEnabled = false;
                 Draft.StartWithWindows = false;
+            }
+            else if (!Draft.CompanionEnabled)
+            {
+                // Safety net matching the CompanionEnabled setter coercion: Live FPS
+                // requires Companion, so a draft with Companion off must not persist
+                // Live FPS on (e.g. toggled in an order the setter did not observe).
+                Draft.LiveTelemetryEnabled = false;
             }
 
             _runtime.SaveSettings(SettingsViewModel.Clone(Draft));

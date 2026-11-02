@@ -71,7 +71,7 @@ public sealed class CompanionMobileShellTests
             "Mobile sensor values must have dedicated density handling.");
         StringAssert.Contains(css, "min-height: 44px;",
             "Keyboard skip link and mobile controls must meet the 44px target.");
-        StringAssert.Contains(html, "/js/auth-transport.js?v=1.0.0",
+        StringAssert.Contains(html, "/js/auth-transport.js?v=" + SharedFrontendAssetVersion(html),
             "Updated frontend scripts must use the same asset version as CSS and logos.");
     }
 
@@ -262,5 +262,22 @@ public sealed class CompanionMobileShellTests
             selectorIndex = css.IndexOf(selector, braceClose, StringComparison.Ordinal);
         }
         return false;
+    }
+
+    /// <summary>
+    /// All versioned frontend asset URLs must share one cache-busting version
+    /// derived from the product version (never pinned per-release literals, so
+    /// future bumps cannot desynchronize CSS, logos and scripts).
+    /// </summary>
+    private static string SharedFrontendAssetVersion(string html)
+    {
+        var versions = System.Text.RegularExpressions.Regex.Matches(html, @"\?v=(\d+\.\d+\.\d+)")
+            .Select(match => match.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        Assert.AreEqual(1, versions.Count,
+            "All frontend assets must share one versioned cache-busting query; found: "
+            + string.Join(",", versions));
+        return versions[0];
     }
 }
