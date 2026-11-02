@@ -471,7 +471,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             _gamesView.Filter = FilterGameOption;
         }
 
-        Games.CollectionChanged += (_, _) => NotifyGameListChanged();
+        Games.CollectionChanged += OnGamesChanged;
         LoadSelectedGameConfiguration();
         RebuildSuspendedList();
         RequestProcessRefresh(forceScan: true);
@@ -484,6 +484,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
             ? (IsPolish ? "Wykryto aktywną sesję. Użyj przywracania, aby wznowić procesy." : "Active session detected. Use restore to resume processes.")
             : (IsPolish ? "Gotowe." : "Ready."));
     }
+
+    private void OnGamesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => NotifyGameListChanged();
 
     private void OnCoordinatorSessionStateChanged(object? sender, ActiveSessionState? session)
     {
@@ -1341,6 +1343,7 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        Games.CollectionChanged -= OnGamesChanged;
         _coordinator.SessionStateChanged -= OnCoordinatorSessionStateChanged;
         CancellationTokenSource? refreshCancellation = _processRefreshCancellation;
         _processRefreshCancellation = null;

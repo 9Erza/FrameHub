@@ -1,6 +1,7 @@
 using FrameHub.App.Helpers;
 using FrameHub.App.Services;
 using FrameHub.Core.Models;
+using FrameHub.Core.Models.Benchmarking;
 using FrameHub.Core.Services;
 using FrameHub.Core.Services.Library;
 using System.Collections.ObjectModel;
@@ -202,13 +203,7 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         _processesView = CollectionViewSource.GetDefaultView(Processes);
         _processesView.Filter = MatchesSearchFilter;
 
-        _runtime.BenchmarkCoordinator.StateChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(IsBenchmarkActive));
-            OnPropertyChanged(nameof(CanApplyToSelection));
-            OnPropertyChanged(nameof(ApplyDisabledReason));
-            OnPropertyChanged(nameof(IsApplyDisabledReasonVisible));
-        };
+        _runtime.BenchmarkCoordinator.StateChanged += OnBenchmarkStateChanged;
 
         _refreshTimer = new DispatcherTimer
         {
@@ -569,10 +564,19 @@ public sealed class ProcessesViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private void OnBenchmarkStateChanged(object? sender, BenchmarkCaptureStateSnapshot snapshot)
+    {
+        OnPropertyChanged(nameof(IsBenchmarkActive));
+        OnPropertyChanged(nameof(CanApplyToSelection));
+        OnPropertyChanged(nameof(ApplyDisabledReason));
+        OnPropertyChanged(nameof(IsApplyDisabledReasonVisible));
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        _runtime.BenchmarkCoordinator.StateChanged -= OnBenchmarkStateChanged;
         Stop();
     }
 }

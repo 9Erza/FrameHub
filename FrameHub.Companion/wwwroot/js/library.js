@@ -2,7 +2,23 @@
 
     let isLibraryFetching = false;
     let cachedLibraryItems = null;
+    // Bounded blob-URL cache (audit 2026-11): entries are object URLs that pin
+    // decoded image bytes until revoked. Cap at 200 with FIFO eviction so a
+    // long-lived phone session cannot accumulate icon URLs without limit.
     const iconUrlCache = new Map();
+    const iconUrlCacheCapacity = 200;
+
+    function setIconUrlCache(itemId, value) {
+        if (iconUrlCache.has(itemId)) iconUrlCache.delete(itemId);
+        iconUrlCache.set(itemId, value);
+        while (iconUrlCache.size > iconUrlCacheCapacity) {
+            const oldest = iconUrlCache.keys().next();
+            if (oldest.done) break;
+            const evicted = iconUrlCache.get(oldest.value);
+            iconUrlCache.delete(oldest.value);
+            if (typeof evicted === 'string') URL.revokeObjectURL(evicted);
+        }
+    }
 
     async function fetchLibraryItems() {
         if (isLibraryFetching) return;
@@ -176,18 +192,18 @@
             if (resp.ok) {
                 const blob = await resp.blob();
                 const objectUrl = URL.createObjectURL(blob);
-                iconUrlCache.set(itemId, objectUrl);
+                setIconUrlCache(itemId, objectUrl);
                 const img = document.createElement('img');
                 img.className = 'library-card-icon';
                 img.alt = '';
                 img.src = objectUrl;
                 wrapEl.appendChild(img);
             } else {
-                iconUrlCache.set(itemId, null);
+                setIconUrlCache(itemId, null);
                 renderIconPlaceholder(wrapEl);
             }
         } catch (_) {
-            iconUrlCache.set(itemId, null);
+            setIconUrlCache(itemId, null);
             renderIconPlaceholder(wrapEl);
         }
     }

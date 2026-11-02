@@ -27,14 +27,8 @@ public sealed class BenchmarkGameOptionViewModel : ViewModelBase
     {
         get
         {
-            try
-            {
-                string? path = !string.IsNullOrWhiteSpace(Item.IconPath) ? Item.IconPath : Item.ExecutablePath;
-                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
-                using var icon = System.Drawing.Icon.ExtractAssociatedIcon(path);
-                return icon is null ? null : System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon.Handle, System.Windows.Int32Rect.Empty, BitmapSizeOptions.FromWidthAndHeight(32, 32));
-            }
-            catch { return null; }
+            string? path = !string.IsNullOrWhiteSpace(Item.IconPath) ? Item.IconPath : Item.ExecutablePath;
+            return GameIconCache.GetOrLoad(path, 32);
         }
     }
 }

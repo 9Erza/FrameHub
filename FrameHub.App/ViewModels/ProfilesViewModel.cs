@@ -10,10 +10,11 @@ using System.Windows.Input;
 
 namespace FrameHub.App.ViewModels;
 
-public sealed class ProfilesViewModel : ViewModelBase
+public sealed class ProfilesViewModel : ViewModelBase, IDisposable
 {
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
+    private bool _disposed;
     private ProcessProfile? _selectedProfile;
     private string _selectedPriority = "Normal";
     private OptimizationModeOptionViewModel? _selectedOptimizationModeOption;
@@ -178,7 +179,7 @@ public sealed class ProfilesViewModel : ViewModelBase
     {
         _localization = localization;
         _runtime = runtime;
-        _runtime.ProfilesChanged += (_, _) => RefreshProfiles();
+        _runtime.ProfilesChanged += OnProfilesChanged;
 
         BuildEditorCoreLists();
         RefreshOptimizationModes();
@@ -600,5 +601,14 @@ public sealed class ProfilesViewModel : ViewModelBase
         return mode == OptimizationMode.CpuSets
             ? _localization.T("OptimizationMode.CpuSets")
             : _localization.T("OptimizationMode.Affinity");
+    }
+
+    private void OnProfilesChanged(object? sender, EventArgs e) => RefreshProfiles();
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _runtime.ProfilesChanged -= OnProfilesChanged;
     }
 }

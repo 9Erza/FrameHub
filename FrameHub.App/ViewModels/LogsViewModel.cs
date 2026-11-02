@@ -8,13 +8,14 @@ using System.Windows.Input;
 
 namespace FrameHub.App.ViewModels;
 
-public sealed class LogsViewModel : ViewModelBase
+public sealed class LogsViewModel : ViewModelBase, IDisposable
 {
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
     private readonly ICollectionView _activityView;
     private string _searchText = string.Empty;
     private int _selectedLevelFilterIndex;
+    private bool _disposed;
 
     public string Title => _localization.T("Logs.Title");
     public string Subtitle => _localization.T("Logs.Subtitle");
@@ -69,7 +70,7 @@ public sealed class LogsViewModel : ViewModelBase
         _runtime = runtime;
         _activityView = CollectionViewSource.GetDefaultView(Activity);
         _activityView.Filter = MatchesFilter;
-        _runtime.Activity.CollectionChanged += (_, _) => RefreshView();
+        _runtime.Activity.CollectionChanged += OnActivityChanged;
         RefreshLevelFilterOptions();
 
         OpenLogFolderCommand = new RelayCommand(_ => OpenLogFolder());
@@ -129,6 +130,19 @@ public sealed class LogsViewModel : ViewModelBase
     {
         _activityView.Refresh();
         OnPropertyChanged(nameof(CountText));
+    }
+
+    private void OnActivityChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => RefreshView();
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _runtime.Activity.CollectionChanged -= OnActivityChanged;
+        // The default ICollectionView for the runtime-owned Activity collection
+        // is cached process-wide; its Filter delegate would otherwise keep this
+        // VM alive after Dispose. Release it explicitly.
+        _activityView.Filter = null;
     }
 
     private bool MatchesFilter(object obj)

@@ -21,29 +21,8 @@ public sealed class SessionGameOptionViewModel : ViewModelBase
     {
         get
         {
-            try
-            {
-                string? path = !string.IsNullOrWhiteSpace(Item.IconPath) ? Item.IconPath : Item.ExecutablePath;
-                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-                {
-                    return null;
-                }
-
-                using var icon = System.Drawing.Icon.ExtractAssociatedIcon(path);
-                if (icon == null)
-                {
-                    return null;
-                }
-
-                return System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
-                    icon.Handle,
-                    System.Windows.Int32Rect.Empty,
-                    BitmapSizeOptions.FromWidthAndHeight(28, 28));
-            }
-            catch
-            {
-                return null;
-            }
+            string? path = !string.IsNullOrWhiteSpace(Item.IconPath) ? Item.IconPath : Item.ExecutablePath;
+            return GameIconCache.GetOrLoad(path, 28);
         }
     }
 

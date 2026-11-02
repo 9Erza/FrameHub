@@ -172,14 +172,18 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
         RefreshTimerResolutionCommand = new RelayCommand(_ => RefreshTimerResolution());
         _isElevatedProbe = isElevatedProbe ?? runtime.SettingsService.IsRunAsAdmin;
         IsProcessElevated = _isElevatedProbe();
-        _runtime.WatcherStateChanged += (_, _) => OnPropertyChanged(nameof(ProfileWatcherStatus));
-        _runtime.RuntimeStateChanged += (_, _) => OnSettingsChanged();
+        _runtime.WatcherStateChanged += OnWatcherStateChanged;
+        _runtime.RuntimeStateChanged += OnRuntimeStateChanged;
         _timer = new DispatcherTimer
         {
             Interval = TimeSpan.FromSeconds(Math.Clamp(_runtime.Settings.HardwareRefreshSeconds, 1, 10))
         };
         _timer.Tick += async (_, _) => await UpdateMetricsAsync();
     }
+
+    private void OnWatcherStateChanged(object? sender, EventArgs e) => OnPropertyChanged(nameof(ProfileWatcherStatus));
+
+    private void OnRuntimeStateChanged(object? sender, EventArgs e) => OnSettingsChanged();
 
     private void OnSettingsChanged()
     {
@@ -343,6 +347,8 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _runtime.WatcherStateChanged -= OnWatcherStateChanged;
+        _runtime.RuntimeStateChanged -= OnRuntimeStateChanged;
         _pageActive = false;
         StopPolling();
         _hardwareLease?.Dispose();
