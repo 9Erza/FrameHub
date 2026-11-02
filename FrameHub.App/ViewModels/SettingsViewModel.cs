@@ -703,31 +703,10 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         {
             AppRuntimeService.UserDataWipeResult result =
                 await _runtime.WipeAllUserDataAsync().ConfigureAwait(true);
-            if (result.Blocked)
+            DataResetStatusMessage = BuildWipeStatusMessage(result);
+            if (!ShouldRestartAfterWipe(result))
             {
-                DataResetStatusMessage = _localization.T("Settings.DataReset.BlockedBusy");
                 return;
-            }
-
-            if (!result.Success)
-            {
-                DataResetStatusMessage = string.Format(
-                    System.Globalization.CultureInfo.CurrentCulture,
-                    _localization.T("Settings.DataReset.WipeIncomplete"),
-                    string.Join("; ", result.Errors));
-                return;
-            }
-
-            if (result.StartupRemovalError is not null)
-            {
-                DataResetStatusMessage = string.Format(
-                    System.Globalization.CultureInfo.CurrentCulture,
-                    _localization.T("Settings.DataReset.WipeCompleteStartupRemains"),
-                    result.StartupRemovalError);
-            }
-            else
-            {
-                DataResetStatusMessage = _localization.T("Settings.DataReset.WipeCompleteRestarting");
             }
 
             FactoryResetConfirmationText = string.Empty;
@@ -738,6 +717,45 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         {
             IsFactoryResetBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Restart into the first-run wizard happens whenever data deletion
+    /// completed — including when only the startup-entry removal failed.
+    /// Blocked and data-failed wipes never restart.
+    /// </summary>
+    internal static bool ShouldRestartAfterWipe(AppRuntimeService.UserDataWipeResult result) =>
+        !result.Blocked && result.Success;
+
+    /// <summary>
+    /// User-facing wipe outcome. A leftover startup entry warns explicitly and
+    /// is never presented as full success; data failure is never presented as
+    /// success either.
+    /// </summary>
+    internal string BuildWipeStatusMessage(AppRuntimeService.UserDataWipeResult result)
+    {
+        if (result.Blocked)
+        {
+            return _localization.T("Settings.DataReset.BlockedBusy");
+        }
+
+        if (!result.Success)
+        {
+            return string.Format(
+                System.Globalization.CultureInfo.CurrentCulture,
+                _localization.T("Settings.DataReset.WipeIncomplete"),
+                string.Join("; ", result.Errors));
+        }
+
+        if (result.StartupRemovalError is not null)
+        {
+            return string.Format(
+                System.Globalization.CultureInfo.CurrentCulture,
+                _localization.T("Settings.DataReset.WipeCompleteStartupRemains"),
+                result.StartupRemovalError);
+        }
+
+        return _localization.T("Settings.DataReset.WipeCompleteRestarting");
     }
 
     public void RefreshLanAddresses()
