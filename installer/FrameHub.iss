@@ -52,6 +52,7 @@ RestartApplications=no
 
 [Tasks]
 Name: "desktopicon"; Description: "Utwórz skrót na pulpicie"; GroupDescription: "Dodatkowe skróty:"; Flags: unchecked
+Name: "presentmon"; Description: "Intel PresentMon 2.5.1 — monitoring FPS i benchmarki (zalecane)"; GroupDescription: "Opcjonalne komponenty:"; Flags: checkablealone
 
 [Files]
 Source: "..\artifacts\publish\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -78,8 +79,14 @@ function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo,
 begin
   Result := MemoDirInfo + NewLine + NewLine + MemoGroupInfo + NewLine +
     MemoTasksInfo + NewLine + NewLine +
-    'FrameHub includes Intel PresentMon 2.5.1 as a benchmark prerequisite. ' +
-    'Setup installs or repairs it automatically when required.';
+    'FrameHub includes Intel PresentMon 2.5.1 as a benchmark prerequisite. ';
+  if WizardIsTaskSelected('presentmon') then
+    Result := Result +
+      'Setup installs or repairs it automatically when required.'
+  else
+    Result := Result +
+      'PresentMon installation was deselected: Setup will not install, repair or start it. ' +
+      'FrameHub runs normally, but FPS monitoring and PresentMon-based benchmarks report the missing dependency.';
 end;
 
 function ServiceExecutableFromImagePath(const ImagePath: String): String;
@@ -171,6 +178,14 @@ var
   ResultCode: Integer;
 begin
   Result := '';
+  { Optional PresentMon component: deselected means no install, no repair and
+    no msiexec involvement at all. An already installed PresentMon is left
+    untouched and may still be used by FrameHub. }
+  if not WizardIsTaskSelected('presentmon') then begin
+    Log('PresentMon task deselected: skipping PresentMon verification and MSI installation.');
+    exit;
+  end;
+
   if IsCompatiblePresentMonInstalled() then
     exit;
 
