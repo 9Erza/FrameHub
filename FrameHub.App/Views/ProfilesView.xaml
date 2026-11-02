@@ -123,21 +123,6 @@
         <Border x:Name="ProfileEditorPanel" Grid.Column="2" Style="{StaticResource SectionSurface}" Visibility="{Binding IsProfileSelected, Converter={StaticResource BoolToVisibilityConverter}}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <Grid MinHeight="420">
-                    <Border Padding="24" Background="Transparent">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Visibility" Value="Visible" />
-                                <Style.Triggers><DataTrigger Binding="{Binding IsProfileSelected}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="330">
-                            <TextBlock Text="{Binding SelectProfileTitle}" Style="{StaticResource SectionTitleText}" HorizontalAlignment="Center" />
-                            <TextBlock Text="{Binding SelectProfileDescription}" Style="{StaticResource SecondaryBodyText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0" />
-                            <!-- QA E F7: with zero profiles the right card gains the first step too. -->
-                            <TextBlock Text="{Binding FirstProfileHintText}" Style="{StaticResource CaptionText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding HasItems, ElementName=ProfilesGrid, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
-                        </StackPanel>
-                    </Border>
-
                     <StackPanel Visibility="{Binding IsProfileSelected, Converter={StaticResource BoolToVisibilityConverter}}">
                     <TextBlock Text="{Binding ProfileDetailsTitle}" Style="{StaticResource SectionTitleText}" />
                     <TextBlock Text="{Binding ProfileDetailsHint}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,4,0,12" />

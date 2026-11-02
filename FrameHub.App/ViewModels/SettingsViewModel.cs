@@ -18,10 +18,11 @@ using System.Windows.Input;
 
 namespace FrameHub.App.ViewModels;
 
-public sealed class SettingsViewModel : ViewModelBase
+public sealed class SettingsViewModel : ViewModelBase, IDisposable
 {
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
+    private bool _disposed;
     private readonly StartupApplyCoordinator _startupApplyCoordinator;
     private readonly UpdateService _updateService = new();
     private AppSettings _settings;
@@ -1186,4 +1187,13 @@ public sealed class SettingsViewModel : ViewModelBase
         CompanionPort = source.CompanionPort,
         CustomLibraryLocations = source.CustomLibraryLocations?.ToList() ?? new()
     };
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _runtime.CompanionServer.StatusChanged -= OnCompanionStatusChanged;
+        _runtime.CompanionServer.PairingEngine.SessionStatusChanged -= OnPairingSessionStatusChanged;
+        Dns.Dispose();
+    }
 }

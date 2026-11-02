@@ -12,7 +12,7 @@ namespace FrameHub.App.ViewModels;
 /// resolvers and preset latency comparison. It NEVER mutates Windows network
 /// settings — there is no Apply/Rollback/DHCP code path here by design.
 /// </summary>
-public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
+public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase, IDisposable
 {
     private readonly LocalizationService _localization;
     private readonly DnsDiagnosticsService _service = new();
@@ -159,8 +159,13 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
     private async Task CompareAsync()
     {
         if (IsComparing) return;
-        _compareCts?.Dispose();
+        // Cancel-then-dispose rotation (QA P2-2): the superseded run captured a
+        // CancellationToken struct that stays usable after Dispose; only reads of
+        // the source's .Token property would throw, and none happen after an await.
+        CancellationTokenSource? previous = _compareCts;
         _compareCts = new CancellationTokenSource();
+        previous?.Cancel();
+        previous?.Dispose();
         CancellationToken token = _compareCts.Token;
 
         string hostname = Hostname.Trim();
@@ -168,6 +173,7 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
         {
             _statusText = _localization.T("Dns.HostnameRequired");
             OnPropertyChanged(nameof(StatusText));
+            DisposeCompareCts();
             return;
         }
 
@@ -177,6 +183,7 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
         {
             _statusText = _localization.T("Dns.CustomInvalid");
             OnPropertyChanged(nameof(StatusText));
+            DisposeCompareCts();
             return;
         }
 
@@ -273,5 +280,18 @@ public sealed class DnsDiagnosticsPanelViewModel : ViewModelBase
         if (!SetProperty(ref _isComparing, comparing)) return;
         OnPropertyChanged(nameof(IsComparing));
         OnPropertyChanged(nameof(IsCompareIdle));
+    }
+
+    private void DisposeCompareCts()
+    {
+        CancellationTokenSource? current = _compareCts;
+        _compareCts = null;
+        current?.Cancel();
+        current?.Dispose();
+    }
+
+    public void Dispose()
+    {
+        DisposeCompareCts();
     }
 }

@@ -180,42 +180,12 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _logsViewModel = new LogsViewModel(_localization, _runtime);
         _settingsViewModel = new SettingsViewModel(_localization, _runtime);
 
-        _localization.LanguageChanged += (_, _) =>
-        {
-            _runtime.ReloadSettings();
-            _runtime.RefreshActivityLanguage();
-            _settingsViewModel.ReloadFromRuntime();
-            RefreshTexts();
-            UiLanguageChanged?.Invoke(this, EventArgs.Empty);
-        };
-        _runtime.WatcherStateChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(IsWatcherActive));
-            OnPropertyChanged(nameof(WatcherStatus));
-            UpdateProfilesBadge();
-        };
-        _runtime.ProfilesChanged += (_, _) =>
-        {
-            _dashboardViewModel.RefreshTexts();
-            _libraryViewModel.RefreshTexts();
-            UpdateProfilesBadge();
-        };
-        _runtime.SessionOptimizationCoordinator.SessionStateChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(IsSessionActive));
-            OnPropertyChanged(nameof(IsRecoveryPending));
-            OnPropertyChanged(nameof(SessionStatus));
-            OnPropertyChanged(nameof(SessionPillText));
-        };
-        _benchmarkViewModel.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(BenchmarkViewModel.EngineReady) or nameof(BenchmarkViewModel.EngineStatus))
-            {
-                OnPropertyChanged(nameof(EngineFooterText));
-                _dashboardViewModel.IsBenchmarkEngineReady = _benchmarkViewModel.EngineReady;
-            }
-        };
-        _libraryViewModel.Items.CollectionChanged += (_, _) => UpdateLibraryBadge();
+        _localization.LanguageChanged += OnLanguageChanged;
+        _runtime.WatcherStateChanged += OnWatcherStateChanged;
+        _runtime.ProfilesChanged += OnProfilesChanged;
+        _runtime.SessionOptimizationCoordinator.SessionStateChanged += OnSessionStateChanged;
+        _benchmarkViewModel.PropertyChanged += OnBenchmarkPropertyChanged;
+        _libraryViewModel.Items.CollectionChanged += OnLibraryItemsChanged;
 
         NavigationItems = new ObservableCollection<NavigationItemViewModel>
         {
@@ -257,14 +227,10 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OpenSupportCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Support));
         OpenAboutCommand = new RelayCommand(_ => ShowAbout());
 
-        _libraryViewModel.BenchmarkRequested += item =>
-        {
-            _benchmarkViewModel.Preselect(item);
-            Navigate("Benchmarks");
-        };
-        _profilesViewModel.CreateFirstProfileRequested += () => Navigate("Processes");
-        _runtime.RuntimeStateChanged += (_, _) => _benchmarkViewModel.RefreshHotkeyStatus();
-        _benchmarkViewModel.UserNotificationRequested += message => UserNotificationRequested?.Invoke(message);
+        _libraryViewModel.BenchmarkRequested += OnLibraryBenchmarkRequested;
+        _profilesViewModel.CreateFirstProfileRequested += OnCreateFirstProfileRequested;
+        _runtime.RuntimeStateChanged += OnRuntimeStateChanged;
+        _benchmarkViewModel.UserNotificationRequested += OnBenchmarkUserNotification;
         _dashboardViewModel.BenchmarkNavigationRequested = () => Navigate("Benchmarks");
         _dashboardViewModel.LibraryNavigationRequested = () => Navigate("Library");
         _dashboardViewModel.NavigationRequested = key => Navigate(key);
@@ -312,6 +278,60 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
             + "\n\n" + _localization.T("Shell.About.SupporterNote");
         AboutRequested?.Invoke(_localization.T("Shell.About.Title"), message);
     }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        _runtime.ReloadSettings();
+        _runtime.RefreshActivityLanguage();
+        _settingsViewModel.ReloadFromRuntime();
+        RefreshTexts();
+        UiLanguageChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnWatcherStateChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(IsWatcherActive));
+        OnPropertyChanged(nameof(WatcherStatus));
+        UpdateProfilesBadge();
+    }
+
+    private void OnProfilesChanged(object? sender, EventArgs e)
+    {
+        _dashboardViewModel.RefreshTexts();
+        _libraryViewModel.RefreshTexts();
+        UpdateProfilesBadge();
+    }
+
+    private void OnSessionStateChanged(object? sender, FrameHub.Core.Models.SessionOptimization.ActiveSessionState? session)
+    {
+        OnPropertyChanged(nameof(IsSessionActive));
+        OnPropertyChanged(nameof(IsRecoveryPending));
+        OnPropertyChanged(nameof(SessionStatus));
+        OnPropertyChanged(nameof(SessionPillText));
+    }
+
+    private void OnBenchmarkPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(BenchmarkViewModel.EngineReady) or nameof(BenchmarkViewModel.EngineStatus))
+        {
+            OnPropertyChanged(nameof(EngineFooterText));
+            _dashboardViewModel.IsBenchmarkEngineReady = _benchmarkViewModel.EngineReady;
+        }
+    }
+
+    private void OnLibraryItemsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => UpdateLibraryBadge();
+
+    private void OnLibraryBenchmarkRequested(FrameHub.Core.Models.Library.LibraryItem item)
+    {
+        _benchmarkViewModel.Preselect(item);
+        Navigate("Benchmarks");
+    }
+
+    private void OnCreateFirstProfileRequested() => Navigate("Processes");
+
+    private void OnRuntimeStateChanged(object? sender, EventArgs e) => _benchmarkViewModel.RefreshHotkeyStatus();
+
+    private void OnBenchmarkUserNotification(string message) => UserNotificationRequested?.Invoke(message);
 
     private void RefreshTexts()
     {
@@ -469,8 +489,23 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        DetachEventHandlers();
         DisposeViewModels();
         _runtime.Dispose();
+    }
+
+    private void DetachEventHandlers()
+    {
+        _localization.LanguageChanged -= OnLanguageChanged;
+        _runtime.WatcherStateChanged -= OnWatcherStateChanged;
+        _runtime.ProfilesChanged -= OnProfilesChanged;
+        _runtime.RuntimeStateChanged -= OnRuntimeStateChanged;
+        _runtime.SessionOptimizationCoordinator.SessionStateChanged -= OnSessionStateChanged;
+        _benchmarkViewModel.PropertyChanged -= OnBenchmarkPropertyChanged;
+        _benchmarkViewModel.UserNotificationRequested -= OnBenchmarkUserNotification;
+        _libraryViewModel.Items.CollectionChanged -= OnLibraryItemsChanged;
+        _libraryViewModel.BenchmarkRequested -= OnLibraryBenchmarkRequested;
+        _profilesViewModel.CreateFirstProfileRequested -= OnCreateFirstProfileRequested;
     }
 
     private void DisposeViewModels()
@@ -481,6 +516,9 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _processesViewModel.Dispose();
         _hardwareViewModel.Dispose();
         _libraryViewModel.Dispose();
+        _profilesViewModel.Dispose();
+        _logsViewModel.Dispose();
+        _settingsViewModel.Dispose();
     }
 
     public async Task ShutdownAsync(CancellationToken cancellationToken = default)
@@ -512,6 +550,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
 
         try
         {
+            DetachEventHandlers();
             DisposeViewModels();
 
             TimeSpan remaining = totalBudget - stopwatch.Elapsed;

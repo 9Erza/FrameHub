@@ -550,6 +550,7 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             return;
         }
 
+        PruneFailureLogThrottle();
         _failureLogThrottle[key] = DateTime.UtcNow;
         string adminHint = result.RequiresAdmin ? ActivityText("Activity.ProfileApplyFailedAdminHint") : string.Empty;
         AddActivity(string.Format(ActivityText("Activity.ProfileApplyFailed"), result.ProcessName, result.ProcessId, result.Message, adminHint), "Warn");
@@ -564,8 +565,30 @@ public sealed class AppRuntimeService : IDisposable, IBenchmarkRuntimeContext
             return;
         }
 
+        PruneFailureLogThrottle();
         _failureLogThrottle[key] = DateTime.UtcNow;
         AddLocalizedActivity("Activity.AutoMutationSkippedBenchmark", "Warn");
+    }
+
+    /// <summary>
+    /// Keeps the 60 s failure-throttle dictionary bounded (audit 2026-11): keys
+    /// are per process/message, so distinct process names would otherwise grow it
+    /// without limit. Expired entries go first; a full clear is the backstop.
+    /// </summary>
+    private void PruneFailureLogThrottle()
+    {
+        const int capacity = 500;
+        if (_failureLogThrottle.Count < capacity) return;
+        DateTime cutoff = DateTime.UtcNow - TimeSpan.FromSeconds(60);
+        foreach (var stale in _failureLogThrottle.Where(pair => pair.Value < cutoff).Select(pair => pair.Key).ToList())
+        {
+            _failureLogThrottle.Remove(stale);
+        }
+
+        if (_failureLogThrottle.Count >= capacity)
+        {
+            _failureLogThrottle.Clear();
+        }
     }
 
     private static OptimizationBatchResult CreateBenchmarkBlockedResult(string processName) => new()
