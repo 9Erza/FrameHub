@@ -83,8 +83,8 @@ public sealed class FirstRunSetupViewModel : ViewModelBase
 
     public bool IsWelcomeVisible => Step == 0;
     public bool IsHardwareVisible => Step == 1;
-    public bool IsLiveFpsVisible => Step == 2;
-    public bool IsCompanionVisible => Step == 3;
+    public bool IsCompanionVisible => Step == 2;
+    public bool IsLiveFpsVisible => Step == 3;
     public bool IsStartupVisible => Step == 4;
     public bool IsSummaryVisible => Step == 5;
     public bool IsFirstStep => Step == 0;
@@ -190,21 +190,23 @@ public sealed class FirstRunSetupViewModel : ViewModelBase
             _runtime.SaveSettings(SettingsViewModel.Clone(Draft));
             _runtime.CompleteOnboarding();
 
-            if (Draft.StartWithWindows)
+            // Always reconcile Windows startup registration in both directions:
+            // enabling registers, disabling (including ON→OFF when reopened
+            // from Settings) removes. Fresh installs reconcile to a no-op when
+            // nothing is registered. Failures surface as status text, never
+            // silent, and never block finishing.
+            try
             {
-                try
-                {
-                    var desired = new DesiredStartupConfiguration(
-                        true, Draft.StartupWindowMode, Draft.StartupRunElevated);
-                    var result = await _startupApplyCoordinator.ApplyLatestAsync(desired).ConfigureAwait(true);
-                    StartupStatus = result.Success
-                        ? string.Empty
-                        : _localization.T("FirstRun.StartupApplyFailed");
-                }
-                catch
-                {
-                    StartupStatus = _localization.T("FirstRun.StartupApplyFailed");
-                }
+                var desired = new DesiredStartupConfiguration(
+                    Draft.StartWithWindows, Draft.StartupWindowMode, Draft.StartupRunElevated);
+                var result = await _startupApplyCoordinator.ApplyLatestAsync(desired).ConfigureAwait(true);
+                StartupStatus = result.Success
+                    ? string.Empty
+                    : _localization.T("FirstRun.StartupApplyFailed");
+            }
+            catch
+            {
+                StartupStatus = _localization.T("FirstRun.StartupApplyFailed");
             }
 
             RefreshSettingsUi();
@@ -244,6 +246,7 @@ public sealed class FirstRunSetupViewModel : ViewModelBase
         OnPropertyChanged(nameof(LiveFpsText));
         OnPropertyChanged(nameof(LiveFpsCostText));
         OnPropertyChanged(nameof(LiveFpsEnableLabel));
+        OnPropertyChanged(nameof(LiveFpsRequiresCompanionText));
         OnPropertyChanged(nameof(LiveFpsBenchmarkNote));
         OnPropertyChanged(nameof(CompanionTitle));
         OnPropertyChanged(nameof(CompanionText));
@@ -278,6 +281,7 @@ public sealed class FirstRunSetupViewModel : ViewModelBase
     public string LiveFpsText => _localization.T("FirstRun.LiveFpsText");
     public string LiveFpsCostText => _localization.T("FirstRun.LiveFpsCost");
     public string LiveFpsEnableLabel => _localization.T("FirstRun.LiveFpsEnable");
+    public string LiveFpsRequiresCompanionText => _localization.T("FirstRun.LiveFpsRequiresCompanion");
     public string LiveFpsBenchmarkNote => _localization.T("FirstRun.LiveFpsBenchmarkNote");
     public string CompanionTitle => _localization.T("FirstRun.CompanionTitle");
     public string CompanionText => _localization.T("FirstRun.CompanionText");

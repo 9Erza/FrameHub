@@ -149,8 +149,9 @@
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <TextBlock Text="{Binding LiveTelemetryEnableLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
-                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding LiveTelemetryEnabled, Mode=TwoWay}" AutomationProperties.Name="{Binding LiveTelemetryEnableLabel}"/>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding LiveTelemetryEnabled, Mode=TwoWay}" AutomationProperties.Name="{Binding LiveTelemetryEnableLabel}" IsEnabled="{Binding CompanionEnabled}"/>
                         </Grid>
+                        <TextBlock Text="{Binding LiveTelemetryRequiresCompanionText}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,12" Visibility="{Binding CompanionEnabled, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                         <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,0,0,12" />
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
