@@ -136,10 +136,37 @@ this branch adds only. Maximize fix, W1 library/session/integration changes and
 W2 usability/localization deltas are all present in the diff base; full suites
 covering them pass.
 
-## 9. Integration (finalized post-merge)
+## 9. Integration (final)
 
-- PR: TBD
-- GitHub `main` SHA: TBD
-- Local `main` SHA: TBD (must match)
-- Worktrees/branches removed or kept: TBD
-- Installer `artifacts/installer/FrameHub-Setup-1.0.0.exe`: TBD (size + SHA-256)
+- PR with fixes: https://github.com/9Erza/FrameHub/pull/24 (merged 2026-11-02,
+  normal merge, required checks `build-and-test` + `supporter-compat` green).
+- GitHub `main` SHA: `5b61b356fd1615158fe60e762a88cb8b4f0a9631`.
+- Local `main` SHA: `5b61b356fd1615158fe60e762a88cb8b4f0a9631` (identical,
+  fast-forward, on `main`, clean worktree).
+- Removed (verified safe, standard `git worktree remove`, no `--force`):
+  `.worktrees/w1-window`, `.worktrees/w1-library`, `.worktrees/w1-session`,
+  `.worktrees/w1-integration`, `.worktrees/w1-merge-verify` — each clean, zero
+  unique commits vs `origin/main`, ignored files were build artifacts only
+  (`bin/obj/TestResults/artifacts`, no `.local` data in worktrees).
+- Removed local branches fully merged into `main` (ancestry-verified):
+  `fix/w1-window`, `fix/w1-library`, `fix/w1-session`, `fix/w1-integration`,
+  `fix/w2-ui-codex`, `fix/audit-ram-lifecycle` (+ deleted remote
+  `fix/audit-ram-lifecycle` post-merge).
+- Kept with reason: `coder/*`, `docs/*`, `noc/*`, `wt/*`, `codex/framehub-3`,
+  `framehub-1.0.0`, `framehub-ui30-korekta-p1p2`,
+  `fix/launch-reservation-retention`, `fix/library-runtime-snapshot` — all hold
+  unique unmerged commits; deleting them could lose data. Not reviewed here.
+- Left in place: empty unregistered `.worktrees/ui-next-generation/` directory —
+  locked by another process at cleanup time, so not force-removed. It contains
+  no files and is not a git worktree; safe to delete manually later.
+- Preserved: ignored `.local/` evidence/QA screenshots and
+  `maintenance-backups` in the main folder (never touched); historic QA
+  installer files under `artifacts/installer/` (ignored, kept).
+- Installer: `artifacts/installer/FrameHub-Setup-1.0.0.exe`, built 2026-11-02
+  from final `main` (`5b61b35`) via `installer/Build-Installer.ps1` only.
+  Size 221,907,176 bytes (211.6 MB).
+  SHA-256: `9D41E9592650DA18331052A67728116B18E1D275BD0F994B44BF2CABBBA20A8C`.
+  PE: ProductName `FrameHub`, ProductVersion `1.0.0`. AppId unchanged:
+  `{{A073F5F3-E7D0-45C7-A233-8A98B033385B}` (from `installer/FrameHub.iss`,
+  untouched). No GitHub Release published. Install-execution test: NOT RUN
+  (artifact verified by build log + hash + metadata only).
