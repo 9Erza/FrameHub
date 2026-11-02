@@ -144,6 +144,14 @@
                             <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding CompanionEnabled, Mode=TwoWay}"/>
                         </Grid>
                         <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,0,0,12" />
+                        <TextBlock Text="{Binding LiveTelemetryTitle}" Style="{StaticResource DataTitleText}" />
+                        <TextBlock Text="{Binding LiveTelemetryDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding LiveTelemetryEnableLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
+                            <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding LiveTelemetryEnabled, Mode=TwoWay}" AutomationProperties.Name="{Binding LiveTelemetryEnableLabel}"/>
+                        </Grid>
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,0,0,12" />
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <TextBlock Text="{Binding CompanionPortLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/>
@@ -460,6 +468,28 @@
                         <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,12,0,12" />
                         <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding DiagnosticsLogFileLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding DiagnosticsLogFileText}" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="280" /></Grid>
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding DiagnosticsLogLevelLabel}" Style="{StaticResource SettingTitleText}" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding DiagnosticsLogLevelText}" Style="{StaticResource SmallMutedText}" VerticalAlignment="Center" /></Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsSectionSurface}" Margin="0,0,0,16" Visibility="{Binding IsDataResetVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding DataResetTitle}" Style="{StaticResource SectionTitleText}" />
+                        <TextBlock Text="{Binding DataResetDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,12" />
+                        <TextBlock Text="{Binding ResetSettingsTitle}" Style="{StaticResource DataTitleText}" />
+                        <TextBlock Text="{Binding ResetSettingsDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                        <Button Style="{StaticResource SecondaryButton}" Content="{Binding ResetSettingsButton}" Command="{Binding ResetSettingsCommand}" AutomationProperties.Name="{Binding ResetSettingsButton}" HorizontalAlignment="Left" Margin="0,0,0,16" />
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,0,0,12" />
+                        <TextBlock Text="{Binding FactoryResetTitle}" Style="{StaticResource DataTitleText}" Foreground="{StaticResource BrushError}" />
+                        <TextBlock Text="{Binding FactoryResetDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                        <TextBlock Text="{Binding FactoryResetInventory}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <TextBlock Text="{Binding FactoryResetConfirmHint}" Style="{StaticResource TinyCapsText}" Margin="0,0,0,4" />
+                        <TextBox Text="{Binding FactoryResetConfirmationText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxWidth="220" HorizontalAlignment="Left" AutomationProperties.Name="{Binding FactoryResetConfirmHint}" />
+                        <Button Style="{StaticResource DangerButton}" Content="{Binding FactoryResetButton}" Command="{Binding FactoryResetCommand}" AutomationProperties.Name="{Binding FactoryResetButton}" HorizontalAlignment="Left" Margin="0,10,0,0" IsEnabled="{Binding IsFactoryResetArmed}" />
+                        <TextBlock Text="{Binding DataResetStatusMessage}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding DataResetStatusMessage, Converter={StaticResource NonEmptyToVisibilityConverter}}" />
+                        <Border Height="1" Background="{StaticResource BrushBorderSoft}" Margin="0,12,0,12" />
+                        <TextBlock Text="{Binding ReopenWizardButton}" Style="{StaticResource DataTitleText}" />
+                        <TextBlock Text="{Binding ReopenWizardDescription}" Style="{StaticResource SettingDescriptionText}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                        <Button Style="{StaticResource SubtleButton}" Content="{Binding ReopenWizardButton}" Command="{Binding ReopenSetupWizardCommand}" AutomationProperties.Name="{Binding ReopenWizardButton}" HorizontalAlignment="Left" />
                     </StackPanel>
                 </Border>
 

@@ -123,6 +123,18 @@ public sealed class LivePerformanceTelemetryService : ILivePerformanceTelemetryS
         }
     }
 
+    /// <summary>Test hook: true while the telemetry loop task is running.</summary>
+    public bool IsLoopRunningForTesting
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _loopTask != null && !_loopTask.IsCompleted;
+            }
+        }
+    }
+
     public async Task StopAsync()
     {
         Task? taskToWait = null;

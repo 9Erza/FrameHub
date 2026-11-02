@@ -39,7 +39,7 @@ public sealed class OverhaulCSettingsDnsTests
     }
 
     [TestMethod]
-    public void SettingsCategories_HaveSixLocalizedEntries()
+    public void SettingsCategories_HaveSevenLocalizedEntries()
     {
         RunOnSta(() =>
         {
@@ -49,7 +49,7 @@ public sealed class OverhaulCSettingsDnsTests
             {
                 localization.SetLanguage(language);
                 var vm = new SettingsViewModel(localization, runtime);
-                Assert.AreEqual(6, vm.SettingsCategories.Count);
+                Assert.AreEqual(7, vm.SettingsCategories.Count);
                 Assert.IsTrue(vm.SettingsCategories.All(c => !string.IsNullOrWhiteSpace(c)), language);
                 Assert.IsTrue(vm.IsGeneralVisible);
             }
@@ -72,10 +72,15 @@ public sealed class OverhaulCSettingsDnsTests
             Assert.IsFalse(vm.IsStartupWindowVisible);
             Assert.IsFalse(vm.IsBenchmarksVisible);
             Assert.IsFalse(vm.IsAdvancedDiagnosticsVisible);
+            Assert.IsFalse(vm.IsDataResetVisible);
+
+            vm.SelectedSettingsCategoryIndex = 6;
+            Assert.IsTrue(vm.IsDataResetVisible);
+            Assert.IsFalse(vm.IsAdvancedDiagnosticsVisible);
 
             vm.SelectedSettingsCategoryIndex = 99;
-            Assert.AreEqual(5, vm.SelectedSettingsCategoryIndex, "Out-of-range index must clamp, not throw.");
-            Assert.IsTrue(vm.IsAdvancedDiagnosticsVisible);
+            Assert.AreEqual(6, vm.SelectedSettingsCategoryIndex, "Out-of-range index must clamp, not throw.");
+            Assert.IsTrue(vm.IsDataResetVisible);
         });
     }
 

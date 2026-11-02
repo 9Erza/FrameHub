@@ -61,6 +61,21 @@ namespace FrameHub.Core.Models
         public int CompanionPort { get; set; } = 47821;
 
         /// <summary>
+        /// Continuous live FPS / PresentMon monitoring. Default OFF: enabling it
+        /// starts <c>LivePerformanceTelemetryService</c> (250 ms native loop) and
+        /// only takes effect while <see cref="CompanionEnabled"/> is true.
+        /// One-demand benchmark capture is always available regardless of this flag.
+        /// </summary>
+        public bool LiveTelemetryEnabled { get; set; } = false;
+
+        /// <summary>
+        /// First-run onboarding state: -1 = unknown (settings file predates the
+        /// marker; treated as an upgrade, never shows the wizard), 0 = onboarding
+        /// in progress (fresh install, wizard shows/resumes), >=1 = completed.
+        /// </summary>
+        public int OnboardingCompletedVersion { get; set; } = -1;
+
+        /// <summary>
         /// User-selected folders scanned by the Library module. Launcher manifests are still detected separately.
         /// </summary>
         public List<string> CustomLibraryLocations { get; set; } = new();

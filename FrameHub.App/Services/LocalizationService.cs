@@ -31,6 +31,30 @@ public sealed class LocalizationService
         _settings = _settingsService.Load();
     }
 
+    /// <summary>
+    /// Re-reads settings from disk, discarding the constructor-time snapshot.
+    /// Required after out-of-band settings replacement (defaults reset, full
+    /// wipe); otherwise <see cref="SetLanguage"/> would persist stale values.
+    /// </summary>
+    public void Reload()
+    {
+        _settings = _settingsService.Load();
+    }
+
+    /// <summary>
+    /// Switches the UI language immediately without persisting (first-run
+    /// wizard preview). The wizard persists the chosen language on Finish via
+    /// the normal runtime settings path; a direct <see cref="SetLanguage"/>
+    /// here would save a stale snapshot and discard the wizard draft.
+    /// </summary>
+    public void PreviewLanguage(string languageCode)
+    {
+        string normalized = NormalizeLanguage(languageCode);
+        if (_settings.Language == normalized) return;
+        _settings.Language = normalized;
+        LanguageChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public void SetLanguage(string languageCode)
     {
         string normalized = NormalizeLanguage(languageCode);
@@ -1132,6 +1156,69 @@ public sealed class LocalizationService
         ["Processes.Activity.TempNotApplied"] = "Temporary optimization for '{0}' did not apply.",
         ["Processes.Activity.ProfileSaved"] = "Saved profile for '{0}'.",
         ["Profiles.Activity.Updated"] = "Updated profile '{0}'.",
+        ["Settings.Category.DataReset"] = "Application data & reset",
+        ["Settings.LiveTelemetryTitle"] = "Live FPS monitoring",
+        ["Settings.LiveTelemetryDescription"] = "Continuous frame-rate preview from PresentMon. Works only while Companion is enabled.",
+        ["Settings.LiveTelemetryEnable"] = "Enable continuous live FPS monitoring",
+        ["Settings.DataReset.Title"] = "Application data & reset",
+        ["Settings.DataReset.Description"] = "Restore defaults or erase all FrameHub data. Destructive actions are blocked while a benchmark or session is active.",
+        ["Settings.DataReset.ResetSettingsTitle"] = "Restore default settings",
+        ["Settings.DataReset.ResetSettingsDescription"] = "Restores configuration to defaults. Your library, profiles, benchmark history and paired devices are kept.",
+        ["Settings.DataReset.ResetSettingsButton"] = "Restore defaults",
+        ["Settings.DataReset.FactoryResetTitle"] = "Erase all FrameHub data",
+        ["Settings.DataReset.FactoryResetDescription"] = "Deletes settings, profiles, library, session data, benchmark history, logs and paired devices from the FrameHub data folders, then restarts with the first-run setup. Game files, Steam/Epic/Riot data and Windows settings are never touched.",
+        ["Settings.DataReset.FactoryResetInventory"] = "Deleted: settings, profiles, library, session recovery, benchmark history, logs, game-config backups, paired devices.",
+        ["Settings.DataReset.FactoryResetConfirmHint"] = "Type RESET to arm the erase button.",
+        ["Settings.DataReset.FactoryResetButton"] = "Erase all data",
+        ["Settings.DataReset.ReopenWizardButton"] = "Open first-run setup",
+        ["Settings.DataReset.ReopenWizardDescription"] = "Review the optional modules any time.",
+        ["Settings.DataReset.ResetConfirmTitle"] = "Restore default settings?",
+        ["Settings.DataReset.ResetConfirmMessage"] = "Configuration returns to defaults. Library, profiles, benchmark history and paired devices are kept.",
+        ["Settings.DataReset.ResetConfirmButton"] = "Restore",
+        ["Settings.DataReset.BlockedBusy"] = "Unavailable while a benchmark capture or an active session is running. Finish it first, then retry.",
+        ["Settings.DataReset.SettingsRestored"] = "Default settings restored.",
+        ["Settings.DataReset.OperationFailed"] = "Operation failed: {0}",
+        ["Settings.DataReset.WipeIncomplete"] = "Erase incomplete: {0}",
+        ["Settings.DataReset.WipeCompleteRestarting"] = "All data erased. Restarting into first-run setup…",
+        ["FirstRun.Title"] = "Welcome to FrameHub",
+        ["FirstRun.WelcomeTitle"] = "Tune your games, keep Windows light",
+        ["FirstRun.WelcomeText"] = "FrameHub helps your games run better. This short setup picks the optional modules; the core is always on.",
+        ["FirstRun.CoreTitle"] = "Always on: process & CPU control",
+        ["FirstRun.CoreText"] = "Core control, CPU Sets and affinity, optimization profiles, safe priorities and session recovery are the heart of FrameHub and stay enabled.",
+        ["FirstRun.LanguageTitle"] = "Language / Język",
+        ["FirstRun.English"] = "English",
+        ["FirstRun.Polish"] = "Polski",
+        ["FirstRun.HardwareTitle"] = "Hardware monitoring",
+        ["FirstRun.HardwareText"] = "Check temperatures and CPU/GPU load with extra sensors and telemetry.",
+        ["FirstRun.HardwareCost"] = "Uses additional sensors and may increase CPU and memory usage while active.",
+        ["FirstRun.HardwareEnable"] = "Enable hardware monitoring",
+        ["FirstRun.LiveFpsTitle"] = "Live FPS monitoring",
+        ["FirstRun.LiveFpsText"] = "Continuous frame-rate and frametime preview from PresentMon while Companion runs.",
+        ["FirstRun.LiveFpsCost"] = "Keeps a native monitoring session open and polls several times per second.",
+        ["FirstRun.LiveFpsEnable"] = "Enable continuous live FPS monitoring",
+        ["FirstRun.LiveFpsBenchmarkNote"] = "One-demand benchmarks stay available even when continuous monitoring is off.",
+        ["FirstRun.CompanionTitle"] = "Companion (phone remote)",
+        ["FirstRun.CompanionText"] = "Control and preview FrameHub from your phone over the local network.",
+        ["FirstRun.CompanionCost"] = "Runs a local web server and background telemetry even with no client connected.",
+        ["FirstRun.CompanionEnable"] = "Enable Companion",
+        ["FirstRun.StartupTitle"] = "Start with Windows",
+        ["FirstRun.StartupText"] = "Launch FrameHub automatically when you sign in. This only affects FrameHub itself, not the shared PresentMon service.",
+        ["FirstRun.StartupEnable"] = "Start FrameHub with Windows",
+        ["FirstRun.SummaryTitle"] = "Summary",
+        ["FirstRun.SummaryHint"] = "Finish applies your choices. Skip finishes with the recommended light configuration.",
+        ["FirstRun.Summary.Core"] = "Core control & profiles: always on",
+        ["FirstRun.Summary.Hardware"] = "Hardware monitoring",
+        ["FirstRun.Summary.LiveFps"] = "Live FPS",
+        ["FirstRun.Summary.Companion"] = "Companion",
+        ["FirstRun.Summary.Startup"] = "Start with Windows",
+        ["FirstRun.Summary.On"] = "on",
+        ["FirstRun.Summary.Off"] = "off",
+        ["FirstRun.StepIndicator"] = "Step {0} of {1}",
+        ["FirstRun.Back"] = "Back",
+        ["FirstRun.Next"] = "Next",
+        ["FirstRun.Finish"] = "Finish",
+        ["FirstRun.Skip"] = "Skip",
+        ["FirstRun.StartupApplyFailed"] = "Choice saved, but Windows startup registration failed. You can retry it in Settings.",
     };
 
     private static readonly Dictionary<string, string> Polish = new(StringComparer.OrdinalIgnoreCase)
@@ -2199,5 +2286,68 @@ public sealed class LocalizationService
         ["Processes.Activity.TempNotApplied"] = "Tymczasowa optymalizacja dla '{0}' nie została zastosowana.",
         ["Processes.Activity.ProfileSaved"] = "Zapisano profil dla '{0}'.",
         ["Profiles.Activity.Updated"] = "Zaktualizowano profil '{0}'.",
+        ["Settings.Category.DataReset"] = "Dane aplikacji i reset",
+        ["Settings.LiveTelemetryTitle"] = "Monitoring FPS na żywo",
+        ["Settings.LiveTelemetryDescription"] = "Ciągły podgląd liczby klatek z PresentMon. Działa tylko przy włączonym Companion.",
+        ["Settings.LiveTelemetryEnable"] = "Włącz ciągły monitoring FPS",
+        ["Settings.DataReset.Title"] = "Dane aplikacji i reset",
+        ["Settings.DataReset.Description"] = "Przywróć domyślne lub usuń wszystkie dane FrameHub. Destrukcyjne operacje są blokowane podczas benchmarku lub aktywnej sesji.",
+        ["Settings.DataReset.ResetSettingsTitle"] = "Przywróć ustawienia domyślne",
+        ["Settings.DataReset.ResetSettingsDescription"] = "Przywraca domyślną konfigurację. Biblioteka, profile, historia benchmarków i sparowane urządzenia zostają zachowane.",
+        ["Settings.DataReset.ResetSettingsButton"] = "Przywróć domyślne",
+        ["Settings.DataReset.FactoryResetTitle"] = "Usuń wszystkie dane FrameHub",
+        ["Settings.DataReset.FactoryResetDescription"] = "Usuwa ustawienia, profile, bibliotekę, dane sesji, historię benchmarków, logi i sparowane urządzenia z folderów danych FrameHub, a potem restartuje z kreatorem pierwszego uruchomienia. Pliki gier, dane Steam/Epic/Riot i ustawienia Windows nie są nigdy dotykane.",
+        ["Settings.DataReset.FactoryResetInventory"] = "Usuwane: ustawienia, profile, biblioteka, odzyskiwanie sesji, historia benchmarków, logi, kopie konfiguracji gier, sparowane urządzenia.",
+        ["Settings.DataReset.FactoryResetConfirmHint"] = "Wpisz RESET, aby odblokować przycisk usuwania.",
+        ["Settings.DataReset.FactoryResetButton"] = "Usuń wszystkie dane",
+        ["Settings.DataReset.ReopenWizardButton"] = "Otwórz konfigurator",
+        ["Settings.DataReset.ReopenWizardDescription"] = "Przejrzyj moduły opcjonalne w dowolnej chwili.",
+        ["Settings.DataReset.ResetConfirmTitle"] = "Przywrócić ustawienia domyślne?",
+        ["Settings.DataReset.ResetConfirmMessage"] = "Konfiguracja wraca do domyślnej. Biblioteka, profile, historia benchmarków i sparowane urządzenia zostają zachowane.",
+        ["Settings.DataReset.ResetConfirmButton"] = "Przywróć",
+        ["Settings.DataReset.BlockedBusy"] = "Niedostępne podczas przechwytywania benchmarku lub aktywnej sesji. Najpierw je zakończ, potem ponów.",
+        ["Settings.DataReset.SettingsRestored"] = "Przywrócono ustawienia domyślne.",
+        ["Settings.DataReset.OperationFailed"] = "Operacja nie powiodła się: {0}",
+        ["Settings.DataReset.WipeIncomplete"] = "Usuwanie niekompletne: {0}",
+        ["Settings.DataReset.WipeCompleteRestarting"] = "Usunięto wszystkie dane. Restart do kreatora pierwszego uruchomienia…",
+        ["FirstRun.Title"] = "Witaj w FrameHub",
+        ["FirstRun.WelcomeTitle"] = "Dostrój gry, odciąż Windows",
+        ["FirstRun.WelcomeText"] = "FrameHub pomaga grom działać lepiej. Ta krótka konfiguracja wybiera moduły opcjonalne; rdzeń jest zawsze włączony.",
+        ["FirstRun.CoreTitle"] = "Zawsze włączone: kontrola procesów i CPU",
+        ["FirstRun.CoreText"] = "Kontrola procesów, CPU Sets i affinity, profile optymalizacji, bezpieczne priorytety i odzyskiwanie sesji to serce FrameHub i pozostaje włączone.",
+        ["FirstRun.LanguageTitle"] = "Language / Język",
+        ["FirstRun.English"] = "English",
+        ["FirstRun.Polish"] = "Polski",
+        ["FirstRun.HardwareTitle"] = "Monitoring sprzętu",
+        ["FirstRun.HardwareText"] = "Sprawdzaj temperatury i obciążenie CPU/GPU dzięki dodatkowym czujnikom i telemetrii.",
+        ["FirstRun.HardwareCost"] = "Używa dodatkowych czujników i może zwiększać zużycie procesora oraz pamięci podczas pracy.",
+        ["FirstRun.HardwareEnable"] = "Włącz monitoring sprzętu",
+        ["FirstRun.LiveFpsTitle"] = "Monitoring FPS na żywo",
+        ["FirstRun.LiveFpsText"] = "Ciągły podgląd liczby klatek i czasów ramek z PresentMon podczas pracy Companion.",
+        ["FirstRun.LiveFpsCost"] = "Utrzymuje otwartą natywną sesję monitoringu i odpytuje kilka razy na sekundę.",
+        ["FirstRun.LiveFpsEnable"] = "Włącz ciągły monitoring FPS",
+        ["FirstRun.LiveFpsBenchmarkNote"] = "Jednorazowe benchmarki na żądanie działają nawet przy wyłączonym ciągłym monitoringu.",
+        ["FirstRun.CompanionTitle"] = "Companion (pilot w telefonie)",
+        ["FirstRun.CompanionText"] = "Steruj FrameHub i podglądaj go z telefonu w sieci lokalnej.",
+        ["FirstRun.CompanionCost"] = "Uruchamia lokalny serwer WWW i telemetrię w tle nawet bez podłączonego klienta.",
+        ["FirstRun.CompanionEnable"] = "Włącz Companion",
+        ["FirstRun.StartupTitle"] = "Start z Windows",
+        ["FirstRun.StartupText"] = "Uruchamiaj FrameHub automatycznie po zalogowaniu. Dotyczy tylko samego FrameHub, nie współdzielonej usługi PresentMon.",
+        ["FirstRun.StartupEnable"] = "Uruchamiaj FrameHub z Windows",
+        ["FirstRun.SummaryTitle"] = "Podsumowanie",
+        ["FirstRun.SummaryHint"] = "Zakończ stosuje Twoje wybory. Pomiń kończy z zalecanymi lekkimi ustawieniami.",
+        ["FirstRun.Summary.Core"] = "Kontrola procesów i profile: zawsze włączone",
+        ["FirstRun.Summary.Hardware"] = "Monitoring sprzętu",
+        ["FirstRun.Summary.LiveFps"] = "FPS na żywo",
+        ["FirstRun.Summary.Companion"] = "Companion",
+        ["FirstRun.Summary.Startup"] = "Start z Windows",
+        ["FirstRun.Summary.On"] = "wł.",
+        ["FirstRun.Summary.Off"] = "wył.",
+        ["FirstRun.StepIndicator"] = "Krok {0} z {1}",
+        ["FirstRun.Back"] = "Wstecz",
+        ["FirstRun.Next"] = "Dalej",
+        ["FirstRun.Finish"] = "Zakończ",
+        ["FirstRun.Skip"] = "Pomiń",
+        ["FirstRun.StartupApplyFailed"] = "Wybór zapisany, ale rejestracja startu Windows nie powiodła się. Możesz ponowić w Ustawieniach.",
     };
 }

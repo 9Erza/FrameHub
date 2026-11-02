@@ -23,6 +23,9 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
     private readonly LocalizationService _localization;
     private readonly AppRuntimeService _runtime;
     private bool _disposed;
+
+    public LocalizationService Localization => _localization;
+    public AppRuntimeService Runtime => _runtime;
     private readonly StartupApplyCoordinator _startupApplyCoordinator;
     private readonly UpdateService _updateService = new();
     private AppSettings _settings;
@@ -117,6 +120,7 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
     public string CategoryCompanionNetwork => _localization.T("Settings.Category.CompanionNetwork");
     public string CategoryBenchmarks => _localization.T("Settings.Category.Benchmarks");
     public string CategoryAdvancedDiagnostics => _localization.T("Settings.Category.AdvancedDiagnostics");
+    public string CategoryDataReset => _localization.T("Settings.Category.DataReset");
 
     public DnsDiagnosticsPanelViewModel Dns { get; }
 
@@ -127,13 +131,14 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         get => _selectedSettingsCategoryIndex;
         set
         {
-            if (!SetProperty(ref _selectedSettingsCategoryIndex, Math.Clamp(value, 0, 5))) return;
+            if (!SetProperty(ref _selectedSettingsCategoryIndex, Math.Clamp(value, 0, 6))) return;
             OnPropertyChanged(nameof(IsGeneralVisible));
             OnPropertyChanged(nameof(IsLanguageVisible));
             OnPropertyChanged(nameof(IsStartupWindowVisible));
             OnPropertyChanged(nameof(IsCompanionNetworkVisible));
             OnPropertyChanged(nameof(IsBenchmarksVisible));
             OnPropertyChanged(nameof(IsAdvancedDiagnosticsVisible));
+            OnPropertyChanged(nameof(IsDataResetVisible));
         }
     }
 
@@ -143,6 +148,7 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
     public bool IsCompanionNetworkVisible => SelectedSettingsCategoryIndex == 3;
     public bool IsBenchmarksVisible => SelectedSettingsCategoryIndex == 4;
     public bool IsAdvancedDiagnosticsVisible => SelectedSettingsCategoryIndex == 5;
+    public bool IsDataResetVisible => SelectedSettingsCategoryIndex == 6;
     public string CheckUpdatesText => _localization.T("Settings.CheckUpdatesButton");
     public string OpenAppDataText => _localization.T("Settings.OpenAppData");
     public string OpenLogsText => _localization.T("Settings.OpenLogs");
@@ -326,6 +332,28 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         {
             if (_settings.CompanionEnabled == value) return;
             _settings.CompanionEnabled = value;
+            SaveSettings();
+            OnPropertyChanged();
+            UpdateCompanionStatusProperties();
+        }
+    }
+
+    public string LiveTelemetryTitle => _localization.T("Settings.LiveTelemetryTitle");
+    public string LiveTelemetryDescription => _localization.T("Settings.LiveTelemetryDescription");
+    public string LiveTelemetryEnableLabel => _localization.T("Settings.LiveTelemetryEnable");
+
+    /// <summary>
+    /// Continuous live FPS monitoring (opt-in, default OFF). Takes effect only
+    /// while Companion is enabled; starts/stops the native PresentMon loop in
+    /// the runtime without a restart. One-demand benchmark capture is independent.
+    /// </summary>
+    public bool LiveTelemetryEnabled
+    {
+        get => _settings.LiveTelemetryEnabled;
+        set
+        {
+            if (_settings.LiveTelemetryEnabled == value) return;
+            _settings.LiveTelemetryEnabled = value;
             SaveSettings();
             OnPropertyChanged();
             UpdateCompanionStatusProperties();
@@ -545,12 +573,153 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         AllowPairingCommand = new RelayCommand(_ => AllowPairing());
         DenyPairingCommand = new RelayCommand(_ => DenyPairing());
         ResetDeviceStoreCommand = new RelayCommand(_ => ResetDeviceStore());
+        ResetSettingsCommand = new RelayCommand(_ => ResetSettingsConfirmationRequested?.Invoke());
+        FactoryResetCommand = new RelayCommand(_ => _ = RunFactoryResetAsync(), _ => IsFactoryResetArmed && !IsFactoryResetBusy);
+        ReopenSetupWizardCommand = new RelayCommand(_ => SetupWizardRequested?.Invoke());
 
         RefreshLanAddresses();
         RefreshPairedDevices();
 
         ProbeBenchmarkEngine();
         _ = RefreshStartupStatusAsync();
+    }
+
+    /// <summary>
+    /// Application data &amp; reset (Settings category 6). Two strictly separated
+    /// operations: defaults restore (settings only) and full user-data wipe
+    /// (typed RESET confirmation, blocked during benchmark/session activity).
+    /// </summary>
+    public event Action? ResetSettingsConfirmationRequested;
+    public event Action? SetupWizardRequested;
+
+    public ICommand ResetSettingsCommand { get; }
+    public ICommand FactoryResetCommand { get; }
+    public ICommand ReopenSetupWizardCommand { get; }
+
+    public string DataResetTitle => _localization.T("Settings.DataReset.Title");
+    public string DataResetDescription => _localization.T("Settings.DataReset.Description");
+    public string ResetSettingsTitle => _localization.T("Settings.DataReset.ResetSettingsTitle");
+    public string ResetSettingsDescription => _localization.T("Settings.DataReset.ResetSettingsDescription");
+    public string ResetSettingsButton => _localization.T("Settings.DataReset.ResetSettingsButton");
+    public string FactoryResetTitle => _localization.T("Settings.DataReset.FactoryResetTitle");
+    public string FactoryResetDescription => _localization.T("Settings.DataReset.FactoryResetDescription");
+    public string FactoryResetInventory => _localization.T("Settings.DataReset.FactoryResetInventory");
+    public string FactoryResetConfirmHint => _localization.T("Settings.DataReset.FactoryResetConfirmHint");
+    public string FactoryResetButton => _localization.T("Settings.DataReset.FactoryResetButton");
+    public string ReopenWizardButton => _localization.T("Settings.DataReset.ReopenWizardButton");
+    public string ReopenWizardDescription => _localization.T("Settings.DataReset.ReopenWizardDescription");
+    public string ResetConfirmTitle => _localization.T("Settings.DataReset.ResetConfirmTitle");
+    public string ResetConfirmMessage => _localization.T("Settings.DataReset.ResetConfirmMessage");
+    public string ResetConfirmText => _localization.T("Settings.DataReset.ResetConfirmButton");
+    public string ResetCancelText => _localization.T("Dialog.Cancel");
+
+    private string _factoryResetConfirmationText = string.Empty;
+    public string FactoryResetConfirmationText
+    {
+        get => _factoryResetConfirmationText;
+        set
+        {
+            if (!SetProperty(ref _factoryResetConfirmationText, value ?? string.Empty)) return;
+            OnPropertyChanged(nameof(IsFactoryResetArmed));
+        }
+    }
+
+    public bool IsFactoryResetArmed =>
+        _factoryResetConfirmationText.Trim().Equals("RESET", StringComparison.Ordinal);
+
+    private bool _factoryResetBusy;
+    public bool IsFactoryResetBusy
+    {
+        get => _factoryResetBusy;
+        private set
+        {
+            if (SetProperty(ref _factoryResetBusy, value)) OnPropertyChanged(nameof(IsFactoryResetArmed));
+        }
+    }
+
+    private string _dataResetStatusMessage = string.Empty;
+    public string DataResetStatusMessage
+    {
+        get => _dataResetStatusMessage;
+        private set => SetProperty(ref _dataResetStatusMessage, value);
+    }
+
+    /// <summary>
+    /// Second step of the settings-defaults restore: runs only after explicit
+    /// user consent from the confirmation dialog. Restores defaults, reconciles
+    /// Windows startup registration, refreshes localization/runtime state.
+    /// Library, profiles, benchmark history and pairings are untouched.
+    /// </summary>
+    public async Task ConfirmResetSettingsAsync()
+    {
+        if (_runtime.IsDestructiveResetBlocked)
+        {
+            DataResetStatusMessage = _localization.T("Settings.DataReset.BlockedBusy");
+            return;
+        }
+
+        try
+        {
+            _runtime.SaveSettings(new AppSettings());
+            ReloadFromRuntime();
+            await ApplyStartupAsync().ConfigureAwait(true);
+            _localization.Reload();
+            _localization.SetLanguage(_runtime.Settings.Language);
+            ReloadFromRuntime();
+            DataResetStatusMessage = _localization.T("Settings.DataReset.SettingsRestored");
+        }
+        catch (Exception ex)
+        {
+            DataResetStatusMessage = string.Format(
+                System.Globalization.CultureInfo.CurrentCulture,
+                _localization.T("Settings.DataReset.OperationFailed"),
+                ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Full user-data wipe. Requires the typed RESET confirmation, refuses to
+    /// run during benchmark/session activity, and ends with a cooperative
+    /// restart so the next launch shows the first-run wizard.
+    /// </summary>
+    public async Task RunFactoryResetAsync()
+    {
+        if (!IsFactoryResetArmed || IsFactoryResetBusy) return;
+        if (_runtime.IsDestructiveResetBlocked)
+        {
+            DataResetStatusMessage = _localization.T("Settings.DataReset.BlockedBusy");
+            return;
+        }
+
+        IsFactoryResetBusy = true;
+        try
+        {
+            AppRuntimeService.UserDataWipeResult result =
+                await _runtime.WipeAllUserDataAsync().ConfigureAwait(true);
+            if (result.Blocked)
+            {
+                DataResetStatusMessage = _localization.T("Settings.DataReset.BlockedBusy");
+                return;
+            }
+
+            if (!result.Success)
+            {
+                DataResetStatusMessage = string.Format(
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    _localization.T("Settings.DataReset.WipeIncomplete"),
+                    string.Join("; ", result.Errors));
+                return;
+            }
+
+            FactoryResetConfirmationText = string.Empty;
+            ReloadFromRuntime();
+            DataResetStatusMessage = _localization.T("Settings.DataReset.WipeCompleteRestarting");
+            NormalRestartRequested?.Invoke();
+        }
+        finally
+        {
+            IsFactoryResetBusy = false;
+        }
     }
 
     public void RefreshLanAddresses()
@@ -876,6 +1045,27 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CategoryCompanionNetwork));
         OnPropertyChanged(nameof(CategoryBenchmarks));
         OnPropertyChanged(nameof(CategoryAdvancedDiagnostics));
+        OnPropertyChanged(nameof(CategoryDataReset));
+        OnPropertyChanged(nameof(LiveTelemetryTitle));
+        OnPropertyChanged(nameof(LiveTelemetryDescription));
+        OnPropertyChanged(nameof(LiveTelemetryEnableLabel));
+        OnPropertyChanged(nameof(LiveTelemetryEnabled));
+        OnPropertyChanged(nameof(DataResetTitle));
+        OnPropertyChanged(nameof(DataResetDescription));
+        OnPropertyChanged(nameof(ResetSettingsTitle));
+        OnPropertyChanged(nameof(ResetSettingsDescription));
+        OnPropertyChanged(nameof(ResetSettingsButton));
+        OnPropertyChanged(nameof(FactoryResetTitle));
+        OnPropertyChanged(nameof(FactoryResetDescription));
+        OnPropertyChanged(nameof(FactoryResetInventory));
+        OnPropertyChanged(nameof(FactoryResetConfirmHint));
+        OnPropertyChanged(nameof(FactoryResetButton));
+        OnPropertyChanged(nameof(ReopenWizardButton));
+        OnPropertyChanged(nameof(ReopenWizardDescription));
+        OnPropertyChanged(nameof(ResetConfirmTitle));
+        OnPropertyChanged(nameof(ResetConfirmMessage));
+        OnPropertyChanged(nameof(ResetConfirmText));
+        OnPropertyChanged(nameof(ResetCancelText));
         RefreshSettingsCategories();
         Dns.RefreshTexts();
         OnPropertyChanged(nameof(CheckUpdatesText));
@@ -931,6 +1121,7 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         SettingsCategories.Add(CategoryCompanionNetwork);
         SettingsCategories.Add(CategoryBenchmarks);
         SettingsCategories.Add(CategoryAdvancedDiagnostics);
+        SettingsCategories.Add(CategoryDataReset);
         SelectedSettingsCategoryIndex = Math.Clamp(current, 0, SettingsCategories.Count - 1);
     }
 
@@ -1146,6 +1337,7 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(BenchmarkHotkeyDisplay));
         OnPropertyChanged(nameof(BenchmarkHotkeyTokens));
         OnPropertyChanged(nameof(CompanionEnabled));
+        OnPropertyChanged(nameof(LiveTelemetryEnabled));
         OnPropertyChanged(nameof(CompanionPortText));
         OnPropertyChanged(nameof(CompanionPort));
         OnPropertyChanged(nameof(DiagnosticsLogFileText));
@@ -1185,6 +1377,8 @@ public sealed class SettingsViewModel : ViewModelBase, IDisposable
         CompanionLanEnabled = source.CompanionLanEnabled,
         CompanionLanAddress = source.CompanionLanAddress,
         CompanionPort = source.CompanionPort,
+        LiveTelemetryEnabled = source.LiveTelemetryEnabled,
+        OnboardingCompletedVersion = source.OnboardingCompletedVersion,
         CustomLibraryLocations = source.CustomLibraryLocations?.ToList() ?? new()
     };
 
