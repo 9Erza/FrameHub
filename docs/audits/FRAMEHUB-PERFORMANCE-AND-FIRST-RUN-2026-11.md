@@ -49,7 +49,7 @@ Cold start (input-idle): BEFORE 5409 ms / AFTER 804 ms / warm BEFORE 802 ms.
 | Companion ON + live dormant, no clients | 0.37 (max 0.66) | 206.3 / 96.4 | 0.45 (max 0.66) | 206.0 / 96.1 |
 | Companion ON + loopback REST polling | 0.39 (max 1.40) | 207.7 / 96.5 | 0.47 (max 1.37) | 207.5 / 96.3 |
 | Hardware page ON, sensors open, 1 s refresh | UNVERIFIED⁴ | UNVERIFIED⁴ | 0.08 (max 0.35) | 218.2 / 103.2 |
-| Full exit | process gone; no PresentMon service exists | — | TBD | — |
+| Full exit | process gone; no PresentMon service exists | — | process gone (kill-verified); tray→Exit graceful path unit-tested, UI-driven tray-menu exit NOT RUN | — |
 
 ² BEFORE nav runs used SelectionItemPattern-only UIA automation, which only checks
 the sidebar radio without firing NavigateCommand — proven post-hoc via IsOffscreen
@@ -112,7 +112,22 @@ NOT reproduced: max WS observed ~208 MB (intensive 27-tab nav, 200-item library,
 like minimize does — RUNTIME-OVERHEAD's 99 MB was minimize-to-taskbar; worth
 noting, not a bug).
 
-## 7. Tests & validation
+## 8. Integration
+
+- PR: https://github.com/9Erza/FrameHub/pull/27 (merged, normal merge,
+  required checks `build-and-test` + `supporter-compat` green).
+- GitHub `main` SHA: `364db607d89ed36af2bf05ca0627bdbcd4fd7a55`.
+- Local `main` SHA: identical (fast-forward, on `main`, clean, single worktree).
+- Working branch `feature/first-run-perf` deleted locally + remotely post-merge.
+  No other branches/worktrees touched (per-task freeze on unrelated cleanup).
+- Installer: `artifacts/installer/FrameHub-Setup-1.0.0.exe`, built from final
+  `main` via `installer/Build-Installer.ps1` only. Size 221,914,765 bytes
+  (211.6 MB). SHA-256:
+  `9799482FE529D3FFD8D3A73AA7C23BE5A601EC9596F4CDDBEF82D630C51F9C48`.
+  PE: ProductName `FrameHub`, ProductVersion `1.0.0`. AppId and updater
+  untouched. No GitHub Release published. Install-execution test: NOT RUN.
+
+## 7. Tests & validation (updated)
 
 - Release 0w/0e; Desktop 878/878 (+15 new); Companion 148/148; JS intact;
   `git diff --check` clean.
