@@ -39,7 +39,9 @@
                                 <TextBlock Text="{Binding GamingModeDetail}" Style="{StaticResource SmallMutedText}" TextWrapping="Wrap" Margin="0,3,0,0" />
                             </StackPanel>
                             </StackPanel>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Live session only: while idle, the monitor and session states are shown once in
+                             "System state" below and in the sidebar; repeating them here contradicted it. -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Visibility="{Binding IsLiveActive, Converter={StaticResource BoolToVisibilityConverter}}">
                             <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center">
                                 <Ellipse.Style>
                                     <Style TargetType="Ellipse">
@@ -65,8 +67,8 @@
                             </TextBlock>
                         </StackPanel>
 
-                        <TextBlock Text="{Binding SessionStateValue}" Style="{StaticResource DataTitleText}" Margin="0,2,0,0" />
-                        <TextBlock Text="{Binding SessionStateDetail}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        <TextBlock Text="{Binding SessionStateValue}" Style="{StaticResource DataTitleText}" Margin="0,2,0,0" Visibility="{Binding IsLiveActive, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <TextBlock Text="{Binding SessionStateDetail}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="{Binding IsLiveActive, Converter={StaticResource BoolToVisibilityConverter}}" />
                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding IsSelectedGamingGameRunning, Converter={StaticResource BoolToVisibilityConverter}}">
                             <Ellipse Width="8" Height="8" Fill="{StaticResource BrushSuccess}" VerticalAlignment="Center" Margin="0,0,8,0" />
                             <TextBlock Text="{Binding GamingRunningText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Center" />

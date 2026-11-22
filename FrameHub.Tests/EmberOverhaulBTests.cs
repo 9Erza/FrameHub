@@ -181,7 +181,7 @@ public sealed class EmberOverhaulBTests
         var vm = host.ViewModel;
         vm.Reload();
         Assert.IsTrue(vm.HasLibraryItems);
-        Assert.IsTrue(vm.HasStatusMessage);
+        Assert.IsFalse(vm.HasStatusMessage, "The ready count states readiness; a second \"Library ready.\" line repeated it.");
         StringAssert.Contains(vm.ReadyCountText, "ready");
     }
 
@@ -252,12 +252,12 @@ public sealed class EmberOverhaulBTests
             "LibraryView must expose a single manage-library surface (QA C2 F3: tripled action).");
         Assert.AreEqual(1, CountOccurrences(xaml, "Content=\"{Binding ScanAllText}\""),
             "LibraryView must keep a single accent Scan-all CTA (QA C2 F3: duplicated CTA).");
-        AssertGatedBy(xaml, "Content=\"{Binding AddManuallyText}\"", "HasLibraryItems",
-            "Top-row Add manually must only render when the library holds items (QA C2 F3).");
+        Assert.AreEqual(1, CountOccurrences(xaml, "Content=\"{Binding AddManuallyText}\""),
+            "Add manually exists once (empty-state card); with items the manage-library expander owns it, so the top-row button duplicated it.");
         AssertGatedBy(xaml, "{Binding ReadyCountText}", "HasLibraryItems",
             "Ready count must only render when the library holds items (QA C B2).");
-        AssertGatedBy(xaml, "{Binding ReadyBadgeText}", "HasLibraryItems",
-            "READY chip must only render when the library holds items (QA C B2).");
+        Assert.AreEqual(0, CountOccurrences(xaml, "{Binding ReadyBadgeText}"),
+            "The READY chip repeated the ready count shown above the catalog.");
         StringAssert.Contains(xaml, "{Binding IndividualSourcesText}",
             "Sources panel must label the individual sources segment (QA C B3).");
         foreach (string command in new[] { "ScanAllCommand", "ScanSteamCommand", "ScanEpicCommand", "ScanRiotCommand", "ScanCustomCommand", "AddFolderCommand", "OpenManageLibraryCommand" })

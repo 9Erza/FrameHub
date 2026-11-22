@@ -51,7 +51,9 @@ public sealed class LibraryItemViewModel : ViewModelBase
     public bool IsExecutableMissing => !string.IsNullOrWhiteSpace(Item.ExecutablePath) && !File.Exists(Item.LaunchPath ?? Item.ExecutablePath);
     public string ExeMissingText => _localization.T("Library.ExeMissingBadge");
 
-    public bool IsReady => !string.IsNullOrWhiteSpace(Item.ProcessName) || !string.IsNullOrWhiteSpace(Item.ExecutablePath);
+    // An entry whose game file is gone is not ready: it used to count towards "N/N ready" while
+    // the same row said "Game file not found".
+    public bool IsReady => !IsExecutableMissing && (!string.IsNullOrWhiteSpace(Item.ProcessName) || !string.IsNullOrWhiteSpace(Item.ExecutablePath));
     public bool IsBackgroundApp => Item.Type == LibraryItemType.BackgroundApp;
     public bool AllowRemoteControl
     {

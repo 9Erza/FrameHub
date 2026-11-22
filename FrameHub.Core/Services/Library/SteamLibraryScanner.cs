@@ -84,7 +84,9 @@ public sealed class SteamLibraryScanner
         string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         if (!string.IsNullOrWhiteSpace(programFilesX86)) steamRoots.Add(Path.Combine(programFilesX86, "Steam"));
 
-        foreach (string root in steamRoots.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
+        // HKCU SteamPath is stored with forward slashes ("c:/program files (x86)/steam"), so the same
+        // install appeared twice next to the Program Files fallback and every library was scanned twice.
+        foreach (string root in steamRoots.Select(NormalizeDirectory).Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             yield return root;
 
@@ -93,7 +95,8 @@ public sealed class SteamLibraryScanner
 
             foreach (string library in ParseLibraryFolders(File.ReadAllText(vdf)))
             {
-                if (Directory.Exists(library)) yield return library;
+                string normalized = NormalizeDirectory(library);
+                if (Directory.Exists(normalized)) yield return normalized;
             }
         }
     }
@@ -130,6 +133,12 @@ public sealed class SteamLibraryScanner
     internal static bool IsFullyInstalled(string? stateFlags) =>
         !long.TryParse(stateFlags, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long flags)
         || (flags & 4) != 0;
+
+    internal static string NormalizeDirectory(string path)
+    {
+        try { return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path.Trim())); }
+        catch { return path.Trim(); }
+    }
 
     private static void TryAddRegistryValue(List<string> list, RegistryKey root, string path, string valueName)
     {
