@@ -44,7 +44,7 @@ public sealed class ProductVersionTests
     public void VersionFile_DeclaresCurrentRelease()
     {
         string version = File.ReadAllText(FindVersionFile()).Trim();
-        Assert.AreEqual("1.0.1", version, "version.txt must declare the current 1.0.1 release.");
+        Assert.AreEqual("1.1.0", version, "version.txt must declare the current 1.1.0 release.");
     }
 
     [TestMethod]

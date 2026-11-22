@@ -1,8 +1,31 @@
 # Lista zmian / Changelog (PL)
 
-[English changelog — pełna historia wydań](CHANGELOG.md) · [Opis wydania v1.0.1 (PL/EN)](docs/RELEASE_NOTES_1.0.1.md)
+[English changelog — pełna historia wydań](CHANGELOG.md) · [Opis wydania v1.1.0 (PL/EN)](docs/RELEASE_NOTES_1.1.0.md)
 
 ## [Niewydane]
+
+## [1.1.0] — 2026-11-22
+
+Opis wydania (PL/EN): [FrameHub v1.1.0](docs/RELEASE_NOTES_1.1.0.md). Instalator: `FrameHub-Setup-1.1.0.exe` w sekcji **Assets** na [GitHub Releases](https://github.com/9Erza/FrameHub/releases). Aktualizacja zachowuje tożsamość instalatora (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`) i folder instalacji oraz ustawienia, bibliotekę, profile, historię benchmarków i sparowane urządzenia.
+
+### Dodano
+
+- Wykrywanie gier z GOG i Ubisoft Connect (tylko odczyt rejestru); gry Ubisoft startują przez `uplay://launch/<id>/0`, gry Epic przez protokół Epic Games Launchera.
+- Link do erza.studio w stopce paska bocznego i w oknie O programie.
+
+### Naprawiono
+
+- Autostart z uprawnieniami administratora miał priorytet „poniżej normalnego”, dziedziczony przez FrameHub i uruchamiane gry; nowe zadania mają normalny priorytet, stare są oznaczane do naprawy.
+- CPU Sets nie są już zawężane przez starą maskę koligacji; profile są nakładane ponownie, gdy gra zresetuje ustawienia CPU.
+- Gry Unreal Engine rozpoznawane po procesie `-Shipping`; skan naprawia nieaktualne ścieżki; Steam bez podwójnego skanu; Epic bez silników, pluginów, DLC i niedokończonych instalacji.
+- Skanowanie biblioteki w tle bez zawieszania okna; sprzeczne i powtarzające się statusy w interfejsie.
+
+### Zmieniono
+
+- Ścieżki procesów odczytywane przez `QueryFullProcessImageName` (nigdy dla procesów Riot).
+- Nazwy w pasku bocznym takie same jak nagłówki stron; ustawienia CPU gry w Bibliotece.
+- Natywna ramka okna w Windows 11; szybsze przełączanie stron.
+- `version.txt` ma `1.1.0`.
 
 ## [1.0.1] — 2026-11-02
 

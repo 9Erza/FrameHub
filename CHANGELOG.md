@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-22
+
+Release notes (English and Polish): [FrameHub v1.1.0](docs/RELEASE_NOTES_1.1.0.md). Installer: `FrameHub-Setup-1.1.0.exe` in **Assets** on [GitHub Releases](https://github.com/9Erza/FrameHub/releases). Upgrades keep the installer identity (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`) and installation folder and preserve settings, Library, profiles, benchmark history and paired devices.
+
+### Added
+
+- GOG and Ubisoft Connect game discovery (read-only registry); Ubisoft games launch through `uplay://launch/<id>/0`, Epic games through the Epic Games Launcher protocol.
+- erza.studio link in the sidebar footer and About dialog.
+- Opt-in `LiveShellCapture` developer tool (real off-screen window captures and navigation timings).
+
+### Fixed
+
+- Elevated startup task registered with Task Scheduler priority 7 (below normal), inherited by FrameHub and games it launched; new tasks use 4, old tasks are reported for repair, FrameHub restores its own priority to Normal.
+- CPU Sets were intersected with a stale restricted affinity mask; affinity is widened before CPU Sets are applied.
+- Profiles re-apply when a game resets its own affinity/CPU Sets/priority; cached profiles skip the module-walk identity check; locked profile cache.
+- Unreal Engine games are tracked by their `-Shipping` process; rescans repair stale executable paths; path heuristics judge only the install subfolder and skip anti-cheat bootstrappers; Steam roots normalized (no double scan) and in-progress downloads skipped; Epic engines, plug-ins, DLC and incomplete installs skipped.
+- Shell launches no longer leak process handles or report handed-off protocol launches as failed.
+- Library scans run off the UI thread; scanner diagnostics go to the log.
+- Contradictory and repeated states across Dashboard, Session, Library, Benchmarks and Hardware; ready count no longer counts missing executables.
+- Test relying on default CS2/League paths not existing; environment-dependent startup-activity test.
+
+### Changed
+
+- Executable paths are read with `QueryFullProcessImageName` (query-limited handle, never for Riot processes), falling back to `MainModule`.
+- Sidebar labels equal page titles; game CPU settings live in the Library.
+- Windows 11 window frame drawn by DWM (1 px theme border, rounded corners); Windows 10 keeps a WPF border.
+- Library, Session Optimization and Settings views are kept between visits (7–20 ms instead of 100–130 ms); game icons load asynchronously.
+- `version.txt` is `1.1.0`; manifest and Companion version placeholders follow.
+
 ## [1.0.1] - 2026-11-02
 
 Cumulative release on top of the published 1.0.0 installer: `FrameHub-Setup-1.0.1.exe` in **Assets** on [GitHub Releases](https://github.com/9Erza/FrameHub/releases). Upgrades keep the historical installer identity (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`), reuse the previous installation directory, preserve settings/profiles/library/benchmark history/paired devices, do not re-run the first-run wizard for existing installations, and never force PresentMon on users who deselected it.

@@ -15,23 +15,20 @@ LAN Companion server, CS2 configuration and hardware monitoring in one desktop a
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-2EA44F?style=flat-square)](LICENSE)
-![Release](https://img.shields.io/badge/release-v1.0.1-EAB45D?style=flat-square)
+![Release](https://img.shields.io/badge/release-v1.1.0-EAB45D?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Version: v1.0.1.** Get the official Windows installer from [GitHub Releases](https://github.com/9Erza/FrameHub/releases) when the release asset is available. Read the [1.0.1 release notes](docs/RELEASE_NOTES_1.0.1.md), [Changelog](CHANGELOG.md) and [Roadmap](docs/ROADMAP.md).
+> **Version: v1.1.0.** Get the official Windows installer from [GitHub Releases](https://github.com/9Erza/FrameHub/releases) when the release asset is available. Read the [1.1.0 release notes](docs/RELEASE_NOTES_1.1.0.md), [Changelog](CHANGELOG.md) and [Roadmap](docs/ROADMAP.md).
 
-### What's new in 1.0.1
+### What's new in 1.1.0
 
-- **First-run setup wizard:** six guided steps (language, Hardware monitoring, Companion, Live FPS, Start with Windows, summary) on fresh installs, with light OFF-by-default optional modules and a core that stays always on. Upgrades never see it.
-- **Explicit Live FPS opt-in:** continuous PresentMon preview runs only with Companion **and** Live FPS enabled; one-demand benchmarks stay independent.
-- **Application data & reset:** restore defaults or fully erase FrameHub-owned data (`RESET` confirmation), blocked during benchmark/session/recovery, with startup-residue warnings that never fail the wipe.
-- **Optional PresentMon install:** checked-by-default component — deselect to install nothing; verified v2.5.1 is reused, newer installs are never downgraded, and the app runs without it.
-- **Honest update notifications:** the desktop notifies only when the matching published GitHub Release carries the expected installer asset.
-- **Window, stability and memory fixes (W1/W2/audit):** maximized-window work-area clamp, bounded virtualized lists, view-model lifecycle fixes, bounded icon caches, startup-registration reconciliation and localization polish.
+- **Reliable CPU control:** startup no longer runs FrameHub and your games at below-normal priority, CPU Sets are no longer narrowed by an old affinity mask, and profiles re-apply when a game resets its own CPU settings.
+- **Better game detection:** GOG and Ubisoft Connect discovery, Unreal Engine games recognised by their real process, moved games repaired on rescan, cleaner Steam and Epic results, background scanning.
+- **Cleaner interface:** one name per page, no repeated or contradictory states, game CPU settings in the Library, native Windows 11 window frame, much faster page switching.
 
-See the [1.0.1 release notes](docs/RELEASE_NOTES_1.0.1.md) for the complete list since the published 1.0.0 installer.
+See the [1.1.0 release notes](docs/RELEASE_NOTES_1.1.0.md) for details and known limitations; [1.0.1 release notes](docs/RELEASE_NOTES_1.0.1.md) cover the previous release.
 
 ### What's new in 1.0.0
 
@@ -48,13 +45,13 @@ These changes build on existing Game Library, CPU Sets/Affinity, Session Optimiz
 
 ## Download, install and upgrade
 
-1. Open the [official GitHub Releases page](https://github.com/9Erza/FrameHub/releases). When v1.0.1 is published, expand **Assets** and download **`FrameHub-Setup-1.0.1.exe`**. The GitHub-generated source-code ZIP is **not** the Windows installer.
+1. Open the [official GitHub Releases page](https://github.com/9Erza/FrameHub/releases). Open the latest release (v1.1.0), expand **Assets** and download **`FrameHub-Setup-1.1.0.exe`**. The GitHub-generated source-code ZIP is **not** the Windows installer.
 2. Run the installer on **Windows 10/11 x64** and approve the administrator prompt. The single installer bundles the pinned Intel PresentMon 2.5.1 prerequisite used by benchmarks.
 3. **Upgrading from an earlier Inno Setup installation:** run the new installer normally; do not uninstall first. FrameHub retains the installation identity (`AppId`) used since 0.4.0 and recovered from 0.3.1, and Inno Setup reuses the previous installation directory. Your settings and library are stored separately under `%APPDATA%\FrameHub`; benchmarks are stored under `%LOCALAPPDATA%\FrameHub\Benchmarks`.
 
 Close the running FrameHub application before upgrading; the installer may ask to close it. For a major upgrade, backing up your user settings first is recommended. The release page provides the canonical installer; there is no in-app automatic installer execution.
 
-For a summary of features, compatibility and limitations, see the [bilingual v1.0.1 release notes](docs/RELEASE_NOTES_1.0.1.md).
+For a summary of features, compatibility and limitations, see the [bilingual v1.1.0 release notes](docs/RELEASE_NOTES_1.1.0.md).
 
 ---
 
