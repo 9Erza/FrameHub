@@ -22,11 +22,11 @@ Aktualizacje nigdy nie pokazują kreatora. Możesz go otworzyć w każdej chwili
 
 ---
 
-Po pierwszym uruchomieniu przeskanuj **Gry i optymalizacja** (Bibliotekę gier). Dodaj folder lub plik EXE ręcznie, jeśli launcher nie wykrył gry. Zapis profilu utrwala regułę; **Optymalizuj/Zastosuj** próbuje zmienić pasujące, uruchomione procesy. Możesz także użyć funkcji **Szybki start** na Panelu głównym, aby uruchomić grę i zastosować Optymalizację sesji jednym kliknięciem.
+Po pierwszym uruchomieniu przeskanuj **Bibliotekę**. Dodaj folder lub plik EXE ręcznie, jeśli launcher nie wykrył gry. Zapis profilu utrwala regułę; **Optymalizuj/Zastosuj** próbuje zmienić pasujące, uruchomione procesy. Możesz także użyć funkcji **Szybki start** na Panelu głównym, aby uruchomić grę i zastosować Optymalizację sesji jednym kliknięciem.
 
 W **Optymalizacji sesji** wybierasz procesy w tle do wstrzymania, sprawdzasz podgląd i uruchamiasz sesję ręcznie albo automatycznie. FrameHub zapisuje wstrzymane procesy i wznawia je bezpiecznie przy zakończeniu lub odzyskiwaniu — nie kończy ich działania.
 
-Moduł **Procesy i CPU** służy do bezpośredniego sterowania działającymi procesami (CPU Sets, Processor Affinity, priorytet). **Profile i reguły** zarządzają trwałymi ustawieniami stosowanymi automatycznie przez monitor profili.
+Moduł **Procesy i CPU** służy do bezpośredniego sterowania działającymi procesami (CPU Sets, Processor Affinity, priorytet). **Profile** zarządzają trwałymi ustawieniami stosowanymi automatycznie przez monitor profili.
 
 CS2 należy zamknąć przed edycją konfiguracji; tworzone są kopie zapasowe. Monitor sprzętu jest opcjonalny i działa na żądanie (lease-controlled). Zakładka **Ustawienia** obejmuje zasobnik systemowy, język, logi, autostart, parowanie z serwerem Companion i opcjonalne uprawnienia administratora. Dane i logi: `%APPDATA%\FrameHub`.
 

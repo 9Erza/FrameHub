@@ -19,14 +19,6 @@
             <TextBlock Text="{Binding Title}" Style="{StaticResource ChapterTitleText}" AutomationProperties.Name="{Binding Title}" Margin="0,4,0,0" />
             <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitleText}" Margin="0,6,0,10" TextWrapping="Wrap" />
 
-            <!-- FH-100-016: one short guide over the existing workflow (no new wizard). -->
-            <Border Style="{StaticResource SectionSurface}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="{Binding WorkflowGuideTitle}" Style="{StaticResource SectionHeadingText}" />
-                    <TextBlock Text="{Binding WorkflowGuideText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                </StackPanel>
-            </Border>
-
             <!-- Band A — live session/recovery strip. The sticky bar below stays the single in-frame action. -->
             <Border Margin="0,0,0,16">
                 <Border.Style>
@@ -39,10 +31,25 @@
                 </Border.Style>
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <Ellipse Width="10" Height="10" Fill="{StaticResource BrushAccentPrimary}" VerticalAlignment="Top" Margin="0,7,14,0" />
+                    <Ellipse Width="10" Height="10" VerticalAlignment="Top" Margin="0,7,14,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource BrushTextMuted}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSessionActive}" Value="True"><Setter Property="Fill" Value="{StaticResource BrushSuccess}" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding IsRecoveryPending}" Value="True"><Setter Property="Fill" Value="{StaticResource BrushWarning}" /></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="{Binding SessionStateDisplay}" Style="{StaticResource SectionHeadingText}" />
-                        <TextBlock Text="{Binding ActiveSessionInfo}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <!-- Idle: the one-line workflow replaces "Session inactive.", which only repeated the state above.
+                             Active: the session details (game, trigger, taskbar, priority). -->
+                        <TextBlock Text="{Binding WorkflowGuideText}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,2,0,0"
+                                   Visibility="{Binding IsSessionActive, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
+                        <TextBlock Text="{Binding ActiveSessionInfo}" Style="{StaticResource SecondaryBodyText}" TextWrapping="Wrap" Margin="0,2,0,0"
+                                   Visibility="{Binding IsSessionActive, Converter={StaticResource BoolToVisibilityConverter}}" />
                         <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">

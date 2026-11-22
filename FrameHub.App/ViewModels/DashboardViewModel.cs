@@ -88,7 +88,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     }
 
     public string BenchmarkEngineBadgeText => _isBenchmarkEngineReady
-        ? _localization.T("Benchmark.Engine.Ready")
+        ? _localization.T("Dashboard.Benchmark.EngineReady")
         : _localization.T("Dashboard.Benchmark.EngineDown");
     public string HeroScanLibraryText => _localization.T("Dashboard.Hero.ScanLibrary");
     public string HeroHowItWorksText => _localization.T("Dashboard.Hero.HowItWorks");
@@ -341,6 +341,15 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         try
         {
             var snapshot = await _runtime.ProcessScanner.ScanUserProcessesAsync().ConfigureAwait(false);
+            // CPU usage is a delta between two samples. On the first visit there is no earlier
+            // sample, so every row read 0%; take one more sample shortly after instead.
+            if (snapshot.Groups.Count > 0 && snapshot.Groups.All(group => group.CpuUsagePercent <= 0))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(750)).ConfigureAwait(false);
+                if (_disposed) return;
+                snapshot = await _runtime.ProcessScanner.ScanUserProcessesAsync().ConfigureAwait(false);
+            }
+
             var top = snapshot.Groups
                 .OrderByDescending(group => group.CpuUsagePercent)
                 .Take(3)

@@ -134,8 +134,8 @@ public sealed class SessionOptimizationViewModel : ViewModelBase, IDisposable
     // FH-100-016: short guide over the existing workflow (no new wizard).
     public string WorkflowGuideTitle => IsPolish ? "Jak przebiega sesja" : "How a session works";
     public string WorkflowGuideText => IsPolish
-        ? "1. Wybierz grę. 2. Sprawdź 'Co wstrzymywać' i podgląd poniżej. 3. Uruchom ręcznie przyciskiem Start albo włącz automatyzację (globalny przełącznik + przełączniki per-game). 4. Po grze użyj 'Przywróć sesję'."
-        : "1. Pick a game. 2. Review “What gets paused” and the preview below. 3. Start manually with the Start button or enable automation (global switch + per-game toggles). 4. After gaming, use “Restore session”.";
+        ? "Wybierz grę → sprawdź podgląd wstrzymywanych aplikacji → Start sesji (albo automatyzacja) → po grze Przywróć sesję."
+        : "Pick a game → check the preview of apps to pause → Start the session (or use automation) → Restore session after playing.";
     public string AutoVsManualHint => IsPolish
         ? "Globalny przełącznik włącza wykrywanie, a przełączniki per-game wybierają gry. Ręczny Start działa zawsze, niezależnie od automatyzacji."
         : "The global switch enables detection while per-game toggles pick the games. Manual Start always works, independently of automation.";
