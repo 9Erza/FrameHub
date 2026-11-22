@@ -99,6 +99,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public ICommand OpenRepositoryCommand { get; }
     public ICommand OpenAuthorCommand { get; }
     public ICommand OpenWebsiteCommand { get; }
+    public ICommand OpenStudioCommand { get; }
+    public string StudioLabel => _localization.T("Footer.Studio");
     public ICommand OpenSupportCommand { get; }
 
     public AppRuntimeService Runtime => _runtime;
@@ -228,6 +230,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OpenRepositoryCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Repository));
         OpenAuthorCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Author));
         OpenWebsiteCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Website));
+        OpenStudioCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Studio));
         OpenSupportCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Support));
         OpenAboutCommand = new RelayCommand(_ => ShowAbout());
 

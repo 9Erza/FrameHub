@@ -180,7 +180,8 @@
                                     <TextBlock Text="{Binding EngineStatus}" Style="{StaticResource DataTitleText}" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <TextBlock Text="{Binding EngineVersionText, StringFormat=PresentMon {0}}" Style="{StaticResource CaptionText}" Margin="0,3,0,0" />
-                                <TextBlock Text="{Binding EngineHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                <TextBlock Text="{Binding EngineHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           Visibility="{Binding EngineReady, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2" Visibility="{Binding HasSelectedGame, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <TextBlock Text="{Binding ChangeGameText}" Style="{StaticResource TinyCapsText}" />
@@ -205,7 +206,7 @@
                             </StackPanel>
                             <StackPanel Grid.Column="2" Visibility="{Binding HasNoSelectedGame, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <TextBlock Text="{Binding NoRunningGameTitle}" Style="{StaticResource DataTitleText}" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding EmptyGamesText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                <TextBlock Text="{Binding NoRunningGameHint}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                             </StackPanel>
                         </Grid>
                     </Border>

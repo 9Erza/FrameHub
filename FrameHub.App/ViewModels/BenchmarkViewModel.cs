@@ -98,6 +98,8 @@ public sealed class BenchmarkViewModel : ViewModelBase, IDisposable
     public ICommand SendToCompareCommand { get; }
     public string EngineVersionText => _engineVersion ?? _localization.T("Benchmark.Unavailable");
     public string EmptyGamesText => _localization.T("Benchmark.Games.Empty");
+    /// <summary>Hint under the "No running game detected" title (the title already says it).</summary>
+    public string NoRunningGameHint => _localization.T("Benchmark.Game.NoneHint");
     public string GameLabel => _localization.T("Benchmark.Game");
     public string RunningText => _localization.T("Benchmark.Running");
     public string NotRunningText => _localization.T("Benchmark.NotRunning");
