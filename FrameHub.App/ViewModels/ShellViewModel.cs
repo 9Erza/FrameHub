@@ -307,6 +307,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         _dashboardViewModel.RefreshTexts();
         _libraryViewModel.RefreshTexts();
         UpdateProfilesBadge();
+        // The sidebar watcher line depends on whether any profile is enabled.
+        OnPropertyChanged(nameof(WatcherStatus));
     }
 
     private void OnSessionStateChanged(object? sender, FrameHub.Core.Models.SessionOptimization.ActiveSessionState? session)

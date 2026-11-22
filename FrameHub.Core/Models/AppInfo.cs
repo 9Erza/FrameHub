@@ -10,7 +10,10 @@ public sealed class AppInfo
 
     private static string GetApplicationVersion()
     {
-        Assembly assembly = Assembly.GetEntryAssembly() ?? typeof(AppInfo).Assembly;
+        // FrameHub.Core carries the product version from version.txt (Directory.Build.props). The
+        // entry assembly is the test host or another tool when FrameHub is hosted, which showed
+        // e.g. "FrameHub 17.14.1" in renders.
+        Assembly assembly = typeof(AppInfo).Assembly;
 
         return assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
                ?? assembly.GetName().Version?.ToString(3)

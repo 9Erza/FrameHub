@@ -350,7 +350,11 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
                 snapshot = await _runtime.ProcessScanner.ScanUserProcessesAsync().ConfigureAwait(false);
             }
 
+            // FrameHub itself is left out: the preview answers "what else is loading the PC";
+            // the full Processes & CPU table still lists it.
+            int ownProcessId = Environment.ProcessId;
             var top = snapshot.Groups
+                .Where(group => !group.Instances.Any(instance => instance.ProcessId == ownProcessId))
                 .OrderByDescending(group => group.CpuUsagePercent)
                 .Take(3)
                 .Select(group => new TopProcessRow
