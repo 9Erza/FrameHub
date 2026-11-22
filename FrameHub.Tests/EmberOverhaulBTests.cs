@@ -25,8 +25,11 @@ public sealed class EmberOverhaulBTests
     private List<ProcessObservation> _processes = null!;
     private long _observationClockTicks;
 
-    private const string LeaguePath = @"C:\Riot Games\League of Legends\Game\League of Legends.exe";
-    private const string Cs2Path = @"C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\bin\win64\cs2.exe";
+    // Synthetic executable paths live under the per-test temp directory and are never
+    // created, so the missing-file filter is deterministic even on machines where the
+    // real games are installed at their default locations.
+    private string LeaguePath => Path.Combine(_tempDirectory, "not-installed", "Riot Games", "League of Legends", "Game", "League of Legends.exe");
+    private string Cs2Path => Path.Combine(_tempDirectory, "not-installed", "Steam", "steamapps", "common", "Counter-Strike Global Offensive", "game", "bin", "win64", "cs2.exe");
 
     [TestInitialize]
     public void Setup()
