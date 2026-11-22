@@ -170,7 +170,7 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 - **RESPONSIBILITY / AUTHORITATIVE FOR:** sanitize, merge, load, and persist Library items.
 - **LIFETIME / MAJOR CONSUMERS:** service instances in Library presentation and App providers/coordinator query.
 - **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** file-backed atomic JSON; no timer/native work. A rescan merge keeps a stored executable that still exists, adopts the scanned executable when the stored one is gone, and moves Steam/Epic items from an Unreal bootstrap to the `-Shipping` binary of the same install (manual items are never changed).
-- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** remote providers reload server-side items; preserve sanitization. Launch (`AppLibraryLaunchService`): Steam via `steam://run/<AppId>`, Epic via `com.epicgames.launcher://apps/<AppName>?action=launch&silent=true` (identifier allow-list), Riot via the official shortcut, everything else via the trusted executable; stored executable paths of store items are observation-only.
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** remote providers reload server-side items; preserve sanitization. Launch (`AppLibraryLaunchService`): Steam via `steam://run/<AppId>`, Epic via `com.epicgames.launcher://apps/<AppName>?action=launch&silent=true` (identifier allow-list), Ubisoft via `uplay://launch/<id>/0`, Riot via the official shortcut, everything else (incl. GOG) via the trusted executable; stored executable paths of store items are observation-only.
 
 ### AppLibraryProvider
 

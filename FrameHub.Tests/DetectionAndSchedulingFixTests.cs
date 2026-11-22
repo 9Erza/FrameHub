@@ -369,6 +369,66 @@ public sealed class DetectionAndSchedulingFixTests
         Assert.IsTrue(captured!.UseShellExecute);
     }
 
+    // ---- GOG / Ubisoft ----
+
+    [TestMethod]
+    public void GogScanner_ListsBaseGamesAndSkipsDlcAndMissingFolders()
+    {
+        string install = Path.Combine(_tempDirectory, "GOG Games", "Witcher");
+        string exe = CreateFile(Path.Combine(install, "bin", "witcher.exe"));
+        var scanner = new GogLibraryScanner(() => new[]
+        {
+            new GogInstallRecord("1207664643", "The Witcher", install, exe, null),
+            new GogInstallRecord("1207664700", "The Witcher DLC", install, exe, "1207664643"),
+            new GogInstallRecord("1", "Gone", Path.Combine(_tempDirectory, "missing"), null, null)
+        });
+
+        var item = scanner.Scan().Items.Single();
+        Assert.AreEqual("The Witcher", item.DisplayName);
+        Assert.AreEqual(FrameHub.Core.Models.Library.LibrarySource.Gog, item.Source);
+        Assert.AreEqual(exe, item.ExecutablePath);
+        Assert.AreEqual("witcher", item.ProcessName);
+    }
+
+    [TestMethod]
+    public void UbisoftScanner_ResolvesGameAndSkipsInvalidIds()
+    {
+        string install = Path.Combine(_tempDirectory, "Ubisoft", "Far Cry 6");
+        string exe = CreateFile(Path.Combine(install, "bin", "FarCry6.exe"));
+        var scanner = new UbisoftLibraryScanner(() => new[]
+        {
+            new UbisoftInstallRecord("5266", install.Replace('\\', '/') + "/", "Far Cry 6"),
+            new UbisoftInstallRecord("not-a-number", install, "Broken")
+        });
+
+        var item = scanner.Scan().Items.Single();
+        Assert.AreEqual("Far Cry 6", item.DisplayName);
+        Assert.AreEqual("5266", item.AppId);
+        Assert.AreEqual(exe, item.ExecutablePath);
+    }
+
+    [TestMethod]
+    public void UbisoftGame_LaunchesThroughUbisoftConnectProtocol()
+    {
+        string exe = CreateFile(Path.Combine("Ubi", "Game.exe"));
+        ProcessStartInfo? captured = null;
+        var service = new FrameHub.App.Services.AppLibraryLaunchService(psi => { captured = psi; return true; });
+
+        var result = service.Launch(new FrameHub.Core.Models.Library.LibraryItem
+        {
+            Id = "ubi-1",
+            DisplayName = "Ubi Game",
+            Source = FrameHub.Core.Models.Library.LibrarySource.Ubisoft,
+            Type = FrameHub.Core.Models.Library.LibraryItemType.Game,
+            AppId = "5266",
+            ExecutablePath = exe,
+            IsEnabled = true
+        });
+
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual("uplay://launch/5266/0", captured?.FileName);
+    }
+
     private string CreateFile(string relativeOrFull)
     {
         string path = Path.IsPathRooted(relativeOrFull) ? relativeOrFull : Path.Combine(_tempDirectory, relativeOrFull);

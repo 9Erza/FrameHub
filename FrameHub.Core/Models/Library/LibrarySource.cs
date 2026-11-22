@@ -6,5 +6,7 @@ public enum LibrarySource
     Steam,
     Epic,
     Riot,
-    CustomFolder
+    CustomFolder,
+    Gog,
+    Ubisoft
 }

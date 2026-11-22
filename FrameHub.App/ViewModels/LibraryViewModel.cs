@@ -34,6 +34,8 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private readonly SteamLibraryScanner _steamScanner = new();
     private readonly EpicLibraryScanner _epicScanner = new();
     private readonly RiotLibraryScanner _riotScanner = new();
+    private readonly GogLibraryScanner _gogScanner = new();
+    private readonly UbisoftLibraryScanner _ubisoftScanner = new();
     private readonly CustomFolderScanner _customScanner = new();
     private readonly Cs2OptimizationService _cs2Service;
     private string _newDisplayName = string.Empty;
@@ -853,7 +855,7 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
             {
                 var found = new List<LibraryItem>();
                 var notes = new List<string>();
-                foreach (var result in new[] { _steamScanner.Scan(), _epicScanner.Scan(), _riotScanner.Scan() })
+                foreach (var result in new[] { _steamScanner.Scan(), _epicScanner.Scan(), _riotScanner.Scan(), _gogScanner.Scan(), _ubisoftScanner.Scan() })
                 {
                     found.AddRange(result.Items);
                     notes.AddRange(result.Warnings);

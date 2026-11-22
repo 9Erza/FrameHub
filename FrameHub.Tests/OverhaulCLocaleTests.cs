@@ -140,6 +140,8 @@ public sealed class OverhaulCLocaleTests
             [LibrarySource.Epic] = "Epic Games",
             [LibrarySource.Riot] = "Riot Games",
             [LibrarySource.CustomFolder] = "Folder niestandardowy",
+            [LibrarySource.Gog] = "GOG",
+            [LibrarySource.Ubisoft] = "Ubisoft Connect",
         };
         foreach (LibrarySource source in Enum.GetValues<LibrarySource>())
         {

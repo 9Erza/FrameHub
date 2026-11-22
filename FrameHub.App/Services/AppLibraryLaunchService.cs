@@ -141,6 +141,28 @@ public sealed class AppLibraryLaunchService : IAppLibraryLaunchService
             }
         }
 
+        // Ubisoft Connect games start through the launcher protocol (sign-in, DRM and cloud saves);
+        // the stored executable is observation-only.
+        if (item.Source == LibrarySource.Ubisoft && uint.TryParse(item.AppId?.Trim(), out uint ubisoftId))
+        {
+            string ubisoftUri = $"uplay://launch/{ubisoftId}/0";
+            try
+            {
+                if (!_processStarter(new ProcessStartInfo { FileName = ubisoftUri, UseShellExecute = true }))
+                {
+                    return LibraryLaunchResult.Fail("launch_failed");
+                }
+
+                _logger.Info($"Successfully launched Ubisoft library item '{item.DisplayName}' through '{ubisoftUri}'.");
+                return LibraryLaunchResult.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to launch Ubisoft library item '{item.DisplayName}' through '{ubisoftUri}': {ex.Message}", ex);
+                return LibraryLaunchResult.Fail("launch_failed");
+            }
+        }
+
         // Trusted shell launch entry (e.g. an official Riot-created Start Menu shortcut). The shortcut
         // itself is executed via the shell with no FrameHub-supplied arguments, equivalent to the user
         // double-clicking it; the stored target identity (e.g. ExecutablePath) stays observation-only.
