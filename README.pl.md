@@ -15,12 +15,12 @@ serwer LAN Companion, konfiguracja CS2 oraz monitoring sprzętu w jednej aplikac
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![Licencja](https://img.shields.io/badge/licencja-MIT-2EA44F?style=flat-square)](LICENSE)
-![Wydanie](https://img.shields.io/badge/wydanie-v1.1.0-EAB45D?style=flat-square)
+![Wydanie](https://img.shields.io/badge/wydanie-v1.1.1-EAB45D?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Wersja: v1.1.0.** Oficjalny instalator Windows znajdziesz w [GitHub Releases](https://github.com/9Erza/FrameHub/releases), gdy plik wydania będzie dostępny. Zobacz [opis wydania 1.1.0](docs/RELEASE_NOTES_1.1.0.md), [listę zmian PL](CHANGELOG.pl.md), [Changelog EN](CHANGELOG.md) i [Roadmapę](docs/ROADMAP.md).
+> **Wersja: v1.1.1.** Oficjalny instalator Windows znajdziesz w [GitHub Releases](https://github.com/9Erza/FrameHub/releases), gdy plik wydania będzie dostępny. Zobacz [opis wydania 1.1.0](docs/RELEASE_NOTES_1.1.0.md), [listę zmian PL](CHANGELOG.pl.md), [Changelog EN](CHANGELOG.md) i [Roadmapę](docs/ROADMAP.md).
 
 ### Co nowego w 1.1.0
 
@@ -28,7 +28,7 @@ serwer LAN Companion, konfiguracja CS2 oraz monitoring sprzętu w jednej aplikac
 - **Lepsze wykrywanie gier:** GOG i Ubisoft Connect, gry Unreal Engine rozpoznawane po prawdziwym procesie, naprawa przeniesionych gier przy skanie, czystsze wyniki Steam i Epic, skanowanie w tle.
 - **Czytelniejszy interfejs:** jedna nazwa na stronę, bez powtórzeń i sprzecznych statusów, ustawienia CPU gry w Bibliotece, natywna ramka okna w Windows 11, szybsze przełączanie stron.
 
-Szczegóły i znane ograniczenia: [opis wydania 1.1.0](docs/RELEASE_NOTES_1.1.0.md); poprzednie wydanie: [opis wydania 1.0.1](docs/RELEASE_NOTES_1.0.1.md).
+Szczegóły i znane ograniczenia: [opis wydania 1.1.0](docs/RELEASE_NOTES_1.1.0.md), poprawki: [opis wydania 1.1.1](docs/RELEASE_NOTES_1.1.1.md); poprzednie wydanie: [opis wydania 1.0.1](docs/RELEASE_NOTES_1.0.1.md).
 
 ### Co nowego w 1.0.0
 
@@ -45,7 +45,7 @@ To usprawnienia istniejącego produktu, którego fundamentami pozostają Bibliot
 
 ## Pobieranie, instalacja i aktualizacja
 
-1. Wejdź na [oficjalną stronę GitHub Releases](https://github.com/9Erza/FrameHub/releases). Otwórz najnowsze wydanie (v1.1.0), rozwiń **Assets** i pobierz **`FrameHub-Setup-1.1.0.exe`**. Automatyczne archiwum ZIP z kodem źródłowym na GitHubie **nie jest instalatorem** Windows.
+1. Wejdź na [oficjalną stronę GitHub Releases](https://github.com/9Erza/FrameHub/releases). Otwórz najnowsze wydanie (v1.1.1), rozwiń **Assets** i pobierz **`FrameHub-Setup-1.1.1.exe`**. Automatyczne archiwum ZIP z kodem źródłowym na GitHubie **nie jest instalatorem** Windows.
 2. Uruchom instalator w **Windows 10/11 x64** i zaakceptuj wymagane uprawnienia administratora. Jeden plik instalacyjny zawiera Intel PresentMon 2.5.1 używany przez benchmarki.
 3. **Aktualizacja starszej instalacji Inno Setup:** uruchom nowy instalator bez wcześniejszego odinstalowywania. FrameHub zachowuje identyfikator instalacji (`AppId`) używany od 0.4.0, odzyskany wcześniej z 0.3.1. Inno Setup wykorzystuje poprzedni katalog instalacji. Ustawienia i biblioteka znajdują się osobno w `%APPDATA%\FrameHub`, a benchmarki w `%LOCALAPPDATA%\FrameHub\Benchmarks`.
 

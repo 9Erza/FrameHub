@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-22
+
+Release notes (English and Polish): [FrameHub v1.1.1](docs/RELEASE_NOTES_1.1.1.md). Installer: `FrameHub-Setup-1.1.1.exe` in **Assets** on [GitHub Releases](https://github.com/9Erza/FrameHub/releases); upgrades keep the installer identity and all user data.
+
+### Fixed
+
+- Dashboard System overview metrics stack title, value and description (titles were clipped in 1280 px windows).
+- The sidebar profile-monitor line updates when profiles change.
+- Top CPU preview leaves out FrameHub's own process.
+- The product version is read from FrameHub.Core (version.txt) instead of the entry assembly.
+
 ## [1.1.0] - 2026-11-22
 
 Release notes (English and Polish): [FrameHub v1.1.0](docs/RELEASE_NOTES_1.1.0.md). Installer: `FrameHub-Setup-1.1.0.exe` in **Assets** on [GitHub Releases](https://github.com/9Erza/FrameHub/releases). Upgrades keep the installer identity (`AppId A073F5F3-E7D0-45C7-A233-8A98B033385B`) and installation folder and preserve settings, Library, profiles, benchmark history and paired devices.

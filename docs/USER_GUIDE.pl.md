@@ -2,19 +2,19 @@
 
 [English](USER_GUIDE.md)
 
-## Instalacja lub aktualizacja (v1.1.0)
+## Instalacja lub aktualizacja (v1.1.1)
 
-Po opublikowaniu wydania pobierz `FrameHub-Setup-1.1.0.exe` z sekcji **Assets** wydania **v1.1.0** na [oficjalnej stronie GitHub Releases](https://github.com/9Erza/FrameHub/releases). Automatyczne archiwum ZIP ze źródłami nie jest instalatorem. Wymagany jest Windows 10/11 x64 oraz akceptacja uprawnień administratora.
+Po opublikowaniu wydania pobierz `FrameHub-Setup-1.1.1.exe` z sekcji **Assets** wydania **v1.1.1** na [oficjalnej stronie GitHub Releases](https://github.com/9Erza/FrameHub/releases). Automatyczne archiwum ZIP ze źródłami nie jest instalatorem. Wymagany jest Windows 10/11 x64 oraz akceptacja uprawnień administratora.
 
 Instalator oferuje **Intel PresentMon 2.5.1** jako domyślnie zaznaczony komponent opcjonalny. Po zaznaczeniu instalator wykorzystuje zweryfikowaną współdzieloną usługę/API v2.5.1 albo instaluje osadzony MSI po cichu (`/qn /norestart`); nowsza lub niezweryfikowana współdzielona instalacja nigdy nie jest automatycznie obniżana. Po odznaczeniu instalator nic nie instaluje, niczego nie naprawia i nie uruchamia `msiexec` dla PresentMon — istniejący PresentMon zostaje nietknięty i nadal może być używany. PresentMon jest współdzielonym składnikiem i może pozostać w systemie po usunięciu FrameHub. Bez PresentMon aplikacja działa normalnie, a podgląd FPS i benchmarki zgłaszają brak zależności z podaniem przyczyny.
 
 Jeśli FrameHub był już zainstalowany przez Inno Setup (także 1.0.0), **zamknij program i uruchom nowy instalator bez odinstalowywania poprzedniego**. Historyczny identyfikator instalacji `AppId` jest zachowany, podobnie jak poprzednia lokalizacja. Ustawienia, profile i biblioteka znajdują się osobno w `%APPDATA%\FrameHub`, a historia benchmarków w `%LOCALAPPDATA%\FrameHub\Benchmarks`. Kreator pierwszego uruchomienia nie pojawia się ponownie w istniejących instalacjach. Przy aktualizacji z 1.0.0 krok PresentMon jest domyślnie zaznaczony (1.0.0 nie miało takiego wyboru); przy kolejnych aktualizacjach wybór jest wstępnie zaznaczany z poprzedniej instalacji. Przed większą aktualizacją warto wykonać kopię ustawień.
 
-Zobacz [opis wydania v1.1.0 (PL/EN)](RELEASE_NOTES_1.1.0.md). Program jedynie sprawdza dostępność nowej wersji i kieruje na GitHub — nie pobiera ani nie uruchamia instalatora automatycznie.
+Zobacz [opis wydania v1.1.1 (PL/EN)](RELEASE_NOTES_1.1.1.md). Program jedynie sprawdza dostępność nowej wersji i kieruje na GitHub — nie pobiera ani nie uruchamia instalatora automatycznie.
 
 ---
 
-## Pierwsze uruchomienie (v1.1.0)
+## Pierwsze uruchomienie (v1.1.1)
 
 Przy świeżej instalacji (lub po pełnym wyczyszczeniu danych) FrameHub pokazuje sześciokrokowy kreator: powitanie/język, monitor sprzętu, Companion, Live FPS, start z Windows i podsumowanie. Moduły opcjonalne są domyślnie WYŁĄCZONE (lekki ślad); bazowe sterowanie procesami/CPU, profile i monitor profili są zawsze włączone i nie ma ich tu do przełączenia. Kreator pracuje na szkicu zapisywanym dopiero przy Zakończ/Pomiń, więc jego zamknięcie nie uszkodzi ustawień; przerwane pierwsze uruchomienie wznawia kreatora przy kolejnym starcie.
 
