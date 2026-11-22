@@ -126,7 +126,7 @@
                                 <Border Style="{StaticResource InlineRow}">
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                        <Image Source="{Binding IconSource}" Width="28" Height="28" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,12,0" />
+                                        <Image Source="{Binding IconSource, IsAsync=True}" Width="28" Height="28" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,12,0" />
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding DisplayName}" Style="{StaticResource DataTitleText}" /><TextBlock Text="{Binding ProcessName}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" /></StackPanel>
                                         <CheckBox Grid.Column="2" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AutoEnabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="16,0,0,0" />
                                     </Grid>

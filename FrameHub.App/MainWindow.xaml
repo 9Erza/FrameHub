@@ -260,7 +260,7 @@
 
                 <!-- Active screen content. Headings live inside each view. -->
                 <Grid x:Name="ContentHost" Grid.Column="1" Margin="24,20,24,24">
-                    <ContentControl x:Name="PageContent" Content="{Binding CurrentViewModel}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+                    <ContentControl x:Name="PageContent" Content="{Binding CurrentViewModel, Converter={StaticResource CachedPageViewConverter}}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
                 </Grid>
 
                 <!-- Rail drawer: full navigation names; Escape closes and returns focus. -->

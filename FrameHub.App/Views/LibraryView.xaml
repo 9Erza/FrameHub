@@ -211,7 +211,7 @@
                                         <Border Width="56" Height="56" CornerRadius="4" Background="{StaticResource BrushSurfaceInteractive}" Margin="0,0,16,0">
                                             <Grid>
                                                 <TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource BrushBorderStrong}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                <Image Source="{Binding IconSource}" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <Image Source="{Binding IconSource, IsAsync=True}" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                             </Grid>
                                         </Border>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
