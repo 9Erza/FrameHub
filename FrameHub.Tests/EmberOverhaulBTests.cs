@@ -324,14 +324,15 @@ public sealed class EmberOverhaulBTests
         using var runtimePl = new AppRuntimeService(plPath);
         Assert.IsTrue(runtimePl.Activity.Count >= 2, "Startup must record the launch + watcher entries.");
         StringAssert.Contains(runtimePl.Activity[1].Message, "FrameHub został uruchomiony.");
-        StringAssert.Contains(runtimePl.Activity[0].Message, "Monitor profili w tle aktywny");
+        // Active (enabled profiles on this machine) or idle (none, e.g. CI): both name the monitor.
+        StringAssert.StartsWith(runtimePl.Activity[0].Message, "Monitor profili");
 
         string enPath = Path.Combine(_tempDirectory, "settings-activity-en.json");
         File.WriteAllText(enPath, "{\"Language\":\"en\"}");
         using var runtimeEn = new AppRuntimeService(enPath);
         Assert.IsTrue(runtimeEn.Activity.Count >= 2);
         StringAssert.Contains(runtimeEn.Activity[1].Message, "FrameHub runtime started.");
-        StringAssert.Contains(runtimeEn.Activity[0].Message, "Background profile monitor active");
+        Assert.IsTrue(runtimeEn.Activity[0].Message.Contains("profile monitor", StringComparison.OrdinalIgnoreCase), runtimeEn.Activity[0].Message);
     }
 
     [TestMethod]
