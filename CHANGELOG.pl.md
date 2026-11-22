@@ -1,8 +1,19 @@
 # Lista zmian / Changelog (PL)
 
-[English changelog — pełna historia wydań](CHANGELOG.md) · [Opis wydania v1.1.0 (PL/EN)](docs/RELEASE_NOTES_1.1.0.md)
+[English changelog — pełna historia wydań](CHANGELOG.md) · [Opis wydania v1.1.1 (PL/EN)](docs/RELEASE_NOTES_1.1.1.md)
 
 ## [Niewydane]
+
+## [1.1.1] — 2026-11-22
+
+Opis wydania (PL/EN): [FrameHub v1.1.1](docs/RELEASE_NOTES_1.1.1.md). Instalator: `FrameHub-Setup-1.1.1.exe` w sekcji **Assets** na [GitHub Releases](https://github.com/9Erza/FrameHub/releases); aktualizacja zachowuje wszystkie dane użytkownika.
+
+### Naprawiono
+
+- „Stan systemu” na Panelu głównym nie ucina nazw w oknie 1280 px.
+- Status monitora profili w pasku bocznym odświeża się po zmianie profili.
+- Lista najbardziej obciążających procesów pomija sam FrameHub.
+- Numer wersji odczytywany z FrameHub.Core (version.txt).
 
 ## [1.1.0] — 2026-11-22
 

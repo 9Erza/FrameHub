@@ -15,12 +15,12 @@ LAN Companion server, CS2 configuration and hardware monitoring in one desktop a
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-2EA44F?style=flat-square)](LICENSE)
-![Release](https://img.shields.io/badge/release-v1.1.0-EAB45D?style=flat-square)
+![Release](https://img.shields.io/badge/release-v1.1.1-EAB45D?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Version: v1.1.0.** Get the official Windows installer from [GitHub Releases](https://github.com/9Erza/FrameHub/releases) when the release asset is available. Read the [1.1.0 release notes](docs/RELEASE_NOTES_1.1.0.md), [Changelog](CHANGELOG.md) and [Roadmap](docs/ROADMAP.md).
+> **Version: v1.1.1.** Get the official Windows installer from [GitHub Releases](https://github.com/9Erza/FrameHub/releases) when the release asset is available. Read the [1.1.0 release notes](docs/RELEASE_NOTES_1.1.0.md), [Changelog](CHANGELOG.md) and [Roadmap](docs/ROADMAP.md).
 
 ### What's new in 1.1.0
 
@@ -28,7 +28,7 @@ LAN Companion server, CS2 configuration and hardware monitoring in one desktop a
 - **Better game detection:** GOG and Ubisoft Connect discovery, Unreal Engine games recognised by their real process, moved games repaired on rescan, cleaner Steam and Epic results, background scanning.
 - **Cleaner interface:** one name per page, no repeated or contradictory states, game CPU settings in the Library, native Windows 11 window frame, much faster page switching.
 
-See the [1.1.0 release notes](docs/RELEASE_NOTES_1.1.0.md) for details and known limitations; [1.0.1 release notes](docs/RELEASE_NOTES_1.0.1.md) cover the previous release.
+See the [1.1.0 release notes](docs/RELEASE_NOTES_1.1.0.md) for details and known limitations and the [1.1.1 release notes](docs/RELEASE_NOTES_1.1.1.md) for the follow-up fixes; [1.0.1 release notes](docs/RELEASE_NOTES_1.0.1.md) cover the previous release.
 
 ### What's new in 1.0.0
 
@@ -45,7 +45,7 @@ These changes build on existing Game Library, CPU Sets/Affinity, Session Optimiz
 
 ## Download, install and upgrade
 
-1. Open the [official GitHub Releases page](https://github.com/9Erza/FrameHub/releases). Open the latest release (v1.1.0), expand **Assets** and download **`FrameHub-Setup-1.1.0.exe`**. The GitHub-generated source-code ZIP is **not** the Windows installer.
+1. Open the [official GitHub Releases page](https://github.com/9Erza/FrameHub/releases). Open the latest release (v1.1.1), expand **Assets** and download **`FrameHub-Setup-1.1.1.exe`**. The GitHub-generated source-code ZIP is **not** the Windows installer.
 2. Run the installer on **Windows 10/11 x64** and approve the administrator prompt. The single installer bundles the pinned Intel PresentMon 2.5.1 prerequisite used by benchmarks.
 3. **Upgrading from an earlier Inno Setup installation:** run the new installer normally; do not uninstall first. FrameHub retains the installation identity (`AppId`) used since 0.4.0 and recovered from 0.3.1, and Inno Setup reuses the previous installation directory. Your settings and library are stored separately under `%APPDATA%\FrameHub`; benchmarks are stored under `%LOCALAPPDATA%\FrameHub\Benchmarks`.
 

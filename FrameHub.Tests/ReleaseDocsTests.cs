@@ -36,7 +36,7 @@ public sealed class ReleaseDocsTests
         string readme = ReadRootFile("README.md");
         // Relative asset path is intentional: GitHub serves it as the raw logo URL on main.
         StringAssert.Contains(readme, "FrameHub.App/Assets/FrameHubLogo.png", "README must reference the official logo asset.");
-        StringAssert.Contains(readme, "v1.1.0", "README must declare 1.1.0.");
+        StringAssert.Contains(readme, "v1.1.1", "README must declare 1.1.1.");
         Assert.IsFalse(readme.Contains("v0.7.1"), "README must not present the retired version as current.");
     }
 
@@ -46,7 +46,7 @@ public sealed class ReleaseDocsTests
         string readmePl = ReadRootFile("README.pl.md");
         // Relative asset path is intentional: GitHub serves it as the raw logo URL on main.
         StringAssert.Contains(readmePl, "FrameHub.App/Assets/FrameHubLogo.png", "README.pl must reference the official logo asset.");
-        StringAssert.Contains(readmePl, "v1.1.0", "README.pl must declare 1.1.0.");
+        StringAssert.Contains(readmePl, "v1.1.1", "README.pl must declare 1.1.1.");
         Assert.IsFalse(readmePl.Contains("v0.7.1"), "README.pl must not present the retired version as current.");
     }
 
@@ -94,7 +94,7 @@ public sealed class ReleaseDocsTests
     public void Readmes_AgreeWithVersionTxt()
     {
         string version = ReadRootFile("version.txt").Trim();
-        Assert.AreEqual("1.1.0", version, "version.txt is the single source for the current release.");
+        Assert.AreEqual("1.1.1", version, "version.txt is the single source for the current release.");
         foreach (string name in new[] { "README.md", "README.pl.md" })
         {
             string readme = ReadRootFile(name);
@@ -116,7 +116,7 @@ public sealed class ReleaseDocsTests
         foreach (string guide in new[] { "docs/USER_GUIDE.md", "docs/USER_GUIDE.pl.md" })
         {
             string text = ReadRootFile(guide);
-            StringAssert.Contains(text, "1.1.0", $"{guide} must describe the current release.");
+            StringAssert.Contains(text, "1.1.1", $"{guide} must describe the current release.");
             StringAssert.Contains(text, "RESET", $"{guide} must document the wipe confirmation.");
             StringAssert.Contains(text, "PresentMon", $"{guide} must document the optional prerequisite.");
         }
@@ -136,7 +136,7 @@ public sealed class ReleaseDocsTests
         foreach (string doc in new[]
         {
             "README.md", "README.pl.md", "CHANGELOG.md", "CHANGELOG.pl.md",
-            "docs/RELEASE_NOTES_1.0.0.md", "docs/RELEASE_NOTES_1.0.1.md", "docs/RELEASE_NOTES_1.1.0.md",
+            "docs/RELEASE_NOTES_1.0.0.md", "docs/RELEASE_NOTES_1.0.1.md", "docs/RELEASE_NOTES_1.1.0.md", "docs/RELEASE_NOTES_1.1.1.md",
             "docs/USER_GUIDE.md", "docs/USER_GUIDE.pl.md"
         })
         {
@@ -176,8 +176,10 @@ public sealed class ReleaseDocsTests
         StringAssert.Contains(notes, "Znane ograniczenia");
         StringAssert.Contains(notes, "FrameHub-Setup-1.1.0.exe");
         string changelog = ReadRootFile("CHANGELOG.md");
-        Assert.IsTrue(changelog.IndexOf("## [1.1.0]", StringComparison.Ordinal) < changelog.IndexOf("## [1.0.1]", StringComparison.Ordinal),
-            "The 1.1.0 section must lead the release history.");
+        Assert.IsTrue(changelog.IndexOf("## [1.1.1]", StringComparison.Ordinal) < changelog.IndexOf("## [1.1.0]", StringComparison.Ordinal)
+            && changelog.IndexOf("## [1.1.0]", StringComparison.Ordinal) < changelog.IndexOf("## [1.0.1]", StringComparison.Ordinal),
+            "Release history must be newest first.");
+        StringAssert.Contains(ReadRootFile("docs/RELEASE_NOTES_1.1.1.md"), "FrameHub-Setup-1.1.1.exe");
         StringAssert.Contains(ReadRootFile("CHANGELOG.pl.md"), "## [1.1.0]");
         foreach (string readme in new[] { "README.md", "README.pl.md" })
         {
@@ -203,7 +205,7 @@ public sealed class ReleaseDocsTests
         StringAssert.Contains(notes, "FrameHub-Setup-1.0.1.exe", "1.0.1 release notes must name the installer asset.");
 
         string companionHtml = ReadRootFile("FrameHub.Companion/wwwroot/index.html");
-        StringAssert.Contains(companionHtml, ">1.1.0<", "Companion static version placeholders must match version.txt.");
+        StringAssert.Contains(companionHtml, ">1.1.1<", "Companion static version placeholders must match version.txt.");
         Assert.IsFalse(companionHtml.Contains("1.0.0", StringComparison.Ordinal),
             "No stale 1.0.0 reference may remain in Companion index.html.");
     }
