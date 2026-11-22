@@ -22,6 +22,7 @@
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
             <converters:NonEmptyToVisibilityConverter x:Key="NonEmptyToVisibilityConverter" />
+            <converters:CachedPageViewConverter x:Key="CachedPageViewConverter" />
 
             <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
                 <views:DashboardView />

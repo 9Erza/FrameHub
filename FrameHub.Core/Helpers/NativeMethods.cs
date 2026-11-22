@@ -32,6 +32,13 @@ namespace FrameHub.Core.Helpers
             uint[]? cpuSetIds,
             uint cpuSetIdCount);
 
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "QueryFullProcessImageNameW")]
+        public static extern bool QueryFullProcessImageName(
+            IntPtr hProcess,
+            uint flags,
+            [Out] char[] exeName,
+            ref uint size);
+
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool GetProcessDefaultCpuSets(
             IntPtr hProcess,

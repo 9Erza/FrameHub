@@ -11,13 +11,17 @@ public static class ExecutableResolver
     private static readonly string[] BadFileNameTokens =
     {
         "unins", "uninstall", "setup", "installer", "install", "crash", "reporter", "redist",
-        "vcredist", "dxsetup", "benchmark", "config", "settings", "launcherhelper", "bootstrap"
+        "vcredist", "dxsetup", "benchmark", "config", "settings", "launcherhelper", "bootstrap",
+        // Anti-cheat bootstrappers and engine/browser helper processes are never the game
+        // process itself; picking them breaks running-state detection and CPU profiles.
+        "start_protected_game", "easyanticheat", "battleye", "beservice", "crashhandler", "crashpad",
+        "unitycrashhandler", "cefprocess", "webhelper", "ue4prereq", "ueprereq", "prereq", "dotnetfx", "vc_redist"
     };
 
     private static readonly string[] BadPathTokens =
     {
         "_commonredist", "redist", "redistributable", "directx", "vcredist", "support", "installer",
-        "crashreport", "crashreporter", "tools", "extras", "docs"
+        "crashreport", "crashreporter", "tools", "extras", "docs", "easyanticheat", "battleye", "_redist"
     };
 
     public static string? FindBestExecutable(string? installPath, string displayName)
@@ -104,7 +108,7 @@ public static class ExecutableResolver
 
             foreach (var file in files)
             {
-                if (!ShouldSkipPath(file)) yield return file;
+                if (!ShouldSkipPath(file, rootFolder)) yield return file;
             }
 
             if (current.Depth >= maxDepth) continue;
@@ -120,7 +124,7 @@ public static class ExecutableResolver
 
             foreach (var directory in directories)
             {
-                if (!ShouldSkipPath(directory)) stack.Push((directory, current.Depth + 1));
+                if (!ShouldSkipPath(directory, rootFolder)) stack.Push((directory, current.Depth + 1));
             }
         }
     }
@@ -128,7 +132,9 @@ public static class ExecutableResolver
     private static int ScoreExecutable(string path, string installPath, string displayName)
     {
         string file = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
-        string full = path.ToLowerInvariant();
+        // Only the part below the install folder is judged: a library root such as
+        // "D:\Games\Tools" or "E:\Support" must not disqualify every game inside it.
+        string full = RelativeLower(path, installPath);
         string normalizedName = Normalize(displayName);
         string normalizedFile = Normalize(file);
 
@@ -149,6 +155,11 @@ public static class ExecutableResolver
         }
 
         if (full.Contains("win64") || full.Contains("x64") || full.Contains("binaries")) score += 12;
+
+        // Unreal Engine games ship a small bootstrap "<Game>.exe" in the install root that starts
+        // "<Game>-Win64-Shipping.exe" and exits. The shipping binary is the process that actually
+        // runs, so it must win for running-state detection, profiles and Session auto mode.
+        if (file.EndsWith("-shipping", StringComparison.Ordinal)) score += 100;
         if (file.Contains("launcher")) score -= 25;
         if (file.Length <= 2) score -= 30;
 
@@ -160,9 +171,27 @@ public static class ExecutableResolver
         return new string(value.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
     }
 
-    private static bool ShouldSkipPath(string path)
+    private static bool ShouldSkipPath(string path, string rootFolder)
     {
-        string lower = path.ToLowerInvariant();
+        string lower = RelativeLower(path, rootFolder);
         return BadPathTokens.Any(lower.Contains);
+    }
+
+    internal static string RelativeLower(string path, string rootFolder)
+    {
+        try
+        {
+            string relative = Path.GetRelativePath(rootFolder, path);
+            if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
+            {
+                return relative.ToLowerInvariant();
+            }
+        }
+        catch
+        {
+            // Fall back to the full path when the paths cannot be related.
+        }
+
+        return path.ToLowerInvariant();
     }
 }

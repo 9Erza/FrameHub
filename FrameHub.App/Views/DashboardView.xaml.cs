@@ -84,7 +84,7 @@ public partial class DashboardView : WpfUserControl
         {
             HeroCard.Padding = new Thickness(20);
             HeroGameDescription.Visibility = Visibility.Visible;
-            HeroGameContext.Margin = new Thickness(0, 0, 0, 30);
+            HeroGameContext.Margin = new Thickness(0, 0, 0, 8);
             HeroGrid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
             HeroGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Auto);
             System.Windows.Controls.Grid.SetColumn(HeroStatusPanel, 0);

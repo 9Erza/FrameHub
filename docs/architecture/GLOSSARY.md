@@ -10,11 +10,11 @@ Decided terms (do not re-translate ad hoc):
 | EN (key prefix) | PL | Note / decision |
 |---|---|---|
 | Dashboard (`Nav.Dashboard`, `Dashboard.Title`) | Panel główny | Decided 2026-10-25 (UI overhaul C). `Pulpit` rejected: collision with the Windows desktop. |
-| Games & Optimization | Gry i optymalizacja | |
+| Library | Biblioteka | Sidebar label and page title are the same word (2026-11-22). |
 | Session Optimization | Optymalizacja sesji | |
 | Benchmarks | Benchmarki | |
 | Processes & CPU | Procesy i CPU | |
-| Profiles & Rules | Profile i reguły | |
+| Profiles | Profile | |
 | Hardware Monitor | Monitor sprzętu | |
 | Logs (`Logs.Title`) | Dziennik | Decided: `Dziennik`, not `Logi`. Runtime activity producers use `Aktywność`. |
 | Settings | Ustawienia | Six categories: General / Language / Startup & Window / Companion & Network / Benchmarks / Advanced & Diagnostics (PL: Ogólne / Język / Start i okno / Companion i sieć / Benchmarki / Zaawansowane i diagnostyka). |

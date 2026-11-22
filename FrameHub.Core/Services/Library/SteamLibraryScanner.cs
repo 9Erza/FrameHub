@@ -36,11 +36,17 @@ public sealed class SteamLibraryScanner
                     values.TryGetValue("appid", out string? appId);
                     values.TryGetValue("name", out string? name);
                     values.TryGetValue("installdir", out string? installDir);
+                    values.TryGetValue("StateFlags", out string? stateFlags);
 
                     if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(installDir)) continue;
 
                     string installPath = Path.Combine(steamApps, "common", installDir);
                     string? exe = ExecutableResolver.FindBestExecutable(installPath, name);
+
+                    // A manifest also exists while a game is first downloading or after an
+                    // interrupted uninstall. Without the FullyInstalled flag and without an
+                    // executable it is not a playable game yet, so it is not listed.
+                    if (exe == null && !IsFullyInstalled(stateFlags)) continue;
 
                     var item = new LibraryItem
                     {
@@ -78,7 +84,9 @@ public sealed class SteamLibraryScanner
         string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         if (!string.IsNullOrWhiteSpace(programFilesX86)) steamRoots.Add(Path.Combine(programFilesX86, "Steam"));
 
-        foreach (string root in steamRoots.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
+        // HKCU SteamPath is stored with forward slashes ("c:/program files (x86)/steam"), so the same
+        // install appeared twice next to the Program Files fallback and every library was scanned twice.
+        foreach (string root in steamRoots.Select(NormalizeDirectory).Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             yield return root;
 
@@ -87,7 +95,8 @@ public sealed class SteamLibraryScanner
 
             foreach (string library in ParseLibraryFolders(File.ReadAllText(vdf)))
             {
-                if (Directory.Exists(library)) yield return library;
+                string normalized = NormalizeDirectory(library);
+                if (Directory.Exists(normalized)) yield return normalized;
             }
         }
     }
@@ -105,14 +114,30 @@ public sealed class SteamLibraryScanner
         }
     }
 
-    private static Dictionary<string, string> ParseValveKeyValues(string content)
+    /// <summary>
+    /// Flattens an appmanifest. The top-level AppState keys (appid, name, installdir,
+    /// StateFlags) come before nested blocks, so the first occurrence wins and a nested
+    /// key with the same name can never overwrite the game's own value.
+    /// </summary>
+    internal static Dictionary<string, string> ParseValveKeyValues(string content)
     {
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (Match match in KeyValueRegex.Matches(content))
         {
-            values[match.Groups["key"].Value] = match.Groups["value"].Value;
+            values.TryAdd(match.Groups["key"].Value, match.Groups["value"].Value);
         }
         return values;
+    }
+
+    /// <summary>Steam StateFlags bit 4 = StateFullyInstalled. Unknown flags are treated as installed.</summary>
+    internal static bool IsFullyInstalled(string? stateFlags) =>
+        !long.TryParse(stateFlags, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long flags)
+        || (flags & 4) != 0;
+
+    internal static string NormalizeDirectory(string path)
+    {
+        try { return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path.Trim())); }
+        catch { return path.Trim(); }
     }
 
     private static void TryAddRegistryValue(List<string> list, RegistryKey root, string path, string valueName)

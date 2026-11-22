@@ -45,7 +45,11 @@ public sealed class HardwareViewModel : ViewModelBase, IDisposable
     public string BackendStatusText => IsMonitorEnabled ? _localization.T("Hardware.BackendActive") : _localization.T("Hardware.BackendInactive");
     public string BackgroundBehaviorTitle => _localization.T("Hardware.BackgroundBehavior.Title");
     public string ProfileWatcherTitle => _localization.T("Hardware.ProfileWatcher.Title");
-    public string ProfileWatcherStatus => _runtime.IsProfileWatcherActive ? _localization.T("Hardware.ProfileWatcher.StatusActive") : _localization.T("Hardware.ProfileWatcher.StatusInactive");
+    /// <summary>True only when the watcher runs and has at least one enabled profile to apply.</summary>
+    public bool IsProfileWatcherWorking => _runtime.IsProfileWatcherActive && _runtime.Profiles.Any(p => p.IsEnabled);
+    public string ProfileWatcherStatus => !_runtime.IsProfileWatcherActive
+        ? _localization.T("Hardware.ProfileWatcher.StatusInactive")
+        : IsProfileWatcherWorking ? _localization.T("Hardware.ProfileWatcher.StatusActive") : _localization.T("Hardware.ProfileWatcher.StatusIdle");
     public string StorageSensorsTitle => _localization.T("Hardware.StorageSensors.Title");
     public string StorageSensorsDescription => _localization.T("Hardware.StorageSensors.Description");
     public string RefreshModesTitle => _localization.T("Hardware.RefreshModes.Title");

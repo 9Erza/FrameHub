@@ -99,6 +99,8 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public ICommand OpenRepositoryCommand { get; }
     public ICommand OpenAuthorCommand { get; }
     public ICommand OpenWebsiteCommand { get; }
+    public ICommand OpenStudioCommand { get; }
+    public string StudioLabel => _localization.T("Footer.Studio");
     public ICommand OpenSupportCommand { get; }
 
     public AppRuntimeService Runtime => _runtime;
@@ -109,7 +111,11 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
     public string AppVersion { get; } = new AppInfo().Version;
     public string CoreFoundationStatus => _localization.T("Status.CoreMigrated");
     public bool IsWatcherActive => _runtime.IsProfileWatcherActive;
-    public string WatcherStatus => _runtime.IsProfileWatcherActive ? _localization.T("Status.WatcherActive") : _localization.T("Status.WatcherInactive");
+    // "Active" with zero enabled profiles contradicted the Dashboard ("0 of 0 profiles"): the
+    // watcher has nothing to watch, so it reads as idle until a profile is enabled.
+    public string WatcherStatus => !_runtime.IsProfileWatcherActive
+        ? _localization.T("Status.WatcherInactive")
+        : _runtime.Profiles.Any(p => p.IsEnabled) ? _localization.T("Status.WatcherActive") : _localization.T("Status.WatcherIdle");
     public bool IsSessionActive => _runtime.SessionOptimizationCoordinator.ActiveSession?.IsActive == true;
     public bool IsRecoveryPending => _runtime.SessionOptimizationCoordinator.ActiveSession?.IsRecoveryPending == true;
     public string SessionStatus => IsRecoveryPending
@@ -224,6 +230,7 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         OpenRepositoryCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Repository));
         OpenAuthorCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Author));
         OpenWebsiteCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Website));
+        OpenStudioCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Studio));
         OpenSupportCommand = new RelayCommand(_ => OpenExternalLink(FrameHubExternalLink.Support));
         OpenAboutCommand = new RelayCommand(_ => ShowAbout());
 
@@ -327,7 +334,9 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         Navigate("Benchmarks");
     }
 
-    private void OnCreateFirstProfileRequested() => Navigate("Processes");
+    // Game CPU settings are created in the Library (one place for games); Processes & CPU stays for
+    // one-off changes and non-game programs.
+    private void OnCreateFirstProfileRequested() => Navigate("Library");
 
     private void OnRuntimeStateChanged(object? sender, EventArgs e) => _benchmarkViewModel.RefreshHotkeyStatus();
 

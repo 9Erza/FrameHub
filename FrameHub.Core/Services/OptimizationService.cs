@@ -18,6 +18,8 @@ namespace FrameHub.Core.Services
         private readonly Func<Dictionary<int, uint>> _cpuSetMapProvider;
         private readonly ILogger _logger;
         private readonly Dictionary<ProcessInstanceKey, string> _appliedProfileSignatures = new();
+        // The profile watcher and manual "apply now" can run concurrently; guard the cache.
+        private readonly object _cacheSync = new();
 
         public OptimizationService(ProcessService processService, Func<Dictionary<int, uint>> cpuSetMapProvider)
         {
@@ -58,8 +60,7 @@ namespace FrameHub.Core.Services
 
         private static string? TryGetProcessPath(Process process)
         {
-            try { return process.MainModule?.FileName; }
-            catch { return null; }
+            return Benchmarking.ProcessExecutablePathResolver.TryGetPath(process);
         }
 
         public OptimizationBatchResult ApplyProfilesForSnapshots(IEnumerable<ProcessProfile> profiles, IEnumerable<ProcessGroupSnapshot> snapshots, bool allowRealtimePriority, bool force)
@@ -109,15 +110,33 @@ namespace FrameHub.Core.Services
             return new OptimizationResult { Success = false, ProcessId = key.ProcessId, ProcessName = processName, Message = "SKIPPED_PROTECTED_RIOT" };
         }
 
-        if (!MatchesRunningProcessIdentity(key, processName, profile))
-            {
-                return new OptimizationResult { Success = false, ProcessId = key.ProcessId, ProcessName = processName, Message = "SKIPPED_IDENTITY_MISMATCH" };
-            }
             string priority = PriorityService.Normalize(profile.Priority, allowRealtimePriority);
             var mode = NormalizeOptimizationMode(profile.OptimizationMode);
             string signature = BuildProfileSignature(profile, priority, mode, allowRealtimePriority);
 
-            if (!force && _appliedProfileSignatures.TryGetValue(key, out string? existingSignature) && existingSignature == signature)
+            // The cache key is PID + start time, which already pinned identity when the profile
+            // was applied, so the costly identity re-check (process open + module walk) is only
+            // needed when something will actually be written. A cached entry is re-applied when
+            // the process changed its own affinity, CPU Sets or priority afterwards (many games
+            // and launchers reset them during startup), so the profile sticks.
+            bool cached;
+            lock (_cacheSync)
+            {
+                cached = _appliedProfileSignatures.TryGetValue(key, out string? existingSignature) && existingSignature == signature;
+            }
+
+            bool drifted = !force && cached && HasDrifted(key.ProcessId, profile, priority, allowRealtimePriority);
+            if (drifted)
+            {
+                _logger.Info($"Profile '{profile.DisplayName}' drifted on PID {key.ProcessId} ({processName}); re-applying.");
+            }
+
+            if ((force || !cached || drifted) && !MatchesRunningProcessIdentity(key, processName, profile))
+            {
+                return new OptimizationResult { Success = false, ProcessId = key.ProcessId, ProcessName = processName, Message = "SKIPPED_IDENTITY_MISMATCH" };
+            }
+
+            if (!force && cached && !drifted)
             {
                 return new OptimizationResult
                 {
@@ -154,13 +173,16 @@ namespace FrameHub.Core.Services
             bool success = coreApplied || priorityApplied;
             bool allRequestedOperationsApplied = (!profile.ApplyCoreOptimization || coreApplied)
                 && (!profile.ApplyPriority || priorityApplied);
-            if (success && allRequestedOperationsApplied)
+            lock (_cacheSync)
             {
-                _appliedProfileSignatures[key] = signature;
-            }
-            else
-            {
-                _appliedProfileSignatures.Remove(key);
+                if (success && allRequestedOperationsApplied)
+                {
+                    _appliedProfileSignatures[key] = signature;
+                }
+                else
+                {
+                    _appliedProfileSignatures.Remove(key);
+                }
             }
 
             if (!success)
@@ -192,7 +214,8 @@ namespace FrameHub.Core.Services
                 processes = Process.GetProcessesByName(processName);
                 foreach (var process in processes)
                 {
-                    _appliedProfileSignatures.Remove(ProcessScannerService.CreateInstanceKey(process));
+                    var key = ProcessScannerService.CreateInstanceKey(process);
+                    lock (_cacheSync) _appliedProfileSignatures.Remove(key);
                 }
             }
             finally
@@ -220,7 +243,7 @@ namespace FrameHub.Core.Services
                 }
 
                 string? path;
-                try { path = process.MainModule?.FileName; } catch { path = null; }
+                path = Benchmarking.ProcessExecutablePathResolver.TryGetPath(process);
                 return ProfileService.MatchesIdentity(profile, process.ProcessName, path);
             }
             catch { return false; }
@@ -228,10 +251,59 @@ namespace FrameHub.Core.Services
 
         public void CleanupStaleCache(HashSet<ProcessInstanceKey> activeInstances)
         {
-            foreach (var staleKey in _appliedProfileSignatures.Keys.Where(k => !activeInstances.Contains(k)).ToList())
+            lock (_cacheSync)
             {
-                _appliedProfileSignatures.Remove(staleKey);
+                foreach (var staleKey in _appliedProfileSignatures.Keys.Where(k => !activeInstances.Contains(k)).ToList())
+                {
+                    _appliedProfileSignatures.Remove(staleKey);
+                }
             }
+        }
+
+        /// <summary>
+        /// Cheap read-only check whether an already applied profile no longer matches the live
+        /// process. Unreadable state never counts as drift, so an inaccessible process cannot
+        /// cause an apply loop.
+        /// </summary>
+        internal bool HasDrifted(int pid, ProcessProfile profile, string priority, bool allowRealtimePriority)
+        {
+            try
+            {
+                if (profile.ApplyCoreOptimization)
+                {
+                    Dictionary<int, uint> map = _cpuSetMapProvider();
+                    long expected = ExpectedEffectiveMask(profile.AffinityMask, map);
+                    if (expected != 0)
+                    {
+                        var current = _processService.GetCurrentCoreSelection(pid, map);
+                        if (current.Success && current.Mask != expected) return true;
+                    }
+                }
+
+                if (profile.ApplyPriority && PriorityService.TryParse(priority, allowRealtimePriority, out ProcessPriorityClass desired))
+                {
+                    ProcessPriorityClass? current = _processService.GetPriority(pid);
+                    if (current.HasValue && current.Value != desired) return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Profile drift check skipped for PID {pid}: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        /// <summary>The profile mask limited to logical processors the topology actually exposes.</summary>
+        internal static long ExpectedEffectiveMask(long profileMask, IReadOnlyDictionary<int, uint> cpuSetMap)
+        {
+            long expected = 0;
+            foreach (int index in cpuSetMap.Keys)
+            {
+                if (index is >= 0 and < 64 && (profileMask & (1L << index)) != 0) expected |= 1L << index;
+            }
+
+            return expected;
         }
 
         private static string BuildProfileSignature(ProcessProfile profile, string priority, OptimizationMode mode, bool allowRealtimePriority)

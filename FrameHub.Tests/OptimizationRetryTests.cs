@@ -119,10 +119,17 @@ public sealed class OptimizationRetryTests
             return CoreSucceeds ? "OK_AFFINITY" : "ERR_SYNTHETIC";
         }
 
+        private ProcessPriorityClass? _priority;
+
         public override bool SetPriority(int pid, ProcessPriorityClass priority)
         {
             PriorityCalls++;
+            if (PrioritySucceeds) _priority = priority;
             return PrioritySucceeds;
         }
+
+        // Synthetic priority: the real test-host priority differs between machines (CI runners),
+        // which the profile drift check would otherwise read as "changed since applied".
+        public override ProcessPriorityClass? GetPriority(int pid) => _priority;
     }
 }

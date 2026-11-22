@@ -27,7 +27,8 @@ namespace FrameHub.Core.Services
         {
             try
             {
-                var cpuSets = GetSystemCpuSetInfos()
+                var allCpuSets = GetSystemCpuSetInfos();
+                var cpuSets = allCpuSets
                     .Where(x => x.Group == 0)
                     .OrderBy(x => x.LogicalProcessorIndex)
                     .Take(MaxAffinityMaskLogicalProcessors)
@@ -38,8 +39,7 @@ namespace FrameHub.Core.Services
                     var cores = BuildTopologyFromCpuSets(cpuSets);
                     _logger.Info($"CPU topology from CPU Sets: logical={cores.Count}, P={cores.Count(c => !c.IsECore && !c.IsThread)}, T={cores.Count(c => c.IsThread)}, E={cores.Count(c => c.IsECore)}");
 
-                    int totalCpuSets = GetSystemCpuSetInfos().Count;
-                    if (totalCpuSets > cores.Count)
+                    if (allCpuSets.Count > cores.Count)
                     {
                         _logger.Warn("Only processor group 0 / first 64 logical processors are exposed because classic affinity masks are limited in this UI.");
                     }
@@ -206,7 +206,8 @@ namespace FrameHub.Core.Services
         private List<CpuSetInfo> GetSystemCpuSetInfos()
         {
             var results = new List<CpuSetInfo>();
-            IntPtr currentProcessHandle = Process.GetCurrentProcess().Handle;
+            using var currentProcess = Process.GetCurrentProcess();
+            IntPtr currentProcessHandle = currentProcess.Handle;
 
             NativeMethods.GetSystemCpuSetInformation(IntPtr.Zero, 0, out uint length, currentProcessHandle, 0);
             if (length == 0)

@@ -216,7 +216,7 @@ internal sealed class SystemTrustedProcessTerminator : ITrustedProcessTerminator
             if (process.HasExited) return false;
             DateTime startTimeUtc = process.StartTime.ToUniversalTime();
             string processName = ProfileService.NormalizeProcessName(process.ProcessName);
-            string? path = process.MainModule?.FileName;
+            string? path = FrameHub.Core.Services.Benchmarking.ProcessExecutablePathResolver.TryGetPath(process);
             if (startTimeUtc == DateTime.MinValue || string.IsNullOrWhiteSpace(processName) || string.IsNullOrWhiteSpace(path)) return false;
             identity = new LibraryProcessIdentity
             {

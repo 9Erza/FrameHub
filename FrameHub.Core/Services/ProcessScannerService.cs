@@ -224,8 +224,7 @@ namespace FrameHub.Core.Services
 
         private static string? TryGetProcessPath(Process process)
         {
-            try { return process.MainModule?.FileName; }
-            catch { return null; }
+            return Benchmarking.ProcessExecutablePathResolver.TryGetPath(process);
         }
 
         private static string? NormalizeExecutablePath(string? path)

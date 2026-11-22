@@ -25,8 +25,11 @@ public sealed class EmberOverhaulBTests
     private List<ProcessObservation> _processes = null!;
     private long _observationClockTicks;
 
-    private const string LeaguePath = @"C:\Riot Games\League of Legends\Game\League of Legends.exe";
-    private const string Cs2Path = @"C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\bin\win64\cs2.exe";
+    // Synthetic executable paths live under the per-test temp directory and are never
+    // created, so the missing-file filter is deterministic even on machines where the
+    // real games are installed at their default locations.
+    private string LeaguePath => Path.Combine(_tempDirectory, "not-installed", "Riot Games", "League of Legends", "Game", "League of Legends.exe");
+    private string Cs2Path => Path.Combine(_tempDirectory, "not-installed", "Steam", "steamapps", "common", "Counter-Strike Global Offensive", "game", "bin", "win64", "cs2.exe");
 
     [TestInitialize]
     public void Setup()
@@ -178,7 +181,7 @@ public sealed class EmberOverhaulBTests
         var vm = host.ViewModel;
         vm.Reload();
         Assert.IsTrue(vm.HasLibraryItems);
-        Assert.IsTrue(vm.HasStatusMessage);
+        Assert.IsFalse(vm.HasStatusMessage, "The ready count states readiness; a second \"Library ready.\" line repeated it.");
         StringAssert.Contains(vm.ReadyCountText, "ready");
     }
 
@@ -249,12 +252,12 @@ public sealed class EmberOverhaulBTests
             "LibraryView must expose a single manage-library surface (QA C2 F3: tripled action).");
         Assert.AreEqual(1, CountOccurrences(xaml, "Content=\"{Binding ScanAllText}\""),
             "LibraryView must keep a single accent Scan-all CTA (QA C2 F3: duplicated CTA).");
-        AssertGatedBy(xaml, "Content=\"{Binding AddManuallyText}\"", "HasLibraryItems",
-            "Top-row Add manually must only render when the library holds items (QA C2 F3).");
+        Assert.AreEqual(1, CountOccurrences(xaml, "Content=\"{Binding AddManuallyText}\""),
+            "Add manually exists once (empty-state card); with items the manage-library expander owns it, so the top-row button duplicated it.");
         AssertGatedBy(xaml, "{Binding ReadyCountText}", "HasLibraryItems",
             "Ready count must only render when the library holds items (QA C B2).");
-        AssertGatedBy(xaml, "{Binding ReadyBadgeText}", "HasLibraryItems",
-            "READY chip must only render when the library holds items (QA C B2).");
+        Assert.AreEqual(0, CountOccurrences(xaml, "{Binding ReadyBadgeText}"),
+            "The READY chip repeated the ready count shown above the catalog.");
         StringAssert.Contains(xaml, "{Binding IndividualSourcesText}",
             "Sources panel must label the individual sources segment (QA C B3).");
         foreach (string command in new[] { "ScanAllCommand", "ScanSteamCommand", "ScanEpicCommand", "ScanRiotCommand", "ScanCustomCommand", "AddFolderCommand", "OpenManageLibraryCommand" })
@@ -321,14 +324,15 @@ public sealed class EmberOverhaulBTests
         using var runtimePl = new AppRuntimeService(plPath);
         Assert.IsTrue(runtimePl.Activity.Count >= 2, "Startup must record the launch + watcher entries.");
         StringAssert.Contains(runtimePl.Activity[1].Message, "FrameHub został uruchomiony.");
-        StringAssert.Contains(runtimePl.Activity[0].Message, "Monitor profili w tle aktywny");
+        // Active (enabled profiles on this machine) or idle (none, e.g. CI): both name the monitor.
+        StringAssert.StartsWith(runtimePl.Activity[0].Message, "Monitor profili");
 
         string enPath = Path.Combine(_tempDirectory, "settings-activity-en.json");
         File.WriteAllText(enPath, "{\"Language\":\"en\"}");
         using var runtimeEn = new AppRuntimeService(enPath);
         Assert.IsTrue(runtimeEn.Activity.Count >= 2);
         StringAssert.Contains(runtimeEn.Activity[1].Message, "FrameHub runtime started.");
-        StringAssert.Contains(runtimeEn.Activity[0].Message, "Background profile monitor active");
+        Assert.IsTrue(runtimeEn.Activity[0].Message.Contains("profile monitor", StringComparison.OrdinalIgnoreCase), runtimeEn.Activity[0].Message);
     }
 
     [TestMethod]
@@ -475,6 +479,9 @@ public sealed class EmberOverhaulBTests
         var runtime = new AppRuntimeService(settingsPath);
         var localization = new LocalizationService(runtime.SettingsService);
         var viewModel = new LibraryViewModel(localization, runtime, libraryService, scanner, launcher);
+        // Without a dispatcher the initial runtime refresh resumes on the thread pool; let it
+        // finish so it cannot rebuild FilteredItems while a test enumerates or asserts on it.
+        viewModel.RuntimeRefreshTask.GetAwaiter().GetResult();
         return new LibraryHost(viewModel, launcher, libraryService);
     }
 

@@ -31,10 +31,28 @@ public sealed class AppLibraryLaunchService : IAppLibraryLaunchService
         _logger = logger ?? LoggerService.Instance;
     }
 
-    private static bool DefaultProcessStarter(ProcessStartInfo psi)
+    /// <summary>
+    /// Failures surface as exceptions. With shell execution a null result is documented as
+    /// "no new process resource" (for example a protocol handed to an already running
+    /// launcher), which is a successful launch, not a failure. The returned handle is
+    /// disposed so a launch does not leak a process handle.
+    /// </summary>
+    internal static bool DefaultProcessStarter(ProcessStartInfo psi)
     {
-        var process = Process.Start(psi);
-        return process != null;
+        using var process = Process.Start(psi);
+        return process != null || psi.UseShellExecute;
+    }
+
+    /// <summary>
+    /// Official Epic Games Launcher protocol for an installed app. Only conservative
+    /// identifier characters are accepted so a manifest value can never alter the URI.
+    /// </summary>
+    internal static string? BuildEpicLaunchUri(string? appName)
+    {
+        if (string.IsNullOrWhiteSpace(appName)) return null;
+        string trimmed = appName.Trim();
+        if (trimmed.Length > 128 || !trimmed.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.')) return null;
+        return $"com.epicgames.launcher://apps/{trimmed}?action=launch&silent=true";
     }
 
     public LibraryLaunchResult Launch(LibraryItem? item)
@@ -93,6 +111,54 @@ public sealed class AppLibraryLaunchService : IAppLibraryLaunchService
             catch (Exception ex)
             {
                 _logger.Error($"Failed to launch Steam library item '{item.DisplayName}' through Steam protocol '{steamUri}': {ex.Message}", ex);
+                return LibraryLaunchResult.Fail("launch_failed");
+            }
+        }
+
+        // Epic games start through the Epic Games Launcher protocol, as Steam games do through
+        // steam://run: launching the executable directly skips Epic Online Services sign-in and
+        // ownership checks, so many games refuse to start or lose online features. The stored
+        // executable path stays observation-only. Items without a usable AppName keep the
+        // direct-executable behavior below.
+        if (item.Source == LibrarySource.Epic && BuildEpicLaunchUri(item.AppId) is string epicUri)
+        {
+            try
+            {
+                bool epicStarted = _processStarter(new ProcessStartInfo { FileName = epicUri, UseShellExecute = true });
+                if (!epicStarted)
+                {
+                    _logger.Warn($"Process launcher returned false for Epic item '{item.DisplayName}' ({epicUri}).");
+                    return LibraryLaunchResult.Fail("launch_failed");
+                }
+
+                _logger.Info($"Successfully launched Epic library item '{item.DisplayName}' through Epic protocol '{epicUri}'.");
+                return LibraryLaunchResult.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to launch Epic library item '{item.DisplayName}' through Epic protocol '{epicUri}': {ex.Message}", ex);
+                return LibraryLaunchResult.Fail("launch_failed");
+            }
+        }
+
+        // Ubisoft Connect games start through the launcher protocol (sign-in, DRM and cloud saves);
+        // the stored executable is observation-only.
+        if (item.Source == LibrarySource.Ubisoft && uint.TryParse(item.AppId?.Trim(), out uint ubisoftId))
+        {
+            string ubisoftUri = $"uplay://launch/{ubisoftId}/0";
+            try
+            {
+                if (!_processStarter(new ProcessStartInfo { FileName = ubisoftUri, UseShellExecute = true }))
+                {
+                    return LibraryLaunchResult.Fail("launch_failed");
+                }
+
+                _logger.Info($"Successfully launched Ubisoft library item '{item.DisplayName}' through '{ubisoftUri}'.");
+                return LibraryLaunchResult.Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to launch Ubisoft library item '{item.DisplayName}' through '{ubisoftUri}': {ex.Message}", ex);
                 return LibraryLaunchResult.Fail("launch_failed");
             }
         }

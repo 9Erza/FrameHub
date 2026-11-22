@@ -72,6 +72,7 @@ public partial class MainWindow : Window
         Loaded += MainWindow_Loaded;
         SourceInitialized += (_, _) =>
         {
+            ApplyNativeFrame();
             HwndSource? source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             if (source is not null)
             {
@@ -89,6 +90,61 @@ public partial class MainWindow : Window
         };
         StateChanged += MainWindow_StateChanged;
         SizeChanged += (_, _) => UpdateResponsiveShell();
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+    private const int DwmwaUseImmersiveDarkMode = 20;
+    private const int DwmwaWindowCornerPreference = 33;
+    private const int DwmwaBorderColor = 34;
+    private const int DwmwaCaptionColor = 35;
+    private const int DwmwcpRound = 2;
+
+    /// <summary>Windows 11 (build 22000+) supports DWM-drawn borders and rounded corners.</summary>
+    internal static bool SupportsNativeFrame => Environment.OSVersion.Version.Build >= 22000;
+
+    /// <summary>COLORREF is 0x00BBGGRR.</summary>
+    internal static int ToColorRef(System.Windows.Media.Color color) => color.R | (color.G << 8) | (color.B << 16);
+
+    /// <summary>
+    /// Lets the system draw the window border (theme border colour) and round the corners, so
+    /// the frame stays one crisp device pixel at every scale. Windows 10 ignores these
+    /// attributes; there the WPF border is shown instead.
+    /// </summary>
+    private void ApplyNativeFrame()
+    {
+        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        if (!SupportsNativeFrame)
+        {
+            WindowFrame.BorderThickness = new Thickness(1);
+            return;
+        }
+
+        try
+        {
+            int dark = 1;
+            DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref dark, sizeof(int));
+            int corners = DwmwcpRound;
+            DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref corners, sizeof(int));
+            if (TryFindResource("ColorBorderSubtle") is System.Windows.Media.Color border)
+            {
+                int borderColor = ToColorRef(border);
+                DwmSetWindowAttribute(hwnd, DwmwaBorderColor, ref borderColor, sizeof(int));
+            }
+
+            if (TryFindResource("ColorTitlebar") is System.Windows.Media.Color caption)
+            {
+                int captionColor = ToColorRef(caption);
+                DwmSetWindowAttribute(hwnd, DwmwaCaptionColor, ref captionColor, sizeof(int));
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Debug($"Native window frame unavailable: {ex.Message}");
+            WindowFrame.BorderThickness = new Thickness(1);
+        }
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -479,7 +535,9 @@ public partial class MainWindow : Window
             ViewModel.Localization.T("Footer.Repository"),
             () => { if (ViewModel.OpenAuthorCommand.CanExecute(null)) ViewModel.OpenAuthorCommand.Execute(null); },
             () => { if (ViewModel.OpenWebsiteCommand.CanExecute(null)) ViewModel.OpenWebsiteCommand.Execute(null); },
-            () => { if (ViewModel.OpenRepositoryCommand.CanExecute(null)) ViewModel.OpenRepositoryCommand.Execute(null); });
+            () => { if (ViewModel.OpenRepositoryCommand.CanExecute(null)) ViewModel.OpenRepositoryCommand.Execute(null); },
+            ViewModel.StudioLabel,
+            () => { if (ViewModel.OpenStudioCommand.CanExecute(null)) ViewModel.OpenStudioCommand.Execute(null); });
     }
 
     private void ShowBenchmarkNotification(string message)

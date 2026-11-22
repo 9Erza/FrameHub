@@ -43,7 +43,7 @@ Every metric is registered only when introspection confirms a usable frame-event
 
 A benchmark retains its library identity and an exact Windows process identity: PID, normalized name, UTC process start time, and normalized executable path when ordinary managed process access permits it. PID, name, and start time protect against PID reuse. Identity is validated before and after capture.
 
-Executable-path resolution uses only `Process.MainModule.FileName`. If access is denied or the path is unavailable, FrameHub respects that restriction and continues with a pathless identity. It does not call native process-open/path-recovery APIs, WMI/CIM, enumerate additional modules, read process memory, or request debug privileges. A pathless library-name association is allowed only for one unambiguous configured executable-name match.
+Executable-path resolution goes through `ProcessExecutablePathResolver` (shared by observation, benchmarks, profiles and Session identity checks): it asks the kernel for the image name with a query-limited handle (`QueryFullProcessImageName`, owner-approved 2026-11-22) and falls back to `Process.MainModule.FileName`. Riot game, client and Vanguard processes are never opened this way; they use only the managed path. If the path is still unavailable, FrameHub continues with a pathless identity. It does not use WMI/CIM, enumerate additional modules, read process memory, or request debug privileges. A pathless library-name association is allowed only for one unambiguous configured executable-name match.
 
 ## Storage and lifecycle
 

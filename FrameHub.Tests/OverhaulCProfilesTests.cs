@@ -104,7 +104,7 @@ public sealed class OverhaulCProfilesTests
     }
 
     [TestMethod]
-    public void CreateFirstProfileCommand_NavigatesToProcesses()
+    public void CreateFirstProfileCommand_RaisesNavigationRequest()
     {
         RunOnSta(() =>
         {

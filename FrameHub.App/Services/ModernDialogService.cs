@@ -336,7 +336,9 @@ public static class ModernDialogService
         string? repositoryText = null,
         Action? onAuthor = null,
         Action? onWebsite = null,
-        Action? onRepository = null)
+        Action? onRepository = null,
+        string? studioText = null,
+        Action? onStudio = null)
     {
         var primary = (MediaBrush)(WpfApplication.Current.TryFindResource("BrushTextPrimary") ?? MediaBrushes.White);
         var secondary = (MediaBrush)(WpfApplication.Current.TryFindResource("BrushTextSecondary") ?? MediaBrushes.LightSteelBlue);
@@ -458,6 +460,7 @@ public static class ModernDialogService
             (authorText, onAuthor),
             (websiteText, onWebsite),
             (repositoryText, onRepository),
+            (studioText, onStudio),
         };
         bool hasLinks = linkItems.Any(item => !string.IsNullOrWhiteSpace(item.Text) && item.Open is not null);
         if (hasLinks)

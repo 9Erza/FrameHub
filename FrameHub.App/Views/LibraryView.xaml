@@ -119,13 +119,26 @@
                              own all actions, so a detached refresh row is hidden. -->
                         <Button Style="{StaticResource SecondaryButton}" Content="{Binding RefreshStatusText}" Command="{Binding RefreshStatusCommand}" Margin="0,0,8,0"
                                 Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}" />
-                        <!-- Populated only: in the empty state Add manually lives once in the sources panel. -->
-                        <Button Style="{StaticResource GhostButton}" Content="{Binding AddManuallyText}" Command="{Binding ToggleManageLibraryCommand}"
-                                Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <!-- Adding manually lives once: the "Add a game or app" expander directly below. -->
                     </WrapPanel>
                 </Grid>
 
+                <!-- Empty library: the welcome card owns "Add manually"; the expander only appears once
+                     that action opens it, so the same action is not offered twice. -->
                 <Expander x:Name="ManageLibraryExpander" Header="{Binding ManageLibraryTitle}" Margin="0,0,0,16" IsExpanded="{Binding ShowManageLibrary, Mode=TwoWay}">
+                    <Expander.Style>
+                        <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding HasLibraryItems}" Value="False" />
+                                        <Condition Binding="{Binding ShowManageLibrary}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Expander.Style>
                     <Border Style="{StaticResource SectionSurface}" Margin="0,8,0,0">
                         <StackPanel>
                             <TextBlock Text="{Binding SourcesNoteText}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,0,0,12" />
@@ -161,7 +174,7 @@
                     <StackPanel>
                         <!-- Panel header: hidden only in the compact empty state, where the
                              welcome card carries the single EmptyTitle headline (QA E F2). -->
-                        <Grid x:Name="LibraryItemsHeader" Margin="20,16,16,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" /><TextBlock Grid.Column="1" Text="{Binding ReadyBadgeText}" Style="{StaticResource StatusText}" Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Center" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}" /></Grid>
+                        <Grid x:Name="LibraryItemsHeader" Margin="20,16,16,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="{Binding ItemsTitle}" Style="{StaticResource SectionTitleText}" /></Grid>
                         <Grid Margin="20,0,16,12" Visibility="{Binding HasLibraryItems, Converter={StaticResource BoolToVisibilityConverter}}">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <TextBox Style="{StaticResource HintTextBox}" Tag="{Binding SearchPlaceholder}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding SearchPlaceholder}" />
@@ -198,7 +211,7 @@
                                         <Border Width="56" Height="56" CornerRadius="4" Background="{StaticResource BrushSurfaceInteractive}" Margin="0,0,16,0">
                                             <Grid>
                                                 <TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22" Foreground="{StaticResource BrushBorderStrong}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                <Image Source="{Binding IconSource}" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <Image Source="{Binding IconSource, IsAsync=True}" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                             </Grid>
                                         </Border>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -206,7 +219,16 @@
                                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0"><TextBlock Text="{Binding SourceText}" Style="{StaticResource CaptionText}" /><TextBlock Text="  ·  " Style="{StaticResource CaptionText}" /><TextBlock Text="{Binding TypeText}" Style="{StaticResource CaptionText}" /></StackPanel>
                                             <TextBlock Text="{Binding ProfileText}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding ProfileText}" />
                                         </StackPanel>
-                                        <TextBlock Grid.Column="2" Text="{Binding StatusText}" Style="{StaticResource StatusText}" VerticalAlignment="Center" Margin="12,0,0,0" MaxWidth="160" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusText}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding StatusText}" VerticalAlignment="Center" Margin="12,0,0,0" MaxWidth="200" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusText}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource StatusText}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRunning}" Value="True"><Setter Property="Foreground" Value="{StaticResource BrushSuccess}" /></DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsExecutableMissing}" Value="True"><Setter Property="Foreground" Value="{StaticResource BrushWarning}" /></DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         <!-- FH-100-007: discreet configure affordance; row selection only selects, never launches. -->
                                         <TextBlock Grid.Column="3" Text="{Binding DataContext.ConfigureActionText, RelativeSource={RelativeSource AncestorType=ListBox}}" Style="{StaticResource CaptionText}" Foreground="{StaticResource BrushAccentPrimary}" VerticalAlignment="Center" Margin="12,0,0,0" />
                                     </Grid>

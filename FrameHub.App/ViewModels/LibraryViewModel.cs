@@ -34,6 +34,8 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private readonly SteamLibraryScanner _steamScanner = new();
     private readonly EpicLibraryScanner _epicScanner = new();
     private readonly RiotLibraryScanner _riotScanner = new();
+    private readonly GogLibraryScanner _gogScanner = new();
+    private readonly UbisoftLibraryScanner _ubisoftScanner = new();
     private readonly CustomFolderScanner _customScanner = new();
     private readonly Cs2OptimizationService _cs2Service;
     private string _newDisplayName = string.Empty;
@@ -507,7 +509,11 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     public bool IsBusy
     {
         get => _isBusy;
-        set => SetProperty(ref _isBusy, value);
+        set
+        {
+            // Scans finish asynchronously; re-enable the scan commands without waiting for input.
+            if (SetProperty(ref _isBusy, value)) System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
     }
 
     public LibraryItemViewModel? SelectedItem
@@ -789,7 +795,9 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         ShowManageLibrary = false;
         // An empty library must never claim readiness: keep the state message
         // silent until the first item (or action feedback) gives it meaning.
-        StatusMessage = Items.Count > 0 ? _localization.T("Library.Ready") : string.Empty;
+        // The ready count above the catalog already states readiness; a second "Library ready."
+        // line repeated it. The status line is reserved for action feedback and warnings.
+        StatusMessage = string.Empty;
         OnPropertyChanged(nameof(ReadyCountText));
     }
 
@@ -830,24 +838,41 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
     private void ScanEpic() => ScanWith(() => _epicScanner.Scan(), "Epic");
     private void ScanRiot() => ScanWith(() => _riotScanner.Scan(), "Riot");
 
-    private void ScanAll()
+    /// <summary>
+    /// Scanning walks every install folder (up to five levels) to pick the game executable,
+    /// which took seconds on large libraries and froze the window. The file-system work now
+    /// runs on the thread pool; merging, saving and the collection update stay on the UI thread.
+    /// </summary>
+    private async void ScanAll()
     {
+        if (IsBusy) return;
         IsBusy = true;
+        StatusMessage = _localization.T("Library.Scanning");
+        var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
         try
         {
-            var items = new List<LibraryItem>();
-            var warnings = new List<string>();
-            var steam = _steamScanner.Scan();
-            var epic = _epicScanner.Scan();
-            var riot = _riotScanner.Scan();
-            items.AddRange(steam.Items);
-            items.AddRange(epic.Items);
-            items.AddRange(riot.Items);
-            warnings.AddRange(steam.Warnings);
-            warnings.AddRange(epic.Warnings);
-            warnings.AddRange(riot.Warnings);
-            MergeAndSave(items, string.Format(_localization.T("Library.ScanResult"), items.Count));
-            AppendWarnings(warnings);
+            var (items, warnings) = await Task.Run(() =>
+            {
+                var found = new List<LibraryItem>();
+                var notes = new List<string>();
+                foreach (var result in new[] { _steamScanner.Scan(), _epicScanner.Scan(), _riotScanner.Scan(), _gogScanner.Scan(), _ubisoftScanner.Scan() })
+                {
+                    found.AddRange(result.Items);
+                    notes.AddRange(result.Warnings);
+                }
+
+                return (found, notes);
+            });
+            await OnUiThreadAsync(dispatcher, () =>
+            {
+                MergeAndSave(items, string.Format(_localization.T("Library.ScanResult"), items.Count));
+                AppendWarnings(warnings);
+            });
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"Library scan failed: {ex.Message}");
+            StatusMessage = ex.Message;
         }
         finally
         {
@@ -875,19 +900,45 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
 
     private void ScanCustom() => ScanWith(() => _customScanner.Scan(_runtime.Settings.CustomLibraryLocations), "Custom");
 
-    private void ScanWith(Func<FrameHub.Core.Models.Library.LibraryScanResult> scan, string sourceName)
+    private async void ScanWith(Func<FrameHub.Core.Models.Library.LibraryScanResult> scan, string sourceName)
     {
+        if (IsBusy) return;
         IsBusy = true;
+        StatusMessage = _localization.T("Library.Scanning");
+        var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
         try
         {
-            var result = scan();
-            MergeAndSave(result.Items, string.Format(_localization.T("Library.SourceScanResult"), sourceName, result.Items.Count));
-            AppendWarnings(result.Warnings);
+            var result = await Task.Run(scan);
+            await OnUiThreadAsync(dispatcher, () =>
+            {
+                MergeAndSave(result.Items, string.Format(_localization.T("Library.SourceScanResult"), sourceName, result.Items.Count));
+                AppendWarnings(result.Warnings);
+            });
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"Library {sourceName} scan failed: {ex.Message}");
+            StatusMessage = ex.Message;
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Collections bound to the view may only change on the dispatcher thread. The await normally
+    /// resumes there already; when it does not (no synchronization context), marshal explicitly.
+    /// </summary>
+    private static Task OnUiThreadAsync(System.Windows.Threading.Dispatcher dispatcher, Action action)
+    {
+        if (dispatcher.CheckAccess())
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
+        return dispatcher.InvokeAsync(action).Task;
     }
 
     private void MergeAndSave(IEnumerable<LibraryItem> newItems, string message)
@@ -929,7 +980,16 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         RefreshRuntimeState();
     }
 
-    private async void RefreshRuntimeState()
+    /// <summary>
+    /// Completion of the most recent runtime-state refresh. The refresh is fire-and-forget for
+    /// the UI; tests without a dispatcher await it so its continuation (which runs on the
+    /// thread pool when no synchronization context exists) cannot race their own assertions.
+    /// </summary>
+    internal Task RuntimeRefreshTask { get; private set; } = Task.CompletedTask;
+
+    private void RefreshRuntimeState() => RuntimeRefreshTask = RefreshRuntimeStateAsync();
+
+    private async Task RefreshRuntimeStateAsync()
     {
         int sequence = ++_runtimeRefreshSequence;
         // Materialize on the UI thread before the first await: the scanner
@@ -989,10 +1049,14 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void AppendWarnings(IEnumerable<string> warnings)
+    /// <summary>
+    /// Scanner notes are English diagnostics ("Epic Games manifests folder was not found." when Epic
+    /// is simply not installed). Appending them to the status line put untranslated noise next to
+    /// the result, so they go to the log file instead.
+    /// </summary>
+    private static void AppendWarnings(IEnumerable<string> warnings)
     {
-        var list = warnings.Take(3).ToList();
-        if (list.Count > 0) StatusMessage += " " + string.Join(" ", list);
+        foreach (string warning in warnings) LoggerService.Instance.Info($"Library scan: {warning}");
     }
 
     private LibraryItemViewModel CreateItemViewModel(LibraryItem item) =>

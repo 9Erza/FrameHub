@@ -30,6 +30,8 @@ public sealed class EpicLibraryScanner
                 string? launchExecutable = GetString(root, "LaunchExecutable");
                 string? appName = GetString(root, "AppName") ?? GetString(root, "CatalogItemId");
 
+                if (!IsInstalledGameManifest(root)) continue;
+
                 string? executablePath = null;
                 if (!string.IsNullOrWhiteSpace(launchExecutable))
                 {
@@ -38,12 +40,18 @@ public sealed class EpicLibraryScanner
                         : !string.IsNullOrWhiteSpace(installLocation) ? Path.Combine(installLocation, launchExecutable) : null;
                 }
 
-                if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
+                // LaunchExecutable is often an Unreal bootstrap or launcher stub. Epic games launch
+                // through the Epic protocol, so the stored path only identifies the running game
+                // process: prefer a "-Shipping" binary when the install contains one.
+                string? resolved = ExecutableResolver.FindBestExecutable(installLocation, displayName);
+                bool resolvedIsShipping = resolved != null
+                    && Path.GetFileNameWithoutExtension(resolved).EndsWith("-Shipping", StringComparison.OrdinalIgnoreCase);
+                if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath) || resolvedIsShipping)
                 {
-                    executablePath = ExecutableResolver.FindBestExecutable(installLocation, displayName);
+                    executablePath = resolved ?? executablePath;
                 }
 
-                result.Items.Add(new LibraryItem
+                var item = new LibraryItem
                 {
                     DisplayName = displayName,
                     Source = LibrarySource.Epic,
@@ -55,7 +63,8 @@ public sealed class EpicLibraryScanner
                     IconPath = File.Exists(executablePath) ? executablePath : null,
                     IsEnabled = true,
                     WatchProcess = true
-                });
+                };
+                if (LibraryItemFilter.IsSupportedLibraryItem(item)) result.Items.Add(item);
             }
             catch (Exception ex)
             {
@@ -64,6 +73,37 @@ public sealed class EpicLibraryScanner
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Epic writes manifests for engines, plugins, DLC and unfinished installs next to games.
+    /// Only complete base-game installs belong in the library: categories (when present) must
+    /// include "games", a DLC (MainGameAppName differs from AppName) is skipped, and an
+    /// incomplete install is skipped.
+    /// </summary>
+    internal static bool IsInstalledGameManifest(JsonElement root)
+    {
+        if (root.TryGetProperty("bIsIncompleteInstall", out var incomplete) && incomplete.ValueKind == JsonValueKind.True)
+        {
+            return false;
+        }
+
+        if (root.TryGetProperty("AppCategories", out var categories) && categories.ValueKind == JsonValueKind.Array && categories.GetArrayLength() > 0)
+        {
+            bool isGame = categories.EnumerateArray().Any(c =>
+                c.ValueKind == JsonValueKind.String && string.Equals(c.GetString(), "games", StringComparison.OrdinalIgnoreCase));
+            if (!isGame) return false;
+        }
+
+        string? appName = GetString(root, "AppName");
+        string? mainGame = GetString(root, "MainGameAppName");
+        if (!string.IsNullOrWhiteSpace(appName) && !string.IsNullOrWhiteSpace(mainGame)
+            && !string.Equals(appName, mainGame, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static string? GetString(JsonElement element, string propertyName)

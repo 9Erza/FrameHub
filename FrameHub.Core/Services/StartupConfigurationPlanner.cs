@@ -53,7 +53,7 @@ public static class StartupConfigurationPlanner
     }
 
     private static bool IsValidRegistry(RegistryStartupSnapshot item) => item.Exists && item.ExecutableExists && item.IsExpectedExecutable && item.IsExpectedArguments;
-    private static bool IsValidTask(ScheduledTaskStartupSnapshot item) => item.Exists && item.Enabled && item.ExecutableExists && item.HasLogonTrigger && item.IsElevated && item.IsExpectedExecutable && item.IsExpectedArguments;
+    private static bool IsValidTask(ScheduledTaskStartupSnapshot item) => item.Exists && item.Enabled && item.ExecutableExists && item.HasLogonTrigger && item.IsElevated && item.HasNormalPriority && item.IsExpectedExecutable && item.IsExpectedArguments;
     private static IEnumerable<StartupConfigurationReason> RegistryReasons(RegistryStartupSnapshot item)
     {
         if (!item.Exists) yield return StartupConfigurationReason.MissingRegistry;
@@ -62,6 +62,6 @@ public static class StartupConfigurationPlanner
     private static IEnumerable<StartupConfigurationReason> TaskReasons(ScheduledTaskStartupSnapshot item)
     {
         if (!item.Exists) { yield return StartupConfigurationReason.MissingScheduledTask; yield break; }
-        if (!item.ExecutableExists) yield return StartupConfigurationReason.ExecutableMissing; if (!item.Enabled) yield return StartupConfigurationReason.TaskDisabled; if (!item.HasLogonTrigger) yield return StartupConfigurationReason.MissingLogonTrigger; if (!item.IsElevated) yield return StartupConfigurationReason.MissingElevatedRunLevel; if (!item.IsExpectedExecutable) yield return StartupConfigurationReason.WrongExecutable; if (!item.IsExpectedArguments) yield return StartupConfigurationReason.WrongArguments;
+        if (!item.ExecutableExists) yield return StartupConfigurationReason.ExecutableMissing; if (!item.Enabled) yield return StartupConfigurationReason.TaskDisabled; if (!item.HasLogonTrigger) yield return StartupConfigurationReason.MissingLogonTrigger; if (!item.IsElevated) yield return StartupConfigurationReason.MissingElevatedRunLevel; if (!item.HasNormalPriority) yield return StartupConfigurationReason.TaskPriorityBelowNormal; if (!item.IsExpectedExecutable) yield return StartupConfigurationReason.WrongExecutable; if (!item.IsExpectedArguments) yield return StartupConfigurationReason.WrongArguments;
     }
 }

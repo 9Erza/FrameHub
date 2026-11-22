@@ -480,6 +480,12 @@ namespace FrameHub.Core.Services
             return settings;
         }
 
+        /// <summary>
+        /// Task Scheduler priority for the elevated logon task. 4 maps to NORMAL_PRIORITY_CLASS;
+        /// the scheduler default (7) is BELOW_NORMAL, which games launched from FrameHub inherit.
+        /// </summary>
+        internal const int ScheduledTaskPriority = 4;
+
         private bool CreateAdvancedScheduledTask(AppSettings settings)
         {
             string tempXmlFile = Path.Combine(Path.GetTempPath(), $"{_appName}_{Guid.NewGuid():N}.xml");
@@ -512,7 +518,7 @@ namespace FrameHub.Core.Services
     <RunOnlyIfIdle>false</RunOnlyIfIdle>
     <WakeToRun>false</WakeToRun>
     <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
-    <Priority>7</Priority>
+    <Priority>{ScheduledTaskPriority}</Priority>
   </Settings>
   <Actions Context=""Author"">
     <Exec>

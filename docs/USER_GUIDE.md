@@ -2,19 +2,19 @@
 
 [Polski](USER_GUIDE.pl.md)
 
-## Installing or upgrading (v1.0.1)
+## Installing or upgrading (v1.1.0)
 
-Download `FrameHub-Setup-1.0.1.exe` from the **Assets** section of the **v1.0.1** [GitHub Releases](https://github.com/9Erza/FrameHub/releases) page. Do not use the automatically generated source ZIP as an installer. The installer requires Windows 10/11 x64 and administrator permission.
+Download `FrameHub-Setup-1.1.0.exe` from the **Assets** section of the **v1.1.0** [GitHub Releases](https://github.com/9Erza/FrameHub/releases) page. Do not use the automatically generated source ZIP as an installer. The installer requires Windows 10/11 x64 and administrator permission.
 
 The installer offers **Intel PresentMon 2.5.1** as a checked-by-default optional component. When selected, Setup reuses a verified v2.5.1 shared service/API installation or installs the embedded MSI silently (`/qn /norestart`); a newer or unverified shared installation is never downgraded automatically. When deselected, Setup installs nothing, repairs nothing and never starts `msiexec` for PresentMon — an already installed PresentMon is left untouched and may still be used. PresentMon is a shared prerequisite and may remain installed after FrameHub is removed. Without PresentMon the application runs normally, while live FPS preview and benchmark capture report the missing dependency with its cause instead of failing.
 
 For an existing FrameHub Inno Setup installation (including 1.0.0), **close FrameHub and run the new installer without uninstalling the old version**. The historical Inno Setup `AppId` and previous directory are reused. The user's configuration, profiles and library are kept separately under `%APPDATA%\FrameHub`; benchmark history is under `%LOCALAPPDATA%\FrameHub\Benchmarks`. The first-run wizard does not reappear for existing installations. On upgrade from 1.0.0 the PresentMon step defaults to selected (1.0.0 had no such choice); on later upgrades the previous selection is pre-selected. A backup of personal settings is recommended before a major version upgrade.
 
-See the [v1.0.1 release notes (EN/PL)](RELEASE_NOTES_1.0.1.md). The application only checks for updates and directs you to GitHub; it does not download or execute the installer automatically.
+See the [v1.1.0 release notes (EN/PL)](RELEASE_NOTES_1.1.0.md). The application only checks for updates and directs you to GitHub; it does not download or execute the installer automatically.
 
 ---
 
-## First-run setup (v1.0.1)
+## First-run setup (v1.1.0)
 
 On a fresh installation (or after full data erase) FrameHub shows a six-step wizard: welcome/language, Hardware monitoring, Companion, Live FPS, Start with Windows, and a summary. Optional modules default OFF for a light footprint; core process/CPU control, profiles and the profile watcher stay always on and are not toggleable here. The wizard works on a draft saved only on Finish/Skip, so closing it cannot corrupt settings; an interrupted first run resumes the wizard on next launch.
 
@@ -22,11 +22,11 @@ Upgrades never show the wizard. You can reopen it any time from **Settings → A
 
 ---
 
-On first launch, scan **Games & Optimization** (Game Library). Add custom folders or a manual executable if a launcher scan misses a game. Select an item to save its CPU profile; **Save** persists a rule, while **Optimize/Apply** attempts to change currently running matching processes. You can also use **Quick Start** on the Dashboard to launch a game and apply Session Optimization in one action.
+On first launch, scan the **Library**. Add custom folders or a manual executable if a launcher scan misses a game. Select an item to save its CPU profile; **Save** persists a rule, while **Optimize/Apply** attempts to change currently running matching processes. You can also use **Quick Start** on the Dashboard to launch a game and apply Session Optimization in one action.
 
 Use **Session Optimization** to choose what background processes may be suspended while gaming, preview the candidate list, and run an automatic or manual session. FrameHub records suspended processes and restores them safely upon session completion or recovery; it does not terminate them.
 
-**Processes & CPU** provides direct control over running processes, allowing immediate assignment of CPU Sets, Processor Affinity, or process priority. **Profiles & Rules** manages persistent rules applied automatically by the profile watcher.
+**Processes & CPU** provides direct control over running processes, allowing immediate assignment of CPU Sets, Processor Affinity, or process priority. **Profiles** manages persistent rules applied automatically by the profile watcher.
 
 For CS2, close the game before scanning, editing, or restoring config. FrameHub creates backups and will not silently choose among ambiguous Steam userdata accounts. Hardware Monitor is session-only and lease-controlled. Settings includes tray, language, logs, startup, Companion pairing, and optional elevation. Data and logs are stored under `%APPDATA%\FrameHub`.
 
@@ -124,4 +124,4 @@ The hotkey uses the selected running library game. If none is selected, FrameHub
 
 Average FPS describes throughput; 1%/0.1% Low and high frame-time percentiles help expose intermittent stutter and pacing problems. They do not identify the cause by themselves. Capture records the current CPU profile, Session Optimization state, and system environment metadata, but never changes game processes directly. **History** includes local WPF and developer-harness schema-v1 sessions, can open their folder, and can permanently delete one validated session.
 
-Data remains under `%LOCALAPPDATA%\FrameHub\Benchmarks`; settings and logs remain under `%APPDATA%\FrameHub`. No benchmark data is uploaded. If the benchmark engine is unavailable, the Benchmarks view names the specific cause (no game selected/running, missing PresentMon service, no permission, or hotkey unset) instead of a generic reinstall hint. The 1.0.1 installer offers the pinned PresentMon prerequisite as a checked-by-default optional component — keep it selected unless you manage PresentMon yourself, and reinstall it only when the engine panel reports the service itself missing. FrameHub itself does not inject into games or read game memory; compatibility with a particular game or anti-cheat may vary.
+Data remains under `%LOCALAPPDATA%\FrameHub\Benchmarks`; settings and logs remain under `%APPDATA%\FrameHub`. No benchmark data is uploaded. If the benchmark engine is unavailable, the Benchmarks view names the specific cause (no game selected/running, missing PresentMon service, no permission, or hotkey unset) instead of a generic reinstall hint. The installer offers the pinned PresentMon prerequisite as a checked-by-default optional component — keep it selected unless you manage PresentMon yourself, and reinstall it only when the engine panel reports the service itself missing. FrameHub itself does not inject into games or read game memory; compatibility with a particular game or anti-cheat may vary.

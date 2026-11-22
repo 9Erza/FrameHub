@@ -15,23 +15,20 @@ serwer LAN Companion, konfiguracja CS2 oraz monitoring sprzętu w jednej aplikac
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 [![CI](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml/badge.svg)](https://github.com/9Erza/FrameHub/actions/workflows/ci.yml)
 [![Licencja](https://img.shields.io/badge/licencja-MIT-2EA44F?style=flat-square)](LICENSE)
-![Wydanie](https://img.shields.io/badge/wydanie-v1.0.1-EAB45D?style=flat-square)
+![Wydanie](https://img.shields.io/badge/wydanie-v1.1.0-EAB45D?style=flat-square)
 
 </div>
 
 > [!NOTE]
-> **Wersja: v1.0.1.** Oficjalny instalator Windows znajdziesz w [GitHub Releases](https://github.com/9Erza/FrameHub/releases), gdy plik wydania będzie dostępny. Zobacz [opis wydania 1.0.1](docs/RELEASE_NOTES_1.0.1.md), [listę zmian PL](CHANGELOG.pl.md), [Changelog EN](CHANGELOG.md) i [Roadmapę](docs/ROADMAP.md).
+> **Wersja: v1.1.0.** Oficjalny instalator Windows znajdziesz w [GitHub Releases](https://github.com/9Erza/FrameHub/releases), gdy plik wydania będzie dostępny. Zobacz [opis wydania 1.1.0](docs/RELEASE_NOTES_1.1.0.md), [listę zmian PL](CHANGELOG.pl.md), [Changelog EN](CHANGELOG.md) i [Roadmapę](docs/ROADMAP.md).
 
-### Co nowego w 1.0.1
+### Co nowego w 1.1.0
 
-- **Kreator pierwszego uruchomienia:** sześć kroków (język, monitor sprzętu, Companion, Live FPS, start z Windows, podsumowanie) przy świeżej instalacji; lekkie domyślnie WYŁĄCZONE moduły, rdzeń zawsze włączony. Aktualizacje go nie pokazują.
-- **Jawny Live FPS:** ciągły podgląd PresentMon tylko przy włączonym Companion **i** Live FPS; jednorazowe benchmarki niezależne.
-- **Dane aplikacji i reset:** przywracanie domyślnych lub pełne czyszczenie danych FrameHub (potwierdzenie `RESET`), blokowane podczas benchmarku/sesji/odzyskiwania, z ostrzeżeniami o autostarcie bez psucia czyszczenia.
-- **Opcjonalny PresentMon:** domyślnie zaznaczony komponent — odznaczenie nic nie instaluje; zweryfikowane v2.5.1 wykorzystywane ponownie, nowsze nigdy nie obniżane, aplikacja działa i bez niego.
-- **Uczciwe powiadomienia o aktualizacji:** powiadomienie tylko, gdy pasujące opublikowane wydanie GitHub zawiera oczekiwany asset instalatora.
-- **Poprawki okien, stabilności i pamięci (W1/W2/audyt):** clamp zmaksymalizowanych okien do obszaru roboczego, ograniczone wirtualizowane listy, poprawki lifecycle view-modeli, ograniczone cache ikon, uzgadnianie autostartu i szlif lokalizacji.
+- **Niezawodne sterowanie CPU:** autostart nie uruchamia już FrameHub i gier z obniżonym priorytetem, CPU Sets nie są zawężane przez starą maskę koligacji, a profile są nakładane ponownie, gdy gra sama zmieni ustawienia CPU.
+- **Lepsze wykrywanie gier:** GOG i Ubisoft Connect, gry Unreal Engine rozpoznawane po prawdziwym procesie, naprawa przeniesionych gier przy skanie, czystsze wyniki Steam i Epic, skanowanie w tle.
+- **Czytelniejszy interfejs:** jedna nazwa na stronę, bez powtórzeń i sprzecznych statusów, ustawienia CPU gry w Bibliotece, natywna ramka okna w Windows 11, szybsze przełączanie stron.
 
-Pełną listę od opublikowanego instalatora 1.0.0 znajdziesz w [opisie wydania 1.0.1](docs/RELEASE_NOTES_1.0.1.md).
+Szczegóły i znane ograniczenia: [opis wydania 1.1.0](docs/RELEASE_NOTES_1.1.0.md); poprzednie wydanie: [opis wydania 1.0.1](docs/RELEASE_NOTES_1.0.1.md).
 
 ### Co nowego w 1.0.0
 
@@ -48,13 +45,13 @@ To usprawnienia istniejącego produktu, którego fundamentami pozostają Bibliot
 
 ## Pobieranie, instalacja i aktualizacja
 
-1. Wejdź na [oficjalną stronę GitHub Releases](https://github.com/9Erza/FrameHub/releases). Po opublikowaniu v1.0.1 rozwiń **Assets** i pobierz **`FrameHub-Setup-1.0.1.exe`**. Automatyczne archiwum ZIP z kodem źródłowym na GitHubie **nie jest instalatorem** Windows.
+1. Wejdź na [oficjalną stronę GitHub Releases](https://github.com/9Erza/FrameHub/releases). Otwórz najnowsze wydanie (v1.1.0), rozwiń **Assets** i pobierz **`FrameHub-Setup-1.1.0.exe`**. Automatyczne archiwum ZIP z kodem źródłowym na GitHubie **nie jest instalatorem** Windows.
 2. Uruchom instalator w **Windows 10/11 x64** i zaakceptuj wymagane uprawnienia administratora. Jeden plik instalacyjny zawiera Intel PresentMon 2.5.1 używany przez benchmarki.
 3. **Aktualizacja starszej instalacji Inno Setup:** uruchom nowy instalator bez wcześniejszego odinstalowywania. FrameHub zachowuje identyfikator instalacji (`AppId`) używany od 0.4.0, odzyskany wcześniej z 0.3.1. Inno Setup wykorzystuje poprzedni katalog instalacji. Ustawienia i biblioteka znajdują się osobno w `%APPDATA%\FrameHub`, a benchmarki w `%LOCALAPPDATA%\FrameHub\Benchmarks`.
 
 Przed aktualizacją zamknij FrameHub — instalator może poprosić o jego zamknięcie. Przy większej aktualizacji warto wcześniej zrobić kopię swoich ustawień. Instalator pobieraj z oficjalnego wydania; aplikacja nie pobiera ani nie uruchamia go automatycznie.
 
-Szczegóły zmian, wymagania i ograniczenia znajdziesz w [dwujęzycznym opisie wydania v1.0.1](docs/RELEASE_NOTES_1.0.1.md).
+Szczegóły zmian, wymagania i ograniczenia znajdziesz w [dwujęzycznym opisie wydania v1.1.0](docs/RELEASE_NOTES_1.1.0.md).
 
 ---
 

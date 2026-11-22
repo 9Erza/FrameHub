@@ -135,17 +135,8 @@ public sealed class SessionCpuControlBackend : ISessionCpuControlBackend
                 return null;
             }
 
-            string? executablePath;
-            try
-            {
-                executablePath = process.MainModule?.FileName;
-            }
-            catch
-            {
-                // Managed-path resolution is best effort, mirroring the established
-                // identity policy: a path the OS will not provide stays unset.
-                executablePath = null;
-            }
+            // Best effort, same reader as observation: a path the OS will not provide stays unset.
+            string? executablePath = Benchmarking.ProcessExecutablePathResolver.TryGetPath(process);
 
             var fresh = new BenchmarkProcessIdentity
             {

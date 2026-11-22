@@ -88,7 +88,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     }
 
     public string BenchmarkEngineBadgeText => _isBenchmarkEngineReady
-        ? _localization.T("Benchmark.Engine.Ready")
+        ? _localization.T("Dashboard.Benchmark.EngineReady")
         : _localization.T("Dashboard.Benchmark.EngineDown");
     public string HeroScanLibraryText => _localization.T("Dashboard.Hero.ScanLibrary");
     public string HeroHowItWorksText => _localization.T("Dashboard.Hero.HowItWorks");
@@ -103,6 +103,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public string OpenEngineLogText => _localization.T("Dashboard.OpenEngineLog");
     public string OpenActivityLogText => _localization.T("Dashboard.OpenActivityLog");
     public string RecentActivityCountText => string.Format(_localization.T("Dashboard.RecentActivity.Count"), Activity.Count);
+
+    /// <summary>Neutral dot for metrics that are idle or empty (matches BrushTextMuted).</summary>
+    private const string MutedAccent = "#A8B8BB";
 
     public bool IsLiveActive => _gamingSession?.IsActive == true;
     public string ActivityLiveBadgeText => IsLiveActive
@@ -338,6 +341,15 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         try
         {
             var snapshot = await _runtime.ProcessScanner.ScanUserProcessesAsync().ConfigureAwait(false);
+            // CPU usage is a delta between two samples. On the first visit there is no earlier
+            // sample, so every row read 0%; take one more sample shortly after instead.
+            if (snapshot.Groups.Count > 0 && snapshot.Groups.All(group => group.CpuUsagePercent <= 0))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(750)).ConfigureAwait(false);
+                if (_disposed) return;
+                snapshot = await _runtime.ProcessScanner.ScanUserProcessesAsync().ConfigureAwait(false);
+            }
+
             var top = snapshot.Groups
                 .OrderByDescending(group => group.CpuUsagePercent)
                 .Take(3)
@@ -551,9 +563,10 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         Metrics.Add(new MetricCardViewModel
         {
             Title = _localization.T("Metric.BackgroundWatcher.Title"),
-            Value = _runtime.IsProfileWatcherActive ? _localization.T("Metric.BackgroundWatcher.ValueActive") : _localization.T("Metric.BackgroundWatcher.ValueOff"),
+            Value = !_runtime.IsProfileWatcherActive ? _localization.T("Metric.BackgroundWatcher.ValueOff")
+                : enabledProfiles > 0 ? _localization.T("Metric.BackgroundWatcher.ValueActive") : _localization.T("Metric.BackgroundWatcher.ValueIdle"),
             Detail = string.Format(_localization.T("Metric.BackgroundWatcher.Detail"), enabledProfiles, totalProfiles),
-            Accent = "#48C998",
+            Accent = _runtime.IsProfileWatcherActive && enabledProfiles > 0 ? "#48C998" : MutedAccent,
             TargetKey = "Profiles"
         });
         Metrics.Add(new MetricCardViewModel
@@ -563,7 +576,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             Detail = sessionSettings.AutoModeEnabled
                 ? string.Format(_localization.T("Metric.SessionOptimization.DetailAuto"), autoGames)
                 : _localization.T("Metric.SessionOptimization.DetailManual"),
-            Accent = "#F2A93B",
+            // Amber is the action colour; an inactive session is a neutral state, not a warning.
+            Accent = isSessionActive ? "#48C998" : MutedAccent,
             TargetKey = "Session"
         });
         Metrics.Add(new MetricCardViewModel
@@ -571,7 +585,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             Title = _localization.T("Metric.Profiles.Title"),
             Value = totalProfiles.ToString(_localization.UiCulture),
             Detail = string.IsNullOrWhiteSpace(_runtime.LastAppliedProfile) ? _localization.T("Metric.Profiles.Detail") : _runtime.LastAppliedProfile,
-            Accent = "#7FA8D9",
+            Accent = totalProfiles > 0 ? "#7FA8D9" : MutedAccent,
             TargetKey = "Profiles"
         });
         Metrics.Add(new MetricCardViewModel
@@ -579,7 +593,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             Title = _localization.T("Dashboard.LibraryMetric.Title"),
             Value = libraryGames.ToString(_localization.UiCulture),
             Detail = _localization.T("Dashboard.LibraryMetric.Detail"),
-            Accent = "#F2A93B",
+            Accent = libraryGames > 0 ? "#7FA8D9" : MutedAccent,
             TargetKey = "Library"
         });
 

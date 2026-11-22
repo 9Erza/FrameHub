@@ -57,7 +57,10 @@
         <shell:WindowChrome CaptionHeight="44" ResizeBorderThickness="6" GlassFrameThickness="0" UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
 
-    <Border Background="{StaticResource BrushAppBackground}" BorderBrush="{StaticResource BrushBorderDefault}" BorderThickness="1">
+    <!-- Window frame: on Windows 11 the system draws a crisp 1 px border and rounded corners (DWM,
+         see MainWindow.ApplyNativeFrame). A WPF-drawn 1 DIP border landed on fractional pixels at
+         125/150 % scaling and looked broken, so it is only used as the Windows 10 fallback. -->
+    <Border x:Name="WindowFrame" Background="{StaticResource BrushAppBackground}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="44" />
@@ -188,6 +191,13 @@
                                                Visibility="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
                                 </StackPanel>
                             </Button>
+                            <Button Style="{StaticResource FooterLinkButton}" Command="{Binding OpenStudioCommand}" ToolTip="{Binding StudioLabel}" AutomationProperties.Name="{Binding StudioLabel}" MinHeight="36" HorizontalContentAlignment="Stretch">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconGlobe}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding StudioLabel}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0"
+                                               Visibility="{Binding IsNarrowWindow, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Button>
                             <Button Style="{StaticResource FooterSupportButton}" Command="{Binding OpenSupportCommand}" ToolTip="{Binding SupportTooltip}" AutomationProperties.Name="{Binding SupportTooltip}" MinHeight="36" HorizontalContentAlignment="Stretch">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Image Source="/FrameHub.App;component/Assets/BuyMeACoffee.png" Width="17" Height="17" Stretch="Uniform" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
@@ -260,7 +270,7 @@
 
                 <!-- Active screen content. Headings live inside each view. -->
                 <Grid x:Name="ContentHost" Grid.Column="1" Margin="24,20,24,24">
-                    <ContentControl x:Name="PageContent" Content="{Binding CurrentViewModel}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+                    <ContentControl x:Name="PageContent" Content="{Binding CurrentViewModel, Converter={StaticResource CachedPageViewConverter}}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
                 </Grid>
 
                 <!-- Rail drawer: full navigation names; Escape closes and returns focus. -->
