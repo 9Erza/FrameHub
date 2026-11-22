@@ -59,6 +59,12 @@ namespace FrameHub.Core.Services
         private static extern bool SetPriorityClass(IntPtr hProcess, uint dwPriorityClass);
 
         [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetProcessAffinityMask(IntPtr hProcess, out UIntPtr lpProcessAffinityMask, out UIntPtr lpSystemAffinityMask);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetProcessAffinityMask(IntPtr hProcess, UIntPtr dwProcessAffinityMask);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool GetProcessTimes(
             IntPtr hProcess,
             out System.Runtime.InteropServices.ComTypes.FILETIME creationTime,
@@ -315,7 +321,7 @@ namespace FrameHub.Core.Services
             }
         }
 
-        public (bool Success, long Mask, OptimizationMode Mode, string Source, string Message) GetCurrentCoreSelection(int pid, Dictionary<int, uint> cpuSetMap)
+        public virtual (bool Success, long Mask, OptimizationMode Mode, string Source, string Message) GetCurrentCoreSelection(int pid, Dictionary<int, uint> cpuSetMap)
         {
             if (pid <= 0)
             {
@@ -476,6 +482,12 @@ namespace FrameHub.Core.Services
 
             try
             {
+                // CPU Sets are intersected with the hard affinity mask. A restricted mask left
+                // behind by an earlier Affinity-mode apply (or a session override being
+                // restored) would silently narrow or override the CPU Set selection, so the
+                // affinity is widened back to the system mask first.
+                ResetRestrictedAffinity(pid);
+
                 bool ok = NativeMethods.SetProcessDefaultCpuSets(hProc, selectedCpuSetIds, (uint)selectedCpuSetIds.Length);
                 if (!ok)
                 {
@@ -484,6 +496,46 @@ namespace FrameHub.Core.Services
                 }
 
                 return $"OK_CPUSETS_{selectedCpuSetIds.Length}";
+            }
+            finally
+            {
+                NativeMethods.CloseHandle(hProc);
+            }
+        }
+
+        /// <summary>
+        /// Returns the affinity mask that must be written to lift a restriction, or null when
+        /// nothing should change: the process already uses the full system mask, or the masks
+        /// are unavailable (a multi-group process reports 0 and is left untouched).
+        /// </summary>
+        public static ulong? ComputeAffinityResetMask(ulong processMask, ulong systemMask)
+        {
+            if (processMask == 0 || systemMask == 0) return null;
+            return processMask == systemMask ? null : systemMask;
+        }
+
+        private void ResetRestrictedAffinity(int pid)
+        {
+            IntPtr hProc = NativeMethods.OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (hProc == IntPtr.Zero)
+            {
+                _logger.Debug($"OpenProcess failed for PID {pid} during affinity reset: {Marshal.GetLastWin32Error()}");
+                return;
+            }
+
+            try
+            {
+                if (!GetProcessAffinityMask(hProc, out UIntPtr processMask, out UIntPtr systemMask)) return;
+                ulong? reset = ComputeAffinityResetMask(processMask.ToUInt64(), systemMask.ToUInt64());
+                if (reset is null) return;
+                if (!SetProcessAffinityMask(hProc, new UIntPtr(reset.Value)))
+                {
+                    _logger.Warn($"Could not widen affinity before applying CPU Sets for PID {pid}: {Marshal.GetLastWin32Error()}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug($"Affinity reset skipped for PID {pid}: {ex.Message}");
             }
             finally
             {

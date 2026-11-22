@@ -68,6 +68,7 @@ public sealed class LibraryService
             existing.Type = existing.Type;
             existing.AppId = string.IsNullOrWhiteSpace(existing.AppId) ? item.AppId : existing.AppId;
             existing.InstallPath = string.IsNullOrWhiteSpace(existing.InstallPath) ? item.InstallPath : existing.InstallPath;
+            RepairStaleExecutable(existing, item);
             existing.ExecutablePath = string.IsNullOrWhiteSpace(existing.ExecutablePath) ? item.ExecutablePath : existing.ExecutablePath;
             existing.LaunchPath = string.IsNullOrWhiteSpace(existing.LaunchPath) ? item.LaunchPath : existing.LaunchPath;
             existing.ProcessName = string.IsNullOrWhiteSpace(existing.ProcessName) ? item.ProcessName : existing.ProcessName;
@@ -77,6 +78,57 @@ public sealed class LibraryService
         }
 
         return Sanitize(merged);
+    }
+
+    /// <summary>
+    /// A rescan used to keep the stored executable forever, so a game that was moved, switched
+    /// to a new binary name or reinstalled on another drive stayed "executable missing" and was
+    /// never detected as running again. When the stored file no longer exists and the scan found
+    /// one that does, the scanned path (and the process name and icon derived from the old path)
+    /// are adopted. A stored path that still exists is never replaced.
+    /// </summary>
+    internal static void RepairStaleExecutable(LibraryItem existing, LibraryItem scanned)
+    {
+        if (string.IsNullOrWhiteSpace(existing.ExecutablePath) || string.IsNullOrWhiteSpace(scanned.ExecutablePath)) return;
+        if (!File.Exists(scanned.ExecutablePath)) return;
+        if (File.Exists(existing.ExecutablePath) && !IsShippingUpgrade(existing, scanned)) return;
+
+        string oldPath = existing.ExecutablePath;
+        string oldDerivedName = ProfileService.NormalizeProcessName(ExecutableResolver.ProcessNameFromExecutable(oldPath));
+        existing.ExecutablePath = scanned.ExecutablePath;
+        if (string.IsNullOrWhiteSpace(existing.ProcessName)
+            || string.Equals(ProfileService.NormalizeProcessName(existing.ProcessName), oldDerivedName, StringComparison.OrdinalIgnoreCase))
+        {
+            existing.ProcessName = scanned.ProcessName;
+        }
+
+        if (string.IsNullOrWhiteSpace(existing.IconPath) || string.Equals(existing.IconPath, oldPath, StringComparison.OrdinalIgnoreCase))
+        {
+            existing.IconPath = scanned.IconPath ?? scanned.ExecutablePath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(scanned.InstallPath) && (string.IsNullOrWhiteSpace(existing.InstallPath) || !Directory.Exists(existing.InstallPath)))
+        {
+            existing.InstallPath = scanned.InstallPath;
+        }
+    }
+
+    /// <summary>
+    /// Store-scanned items (launched through the store protocol) that were recorded with an
+    /// Unreal bootstrap executable move to the "-Shipping" binary of the same install, which is
+    /// the process that actually runs. Manually added items are never changed.
+    /// </summary>
+    private static bool IsShippingUpgrade(LibraryItem existing, LibraryItem scanned)
+    {
+        if (existing.Source is not (LibrarySource.Steam or LibrarySource.Epic) || existing.Source != scanned.Source) return false;
+        static bool IsShipping(string path) => Path.GetFileNameWithoutExtension(path).EndsWith("-Shipping", StringComparison.OrdinalIgnoreCase);
+        if (IsShipping(existing.ExecutablePath!) || !IsShipping(scanned.ExecutablePath!)) return false;
+        string? installPath = TryNormalizePath(scanned.InstallPath);
+        string? existingPath = TryNormalizePath(existing.ExecutablePath);
+        string? scannedPath = TryNormalizePath(scanned.ExecutablePath);
+        return installPath != null && existingPath != null && scannedPath != null
+            && existingPath.StartsWith(installPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            && scannedPath.StartsWith(installPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsSameItem(LibraryItem a, LibraryItem b)

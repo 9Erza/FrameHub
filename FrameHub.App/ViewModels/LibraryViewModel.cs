@@ -929,7 +929,16 @@ public sealed class LibraryViewModel : ViewModelBase, IDisposable
         RefreshRuntimeState();
     }
 
-    private async void RefreshRuntimeState()
+    /// <summary>
+    /// Completion of the most recent runtime-state refresh. The refresh is fire-and-forget for
+    /// the UI; tests without a dispatcher await it so its continuation (which runs on the
+    /// thread pool when no synchronization context exists) cannot race their own assertions.
+    /// </summary>
+    internal Task RuntimeRefreshTask { get; private set; } = Task.CompletedTask;
+
+    private void RefreshRuntimeState() => RuntimeRefreshTask = RefreshRuntimeStateAsync();
+
+    private async Task RefreshRuntimeStateAsync()
     {
         int sequence = ++_runtimeRefreshSequence;
         // Materialize on the UI thread before the first await: the scanner

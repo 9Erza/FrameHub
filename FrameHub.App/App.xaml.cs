@@ -29,8 +29,37 @@ public partial class App : WpfApplication
             return;
         }
 
+        NormalizeOwnProcessPriority(new ProcessService());
         ApplyHighContrastThemeIfNeeded();
         base.OnStartup(e);
+    }
+
+    /// <summary>
+    /// Older elevated autostart tasks were registered with the Task Scheduler default
+    /// priority (BELOW_NORMAL). Games launched from FrameHub inherit a BELOW_NORMAL or IDLE
+    /// parent priority class, so FrameHub restores its own process to NORMAL at startup.
+    /// It never raises priority above NORMAL and never touches any other process.
+    /// </summary>
+    internal static bool NormalizeOwnProcessPriority(ProcessService processService)
+    {
+        try
+        {
+            int pid = Environment.ProcessId;
+            var current = processService.GetPriority(pid);
+            if (current is not (System.Diagnostics.ProcessPriorityClass.BelowNormal or System.Diagnostics.ProcessPriorityClass.Idle))
+            {
+                return false;
+            }
+
+            bool changed = processService.SetPriority(pid, System.Diagnostics.ProcessPriorityClass.Normal);
+            LoggerService.Instance.Info($"FrameHub started with {current} priority; restored to Normal: {changed}.");
+            return changed;
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.Warn($"Could not normalize FrameHub process priority: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>

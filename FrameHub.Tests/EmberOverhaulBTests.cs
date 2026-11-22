@@ -478,6 +478,9 @@ public sealed class EmberOverhaulBTests
         var runtime = new AppRuntimeService(settingsPath);
         var localization = new LocalizationService(runtime.SettingsService);
         var viewModel = new LibraryViewModel(localization, runtime, libraryService, scanner, launcher);
+        // Without a dispatcher the initial runtime refresh resumes on the thread pool; let it
+        // finish so it cannot rebuild FilteredItems while a test enumerates or asserts on it.
+        viewModel.RuntimeRefreshTask.GetAwaiter().GetResult();
         return new LibraryHost(viewModel, launcher, libraryService);
     }
 

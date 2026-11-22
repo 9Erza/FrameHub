@@ -28,7 +28,7 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 - **PATH / PROJECT:** `FrameHub.Core/Services/ProcessService.cs` / Core
 - **RESPONSIBILITY / AUTHORITATIVE FOR:** priority, affinity, CPU Sets, user-process classification, current core selection.
 - **LIFETIME / MAJOR CONSUMERS:** App runtime singleton; Optimization and process UI.
-- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** no loop; Win32 process handles and CPU Set APIs.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** no loop; Win32 process handles and CPU Set APIs. Applying CPU Sets first widens a restricted hard-affinity mask back to the system mask (CPU Sets are intersected with affinity, so a stale mask would silently override the selection).
 - **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** call only after identity validation and benchmark arbitration.
 
 ### OptimizationService
@@ -37,7 +37,7 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 - **PATH / PROJECT:** `FrameHub.Core/Services/OptimizationService.cs` / Core
 - **RESPONSIBILITY / AUTHORITATIVE FOR:** profile application, signature deduplication, scheduling-operation result projection.
 - **LIFETIME / MAJOR CONSUMERS:** App runtime singleton; watcher and manual process/profile/Library commands.
-- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** applied-signature cache; reacquires PID and delegates native work; no timer.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** locked applied-signature cache keyed by PID + start time; a cached entry is skipped without the identity re-check unless a cheap read-only drift check (current core selection / priority differs from the profile) says the process changed its own scheduling, in which case identity is revalidated and the profile re-applied; unreadable state never counts as drift; no timer.
 - **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** caller must hold benchmark mutation lease; keep fresh PID/start/name/path matching.
 
 ## Session Optimization
@@ -169,8 +169,8 @@ Meaningful runtime authorities and extension points are cataloged below. Paths a
 - **PATH / PROJECT:** `FrameHub.Core/Services/Library/LibraryService.cs` / Core
 - **RESPONSIBILITY / AUTHORITATIVE FOR:** sanitize, merge, load, and persist Library items.
 - **LIFETIME / MAJOR CONSUMERS:** service instances in Library presentation and App providers/coordinator query.
-- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** file-backed atomic JSON; no timer/native work.
-- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** remote providers reload server-side items; preserve sanitization.
+- **STATE/CACHE / OS/NATIVE WORK / BACKGROUND WORK:** file-backed atomic JSON; no timer/native work. A rescan merge keeps a stored executable that still exists, adopts the scanned executable when the stored one is gone, and moves Steam/Epic items from an Unreal bootstrap to the `-Shipping` binary of the same install (manual items are never changed).
+- **TRUST/SECURITY ROLE / NOTES FOR EXTENSION:** remote providers reload server-side items; preserve sanitization. Launch (`AppLibraryLaunchService`): Steam via `steam://run/<AppId>`, Epic via `com.epicgames.launcher://apps/<AppName>?action=launch&silent=true` (identifier allow-list), Riot via the official shortcut, everything else via the trusted executable; stored executable paths of store items are observation-only.
 
 ### AppLibraryProvider
 

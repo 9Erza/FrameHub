@@ -88,14 +88,26 @@ public sealed class ScheduledTaskStartupReader(ITaskSchedulerQuery query, string
             bool elevated = string.Equals(xml.Descendants(ns + "RunLevel").FirstOrDefault()?.Value, "HighestAvailable", StringComparison.OrdinalIgnoreCase);
             string? path = NormalizePath(xml.Descendants(ns + "Command").FirstOrDefault()?.Value);
             string arguments = xml.Descendants(ns + "Arguments").FirstOrDefault()?.Value ?? string.Empty;
+            bool normalPriority = HasNormalPriority(xml.Descendants(ns + "Settings").Elements(ns + "Priority").FirstOrDefault()?.Value);
             return new(true, enabled, path, arguments, path != null && File.Exists(path), logon, elevated,
-                PathsEqual(path, expectedExecutablePath), string.Equals(arguments, desired.Arguments, StringComparison.OrdinalIgnoreCase));
+                PathsEqual(path, expectedExecutablePath), string.Equals(arguments, desired.Arguments, StringComparison.OrdinalIgnoreCase),
+                HasNormalPriority: normalPriority);
         }
         catch (Exception ex)
         {
             return new(false, false, null, string.Empty, false, false, false, false, false, false, ex.Message);
         }
     }
+
+    /// <summary>
+    /// Task Scheduler priority 0–10 maps to process priority classes; 4–6 is NORMAL.
+    /// A missing element means the scheduler default of 7 (BELOW_NORMAL), which made the
+    /// autostarted FrameHub — and every game it launched, because children of a
+    /// BELOW_NORMAL parent inherit that class — run below normal priority.
+    /// </summary>
+    public static bool HasNormalPriority(string? priorityValue) =>
+        int.TryParse(priorityValue, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int priority)
+        && priority <= 6;
 
     private static string? NormalizePath(string? path)
     {
