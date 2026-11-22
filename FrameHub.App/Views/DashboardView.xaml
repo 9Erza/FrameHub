@@ -102,18 +102,17 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border Style="{StaticResource EvidenceRow}" Margin="0,0,16,0">
-                                    <Button Style="{StaticResource QuietButton}" Command="{Binding DataContext.NavigateMetricCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding TargetKey}" AutomationProperties.Name="{Binding Title}" HorizontalContentAlignment="Stretch" Padding="0">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Title}" Style="{StaticResource DataTitleText}" />
-                                                <TextBlock Text="{Binding Detail}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                    <Button Style="{StaticResource QuietButton}" Command="{Binding DataContext.NavigateMetricCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding TargetKey}" AutomationProperties.Name="{Binding Title}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top" VerticalAlignment="Stretch" Padding="0">
+                                        <!-- Title, value, detail stacked: side by side the value squeezed the title
+                                             ("Monitor profil…", "Optymalizac…") at 1280 px windows. -->
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="7" Height="7" Margin="0,0,8,0" Fill="{Binding Accent}" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Title}" Style="{StaticResource DataTitleText}" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
-                                                <TextBlock Text="{Binding Value}" Style="{StaticResource SecondaryMetricText}" VerticalAlignment="Center" />
-                                                <Ellipse Width="7" Height="7" Margin="10,0,0,0" Fill="{Binding Accent}" />
-                                            </StackPanel>
-                                        </Grid>
+                                            <TextBlock Text="{Binding Value}" Style="{StaticResource SecondaryMetricText}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                        </StackPanel>
                                     </Button>
                                 </Border>
                             </DataTemplate>
