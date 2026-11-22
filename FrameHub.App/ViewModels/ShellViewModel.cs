@@ -334,7 +334,9 @@ public sealed class ShellViewModel : ViewModelBase, IDisposable
         Navigate("Benchmarks");
     }
 
-    private void OnCreateFirstProfileRequested() => Navigate("Processes");
+    // Game CPU settings are created in the Library (one place for games); Processes & CPU stays for
+    // one-off changes and non-game programs.
+    private void OnCreateFirstProfileRequested() => Navigate("Library");
 
     private void OnRuntimeStateChanged(object? sender, EventArgs e) => _benchmarkViewModel.RefreshHotkeyStatus();
 
