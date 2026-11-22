@@ -684,14 +684,7 @@ public class ProcessSuspendService
 
     private static string? TryGetProcessPath(Process process)
     {
-        try
-        {
-            return process.MainModule?.FileName;
-        }
-        catch
-        {
-            return null;
-        }
+        return Benchmarking.ProcessExecutablePathResolver.TryGetPath(process);
     }
 
     public static string NormalizeProcessName(string? processName)

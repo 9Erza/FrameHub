@@ -303,15 +303,7 @@ namespace FrameHub.Core.Services
                     return false;
                 }
 
-                string? execPath = null;
-                try
-                {
-                    execPath = proc.MainModule?.FileName;
-                }
-                catch
-                {
-                    execPath = null;
-                }
+                string? execPath = Benchmarking.ProcessExecutablePathResolver.TryGetPath(proc);
 
                 return MatchesIdentityCore(expected, proc.Id, procName, startUtc, execPath);
             }

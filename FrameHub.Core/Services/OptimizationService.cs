@@ -60,8 +60,7 @@ namespace FrameHub.Core.Services
 
         private static string? TryGetProcessPath(Process process)
         {
-            try { return process.MainModule?.FileName; }
-            catch { return null; }
+            return Benchmarking.ProcessExecutablePathResolver.TryGetPath(process);
         }
 
         public OptimizationBatchResult ApplyProfilesForSnapshots(IEnumerable<ProcessProfile> profiles, IEnumerable<ProcessGroupSnapshot> snapshots, bool allowRealtimePriority, bool force)
@@ -244,7 +243,7 @@ namespace FrameHub.Core.Services
                 }
 
                 string? path;
-                try { path = process.MainModule?.FileName; } catch { path = null; }
+                path = Benchmarking.ProcessExecutablePathResolver.TryGetPath(process);
                 return ProfileService.MatchesIdentity(profile, process.ProcessName, path);
             }
             catch { return false; }

@@ -226,6 +226,17 @@ public sealed class DetectionAndSchedulingFixTests
         Assert.AreEqual(expected, EpicLibraryScanner.IsInstalledGameManifest(doc.RootElement));
     }
 
+    // ---- Process path reader ----
+
+    [TestMethod]
+    public void ProcessPathReader_MatchesManagedPathForOwnProcess()
+    {
+        using Process current = Process.GetCurrentProcess();
+        string? path = FrameHub.Core.Services.Benchmarking.ProcessExecutablePathResolver.TryGetPath(current);
+        Assert.IsNotNull(path);
+        Assert.AreEqual(Path.GetFullPath(current.MainModule!.FileName), Path.GetFullPath(path), ignoreCase: true);
+    }
+
     // ---- Executable resolution ----
 
     [TestMethod]
