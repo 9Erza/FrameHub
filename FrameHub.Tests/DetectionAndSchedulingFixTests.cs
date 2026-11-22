@@ -458,6 +458,9 @@ public sealed class DetectionAndSchedulingFixTests
             return "OK_AFFINITY";
         }
 
+        // Real test-host priority varies between machines; keep drift checks synthetic.
+        public override ProcessPriorityClass? GetPriority(int pid) => null;
+
         public override (bool Success, long Mask, OptimizationMode Mode, string Source, string Message) GetCurrentCoreSelection(int pid, Dictionary<int, uint> cpuSetMap) =>
             CurrentMask is long mask
                 ? (true, mask, OptimizationMode.Affinity, "Affinity", "synthetic")
